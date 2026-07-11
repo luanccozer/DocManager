@@ -31,15 +31,13 @@ class LoadingScreen(ctk.CTk):
         # Definimos uma cor de fundo específica (
 #000001) e dizemos ao Windows 
         # para tornar essa cor invisível.
-        cor_transparente = "
-#000001" 
+        cor_transparente = "#000001" 
         self.config(bg=cor_transparente)
         self.attributes("-transparentcolor", cor_transparente)
 
         # Criamos o "Corpo" real da janela (Arredondado)
         # Este será o fundo visível
-        self.main_frame = ctk.CTkFrame(self, fg_color="
-#2C3E50", corner_radius=20)
+        self.main_frame = ctk.CTkFrame(self, fg_color="#2C3E50", corner_radius=20)
         self.main_frame.pack(fill="both", expand=True)
         # Fecha o Splash do PyInstaller se existir
         try:
@@ -71,27 +69,22 @@ class LoadingScreen(ctk.CTk):
         self.lbl_titulo = ctk.CTkLabel(self.container, text="DOC MANAGER", font=("Segoe UI", 24, "bold"), text_color="white")
         self.lbl_titulo.pack(pady=(0, 5))
         versao_app = os.getenv("VERSAO", "2.0.0") 
-        self.lbl_subtitulo = ctk.CTkLabel(self.container, text=f"Versão {versao_app}", font=("Segoe UI", 12), text_color="
-#BDC3C7")
+        self.lbl_subtitulo = ctk.CTkLabel(self.container, text=f"Versão {versao_app}", font=("Segoe UI", 12), text_color="#BDC3C7")
         self.lbl_subtitulo.pack(pady=(0, 25))
         # 3. BARRA DE PROGRESSO "SLIM"
-        self.progress = ctk.CTkProgressBar(self.container, width=280, height=8, corner_radius=4, progress_color="
-#2ECC71", fg_color="
-#1A252F", border_width=0)
+        self.progress = ctk.CTkProgressBar(self.container, width=280, height=8, corner_radius=4, progress_color="#2ECC71", fg_color="#1A252F", border_width=0)
         self.progress.set(0)
         self.progress.pack(pady=(0, 10))
 
         # Status pequeno
-        self.lbl_status = ctk.CTkLabel(self.container, text="Iniciando...", font=("Consolas", 10), text_color="
-#7f8c8d")
+        self.lbl_status = ctk.CTkLabel(self.container, text="Iniciando...", font=("Consolas", 10), text_color="#7f8c8d")
         self.lbl_status.pack()
         # 4. CHANGELOG (Notas da Versão no canto inferior esquerdo)
         self.frame_changelog = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         # 'sw' (South-West) ancora o frame no canto inferior esquerdo
         self.frame_changelog.place(relx=0.05, rely=0.95, anchor="sw") 
         # Título bem discreto
-        self.lbl_change_title = ctk.CTkLabel(self.frame_changelog, text="Atualizações da versão:", font=("Segoe UI", 10, "bold"), text_color="
-#BDC3C7")
+        self.lbl_change_title = ctk.CTkLabel(self.frame_changelog, text="Atualizações da versão:", font=("Segoe UI", 10, "bold"), text_color="#BDC3C7")
         self.lbl_change_title.pack(anchor="w")
         # Texto das mudanças
         texto_mudancas = (
@@ -102,8 +95,7 @@ class LoadingScreen(ctk.CTk):
             "• 2.2.2. Relatórios: Adicionado o relatório de integração"
         )
         # Fonte tamanho 9, cor cinza escuro para não chamar muita atenção
-        self.lbl_mudancas = ctk.CTkLabel(self.frame_changelog, text=texto_mudancas, font=("Segoe UI", 9), text_color="
-#7f8c8d", justify="left")
+        self.lbl_mudancas = ctk.CTkLabel(self.frame_changelog, text=texto_mudancas, font=("Segoe UI", 9), text_color="#7f8c8d", justify="left")
         self.lbl_mudancas.pack(anchor="w")
     def atualizar_status(self, texto, valor):
         self.lbl_status.configure(text=texto)

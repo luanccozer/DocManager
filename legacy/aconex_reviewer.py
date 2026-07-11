@@ -249,9 +249,7 @@ class MappingView(ctk.CTkFrame):
         self.frame_controle.grid(row=3, column=0, padx=20, pady=5, sticky="ew")
         self.criar_componentes_controle()
         # --- BOTÃO DE DELTA ---
-        self.btn_delta = ctk.CTkButton(self, text="⏳ Analisar Mudanças por Período", command=self.abrir_delta_view, fg_color="
-#5A5A5A", hover_color="
-#404040")
+        self.btn_delta = ctk.CTkButton(self, text="⏳ Analisar Mudanças por Período", command=self.abrir_delta_view, fg_color="#5A5A5A", hover_color="#404040")
         self.btn_delta.grid(row=4, column=0, padx=20, pady=(5, 10), sticky="w")
         self.progress_bar = ctk.CTkProgressBar(self)
         self.progress_bar.grid(row=5, column=0, padx=20, pady=(10, 5), sticky="ew")
@@ -857,9 +855,7 @@ class DeltaView(ctk.CTkToplevel):
         self.seg_visao = ctk.CTkSegmentedButton(self.frame_top, variable=self.var_tipo_visao, values=["Efetiva", "Bruta"], command=lambda _: self.tree.delete(*self.tree.get_children()))
         self.seg_visao.pack(side="left", padx=5)
 
-        self.btn_filtrar = ctk.CTkButton(self.frame_top, text="Verificar Mudanças", command=self.executar_analise, fg_color="
-#E59400", hover_color="
-#B87700")
+        self.btn_filtrar = ctk.CTkButton(self.frame_top, text="Verificar Mudanças", command=self.executar_analise, fg_color="#E59400", hover_color="#B87700")
         self.btn_filtrar.pack(side="left", padx=20)
         # --- NOVO: Checkbox de Filtro ---
         self.var_ignorar_aprovados = ctk.BooleanVar(value=False)
@@ -912,19 +908,14 @@ class DeltaView(ctk.CTkToplevel):
         self.lbl_status = ctk.CTkLabel(self.frame_footer, text="Aguardando filtro...", text_color="gray")
         self.lbl_status.pack(side="left")
 
-        self.btn_exportar = ctk.CTkButton(self.frame_footer, text="📊 Exportar Excel", command=self.exportar_excel, fg_color="
-#1F538D", state="disabled")
+        self.btn_exportar = ctk.CTkButton(self.frame_footer, text="📊 Exportar Excel", command=self.exportar_excel, fg_color="#1F538D", state="disabled")
         self.btn_exportar.pack(side="right")
     def configurar_estilo_treeview(self):
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Treeview", background="
-#2b2b2b", foreground="white", fieldbackground="
-#2b2b2b", rowheight=30, font=("Arial", 10))
-        style.configure("Treeview.Heading", background="
-#3a3a3a", foreground="white", font=("Arial", 10, "bold"))
-        style.map("Treeview", background=[('selected', '
-#1f538d')])
+        style.configure("Treeview", background="#2b2b2b", foreground="white", fieldbackground="#2b2b2b", rowheight=30, font=("Arial", 10))
+        style.configure("Treeview.Heading", background="#3a3a3a", foreground="white", font=("Arial", 10, "bold"))
+        style.map("Treeview", background=[('selected', '#1f538d')])
     def on_double_click(self, event):
         # Pega o item clicado
         item_id = self.tree.identify_row(event.y)
@@ -1283,9 +1274,7 @@ class StatusCheckView(ctk.CTkFrame):
         self.entry_row = ctk.CTkEntry(frame_row, textvariable=self.header_row_var, width=50)
         self.entry_row.pack(side="left", padx=5)
 
-        self.btn_load_cols = ctk.CTkButton(frame_row, text="Carregar Colunas", command=self.carregar_colunas, fg_color="
-#E59400", hover_color="
-#B87700", width=120)
+        self.btn_load_cols = ctk.CTkButton(frame_row, text="Carregar Colunas", command=self.carregar_colunas, fg_color="#E59400", hover_color="#B87700", width=120)
         self.btn_load_cols.pack(side="left", padx=10)
         # 3. Mapeamento de Colunas
         ctk.CTkLabel(self.frame_config, text="3. Identifique as Colunas:", font=ctk.CTkFont(weight="bold")).grid(row=4, column=0, padx=10, pady=(15,5), sticky="w")
@@ -1834,9 +1823,7 @@ class AconexView(ctk.CTkFrame):
         self.frame_action = ctk.CTkFrame(self, fg_color="transparent")
         self.frame_action.grid(row=2, column=0, padx=20, pady=20, sticky="ew")
 
-        self.btn_run = ctk.CTkButton(self.frame_action, text="INICIAR EXTRAÇÃO TOTAL", command=self.iniciar_thread, height=50, fg_color="
-#b30000", hover_color="
-#800000")
+        self.btn_run = ctk.CTkButton(self.frame_action, text="INICIAR EXTRAÇÃO TOTAL", command=self.iniciar_thread, height=50, fg_color="#b30000", hover_color="#800000")
         self.btn_run.pack(fill="x")
 
         self.progress = ctk.CTkProgressBar(self.frame_action)
@@ -2391,8 +2378,7 @@ class ReportView(ctk.CTkFrame):
             'bold': True, 
             'bottom': 1, 
             'text_wrap': True,
-            'bg_color': '
-#4F81BD',
+            'bg_color': '#4F81BD',
             'font_color': 'white'
         })
 
@@ -2484,9 +2470,7 @@ class DashboardView(ctk.CTkFrame):
             self.frame_excel_area, 
             text="Gerar Histórico Formatado (.xlsx) 📥", 
             command=self.gerar_excel_historico,
-            fg_color="
-#E59400", hover_color="
-#B87700",
+            fg_color="#E59400", hover_color="#B87700",
             state="disabled",
             width=250,
             height=35
@@ -2503,17 +2487,14 @@ class DashboardView(ctk.CTkFrame):
             self.frame_dash_area, 
             text="Iniciar Dashboard no Navegador 🚀", 
             command=self.abrir_dashboard_web,
-            fg_color="
-#2CC985", hover_color="
-#00A36C",
+            fg_color="#2CC985", hover_color="#00A36C",
             state="disabled",
             width=250,
             height=35
         )
         self.btn_launch.pack(anchor="w", pady=5)
 
-        self.lbl_status_dash = ctk.CTkLabel(self.frame_dash_area, text="Status: Servidor Parado", text_color="
-#FF474C", font=ctk.CTkFont(size=11, weight="bold"))
+        self.lbl_status_dash = ctk.CTkLabel(self.frame_dash_area, text="Status: Servidor Parado", text_color="#FF474C", font=ctk.CTkFont(size=11, weight="bold"))
         self.lbl_status_dash.pack(anchor="w")
         # --- SEÇÃO 3: LOG DE EXECUÇÃO (Igual ao StatusCheck) ---
         self.textbox_log = ctk.CTkTextbox(self)
@@ -2547,14 +2528,12 @@ class DashboardView(ctk.CTkFrame):
         sucesso, msg = self.data_manager.carregar_aconex(caminho, aba_alvo)
         if sucesso:
             self.caminho_arquivo_atual = caminho
-            self.lbl_arquivo.configure(text=os.path.basename(caminho), text_color="
-#2CC985")
+            self.lbl_arquivo.configure(text=os.path.basename(caminho), text_color="#2CC985")
             self.btn_export.configure(state="normal")
             self.btn_launch.configure(state="normal")
             self.log("Base de dados carregada com sucesso na memória.")
         else:
-            self.lbl_arquivo.configure(text="Erro no arquivo", text_color="
-#FF474C")
+            self.lbl_arquivo.configure(text="Erro no arquivo", text_color="#FF474C")
             self.log(f"ERRO: {msg}")
             messagebox.showerror("Erro", msg)
         self.btn_load.configure(state="normal", text="Carregar Arquivo .xlsx")
@@ -2627,8 +2606,7 @@ class DashboardView(ctk.CTkFrame):
         self.server_thread.start()
 
         self.server_running = True
-        self.lbl_status_dash.configure(text="Status: Rodando (Porta 8050)", text_color="
-#2CC985")
+        self.lbl_status_dash.configure(text="Status: Rodando (Porta 8050)", text_color="#2CC985")
         self.btn_launch.configure(state="normal", text="Reabrir Navegador")
         self.log("Servidor Dash iniciado com sucesso em http://127.0.0.1:8050/")
 
@@ -2659,9 +2637,7 @@ class CorellaView(ctk.CTkFrame):
         # LINHA 1: Corella
         ctk.CTkLabel(self.frame_files, text="1. Arquivo Corella:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
-        self.btn_corella = ctk.CTkButton(self.frame_files, text="Selecionar", command=self.select_corella, width=100, fg_color="
-#E67E22", hover_color="
-#D35400")
+        self.btn_corella = ctk.CTkButton(self.frame_files, text="Selecionar", command=self.select_corella, width=100, fg_color="#E67E22", hover_color="#D35400")
         self.btn_corella.grid(row=0, column=1, padx=5, pady=10, sticky="w")
 
         self.lbl_corella = ctk.CTkLabel(self.frame_files, text="Nenhum arquivo", text_color="gray")
@@ -2669,9 +2645,7 @@ class CorellaView(ctk.CTkFrame):
         # LINHA 2: Aconex
         ctk.CTkLabel(self.frame_files, text="2. Aconex (Excel):", font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
-        self.btn_aconex = ctk.CTkButton(self.frame_files, text="Selecionar", command=self.select_aconex, width=100, fg_color="
-#2980B9", hover_color="
-#2471A3")
+        self.btn_aconex = ctk.CTkButton(self.frame_files, text="Selecionar", command=self.select_aconex, width=100, fg_color="#2980B9", hover_color="#2471A3")
         self.btn_aconex.grid(row=1, column=1, padx=5, pady=10, sticky="w")
 
         # Frame interno para Nome + Aba ficarem na mesma linha sem quebrar
@@ -2699,13 +2673,9 @@ class CorellaView(ctk.CTkFrame):
         self.frame_actions = ctk.CTkFrame(self)
         self.frame_actions.grid(row=3, column=0, padx=20, pady=20, sticky="ew")
 
-        self.btn_task1 = ctk.CTkButton(self.frame_actions, text="🔍 Task 1: Documentos Faltantes no Corella", command=self.run_missing, state="disabled", height=40, fg_color="
-#C0392B", hover_color="
-#A93226")
+        self.btn_task1 = ctk.CTkButton(self.frame_actions, text="🔍 Task 1: Documentos Faltantes no Corella", command=self.run_missing, state="disabled", height=40, fg_color="#C0392B", hover_color="#A93226")
         self.btn_task1.pack(side="left", padx=20, pady=10, expand=True, fill="x")
-        self.btn_task2 = ctk.CTkButton(self.frame_actions, text="📊 Task 2: Comparar Versões (Divergências)", command=self.run_versions, state="disabled", height=40, fg_color="
-#27AE60", hover_color="
-#229954")
+        self.btn_task2 = ctk.CTkButton(self.frame_actions, text="📊 Task 2: Comparar Versões (Divergências)", command=self.run_versions, state="disabled", height=40, fg_color="#27AE60", hover_color="#229954")
         self.btn_task2.pack(side="right", padx=20, pady=10, expand=True, fill="x")
         # --- LOG ---
         self.textbox_log = ctk.CTkTextbox(self)
@@ -2913,9 +2883,7 @@ class KaizenView(ctk.CTkFrame):
         self.frame_arquivos.grid_columnconfigure(0, weight=1, uniform="col")
         self.frame_arquivos.grid_columnconfigure(1, weight=1, uniform="col")
         # Fundo mais escuro que a base do app para dar contraste, mantendo bordas arredondadas
-        estilo_card = {"fg_color": ("
-#D4D4D4", "
-#1A1A1A"), "corner_radius": 8}
+        estilo_card = {"fg_color": ("#D4D4D4", "#1A1A1A"), "corner_radius": 8}
         # --- OS 5 CARDS DE FUNDO ---
         # 1. Mapeamento Original (Esquerda)
         self.frame_mae = ctk.CTkFrame(self.frame_arquivos, **estilo_card)
@@ -3688,9 +3656,7 @@ class MainApp(ctk.CTk):
         self.btn_hist.grid(row=6, column=0, padx=20, pady=10)
         self.btn_corella = ctk.CTkButton(self.sidebar_frame, text="Corella vs Aconex", command=lambda: self.select_frame("corella"))
         self.btn_corella.grid(row=7, column=0, padx=20, pady=10) 
-        self.btn_kaizen = ctk.CTkButton(self.sidebar_frame, text="Mapa Kaizen C&C", command=lambda: self.select_frame("kaizen")) #fg_color="
-#6c5ce7", hover_color="
-#4a3bbf")
+        self.btn_kaizen = ctk.CTkButton(self.sidebar_frame, text="Mapa Kaizen C&C", command=lambda: self.select_frame("kaizen")) #fg_color="#6c5ce7", hover_color="#4a3bbf")
         self.btn_kaizen.grid(row=8, column=0, padx=20, pady=10)
         # ---------------------------------------------------------
         # 3. CONTROLES DE APARÊNCIA (Claro/Escuro)

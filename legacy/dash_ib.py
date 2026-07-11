@@ -19,50 +19,37 @@ app.index_string = '''
         <style>
             /* --- ESTILO GERAL DE SCROLL --- */
             ::-webkit-scrollbar { width: 8px; }
-            ::-webkit-scrollbar-track { background: 
-#1A252F; }
-            ::-webkit-scrollbar-thumb { background: 
-#5D6D7E; border-radius: 4px; }
-            ::-webkit-scrollbar-thumb:hover { background: 
-#3498db; }
+            ::-webkit-scrollbar-track { background: #1A252F; }
+            ::-webkit-scrollbar-thumb { background: #5D6D7E; border-radius: 4px; }
+            ::-webkit-scrollbar-thumb:hover { background: #3498db; }
             /* --- DROPDOWN CONTROL (A CAIXA ONDE VOCÊ CLICA) --- */
             .Select-control {
-                background-color: 
-#FFFFFF !important;
-                border: 1px solid 
-#BDC3C7 !important;
+                background-color: #FFFFFF !important;
+                border: 1px solid #BDC3C7 !important;
                 border-radius: 4px !important;
             }
             /* Texto selecionado (Tags) */
             .Select-value {
-                background-color: 
-#ECF0F1 !important;
-                border: 1px solid 
-#BDC3C7 !important;
-                color: 
-#2C3E50 !important;
+                background-color: #ECF0F1 !important;
+                border: 1px solid #BDC3C7 !important;
+                color: #2C3E50 !important;
                 margin: 2px !important;
             }
-            .Select-value-label { color: 
-#2C3E50 !important; }
+            .Select-value-label { color: #2C3E50 !important; }
             /* --- O MENU FLUTUANTE (CORREÇÃO DE SOBREPOSIÇÃO) --- */
 
             /* Container da lista de opções */
             .Select-menu-outer {
                 z-index: 9999 !important;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.4) !important;
-                border: 1px solid 
-#34495E !important;
-                background-color: 
-#ffffff !important;
+                border: 1px solid #34495E !important;
+                background-color: #ffffff !important;
             }
             /* --- AS OPÇÕES (AQUI ESTÁ A MÁGICA VISUAL) --- */
             .Select-option {
-                color: 
-#2C3E50 !important;
+                color: #2C3E50 !important;
                 padding: 10px 12px !important;
-                border-bottom: 1px solid 
-#F2F3F4;
+                border-bottom: 1px solid #F2F3F4;
                 background-color: white !important;
                 transition: all 0.2s ease-in-out;
 
@@ -80,10 +67,8 @@ app.index_string = '''
                 height: auto !important;
 
                 /* Cores e Destaque */
-                background-color: 
-#2C3E50 !important; /* Fundo Escuro */
-                color: 
-#F1C40F !important; /* Texto Amarelo Ouro */
+                background-color: #2C3E50 !important; /* Fundo Escuro */
+                color: #F1C40F !important; /* Texto Amarelo Ouro */
 
                 /* Efeito de Pop-out */
                 cursor: pointer;
@@ -91,15 +76,13 @@ app.index_string = '''
                 z-index: 10000 !important; /* Força ficar no topo */
 
                 /* Bordas e Sombras para dar profundidade */
-                border-left: 5px solid 
-#3498db;
+                border-left: 5px solid #3498db;
                 box-shadow: 0 5px 15px rgba(0,0,0,0.3);
                 transform: scale(1.01); /* Leve zoom */
             }
             /* Garante que o input de texto e textareas fiquem bonitos */
             .form-control:focus {
-                border-color: 
-#3498db;
+                border-color: #3498db;
                 box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
             }
         </style>
@@ -116,24 +99,15 @@ app.index_string = '''
 '''
 # Paleta de Cores Base
 CORES = {
-    'sidebar': '
-#1A252F',
-    'background': '
-#F0F2F5',
-    'card_bg': '
-#FFFFFF',
-    'text_primary': '
-#2C3E50',
-    'Barra_Envio': '
-#2980b9',   
-    'Barra_Retorno': '
-#27ae60', 
-    'Linha_Acumulado': '
-#8e44ad',
-    'Delay_Itaipu': '
-#d35400',
-    'Delay_CMI': '
-#c0392b'
+    'sidebar': '#1A252F',
+    'background': '#F0F2F5',
+    'card_bg': '#FFFFFF',
+    'text_primary': '#2C3E50',
+    'Barra_Envio': '#2980b9',   
+    'Barra_Retorno': '#27ae60', 
+    'Linha_Acumulado': '#8e44ad',
+    'Delay_Itaipu': '#d35400',
+    'Delay_CMI': '#c0392b'
 }
 # Variável Global
 df_wide_global = pd.DataFrame()
@@ -165,13 +139,10 @@ def create_layout(df_inicial):
         return [{'label': str(x), 'value': str(x), 'title': str(x)} for x in sorted(df_inicial[col].dropna().unique())]
     # Estilos
     style_input_white = {
-        'backgroundColor': '
-#FFFFFF', 'border': 'none', 'borderRadius': '4px',
-        'color': '
-#2C3E50', 'fontSize': '0.9rem', 'padding': '10px', 'width': '100%'
+        'backgroundColor': '#FFFFFF', 'border': 'none', 'borderRadius': '4px',
+        'color': '#2C3E50', 'fontSize': '0.9rem', 'padding': '10px', 'width': '100%'
     }
-    label_style = {'color': '
-#BDC3C7', 'fontWeight': 'bold', 'fontSize': '0.75rem', 'marginTop': '15px', 'marginBottom': '5px', 'textTransform': 'uppercase'}
+    label_style = {'color': '#BDC3C7', 'fontWeight': 'bold', 'fontSize': '0.75rem', 'marginTop': '15px', 'marginBottom': '5px', 'textTransform': 'uppercase'}
     # --- SIDEBAR FIXA ---
     sidebar = html.Div([
         # Cabeçalho
@@ -236,11 +207,9 @@ def create_layout(df_inicial):
                         id='table-drilldown',
                         columns=[{"name": "Documento", "id": "No. do Documento"}, {"name": "Título", "id": "Título"}, {"name": "Rev", "id": "Revisão"}, {"name": "Envio", "id": "Data Envio"}, {"name": "Status", "id": "Status_Final"}],
                         page_current=0, page_size=10, page_action='custom',
-                        style_table={'overflowX': 'auto'}, style_header={'backgroundColor': '
-#ECF0F1', 'fontWeight': 'bold'},
+                        style_table={'overflowX': 'auto'}, style_header={'backgroundColor': '#ECF0F1', 'fontWeight': 'bold'},
                         style_cell={'textAlign': 'left', 'fontSize': '12px', 'padding': '8px'},
-                        style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '
-#F9F9F9'}]
+                        style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#F9F9F9'}]
                     )
                 ], id='collapse-table', is_open=False)
             ], className="px-2")
@@ -480,45 +449,36 @@ def update_graphs(n_clicks, freq_hist, freq_prazos, delay_cap, cycle_cap, delay_
         # 1. STATUS DE CANCELAMENTO (CINZA) - Prioridade Alta
         # Agora Cancelado e Anulado são tons de cinza (neutros/mortos)  
         if 'CANCELADO' in st or 'ANULADO' in st:
-            return '
-#7f8c8d'  # Cinza (Concrete) - Diferente do cinza default
+            return '#7f8c8d'  # Cinza (Concrete) - Diferente do cinza default
 
         # 2. STATUS INFORMATIVOS (AMARELO)
         # Agrupa "Informativo" e "Para Informação" na mesma cor
         if 'INFORMATIVO' in st or 'PARA INFORMA' in st: 
-            return "
-#f1c40f"  # Amarelo Ouro (Sun Flower)
+            return "#f1c40f"  # Amarelo Ouro (Sun Flower)
         # 3. CHECAGENS ESPECÍFICAS DE PROCESSO
-        if 'EM PROCESSO (CMI)' in st: return "
-#ef6d17" # Laranja Escuro (Pumpkin)
+        if 'EM PROCESSO (CMI)' in st: return "#ef6d17" # Laranja Escuro (Pumpkin)
 
         # 4. APROVAÇÕES COM RESTRIÇÃO (VERDE CLARO)
         if 'APROVADO COM COMENTÁRIOS' in st or 'COMENTARIOS' in st: 
-            return '
-#2ecc71' # Verde Esmeralda
+            return '#2ecc71' # Verde Esmeralda
 
         # 5. APROVAÇÕES LIMPAS (VERDE ESCURO)
         # Importante: Checar isso DEPOIS de "Comentários"
         if 'APROVADO' in st and 'NÃO' not in st: 
-            return '
-#27ae60' # Verde Nephritis
+            return '#27ae60' # Verde Nephritis
         if 'ASSINATURA' in st: 
-            return '
-#16a085' # Verde Green Sea
+            return '#16a085' # Verde Green Sea
 
         # 6. REPROVAÇÕES (VERMELHO)
         if 'NÃO APROVADO' in st or 'REPROVADO' in st: 
-            return '
-#c0392b' # Vermelho (Pomegranate)
+            return '#c0392b' # Vermelho (Pomegranate)
 
         # 7. EM PROCESSO GENÉRICO (AZUL)
         if 'EM PROCESSO' in st: 
-            return '
-#3498db' # Azul (Peter River)
+            return '#3498db' # Azul (Peter River)
 
         # Default (Caso venha algo vazio ou desconhecido)
-        return '
-#95a5a6' # Cinza Claro (Asbestos)
+        return '#95a5a6' # Cinza Claro (Asbestos)
     colors = [get_color(x) for x in st_counts.index]
 
     fig_st = go.Figure(go.Bar(
@@ -561,14 +521,10 @@ def update_graphs(n_clicks, freq_hist, freq_prazos, delay_cap, cycle_cap, delay_
     kpis_rev = dm.calcular_kpis_revisoes(df_filt)
 
     kpis = [
-        dbc.Col(card_kpi("Vigentes", f"{total_cur}", "
-#3498db"), width=3),
-        dbc.Col(card_kpi("First Time Right", f"{ftr:.1f}%", "
-#27ae60", f"Base: {total_0a} Docs 0A", "bi-check-circle-fill"), width=3),
-        dbc.Col(card_kpi("Ciclo Técnico", f"{kpis_rev['ciclo_aprovacao']}", "
-#f39c12", "Revisões Médias", "bi-arrow-repeat"), width=3),
-        dbc.Col(card_kpi("Ciclo Final", f"{kpis_rev['ciclo_completo']}", "
-#8e44ad", "Revisões Médias", "bi-check-all"), width=3),
+        dbc.Col(card_kpi("Vigentes", f"{total_cur}", "#3498db"), width=3),
+        dbc.Col(card_kpi("First Time Right", f"{ftr:.1f}%", "#27ae60", f"Base: {total_0a} Docs 0A", "bi-check-circle-fill"), width=3),
+        dbc.Col(card_kpi("Ciclo Técnico", f"{kpis_rev['ciclo_aprovacao']}", "#f39c12", "Revisões Médias", "bi-arrow-repeat"), width=3),
+        dbc.Col(card_kpi("Ciclo Final", f"{kpis_rev['ciclo_completo']}", "#8e44ad", "Revisões Médias", "bi-check-all"), width=3),
     ]
     # --- 3. HISTÓRICO ---
     fig_hist = make_subplots(specs=[[{"secondary_y": True}]])
@@ -606,22 +562,19 @@ def update_graphs(n_clicks, freq_hist, freq_prazos, delay_cap, cycle_cap, delay_
         fig_ciclos.add_trace(go.Scatter(
             x=d.index, y=d['Media_Dias'], 
             name="Itaipu (0A)", mode='lines+markers',
-            line=dict(color="
-#91ff00", width=3, shape='spline'),
+            line=dict(color="#91ff00", width=3, shape='spline'),
             customdata=d['Qtd_Docs'], 
             hovertemplate="<b>Data:</b> %{x|%d/%m/%Y}<br><b>Média:</b> %{y:.1f} dias<br><b>Base:</b> %{customdata} docs<extra></extra>"
         ))
         # Linha de Referência 30d (Só aparece se a série estiver ativa)
-        fig_ciclos.add_hline(y=30, line_dash="dash", line_color="
-#16a085", annotation_text="Meta 30d", annotation_position="top left")
+        fig_ciclos.add_hline(y=30, line_dash="dash", line_color="#16a085", annotation_text="Meta 30d", annotation_position="top left")
     # 2. Itaipu Demais (Meta 15 dias)
     if 'ITAIPU_DEMAIS' in prazos_opts and 'ITAIPU_DEMAIS' in series_ciclos:
         d = series_ciclos['ITAIPU_DEMAIS']
         fig_ciclos.add_trace(go.Scatter(
             x=d.index, y=d['Media_Dias'], 
             name="Itaipu (Demais)", mode='lines+markers',
-            line=dict(color="
-#f30a0a", width=3, shape='spline'),
+            line=dict(color="#f30a0a", width=3, shape='spline'),
             customdata=d['Qtd_Docs'], 
             hovertemplate="<b>Data:</b> %{x|%d/%m/%Y}<br><b>Média:</b> %{y:.1f} dias<br><b>Base:</b> %{customdata} docs<extra></extra>"
         ))
@@ -631,8 +584,7 @@ def update_graphs(n_clicks, freq_hist, freq_prazos, delay_cap, cycle_cap, delay_
         fig_ciclos.add_trace(go.Scatter(
             x=d.index, y=d['Media_Dias'], 
             name="CMI (Reemissão)", mode='lines+markers',
-            line=dict(color="
-#b439e9", width=3, shape='spline'),
+            line=dict(color="#b439e9", width=3, shape='spline'),
             customdata=d['Qtd_Docs'], 
             hovertemplate="<b>Data:</b> %{x|%d/%m/%Y}<br><b>Média:</b> %{y:.1f} dias<br><b>Base:</b> %{customdata} docs<extra></extra>"
         ))
