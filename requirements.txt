@@ -1,0 +1,20 @@
+# DocManager Itaipu v3 — dependências de runtime
+# Ranges (não pins duros): o notebook corporativo pode ter versões mais antigas.
+# O código deve rodar com pandas 2.x E 3.x (ver README, seção compatibilidade).
+
+pandas>=2.0.3,<4
+numpy>=1.24,<3
+openpyxl>=3.1,<4
+XlsxWriter>=3.1
+
+customtkinter>=5.2.2,<6
+Pillow>=10
+
+python-dotenv>=1.0
+requests>=2.31
+urllib3>=1.26,<3
+truststore>=0.8
+
+dash>=2.18,<3
+dash-bootstrap-components>=1.6,<2
+plotly>=5.24,<6

@@ -1,0 +1,60 @@
+"""Builders de histórico Aconex sintético para os testes.
+
+Produzem DataFrames com as colunas canônicas (§5) e no MESMO formato que
+`carregar_aconex` entrega ao backend: tudo string, sem NaN. Assim os testes
+exercitam exatamente o que os motores recebem em produção.
+"""
+from __future__ import annotations
+
+import pandas as pd
+
+COLUNAS_ACONEX = [
+    "No. do Documento", "Controle do Emissor", "Tracking ID", "Título",
+    "Tipo do Documento", "Especialidade", "Subespecialidade",
+    "Tipo do Documento DCC", "Subtipo DCC",
+    "Revisão", "Versão", "Status", "Status da Revisão",
+    "Data de Alteração", "Current",
+]
+
+
+class HistoricoBuilder:
+    """Constrói o histórico (várias linhas por revisão/versão) de UM documento."""
+
+    def __init__(self, tracking, doc, cmi, titulo="DOCUMENTO GENERICO",
+                 tipo="Documento Técnico"):
+        self.tracking = tracking
+        self.doc = doc
+        self.cmi = cmi
+        self.titulo = titulo
+        self.tipo = tipo
+        self._eventos: list[dict] = []
+
+    def evento(self, rev, versao, status, data, *, current=False,
+               terminated=False, doc=None, cmi=None, titulo=None, tipo=None):
+        """Adiciona uma linha (um evento/versão). `data` = 'dd/mm/yyyy'."""
+        self._eventos.append({
+            "No. do Documento": doc if doc is not None else self.doc,
+            "Controle do Emissor": cmi if cmi is not None else self.cmi,
+            "Tracking ID": self.tracking,
+            "Título": titulo if titulo is not None else self.titulo,
+            "Tipo do Documento": tipo if tipo is not None else self.tipo,
+            "Especialidade": "", "Subespecialidade": "",
+            "Tipo do Documento DCC": "", "Subtipo DCC": "",
+            "Revisão": rev,
+            "Versão": str(versao),
+            "Status": status,
+            "Status da Revisão": "Terminated" if terminated else "",
+            "Data de Alteração": data,
+            "Current": "true" if current else "false",
+        })
+        return self
+
+    def build(self) -> pd.DataFrame:
+        return base(self)
+
+
+def base(*builders: HistoricoBuilder) -> pd.DataFrame:
+    """Concatena históricos num único DataFrame no formato da carga Aconex."""
+    linhas = [ev for b in builders for ev in b._eventos]
+    df = pd.DataFrame(linhas, columns=COLUNAS_ACONEX)
+    return df.astype(str).fillna("")

@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+# Raiz no path (docmanager, legacy) e tests/ (builders).
+pythonpath = [".", "tests"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+ignore = ["E501"]
