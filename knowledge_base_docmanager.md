@@ -654,4 +654,29 @@ docmanager/
 
 ---
 
+---
+
+## 23. Log da Refatoração v3 (pacote `docmanager/`)
+
+Refatoração backend/frontend iniciada em 2026-07. Código antigo preservado em `legacy/` (reparado da corrupção de copy-paste e congelado como **oráculo de testes diferenciais**). Novo pacote `docmanager/` com `core/` puro (zero UI), `services/`, `ui/`, `dashboard/`. Testes em `tests/` rodam nos dois pandas (3.x e 2.3.x).
+
+### Decisões do usuário (2026-07-11)
+- **Colunas de atraso do histórico:** QUATRO colunas — dias corridos brutos (tempo de ciclo) **e** atraso com desconto de SLA, para Itaipu e CMI (`Dias Itaipu`, `Atraso Itaipu`, `Dias CMI`, `Atraso CMI`) + `Data Prevista (Controle)`.
+- **Docs previstos não postados:** entram como linhas sintéticas `NÃO EMITIDO`; `Atraso CMI = max(0, hoje − data_ref)` correndo até hoje.
+- **Toggle VIP (regra estrita §10):** vira configuração persistida, **padrão DESLIGADO**. A exceção §8.2 (Para Aprovação em planilhas de comissionamento) fica **sempre ativa** — o toggle governa só o rebaixamento estrito. (A implementar nas Fases 5-6.)
+- **Kaizen e Corella:** removidos (só no `legacy/`).
+
+### Divergências de comportamento sancionadas (whitelist da regressão)
+1. **Limiar de versão do Terminated em todos os motores** (§21.8): `truth_line.resolver_linha_da_verdade` unifica as 4 duplicações; revisão terminada pode "renascer" com versão maior. O legado descartava a revisão inteira.
+2. **Borda 19/08 padronizada** (§21.3): regime novo ⇔ data ≥ 19/08/2024 em TODO motor (`constants.is_regime_novo`). O `gerar_dataset_dashboard` passou a usar `< 19/08` para o passado (antes `<=`, que sumia com `Em Processo` de 19/08).
+3. **Regra morta removida** (§21.5): `'Análise 1ª Emissão'` no consolidado (provado inalcançável por diferencial cartesiano). Bucket `ERRO` mantido como sentinela.
+4. **Sort key do Excel do histórico** unificada na de 3 níveis (`normalize.sort_key_revisao`); builder wide ÚNICO (`core.wide.build_wide_table`) alimenta Excel e dashboard. Excel renomeia `Data Envio`→`Data de Envio` na exportação (layout legado preservado + colunas novas ao fim).
+5. **Controle de Documentos** lido com `dtype=str`/`dayfirst` (corrige códigos `'1234.0'` e datas invertidas); **REPROGRAMAÇÃO vence DATA PREVISTA**. Impacta a injeção da Data Prevista Etapa 1 do mapeamento (Fase 5).
+
+### Mapa de módulos novos (de-para)
+- `core/constants.py` ← listas de status espalhadas · `core/normalize.py` ← normalizar_revisao/sort keys/normalizar_codigo · `core/identity.py` ← localiza_doc_historico (AconexIndex O(1)) + índice reverso · `core/truth_line.py` ← 4 duplicações da linha da verdade · `core/status_engine.py` ← calcular_status_real · `core/status_model_bim.py` ← modelo BIM · `core/consolidation.py` ← consolidado/estrito/emitido/parado_com · `core/wide.py` + `core/delays.py` + `services/controle_docs.py` + `services/historico_consolidado.py` + `services/excel_io.py` ← histórico consolidado turbinado · `cli.py` ← headless.
+- Pendências para o corporativo: nome exato do cabeçalho REPROGRAMAÇÃO; conferir fim do `aconex_reviwer.py` original; assets/.env reais; regressão old-vs-new com dados reais.
+
+---
+
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

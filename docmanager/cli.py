@@ -9,9 +9,27 @@ import sys
 
 import pandas as pd
 
+from .aconex_backend import AconexConfig, extrair_base, nome_arquivo_padrao, salvar_excel
 from .services.controle_docs import ler_controle
 from .services.excel_io import exportar_historico
 from .services.historico_consolidado import gerar_historico
+
+
+def _cmd_extrair(args) -> int:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except Exception:
+        pass
+    config = AconexConfig.para_usuario(args.usuario, secret=args.secret, proxy=args.proxy)
+    df = extrair_base(config, log_cb=print)
+    if df.empty:
+        print("Nenhum dado extraído.")
+        return 1
+    out = args.out or nome_arquivo_padrao()
+    salvar_excel(df, out)
+    print(f"Base salva em: {out}  ({len(df)} linhas)")
+    return 0
 
 
 def _cmd_historico(args) -> int:
@@ -26,6 +44,13 @@ def _cmd_historico(args) -> int:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="docmanager.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
+
+    e = sub.add_parser("extrair", help="Extrai a base Aconex via API (OAuth + paginação).")
+    e.add_argument("--usuario", default="Luan Cozer", help="Usuário conhecido (secret via .env).")
+    e.add_argument("--secret", help="Client Secret (senão usa SECRET_<NOME> do .env).")
+    e.add_argument("--proxy", help="Proxy http(s). Vazio ('') força conexão direta.")
+    e.add_argument("--out", help="Excel de saída (padrão: Aconex_Historico_<timestamp>.xlsx).")
+    e.set_defaults(func=_cmd_extrair)
 
     p = sub.add_parser("historico", help="Gera o Histórico Consolidado (Excel).")
     p.add_argument("--aconex", required=True, help="Base Aconex (.xlsx).")
