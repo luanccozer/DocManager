@@ -58,3 +58,35 @@ def base(*builders: HistoricoBuilder) -> pd.DataFrame:
     linhas = [ev for b in builders for ev in b._eventos]
     df = pd.DataFrame(linhas, columns=COLUNAS_ACONEX)
     return df.astype(str).fillna("")
+
+
+def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True):
+    """Escreve um Controle de Documentos sintético (cabeçalho na linha 4).
+
+    `linhas`: list[dict] com chaves itaipu, cmi, titulo, prevista, reprog.
+    Códigos podem ser float (ex.: 12345.0) para exercitar o '.0' fantasma.
+    """
+    from openpyxl import Workbook
+
+    from docmanager.core.constants import (
+        CTRL_COL_CMI,
+        CTRL_COL_DATA_PREVISTA,
+        CTRL_COL_ITAIPU,
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Controle de Documentos"])
+    ws.append([])
+    ws.append([])
+    headers = [CTRL_COL_ITAIPU, CTRL_COL_CMI, "DESCRIÇÃO", CTRL_COL_DATA_PREVISTA]
+    if incluir_reprogramacao:
+        headers.append("REPROGRAMAÇÃO")
+    ws.append(headers)
+    for lin in linhas:
+        row = [lin.get("itaipu", ""), lin.get("cmi", ""), lin.get("titulo", ""), lin.get("prevista", "")]
+        if incluir_reprogramacao:
+            row.append(lin.get("reprog", ""))
+        ws.append(row)
+    wb.save(path)
+    return path

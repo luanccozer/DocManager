@@ -3,6 +3,12 @@
 pythonpath = [".", "tests"]
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = [
+    # Warning conhecido do código LEGADO (replace/downcasting em pandas 2.3),
+    # disparado quando os testes diferenciais chamam legacy.data_manager.
+    # O código novo não dispara este warning (verificado com -W error).
+    "ignore:Downcasting behavior in `replace`:FutureWarning",
+]
 
 [tool.ruff]
 line-length = 120
