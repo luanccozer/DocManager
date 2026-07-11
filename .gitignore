@@ -1,0 +1,23 @@
+# Segredos e configuração local
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Ambientes virtuais (ficam fora do OneDrive, mas por garantia)
+.venv*/
+venv*/
+
+# Build / empacotamento
+build/
+dist/
+*.spec.bak
+
+# Saídas de teste manual (planilhas geradas localmente)
+saidas_teste/
+*.tmp.xlsx
+~$*.xlsx
