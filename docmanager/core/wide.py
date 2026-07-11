@@ -111,7 +111,10 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     df_retornos = df[~df[COL_STATUS].str.contains("Em Processo", case=False, na=False)].drop_duplicates(
         subset=[COL_TRACKING, COL_REVISAO], keep="first"
     )
-    df_final = pd.concat([df_envios, df_retornos])
+    # Filtra partes vazias antes do concat: concatenar um frame vazio com
+    # colunas datetime dispara DeprecationWarning de timedelta no pandas 2.3.
+    partes = [p for p in (df_envios, df_retornos) if not p.empty]
+    df_final = pd.concat(partes) if partes else df.iloc[0:0]
     df_final = df_final.sort_values(by=[COL_TRACKING, COL_REVISAO, COL_DATA])
     return df_final
 

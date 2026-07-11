@@ -8,6 +8,8 @@ filterwarnings = [
     # disparado quando os testes diferenciais chamam legacy.data_manager.
     # O código novo não dispara este warning (verificado com -W error).
     "ignore:Downcasting behavior in `replace`:FutureWarning",
+    # Idem: concat de frame vazio com colunas datetime no legado (pandas 2.3).
+    "ignore:The 'generic' unit for NumPy timedelta:DeprecationWarning",
 ]
 
 [tool.ruff]

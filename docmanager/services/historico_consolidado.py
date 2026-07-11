@@ -81,6 +81,12 @@ def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | No
     if not novas:
         return df_wide
     df_novas = pd.DataFrame(novas).reindex(columns=df_wide.columns if not df_wide.empty else None)
+    # Alinha dtypes de data (o reindex deixa NaN float; concatenar com datetime64
+    # dispara DeprecationWarning de timedelta no pandas 2.3).
+    from ..core.wide import COL_DATA_ENVIO, COL_DATA_RETORNO
+    for col in (COL_DATA_ENVIO, COL_DATA_RETORNO, COL_DATA_PREVISTA_CTRL):
+        if col in df_novas.columns:
+            df_novas[col] = pd.to_datetime(df_novas[col], errors="coerce")
     return pd.concat([df_wide, df_novas], ignore_index=True)
 
 
