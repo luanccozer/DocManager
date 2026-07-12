@@ -10,6 +10,8 @@ from __future__ import annotations
 import pandas as pd
 from openpyxl.styles import Alignment
 
+from ..core.constants import MAPA_ANCORA_ITAIPU
+from ..core.hierarchy import LinhaPlano
 from ..core.delays import (
     COL_ATRASO_CMI,
     COL_ATRASO_ITAIPU,
@@ -55,6 +57,103 @@ def preparar_para_exportar(df_wide: pd.DataFrame) -> pd.DataFrame:
         if c in df.columns and c not in ordem:
             ordem.append(c)
     return df[ordem]
+
+
+# ===========================================================================
+# MappingSheet — I/O da planilha de Mapeamento de Planos (KB §4, §21.1)
+# ===========================================================================
+
+# Chave lógica → texto do cabeçalho (porta do dict legado L188-233).
+COLUNAS_MAPA = {
+    "grupo": "GRUPO", "sistema": "SISTEMA", "oep": "OEP",
+    "etapa_1": "ETAPA 1", "etapa_2": "ETAPA 2", "etapa_3": "ETAPA 3", "etapa_4": "ETAPA 4",
+    "codigo_cmi": "Nº CMI", "codigo_itaipu": MAPA_ANCORA_ITAIPU,
+    "descricao": "DESCRIÇÃO DO DOCUMENTO", "mes_referencia": "MÊS DE REFERÊNCIA",
+    "data_previsao_etapa_1": "DATA PREVISTA EMISSÃO ETAPA 1",
+    "emitido_nao_emitido": "EMITIDO / NÃO EMITIDO",
+    "data_ultimo_status": "DATA ÚLTIMA EMISSÃO", "revisao": "ÚLTIMA REV. EMITIDA",
+    "responsavel": "RESPONSÁVEL", "status_real": "STATUS REAL", "status_emissao": "STATUS",
+    "observacao": "OBSERVAÇÃO", "nivel": "NÍVEL",
+    "status_consolidado": "STATUS CONSOLIDADO", "com_itaipu": "COM ITAIPU",
+    "plano_de_execucao": "PLANO DE EXECUÇÃO", "predecessor": "PREDECESSOR",
+    "resumo_quantidades": "RESUMO QUANTIDADES", "filtro_etapa": "TAG ETAPA",
+    "dias_status": "DIAS NO STATUS ATUAL", "situacao_prazo": "SITUAÇÃO DO PRAZO",
+    "dias_atraso": "DIAS DE ATRASO", "total_ciclos": "TOTAL DE CICLOS",
+    "ciclos_aprovar": "CICLOS PARA APROVAR", "downgrade": "DOWNGRADE",
+    "atraso_acum_ib": "ATRASO ACUMULADO IB", "atraso_acum_cmi": "ATRASO ACUMULADO CMI",
+}
+# §21.1: DATA REPROGRAMADA nunca é endereçável por nome de cabeçalho (4 colunas
+# com o mesmo texto). Bloqueado explicitamente em get_val/set_val.
+CHAVES_PROIBIDAS = {"reprogramada_etapa_1", "reprogramada_etapa_2", "reprogramada_etapa_3", "reprogramada_etapa_4"}
+
+
+class MappingSheet:
+    """Encapsula a planilha de Mapeamento: localização do cabeçalho, leitura em
+    LinhaPlano e escrita por chave lógica (com matador de zumbis)."""
+
+    def __init__(self, ws):
+        self.ws = ws
+        self.headers, self.row_header = self._find_headers(ws)
+        if not self.headers:
+            raise ValueError(f"Cabeçalho não encontrado (âncora '{MAPA_ANCORA_ITAIPU}' nas 5 primeiras linhas).")
+        self.start_row = self.row_header + 2
+
+    @staticmethod
+    def _find_headers(ws):
+        for r in range(1, 6):
+            headers = {}
+            for cell in ws[r]:
+                if cell.value is not None and str(cell.value).strip():
+                    headers[str(cell.value).strip()] = cell.column
+            if MAPA_ANCORA_ITAIPU in headers:
+                return headers, r
+        return {}, 0
+
+    def _col(self, chave: str):
+        if chave in CHAVES_PROIBIDAS:
+            raise KeyError(f"Chave '{chave}' (DATA REPROGRAMADA) não é endereçável por nome (§21.1).")
+        return self.headers.get(COLUNAS_MAPA.get(chave))
+
+    def get_val(self, chave: str, row: int) -> str:
+        col = self._col(chave)
+        if col:
+            v = self.ws.cell(row=row, column=col).value
+            return str(v).strip() if v is not None else ""
+        return ""
+
+    def set_val(self, chave: str, row: int, valor) -> None:
+        col = self._col(chave)
+        if col:
+            self.ws.cell(row=row, column=col).value = valor
+
+    def matar_zumbi(self, chave: str, row: int) -> None:
+        """Converte string vazia '' em None (célula zumbi → nula de verdade)."""
+        col = self._col(chave)
+        if col:
+            cell = self.ws.cell(row=row, column=col)
+            if cell.value is not None and str(cell.value).strip() == "":
+                cell.value = None
+
+    @property
+    def max_row(self) -> int:
+        return self.ws.max_row
+
+    def ler_linhas(self) -> list[LinhaPlano]:
+        """Lê todas as linhas de dados (ordem física preservada = hierarquia)."""
+        linhas = []
+        for row in range(self.start_row, self.max_row + 1):
+            cod_it = self.get_val("codigo_itaipu", row)
+            cod_cmi = self.get_val("codigo_cmi", row)
+            if not cod_it and not cod_cmi:
+                continue
+            linhas.append(LinhaPlano(
+                row=row, cod_itaipu=cod_it, cod_cmi=cod_cmi,
+                nivel=self.get_val("nivel", row),
+                descricao=self.get_val("descricao", row),
+                status_real=self.get_val("status_real", row),
+                status_consolidado=self.get_val("status_consolidado", row),
+            ))
+        return linhas
 
 
 def exportar_historico(df_wide: pd.DataFrame, caminho_saida) -> tuple[bool, str]:

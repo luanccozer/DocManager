@@ -21,3 +21,6 @@ dist/
 saidas_teste/
 *.tmp.xlsx
 ~$*.xlsx
+
+# Dados reais (base Aconex, mapeamento real) — nunca versionar
+dados_reais/
