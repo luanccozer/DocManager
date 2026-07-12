@@ -6,21 +6,19 @@ de ciclo) E atraso com desconto de SLA, para cada lado (Itaipu e CMI):
   Dias Itaipu    = (Data Retorno − Data Envio).days
   Atraso Itaipu  = max(0, Dias Itaipu − SLA[30 se 0A senão 15])
   Dias CMI       = 1ª emissão: (Data Envio − data_ref).days
-                   reemissão APÓS REPROVAÇÃO: (Data Envio − Retorno anterior).days
+                   demais revs: (Data Envio − Retorno da rev anterior).days
   Atraso CMI     = 1ª emissão: max(0, Dias CMI)         (SEM desconto — a data
                                                           prevista já É o prazo)
-                   reemissão após reprovação: max(0, Dias CMI − 15)
+                   demais revs: max(0, Dias CMI − 15)
                    sintética (não postada): max(0, hoje − data_ref)  ← correndo
 
-REGRA DE NECESSIDADE (2026-07): a reemissão só conta atraso CMI quando a
-revisão ANTERIOR foi REPROVADA ('Não Aprovado') — é aí que a CMI tem obrigação
-de retrabalho. Se a revisão anterior foi aprovada, o ciclo se encerrou; uma
-reemissão posterior (ex.: nova família 1A após o "0" final aprovado) NÃO é
-atraso — é uma nova necessidade que nasce depois. Isso espelha a "bandeira
-documento_aprovado" dos atrasos acumulados (KB §15, Momento C).
+O histórico contabiliza a reemissão SEMPRE (toda revisão que segue outra). O
+recorte "só conta quando a revisão anterior foi reprovada" (regra de
+necessidade) é aplicado depois, na camada de análise de dados — que tem o
+Status Retorno da revisão anterior disponível no próprio histórico.
 
 Qualquer descontinuidade (sem envio, sem retorno, rev anterior sem retorno,
-rev anterior aprovada, datas invertidas, sem data_ref) → célula VAZIA.
+datas invertidas, sem data_ref) → célula VAZIA. Nunca inventar número.
 
 `data_ref` chega pré-calculada na coluna 'Data Prevista (Controle)' de cada
 linha do wide (REPROGRAMAÇÃO > DATA PREVISTA, resolvida em wide.py).
@@ -33,14 +31,8 @@ from datetime import date
 
 import pandas as pd
 
-from .constants import (
-    COL_REVISAO,
-    COL_TRACKING,
-    KPI_STATUS_FALHA_UPPER,
-    SLA_ITAIPU_DEMAIS,
-    SLA_ITAIPU_REV_0A,
-)
-from .wide import COL_DATA_ENVIO, COL_DATA_RETORNO, COL_STATUS_ENVIO, COL_STATUS_RETORNO
+from .constants import COL_REVISAO, COL_TRACKING, SLA_ITAIPU_DEMAIS, SLA_ITAIPU_REV_0A
+from .wide import COL_DATA_ENVIO, COL_DATA_RETORNO, COL_STATUS_ENVIO
 
 COL_DIAS_ITAIPU = "Dias Itaipu"
 COL_ATRASO_ITAIPU = "Atraso Itaipu"
@@ -92,11 +84,9 @@ def calcular_atrasos(df_wide: pd.DataFrame, policy: DelayPolicy | None = None) -
     for _, grupo in df.groupby(COL_TRACKING, sort=False):
         primeira_emissao_vista = False
         retorno_anterior = pd.NaT
-        status_retorno_anterior = ""
         for _, row in grupo.iterrows():
             envio = row.get(COL_DATA_ENVIO, pd.NaT)
             retorno = row.get(COL_DATA_RETORNO, pd.NaT)
-            status_retorno = str(row.get(COL_STATUS_RETORNO, "")).strip()
             data_ref = row.get(COL_DATA_PREVISTA_CTRL, pd.NaT)
             sintetica = str(row.get(COL_STATUS_ENVIO, "")).strip().upper() == _MARCADOR_SINTETICA
 
@@ -112,14 +102,10 @@ def calcular_atrasos(df_wide: pd.DataFrame, policy: DelayPolicy | None = None) -
             elif not primeira_emissao_vista:
                 dc = _dias(envio, data_ref)  # nascedouro (vs data prevista/reprogramada)
                 ac = max(0, dc) if dc is not None else None  # 1ª emissão: sem desconto de SLA
-            elif status_retorno_anterior.upper() in KPI_STATUS_FALHA_UPPER:
-                # Reemissão obrigada por reprovação → é necessidade, conta atraso.
+            else:
+                # Reemissão: sempre contabiliza vs o retorno da revisão anterior.
                 dc = _dias(envio, retorno_anterior)
                 ac = max(0, dc - policy.sla_cmi_reemissao) if dc is not None else None
-            else:
-                # Ciclo fechado com aprovação → reemissão posterior não é atraso.
-                dc = None
-                ac = None
             dias_cmi.append(dc)
             atraso_cmi.append(ac)
 
@@ -127,7 +113,6 @@ def calcular_atrasos(df_wide: pd.DataFrame, policy: DelayPolicy | None = None) -
                 primeira_emissao_vista = True
             if pd.notna(retorno):
                 retorno_anterior = retorno
-                status_retorno_anterior = status_retorno
 
     # Int64 nullable: valores inteiros limpos e <NA> real onde não dá para calcular
     # (evita o 40.0 fantasma do float e distingue "vazio" de "zero").

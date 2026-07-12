@@ -78,8 +78,10 @@ def test_exportacao_excel_layout(tmp_path):
     lido = pd.read_excel(out, sheet_name="Histórico")
     # Nomes legados COM "de" + colunas novas ao fim
     assert "Data de Envio" in lido.columns and "Data de Retorno" in lido.columns
-    for c in ["Dias Itaipu", "Atraso Itaipu", "Dias CMI", "Atraso CMI", "Data Prevista (Controle)"]:
+    for c in ["Dias Itaipu", "Atraso Itaipu", "Dias CMI", "Atraso CMI"]:
         assert c in lido.columns
+    # Data Prevista (Controle) é interna — NÃO deve aparecer no Excel
+    assert "Data Prevista (Controle)" not in lido.columns
 
 
 def test_preparar_para_exportar_renomeia_datas():

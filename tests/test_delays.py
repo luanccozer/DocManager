@@ -65,40 +65,16 @@ def test_primeira_emissao_cmi_sem_desconto():
     assert df.iloc[0][COL_ATRASO_CMI] == 9
 
 
-def test_reemissao_apos_reprovacao_conta():
-    # 0A REPROVADA em 01/04; 0B envio 30/04 → 29 dias; SLA CMI 15 → atraso 14.
+def test_reemissao_cmi_conta_sempre():
+    # No histórico base, toda reemissão conta (o recorte por reprovação é da
+    # camada de análise). 0A retorno 01/04; 0B envio 30/04 → 29 dias; −15 → 14.
     df = calcular_atrasos(_wide([
-        {"tracking": "T", "rev": "0A", "envio": "2024-03-01", "retorno": "2024-04-01",
-         "status_retorno": "Não Aprovado", "sla": 30, "prev": "2024-02-28"},
+        {"tracking": "T", "rev": "0A", "envio": "2024-03-01", "retorno": "2024-04-01", "sla": 30, "prev": "2024-02-28"},
         {"tracking": "T", "rev": "0B", "envio": "2024-04-30", "retorno": None, "sla": 15},
     ]), POLICY)
     linha_0b = df[df["Revisão"] == "0B"].iloc[0]
     assert linha_0b[COL_DIAS_CMI] == 29
     assert linha_0b[COL_ATRASO_CMI] == 14
-
-
-def test_reemissao_apos_aprovacao_nao_conta():
-    # 0A APROVADA; a reemissão 0B posterior não é obrigada por reprovação → vazio.
-    df = calcular_atrasos(_wide([
-        {"tracking": "T", "rev": "0A", "envio": "2024-03-01", "retorno": "2024-04-01",
-         "status_retorno": "Aprovado com Comentários", "sla": 30, "prev": "2024-02-28"},
-        {"tracking": "T", "rev": "0B", "envio": "2024-04-30", "retorno": None, "sla": 15},
-    ]), POLICY)
-    linha_0b = df[df["Revisão"] == "0B"].iloc[0]
-    assert pd.isna(linha_0b[COL_DIAS_CMI])
-    assert pd.isna(linha_0b[COL_ATRASO_CMI])
-
-
-def test_reemissao_1a_apos_zero_aprovado_nao_conta():
-    # Caso do usuário: ciclo fechou no "0" aprovado; 1A é nova família → não conta atraso.
-    df = calcular_atrasos(_wide([
-        {"tracking": "T", "rev": "0", "envio": "2024-03-01", "retorno": "2024-03-20",
-         "status_retorno": "Aprovado", "sla": 15, "prev": "2024-02-28"},
-        {"tracking": "T", "rev": "1A", "envio": "2025-01-10", "retorno": None, "sla": 15},
-    ]), POLICY)
-    linha_1a = df[df["Revisão"] == "1A"].iloc[0]
-    assert pd.isna(linha_1a[COL_DIAS_CMI])
-    assert pd.isna(linha_1a[COL_ATRASO_CMI])
 
 
 def test_sintetica_atraso_cmi_corre_ate_hoje():

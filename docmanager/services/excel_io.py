@@ -30,9 +30,8 @@ _COLUNAS_LEGADO = [
     "Tipo do Documento DCC", "Subtipo DCC", "Versão", "Current", "Revisão",
     "Data de Envio", "Status Envio", "Data de Retorno", "Status Retorno",
 ]
-_COLUNAS_NOVAS = [
-    COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU, COL_DIAS_CMI, COL_ATRASO_CMI, COL_DATA_PREVISTA_CTRL,
-]
+# Data Prevista (Controle) é interna (só para cálculo dos atrasos), não vai ao Excel.
+_COLUNAS_NOVAS = [COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU, COL_DIAS_CMI, COL_ATRASO_CMI]
 
 _LARGURAS = {
     "No. do Documento": 27, "Controle do Emissor": 27, "Tracking ID": 27,

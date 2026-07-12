@@ -663,7 +663,9 @@ Refatoração backend/frontend iniciada em 2026-07. Código antigo preservado em
 ### Decisões do usuário (2026-07-11)
 - **Colunas de atraso do histórico:** QUATRO colunas — dias corridos brutos (tempo de ciclo) **e** atraso com desconto de SLA, para Itaipu e CMI (`Dias Itaipu`, `Atraso Itaipu`, `Dias CMI`, `Atraso CMI`) + `Data Prevista (Controle)`.
 - **Docs previstos não postados:** entram como linhas sintéticas `NÃO EMITIDO`; `Atraso CMI = max(0, hoje − data_ref)` correndo até hoje.
-- **Atraso da reemissão só conta após REPROVAÇÃO** (regra de necessidade, 2026-07): a reemissão de uma revisão só gera Atraso CMI quando a revisão anterior foi `Não Aprovado` (a CMI é obrigada ao retrabalho). Se o ciclo fechou em aprovação (ex.: nova família 1A depois do "0" final aprovado), a reemissão posterior NÃO é atraso. Espelha a bandeira `documento_aprovado` do §15.
+- **Atraso da reemissão no histórico: conta SEMPRE** (decisão 2026-07-12). O histórico consolidado é a base bruta — toda reemissão gera Atraso CMI vs o retorno da revisão anterior. O recorte "só conta quando a revisão anterior foi reprovada" (regra de necessidade, ex.: 1A após o "0" final aprovado não deveria contar) é aplicado DEPOIS, na camada de análise de dados, que tem o Status Retorno da revisão anterior disponível. Mantém o histórico completo e move a regra de negócio para quem consome.
+- **Coluna Data Prevista (Controle) é interna:** usada só para calcular o atraso; NÃO aparece no Excel do histórico.
+- **Controle de Documentos é opcional:** o histórico roda com ou sem ele. Sem o Controle: não há Atraso CMI da 1ª emissão (0A, o "nascedouro" vs data prevista) nem linhas sintéticas dos documentos previstos e não postados.
 - **Toggle VIP (regra estrita §10):** vira configuração persistida, **padrão DESLIGADO**. A exceção §8.2 (Para Aprovação em planilhas de comissionamento) fica **sempre ativa** — o toggle governa só o rebaixamento estrito. (A implementar nas Fases 5-6.)
 - **Kaizen e Corella:** removidos (só no `legacy/`).
 
