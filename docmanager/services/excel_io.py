@@ -12,7 +12,7 @@ from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from ..core.constants import MAPA_ANCORA_ITAIPU
+from ..core.constants import COLS_STRIP_CARGA, MAPA_ANCORA_ITAIPU
 from ..core.hierarchy import LinhaPlano
 from ..core.delays import (
     COL_ATRASO_CMI,
@@ -44,6 +44,16 @@ _LARGURAS = {
 }
 
 _RENOMEAR_SAIDA = {COL_DATA_ENVIO: "Data de Envio", COL_DATA_RETORNO: "Data de Retorno"}
+
+
+def carregar_base_aconex(caminho, aba=0) -> pd.DataFrame:
+    """Carrega a base Aconex como o backend espera: dtype=str, sem NaN, strip
+    nas colunas-chave (porta de DataManager.carregar_aconex)."""
+    df = pd.read_excel(caminho, sheet_name=aba, dtype=str).fillna("")
+    for col in COLS_STRIP_CARGA:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+    return df
 
 
 def preparar_para_exportar(df_wide: pd.DataFrame) -> pd.DataFrame:

@@ -13,6 +13,15 @@ from .aconex_backend import AconexConfig, extrair_base, nome_arquivo_padrao, sal
 from .services.controle_docs import ler_controle
 from .services.excel_io import exportar_historico
 from .services.historico_consolidado import gerar_historico
+from .services.mapping_update import atualizar_mapeamento
+
+
+def _cmd_mapa(args) -> int:
+    controle = ler_controle(args.controle, log_cb=print) if args.controle else None
+    r = atualizar_mapeamento(args.aconex, args.mapa, controle=controle,
+                             regra_estrita_vip=args.vip, log_cb=print)
+    print(r.mensagem)
+    return 0 if r.ok else 1
 
 
 def _cmd_extrair(args) -> int:
@@ -51,6 +60,13 @@ def main(argv=None) -> int:
     e.add_argument("--proxy", help="Proxy http(s). Vazio ('') força conexão direta.")
     e.add_argument("--out", help="Excel de saída (padrão: Aconex_Historico_<timestamp>.xlsx).")
     e.set_defaults(func=_cmd_extrair)
+
+    m = sub.add_parser("mapa", help="Atualiza a planilha de Mapeamento de Planos.")
+    m.add_argument("--aconex", required=True, help="Base Aconex (.xlsx).")
+    m.add_argument("--mapa", required=True, help="Planilha de mapeamento (.xlsx, será sobrescrita).")
+    m.add_argument("--controle", help="Controle de Documentos (.xlsx), opcional.")
+    m.add_argument("--vip", action="store_true", help="Liga a regra estrita das planilhas VIP.")
+    m.set_defaults(func=_cmd_mapa)
 
     p = sub.add_parser("historico", help="Gera o Histórico Consolidado (Excel).")
     p.add_argument("--aconex", required=True, help="Base Aconex (.xlsx).")
