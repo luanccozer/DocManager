@@ -8,7 +8,9 @@ ao FIM, sem perturbar quem já lê o arquivo.
 from __future__ import annotations
 
 import pandas as pd
-from openpyxl.styles import Alignment
+from openpyxl.formatting.rule import ColorScaleRule
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 from ..core.constants import MAPA_ANCORA_ITAIPU
 from ..core.hierarchy import LinhaPlano
@@ -156,6 +158,64 @@ class MappingSheet:
         return linhas
 
 
+# Paleta (alinhada ao tema do app: slate #2C3E50).
+_FILL_HEADER = PatternFill("solid", fgColor="2C3E50")        # cabeçalho legado
+_FILL_HEADER_NOVO = PatternFill("solid", fgColor="1F6F5C")   # cabeçalho colunas novas (teal)
+_FILL_BANDA = PatternFill("solid", fgColor="F4F6F7")         # linha ímpar (zebra)
+_FONT_HEADER = Font(color="FFFFFF", bold=True, size=10, name="Segoe UI")
+_FONT_DADO = Font(size=10, name="Segoe UI")
+_BORDA_FINA = Side(style="thin", color="D5DBDB")
+_BORDER = Border(left=_BORDA_FINA, right=_BORDA_FINA, top=_BORDA_FINA, bottom=_BORDA_FINA)
+_COLS_NOVAS_SET = set(_COLUNAS_NOVAS)
+_COLS_NUM = {COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU, COL_DIAS_CMI, COL_ATRASO_CMI}
+_COLS_CENTRO = {"Versão", "Current", "Revisão", *_COLS_NUM,
+                "Data de Envio", "Data de Retorno", COL_DATA_PREVISTA_CTRL}
+
+
+def _estilizar_historico(ws, df: pd.DataFrame) -> None:
+    n_rows, n_cols = len(df), len(df.columns)
+    ws.freeze_panes = "A2"
+    ws.row_dimensions[1].height = 30
+    col_por_nome = {c: i + 1 for i, c in enumerate(df.columns)}
+
+    # Cabeçalho
+    for c, nome in enumerate(df.columns, 1):
+        cell = ws.cell(1, c)
+        cell.fill = _FILL_HEADER_NOVO if nome in _COLS_NOVAS_SET else _FILL_HEADER
+        cell.font = _FONT_HEADER
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = _BORDER
+        ws.column_dimensions[get_column_letter(c)].width = _LARGURAS.get(nome, 16)
+
+    # Corpo: fonte, borda, zebra, alinhamento, formato numérico
+    for r in range(2, n_rows + 2):
+        banda = _FILL_BANDA if (r % 2 == 0) else None
+        for c in range(1, n_cols + 1):
+            cell = ws.cell(r, c)
+            cell.font = _FONT_DADO
+            cell.border = _BORDER
+            nome = df.columns[c - 1]
+            centro = nome in _COLS_CENTRO
+            cell.alignment = Alignment(wrap_text=True, vertical="center",
+                                       horizontal="center" if centro else "left")
+            if nome in _COLS_NUM:
+                cell.number_format = "0"
+            if banda is not None:
+                cell.fill = banda
+
+    # Escala de cores nos atrasos (verde → amarelo → vermelho)
+    if n_rows:
+        rule = ColorScaleRule(start_type="num", start_value=0, start_color="63BE7B",
+                              mid_type="num", mid_value=15, mid_color="FFEB84",
+                              end_type="percentile", end_value=90, end_color="F8696B")
+        for nome in (COL_ATRASO_ITAIPU, COL_ATRASO_CMI):
+            if nome in col_por_nome:
+                letra = get_column_letter(col_por_nome[nome])
+                ws.conditional_formatting.add(f"{letra}2:{letra}{n_rows + 1}", rule)
+
+    ws.auto_filter.ref = ws.dimensions
+
+
 def exportar_historico(df_wide: pd.DataFrame, caminho_saida) -> tuple[bool, str]:
     if df_wide is None or df_wide.empty:
         return False, "DataFrame vazio."
@@ -163,14 +223,7 @@ def exportar_historico(df_wide: pd.DataFrame, caminho_saida) -> tuple[bool, str]
     try:
         with pd.ExcelWriter(caminho_saida, engine="openpyxl") as writer:
             df.to_excel(writer, index=False, sheet_name="Histórico")
-            ws = writer.sheets["Histórico"]
-            for column_cells in ws.columns:
-                header = column_cells[0].value
-                if header in _LARGURAS:
-                    ws.column_dimensions[column_cells[0].column_letter].width = _LARGURAS[header]
-                for cell in column_cells:
-                    cell.alignment = Alignment(wrap_text=True, vertical="center")
-            ws.auto_filter.ref = ws.dimensions
+            _estilizar_historico(writer.sheets["Histórico"], df)
         return True, f"Arquivo gerado com sucesso: {caminho_saida}"
     except Exception as e:  # noqa: BLE001 — reportado ao chamador
         return False, f"Erro ao salvar Excel: {e}"

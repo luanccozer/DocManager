@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:/venvs/docmanager/Scripts/python)",
+      "Bash(C:/venvs/docmanager/Scripts/python -m pytest tests/test_delays.py -q)",
+      "Bash(C:/venvs/docmanager/Scripts/python -m docmanager.cli historico --aconex dados_reais/base_aconex.xlsx --out dados_reais/historico_real.xlsx)",
+      "Bash(C:/venvs/docmanager/Scripts/python -m pytest -q)"
+    ]
+  }
+}

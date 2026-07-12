@@ -663,6 +663,7 @@ Refatoração backend/frontend iniciada em 2026-07. Código antigo preservado em
 ### Decisões do usuário (2026-07-11)
 - **Colunas de atraso do histórico:** QUATRO colunas — dias corridos brutos (tempo de ciclo) **e** atraso com desconto de SLA, para Itaipu e CMI (`Dias Itaipu`, `Atraso Itaipu`, `Dias CMI`, `Atraso CMI`) + `Data Prevista (Controle)`.
 - **Docs previstos não postados:** entram como linhas sintéticas `NÃO EMITIDO`; `Atraso CMI = max(0, hoje − data_ref)` correndo até hoje.
+- **Atraso da reemissão só conta após REPROVAÇÃO** (regra de necessidade, 2026-07): a reemissão de uma revisão só gera Atraso CMI quando a revisão anterior foi `Não Aprovado` (a CMI é obrigada ao retrabalho). Se o ciclo fechou em aprovação (ex.: nova família 1A depois do "0" final aprovado), a reemissão posterior NÃO é atraso. Espelha a bandeira `documento_aprovado` do §15.
 - **Toggle VIP (regra estrita §10):** vira configuração persistida, **padrão DESLIGADO**. A exceção §8.2 (Para Aprovação em planilhas de comissionamento) fica **sempre ativa** — o toggle governa só o rebaixamento estrito. (A implementar nas Fases 5-6.)
 - **Kaizen e Corella:** removidos (só no `legacy/`).
 
