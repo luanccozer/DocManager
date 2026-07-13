@@ -152,6 +152,8 @@ class RunBar(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.tarefa = tarefa
         self.log = log
+        self._texto = texto          # rótulo original (restaurado ao terminar)
+        self._rodando = False
         self.progress = ctk.CTkProgressBar(self, height=10, progress_color=t.ACENTO)
         self.progress.set(0)
         self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 12), pady=8)
@@ -163,6 +165,9 @@ class RunBar(ctk.CTkFrame):
         self.after(0, self.progress.set, v)
 
     def _run(self):
+        if self._rodando:            # evita reentrância enquanto processa
+            return
+        self._rodando = True
         self.btn.configure(state="disabled", text="Processando...")
         self.progress.set(0)
         threading.Thread(target=self._worker, daemon=True).start()
@@ -174,5 +179,11 @@ class RunBar(ctk.CTkFrame):
             if self.log:
                 self.log.log(f"ERRO: {e}")
         finally:
-            self.after(0, lambda: self.btn.configure(state="normal", text=self.btn.cget("text")))
-            self.set_progress(1.0)
+            self.after(0, self._finalizar)
+
+    def _finalizar(self):
+        self._rodando = False
+        if not self.winfo_exists():
+            return
+        self.btn.configure(state="normal", text=self._texto)   # volta ao rótulo original
+        self.progress.set(0)
