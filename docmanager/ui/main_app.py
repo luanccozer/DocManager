@@ -119,9 +119,27 @@ class MainApp(ctk.CTk):
             spec = next(s for s in VIEWS if s.key == key)
             self._views[key] = spec.factory(self, self.ctx)
         self._views[key].grid(row=0, column=1, sticky="nsew")
+        self._key_ativa = key
         # Reavalia estado dependente de config (ex.: rótulo do toggle VIP no Mapa)
         if hasattr(self._views[key], "_atualizar_vip"):
             self._views[key]._atualizar_vip()
+
+    def report_callback_exception(self, exc, val, tb):
+        """Erros em callbacks (main thread) vão para o log da view ativa + popup,
+        já que o usuário não vê o terminal."""
+        import traceback
+        from tkinter import messagebox
+        msg = "".join(traceback.format_exception_only(exc, val)).strip()
+        view = self._views.get(getattr(self, "_key_ativa", None))
+        if view is not None and hasattr(view, "log"):
+            try:
+                view.log.log(f"ERRO: {msg}")
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            messagebox.showerror("Erro inesperado", msg)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def main():

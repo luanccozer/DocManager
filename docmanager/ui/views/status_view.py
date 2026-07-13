@@ -17,7 +17,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from .. import theme as t
-from ..components import Card, FileSelector, LogConsole, RunBar
+from ..components import Card, FileSelector, RunBar
 from .base import BaseView
 
 _NENHUM = "- NENHUM -"
@@ -44,9 +44,6 @@ class StatusDocsView(BaseView):
         self._montar_todos(self.tabs.add(_TAB_TODOS))
 
         self._montar_acoes(body)
-
-        self.log = LogConsole(body, height=180)
-        self.log.grid(row=3, column=0, sticky="nsew", pady=(6, 0))
 
     # ---------------------------------------------------------- Aba 1: Excel
     def _montar_excel(self, aba):
@@ -151,7 +148,7 @@ class StatusDocsView(BaseView):
         area = Card(body, "Ações (sobre os documentos da aba ativa)")
         area.grid(row=2, column=0, sticky="ew", pady=(0, 4))
 
-        RunBar(area, "Gerar Status Atual", self._tarefa_status, None).grid(
+        RunBar(area, "Gerar Status Atual", self._tarefa_status, self.log).grid(
             row=1, column=0, sticky="ew", padx=16, pady=(2, 8))
 
         linha = ctk.CTkFrame(area, fg_color="transparent")

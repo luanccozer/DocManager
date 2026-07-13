@@ -6,7 +6,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from .. import theme as t
-from ..components import Card, FileSelector, LogConsole, RunBar
+from ..components import Card, FileSelector, RunBar
 from .base import BaseView
 
 
@@ -36,16 +36,13 @@ class HistoricoView(BaseView):
         ctk.CTkLabel(aba_plan, text="Excel com 1 linha por revisão + colunas de atraso (Itaipu e CMI).",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700).grid(
             row=0, column=0, sticky="w", pady=8, padx=6)
-        RunBar(aba_plan, "Gerar Planilha", self._gerar_planilha, None).grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+        RunBar(aba_plan, "Gerar Planilha", self._gerar_planilha, self.log).grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
 
         ctk.CTkLabel(aba_dash, text="Dashboard web: First Time Right, ciclo de aprovação, status vigente, "
                      "fluxo de envios/retornos, evolução do atraso no tempo e gargalos por especialidade.",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700).grid(
             row=0, column=0, sticky="w", pady=8, padx=6)
-        RunBar(aba_dash, "Gerar e Abrir Dashboard", self._abrir_dashboard, None).grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
-
-        self.log = LogConsole(body, height=230)
-        self.log.grid(row=2, column=0, sticky="nsew", pady=(6, 0))
+        RunBar(aba_dash, "Gerar e Abrir Dashboard", self._abrir_dashboard, self.log).grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
 
     def _base(self, run):
         from ...common import carregar_base_aconex

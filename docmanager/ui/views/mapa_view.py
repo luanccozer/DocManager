@@ -5,7 +5,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from .. import theme as t
-from ..components import Card, FileSelector, LogConsole, RunBar
+from ..components import Card, FileSelector, RunBar
 from .base import BaseView
 
 
@@ -33,10 +33,8 @@ class MapaView(BaseView):
                       command=self._abrir_delta).pack(side="right")
         self._atualizar_vip()
 
-        self.log = LogConsole(body, height=260)
         self.run = RunBar(body, "Iniciar Atualização", self._tarefa, self.log)
         self.run.grid(row=2, column=0, sticky="ew", pady=(4, 8))
-        self.log.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
 
     def _abrir_delta(self):
         if not self.sel_mapa.path:

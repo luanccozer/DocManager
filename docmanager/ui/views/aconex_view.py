@@ -5,7 +5,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from .. import theme as t
-from ..components import Card, LogConsole, RunBar
+from ..components import Card, RunBar
 from .base import BaseView
 
 
@@ -35,10 +35,8 @@ class AconexView(BaseView):
                      font=t.corpo(11), text_color=t.TEXTO_FRACO, anchor="w").grid(
             row=card._linha, column=0, sticky="w", padx=16, pady=(0, 12))
 
-        self.log = LogConsole(body, height=280)
         self.run = RunBar(body, "Iniciar Extração", self._tarefa, self.log)
         self.run.grid(row=1, column=0, sticky="ew", pady=(4, 8))
-        self.log.grid(row=2, column=0, sticky="nsew", pady=(4, 0))
 
     def _tarefa(self, run: RunBar):
         from dotenv import load_dotenv

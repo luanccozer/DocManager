@@ -114,20 +114,33 @@ class FileSelector(ctk.CTkFrame):
 
 
 class LogConsole(ctk.CTkTextbox):
-    """Console de log thread-safe (use .log() de qualquer thread)."""
+    """Console de log thread-safe (use .log() de qualquer thread). Carimba a hora
+    de cada linha e faz auto-scroll; `clear()` esvazia."""
 
     def __init__(self, master, **kw):
         super().__init__(master, fg_color="#0B1119", text_color=t.TEXTO_FRACO,
-                         font=t.mono(11), corner_radius=10, **kw)
+                         font=t.mono(11), corner_radius=8, **kw)
         self.configure(state="disabled")
 
     def log(self, msg: str):
-        self.after(0, self._inserir, str(msg))
+        from datetime import datetime
+        carimbo = datetime.now().strftime("%H:%M:%S")
+        self.after(0, self._inserir, carimbo, str(msg))
 
-    def _inserir(self, msg: str):
+    def _inserir(self, carimbo: str, msg: str):
         self.configure(state="normal")
-        self.insert("end", msg + "\n")
+        # Preserva linhas em branco iniciais (mensagens que começam com \n).
+        prefixo = "\n" * (len(msg) - len(msg.lstrip("\n")))
+        self.insert("end", f"{prefixo}[{carimbo}] {msg.lstrip(chr(10))}\n")
         self.see("end")
+        self.configure(state="disabled")
+
+    def clear(self):
+        self.after(0, self._clear)
+
+    def _clear(self):
+        self.configure(state="normal")
+        self.delete("1.0", "end")
         self.configure(state="disabled")
 
 

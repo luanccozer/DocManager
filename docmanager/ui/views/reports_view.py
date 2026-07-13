@@ -6,7 +6,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from .. import theme as t
-from ..components import Card, FileSelector, LogConsole, RunBar
+from ..components import Card, FileSelector, RunBar
 from .base import BaseView
 
 
@@ -19,12 +19,10 @@ class ReportsView(BaseView):
         card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
         self.sel = card.add(FileSelector(card, "Base Aconex", self.ctx.config, "aconex", aba_padrao="Documentos"))
 
-        self.log = LogConsole(body, height=260)
         botoes = ctk.CTkFrame(body, fg_color="transparent")
         botoes.grid(row=1, column=0, sticky="ew", pady=(0, 8))
         RunBar(botoes, "Relatório de Avanço", self._avanco, self.log).pack(fill="x", pady=4)
         RunBar(botoes, "Auditoria de Integração", self._integracao, self.log).pack(fill="x", pady=4)
-        self.log.grid(row=2, column=0, sticky="nsew", pady=(4, 0))
 
     def _carregar(self):
         from ...common import carregar_base_aconex
