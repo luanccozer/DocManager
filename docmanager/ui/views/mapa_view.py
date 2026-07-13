@@ -31,8 +31,8 @@ class MapaView(BaseView):
         self.log.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
 
     def _atualizar_vip(self):
-        estado = "LIGADA" if self.ctx.config.settings.regra_estrita_vip else "desligada"
-        self.lbl_vip.configure(text=f"Regra estrita VIP: {estado}  (altere em Configurações)")
+        estado = "Ligada" if self.ctx.config.settings.regra_estrita_vip else "Desligada"
+        self.lbl_vip.configure(text=f"Regra da Aprovação Intermediária: {estado}  (altere em Configurações)")
 
     def _tarefa(self, run: RunBar):
         self._atualizar_vip()
