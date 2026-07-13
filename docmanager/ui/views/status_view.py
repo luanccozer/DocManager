@@ -11,7 +11,7 @@ conjunto da aba ativa:
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
@@ -24,20 +24,6 @@ _NENHUM = "- NENHUM -"
 _TAB_EXCEL = "📄 Via Arquivo Excel"
 _TAB_LISTA = "📋 Via Lista Rápida"
 _TAB_TODOS = "☁️ Todos Aconex"
-
-
-def _flatten(arvore) -> list[dict]:
-    linhas = []
-    for grupo, niveis in arvore.items():
-        for _, itens in niveis.items():
-            for it in itens:
-                linhas.append({
-                    "Classificação": grupo, "Documento": it["doc"], "Título": it["titulo"],
-                    "Status Antes": it["real_antes"], "Status Depois": it["real_depois"],
-                    "Rev Antes": it["rev_antes"], "Data Antes": it["data_antes"],
-                    "Rev Depois": it["rev_depois"], "Data Depois": it["data_depois"],
-                })
-    return linhas
 
 
 class StatusDocsView(BaseView):
@@ -61,7 +47,6 @@ class StatusDocsView(BaseView):
 
         self.log = LogConsole(body, height=180)
         self.log.grid(row=3, column=0, sticky="nsew", pady=(6, 0))
-        self._ultimo_delta = None
 
     # ---------------------------------------------------------- Aba 1: Excel
     def _montar_excel(self, aba):
@@ -163,34 +148,19 @@ class StatusDocsView(BaseView):
 
     # ---------------------------------------------------------- Ações (rodapé)
     def _montar_acoes(self, body):
-        from ...status_backend import METADADOS_AGRUPAVEIS
         area = Card(body, "Ações (sobre os documentos da aba ativa)")
         area.grid(row=2, column=0, sticky="ew", pady=(0, 4))
 
         RunBar(area, "Gerar Status Atual", self._tarefa_status, None).grid(
             row=1, column=0, sticky="ew", padx=16, pady=(2, 8))
 
-        hoje = datetime.now()
         linha = ctk.CTkFrame(area, fg_color="transparent")
-        linha.grid(row=2, column=0, sticky="w", padx=16, pady=(2, 2))
-        ctk.CTkLabel(linha, text="Delta —  De:", font=t.corpo(12), text_color=t.TEXTO).grid(row=0, column=0, padx=(0, 4))
-        self.dt_ini = ctk.CTkEntry(linha, width=95, font=t.corpo(12))
-        self.dt_ini.insert(0, (hoje - timedelta(days=30)).strftime("%d/%m/%Y"))
-        self.dt_ini.grid(row=0, column=1)
-        ctk.CTkLabel(linha, text="Até:", font=t.corpo(12), text_color=t.TEXTO).grid(row=0, column=2, padx=(10, 4))
-        self.dt_fim = ctk.CTkEntry(linha, width=95, font=t.corpo(12))
-        self.dt_fim.insert(0, hoje.strftime("%d/%m/%Y"))
-        self.dt_fim.grid(row=0, column=3)
-        ctk.CTkLabel(linha, text="Agrupar:", font=t.corpo(12), text_color=t.TEXTO).grid(row=0, column=4, padx=(12, 4))
-        self.agrup = ctk.CTkOptionMenu(linha, values=METADADOS_AGRUPAVEIS, width=175, font=t.corpo(12),
-                                       fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
-        self.agrup.grid(row=0, column=5)
-        ctk.CTkLabel(linha, text="Visão:", font=t.corpo(12), text_color=t.TEXTO).grid(row=0, column=6, padx=(12, 4))
-        self.visao = ctk.CTkOptionMenu(linha, values=["Efetiva", "Bruta"], width=95, font=t.corpo(12),
-                                       fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
-        self.visao.grid(row=0, column=7)
-        RunBar(area, "Analisar Delta do Período", self._tarefa_delta, None).grid(
-            row=3, column=0, sticky="ew", padx=16, pady=(2, 10))
+        linha.grid(row=2, column=0, sticky="ew", padx=16, pady=(2, 12))
+        ctk.CTkButton(linha, text="⏳ Analisar Mudanças por Período", width=260, height=38,
+                      font=t.corpo(13, "bold"), fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
+                      command=self._abrir_delta).pack(side="left")
+        ctk.CTkLabel(linha, text="Abre a árvore de mudanças (por classificação) dos documentos da aba.",
+                     font=t.corpo(11), text_color=t.TEXTO_FRACO, justify="left", wraplength=420).pack(side="left", padx=12)
 
     # ---------------------------------------------------------- comuns
     def _carregar_base(self, run):
@@ -246,37 +216,40 @@ class StatusDocsView(BaseView):
         if ok:
             self.after(0, lambda: messagebox.showinfo("Status", f"{len(linhas)} documentos analisados."))
 
-    def _tarefa_delta(self, run: RunBar):
-        col = self._coletar(run)
-        if col is None:
-            return
-        base, pares, is_todos = col
-        from ...status_backend import calcular_mudancas_base
-        codigos = None
-        if not is_todos:
+    def _codigos_do_tab(self):
+        """(codigos, is_todos) da aba ativa, SEM carregar a base; None se faltar entrada."""
+        aba = self.tabs.get()
+        if aba == _TAB_EXCEL:
+            if not self.sel_lista.path:
+                messagebox.showwarning("Aviso", "Selecione o arquivo da lista na aba 'Via Arquivo Excel'.")
+                return None
+            try:
+                pares = self._pares_do_excel()
+            except Exception as e:  # noqa: BLE001
+                messagebox.showerror("Erro", f"Erro ao ler a lista: {e}")
+                return None
             codigos = [c for par in pares for c in par if c]
             if not codigos:
-                self.log.log("Nenhum código para o Delta.")
-                return
-        alvo = "toda a base vigente" if is_todos else f"{len(codigos)} códigos"
-        self.log.log(f"Delta {self.dt_ini.get()} → {self.dt_fim.get()} ({alvo}) por {self.agrup.get()} ({self.visao.get()})...")
-        run.set_progress(0.6)
-        ok, arvore, total = calcular_mudancas_base(
-            base, self.dt_ini.get(), self.dt_fim.get(),
-            coluna_agrupar=self.agrup.get(), tipo_visao=self.visao.get(), codigos=codigos)
-        run.set_progress(0.95)
-        if not ok:
-            self.log.log(f"ERRO: {arvore}")
+                messagebox.showwarning("Aviso", "Nenhum código nas colunas escolhidas.")
+                return None
+            return codigos, False
+        if aba == _TAB_LISTA:
+            codigos = [c for par in self._pares_da_lista() for c in par if c]
+            if not codigos:
+                messagebox.showwarning("Aviso", "Cole ao menos um código na aba 'Via Lista Rápida'.")
+                return None
+            return codigos, False
+        return None, True  # Todos Aconex → base inteira
+
+    def _abrir_delta(self):
+        from ...status_backend import METADADOS_AGRUPAVEIS
+        if not self.sel.path:
+            messagebox.showwarning("Aviso", "Selecione a base Aconex no topo.")
             return
-        self.log.log(f"\n{total} mudanças:")
-        for grupo, niveis in sorted(arvore.items()):
-            self.log.log(f"  ▸ {grupo}: {sum(len(v) for v in niveis.values())}")
-        self._ultimo_delta = _flatten(arvore)
-        if self._ultimo_delta and messagebox.askyesno("Delta", f"{total} mudanças. Exportar?"):
-            import pandas as pd
-            from ...common import exportar_dataframe
-            saida = filedialog.asksaveasfilename(defaultextension=".xlsx",
-                                                 initialfile=f"Delta_{self.agrup.get()}.xlsx", filetypes=[("Excel", "*.xlsx")])
-            if saida:
-                _, msg = exportar_dataframe(pd.DataFrame(self._ultimo_delta), saida, sheet_name="Delta")
-                self.log.log(msg)
+        res = self._codigos_do_tab()
+        if res is None:
+            return
+        codigos, is_todos = res
+        from .status_delta_dialog import StatusDeltaDialog
+        StatusDeltaDialog(self, path_aconex=self.sel.path, sheet_aconex=self.sel.sheet,
+                          codigos=codigos, is_todos=is_todos, metadados=METADADOS_AGRUPAVEIS)
