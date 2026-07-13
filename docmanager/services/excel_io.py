@@ -145,6 +145,24 @@ class MappingSheet:
             if cell.value is not None and str(cell.value).strip() == "":
                 cell.value = None
 
+    def set_reprogramada_etapa1(self, row: int, valor) -> bool:
+        """Escreve a REPROGRAMAÇÃO na coluna DATA REPROGRAMADA da ETAPA 1.
+
+        §21.1: há 4 colunas 'DATA REPROGRAMADA' (não endereçáveis por nome). A da
+        etapa 1 é, por posição, a imediatamente à direita de 'DATA PREVISTA
+        EMISSÃO ETAPA 1'. Só escreve se o cabeçalho vizinho de fato normalizar
+        para REPROGRAMADA — senão devolve False sem tocar em nada."""
+        from ..core.normalize import remover_acentos
+        col_prev = self.headers.get(COLUNAS_MAPA["data_previsao_etapa_1"])
+        if not col_prev:
+            return False
+        col_reprog = col_prev + 1
+        hdr = self.ws.cell(row=self.row_header, column=col_reprog).value
+        if hdr and "REPROGRAMADA" in remover_acentos(str(hdr)).upper():
+            self.ws.cell(row=row, column=col_reprog).value = valor
+            return True
+        return False
+
     @property
     def max_row(self) -> int:
         return self.ws.max_row

@@ -57,7 +57,8 @@ def resolver_data_prevista(valor_celula, codigos_historicos, cod_itaipu_atual,
 
     Só injeta se a célula está vazia. Desempate de datas conflitantes: código
     Itaipu atual → CMI atual → data mais nova. Candidata = data_ref do Controle
-    (REPROGRAMAÇÃO > DATA PREVISTA).
+    (REPROGRAMAÇÃO > DATA PREVISTA). Mantida por compatibilidade; o Mapa novo usa
+    `resolver_datas_controle`, que separa prevista e reprogramada.
     """
     if controle is None:
         return None
@@ -79,6 +80,35 @@ def resolver_data_prevista(valor_celula, codigos_historicos, cod_itaipu_atual,
     if cod_cmi_atual in encontradas:
         return encontradas[cod_cmi_atual]
     return max(datas)
+
+
+@dataclass(frozen=True)
+class DatasControle:
+    """Resultado da resolução das datas do Controle para um documento do Mapa.
+
+    - `prevista_para_celula`: DATA PREVISTA a escrever na célula ETAPA 1 — só
+      quando a célula está vazia (nunca sobrescreve input existente).
+    - `reprogramada`: REPROGRAMAÇÃO a escrever na coluna DATA REPROGRAMADA.
+    - `data_ref`: REPROGRAMAÇÃO > PREVISTA — usada para o cálculo de atraso.
+    """
+    prevista_para_celula: date | None = None
+    reprogramada: date | None = None
+    data_ref: date | None = None
+
+
+def resolver_datas_controle(valor_celula_prevista, codigos_historicos, cod_itaipu_atual,
+                            cod_cmi_atual, controle) -> DatasControle:
+    """Separa PREVISTA (célula, só se vazia) de REPROGRAMAÇÃO (coluna própria) e
+    entrega a `data_ref` para o atraso. Regra do usuário (§24)."""
+    if controle is None:
+        return DatasControle()
+    linha = controle.resolver_para_codigos(codigos_historicos, cod_itaipu_atual, cod_cmi_atual)
+    if linha is None:
+        return DatasControle()
+    celula_vazia = not (valor_celula_prevista and str(valor_celula_prevista).strip())
+    prevista = linha.data_prevista if (celula_vazia and linha.data_prevista is not None) else None
+    return DatasControle(prevista_para_celula=prevista, reprogramada=linha.data_reprogramada,
+                         data_ref=linha.data_ref)
 
 
 def processar_documento(df_tracking: pd.DataFrame, *, nivel: str, tag_etapa: str = "",

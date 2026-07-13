@@ -23,6 +23,32 @@ def test_controle_reprogramacao_vence_prevista(tmp_path):
     assert ctrl.linha_por_codigo("IT-2").data_ref == date(2024, 5, 10)   # prevista
 
 
+def test_controle_leitura_dinamica_formatos_mistos(tmp_path):
+    """Cabeçalho localizado dinamicamente + datas em formatos MISTOS por coluna:
+    DATA PREVISTA em DD-MM-AAAA e REPROGRAMAÇÃO em M/D/AAAA (US)."""
+    from openpyxl import Workbook
+
+    from docmanager.services.controle_docs import ler_controle
+
+    p = tmp_path / "ctrl_real.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["ITAIPU - CONTROLE DE DOCUMENTOS", "", "", "", "Planejamento"])
+    ws.append(["PLANO GERAL DE ENVIO DE DOCUMENTOS"])
+    ws.append(["", "", "", ";", "."])
+    ws.append(["ITEM", "NÚMERO INTERNO", "CODIFICAÇÃO ITAIPÚ (ACONEX)", "DESCRIÇÃO",
+               "DATA PREVISTA DE EMISSÃO ACONEX", "REPROGRAMAÇÃO"])
+    ws.append([1, "CMI-A", "#IT-A", "DOC A", "30-11-2025", ""])           # só prevista
+    ws.append([2, "CMI-B", "#IT-B", "DOC B", "17-07-2025", "10/20/2025"])  # reprog US vence
+    wb.save(p)
+
+    ctrl = ler_controle(p)
+    assert ctrl.linha_por_codigo("#IT-A").data_ref == date(2025, 11, 30)
+    assert ctrl.linha_por_codigo("#IT-B").data_ref == date(2025, 10, 20)   # 20/out (M/D)
+    # casa também pelo NÚMERO INTERNO (código CMI)
+    assert ctrl.linha_por_codigo("CMI-B").data_ref == date(2025, 10, 20)
+
+
 def test_controle_normaliza_codigo_float(tmp_path):
     # Código numérico vira '12345.0' na leitura str; deve casar por '12345'.
     p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [

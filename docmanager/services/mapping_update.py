@@ -21,7 +21,7 @@ from ..core.hierarchy import (
     identificar_planilhas_vip,
 )
 from ..core.identity import AconexIndex, obter_codigos_historicos
-from ..core.mapping import processar_documento, resolver_data_prevista
+from ..core.mapping import processar_documento, resolver_datas_controle
 from .controle_docs import ControleDocs
 from .excel_io import MappingSheet, carregar_base_aconex
 
@@ -95,15 +95,21 @@ def atualizar_mapeamento(
         processadas += 1
         df_tracking = idx.localizar(c_itaipu, c_cmi)
 
-        # Injeção da data prevista (§13): mata zumbi, resolve, escreve se vazio.
+        # Datas do Controle (§13, §24): PREVISTA na célula (só se vazia),
+        # REPROGRAMAÇÃO na coluna própria; atraso calculado por REPROGRAMAÇÃO>PREVISTA.
         ms.matar_zumbi("data_previsao_etapa_1", row)
+        data_ref = None
         if controle is not None and not df_tracking.empty:
-            valor = ms.get_val("data_previsao_etapa_1", row)
-            data_inj = resolver_data_prevista(
-                valor or None, obter_codigos_historicos(df_tracking), c_itaipu, c_cmi, controle)
-            if data_inj is not None:
-                ms.set_val("data_previsao_etapa_1", row, data_inj)
-        data_prevista = ms.get_val("data_previsao_etapa_1", row) or None
+            datas = resolver_datas_controle(
+                ms.get_val("data_previsao_etapa_1", row) or None,
+                obter_codigos_historicos(df_tracking), c_itaipu, c_cmi, controle)
+            if datas.prevista_para_celula is not None:
+                ms.set_val("data_previsao_etapa_1", row, datas.prevista_para_celula)
+            if datas.reprogramada is not None:
+                ms.set_reprogramada_etapa1(row, datas.reprogramada)
+            data_ref = datas.data_ref
+        # Atraso usa a data_ref do Controle; sem Controle, cai na data já na célula.
+        data_prevista = data_ref if data_ref is not None else (ms.get_val("data_previsao_etapa_1", row) or None)
 
         nivel = ms.get_val("nivel", row)
         tag_etapa = ms.get_val("filtro_etapa", row)

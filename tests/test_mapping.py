@@ -56,6 +56,65 @@ def test_filtro_tag_etapa_esvazia_vira_nao_emitido():
     assert r.status_real == "NÃO EMITIDO"  # nenhum título contém 'ETAPA 9'
 
 
+_COLS_MAPA_REPROG = [
+    "GRUPO", "Nº CMI", "N° ITAIPU", "DESCRIÇÃO DO DOCUMENTO", "NÍVEL",
+    "DATA PREVISTA EMISSÃO ETAPA 1", "DATA REPROGRAMADA", "EMITIDO / NÃO EMITIDO",
+    "DATA ÚLTIMA EMISSÃO", "ÚLTIMA REV. EMITIDA", "STATUS REAL", "STATUS",
+    "STATUS CONSOLIDADO", "COM ITAIPU", "PLANO DE EXECUÇÃO", "PREDECESSOR",
+    "TAG ETAPA", "RESUMO QUANTIDADES",
+]
+
+
+def test_mapa_preenche_prevista_e_reprogramada(tmp_path):
+    """Controle: DATA PREVISTA vai na célula (vazia); REPROGRAMAÇÃO na coluna
+    DATA REPROGRAMADA (posicional). Atraso do KPI usa a reprogramação."""
+    from openpyxl import Workbook
+
+    from docmanager.services.controle_docs import ler_controle
+
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC A")
+             .evento("0A", 1, "Em Processo", "01/09/2024", current=True))
+    base_path = tmp_path / "base.xlsx"
+    b.to_excel(base_path, index=False)
+
+    # Mapa com a coluna DATA REPROGRAMADA logo após a DATA PREVISTA ETAPA 1.
+    mapa_path = tmp_path / "mapa.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    for c, nome in enumerate(_COLS_MAPA_REPROG, 1):
+        ws.cell(1, c, nome)
+    ws.cell(3, 1, "SALAS")
+    ws.cell(3, 2, "CMI-1")
+    ws.cell(3, 3, "#IT-1")
+    ws.cell(3, 4, "DOC A")
+    ws.cell(3, 5, "4")
+    wb.save(mapa_path)
+
+    # Controle: cabeçalho na linha 4, PREVISTA (DD-MM) + REPROGRAMAÇÃO (US M/D).
+    ctrl_path = tmp_path / "ctrl.xlsx"
+    wc = Workbook()
+    wsc = wc.active
+    wsc.append(["ITAIPU - CONTROLE DE DOCUMENTOS"])
+    wsc.append([])
+    wsc.append([])
+    wsc.append(["CODIFICAÇÃO ITAIPÚ (ACONEX)", "NÚMERO INTERNO", "DESCRIÇÃO",
+                "DATA PREVISTA DE EMISSÃO ACONEX", "REPROGRAMAÇÃO"])
+    wsc.append(["#IT-1", "CMI-1", "DOC A", "01-09-2024", "10/20/2024"])
+    wc.save(ctrl_path)
+
+    controle = ler_controle(ctrl_path)
+    r = atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle,
+                             hoje=HOJE, log_cb=lambda m: None)
+    assert r.ok
+
+    wb2 = openpyxl.load_workbook(mapa_path)
+    ws2 = wb2.active
+    prevista = ws2.cell(3, 6).value   # DATA PREVISTA EMISSÃO ETAPA 1
+    reprog = ws2.cell(3, 7).value     # DATA REPROGRAMADA
+    assert str(prevista).startswith("2024-09-01"), prevista
+    assert str(reprog).startswith("2024-10-20"), reprog   # US M/D → 20/out
+
+
 def test_atualizar_mapeamento_headless(tmp_path):
     # Base: 1 plano nível 1 (aprovado) + 1 planilha nível 3 (em processo).
     b = base(
