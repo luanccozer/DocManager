@@ -144,6 +144,42 @@ class LogConsole(ctk.CTkTextbox):
         self.configure(state="disabled")
 
 
+class NavItem(ctk.CTkFrame):
+    """Item da barra lateral: ícone em coluna de LARGURA FIXA + rótulo, para que
+    todos os rótulos alinhem independentemente da largura do emoji. Todo o item
+    é clicável e tem estados de hover/ativo."""
+
+    def __init__(self, master, icone: str, label: str, command):
+        super().__init__(master, fg_color="transparent", corner_radius=8, height=44)
+        self.command = command
+        self._ativo = False
+        self.grid_propagate(False)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self._ic = ctk.CTkLabel(self, text=icone, width=26, font=t.corpo(16),
+                                text_color=t.TEXTO, fg_color="transparent")
+        self._ic.grid(row=0, column=0, padx=(14, 8))
+        self._lb = ctk.CTkLabel(self, text=label, anchor="w", font=t.corpo(14),
+                                text_color=t.TEXTO, fg_color="transparent")
+        self._lb.grid(row=0, column=1, sticky="w")
+        for w in (self, self._ic, self._lb):
+            w.bind("<Button-1>", lambda _e: self.command())
+            w.bind("<Enter>", self._enter)
+            w.bind("<Leave>", self._leave)
+
+    def _enter(self, _e):
+        if not self._ativo:
+            self.configure(fg_color=t.SIDEBAR_HOVER)
+
+    def _leave(self, _e):
+        if not self._ativo:
+            self.configure(fg_color="transparent")
+
+    def set_ativo(self, ativo: bool):
+        self._ativo = ativo
+        self.configure(fg_color=t.SIDEBAR_ATIVO if ativo else "transparent")
+
+
 class RunBar(ctk.CTkFrame):
     """Botão de ação + barra de progresso. Roda a tarefa numa thread."""
 

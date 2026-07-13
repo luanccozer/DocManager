@@ -38,6 +38,26 @@ próximas vezes, só abre — em segundos.
 > python -m docmanager
 > ```
 
+#### Rede corporativa (Zscaler) — instalar as bibliotecas
+
+Atrás do Zscaler, o `pip` costuma falhar por causa do certificado. A solução é
+passar o índice interno e o host confiável. Para o `run.bat` fazer isso
+automaticamente, **crie um arquivo `pip_corporativo.txt`** na pasta do projeto
+com os seus argumentos numa única linha, por exemplo:
+
+```
+--isolated --index-url https://SEU-MIRROR-INTERNO/simple --trusted-host SEU-HOST
+```
+
+O `run.bat` lê esse arquivo e repassa os argumentos ao `pip` (ou use a variável
+de ambiente `DOCMANAGER_PIP_ARGS`). Instalando manualmente, é o mesmo:
+
+```bat
+pip install --isolated --index-url https://SEU-MIRROR-INTERNO/simple --trusted-host SEU-HOST -r requirements.txt
+```
+
+> `pip_corporativo.txt` fica fora do Git (é específico da sua rede).
+
 ### 3. Configurar o segredo do Aconex (só para o módulo de Extração)
 
 O segredo da API **não** vai no GitHub (fica fora do repositório por segurança).

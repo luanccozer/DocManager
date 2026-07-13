@@ -68,6 +68,14 @@ class ControleDocs:
                 return r.data_ref
         return None
 
+    def datas_por_codigos(self, codigos) -> tuple[date | None, date | None]:
+        """(data_prevista, data_reprogramada) da 1ª linha do Controle que casa."""
+        for cod in codigos:
+            r = self._por_codigo.get(normalizar_codigo(cod))
+            if r is not None:
+                return r.data_prevista, r.data_reprogramada
+        return None, None
+
     def resolver_para_codigos(self, codigos, cod_itaipu_atual="", cod_cmi_atual="") -> ControleRow | None:
         """Linha do Controle para um documento, priorizando o código Itaipu atual,
         depois o CMI atual, depois qualquer código histórico que case."""

@@ -12,14 +12,16 @@ from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from ..core.constants import COLS_STRIP_CARGA, MAPA_ANCORA_ITAIPU
+from ..core.constants import COL_REVISAO, COLS_STRIP_CARGA, MAPA_ANCORA_ITAIPU
 from ..core.hierarchy import LinhaPlano
 from ..core.delays import (
     COL_ATRASO_CMI,
     COL_ATRASO_ITAIPU,
+    COL_DATA_PREVISTA,
     COL_DATA_PREVISTA_CTRL,
     COL_DIAS_CMI,
     COL_DIAS_ITAIPU,
+    COL_REPROGRAMACAO,
 )
 from ..core.wide import COL_DATA_ENVIO, COL_DATA_RETORNO, COL_STATUS_ENVIO, COL_STATUS_RETORNO
 
@@ -30,8 +32,10 @@ _COLUNAS_LEGADO = [
     "Tipo do Documento DCC", "Subtipo DCC", "Versão", "Current", "Revisão",
     "Data de Envio", "Status Envio", "Data de Retorno", "Status Retorno",
 ]
-# Data Prevista (Controle) é interna (só para cálculo dos atrasos), não vai ao Excel.
-_COLUNAS_NOVAS = [COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU, COL_DIAS_CMI, COL_ATRASO_CMI]
+# 'Data Prevista (Controle)' é interna (base do cálculo); NÃO vai ao Excel.
+# 'Data Prevista' e 'Reprogramação' vão ao Excel, mas só na revisão 0A (§ time).
+_COLUNAS_NOVAS = [COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU, COL_DIAS_CMI, COL_ATRASO_CMI,
+                  COL_DATA_PREVISTA, COL_REPROGRAMACAO]
 
 _LARGURAS = {
     "No. do Documento": 27, "Controle do Emissor": 27, "Tracking ID": 27,
@@ -40,16 +44,36 @@ _LARGURAS = {
     "Versão": 8, "Current": 8, "Revisão": 10,
     "Data de Envio": 15, "Status Envio": 25, "Data de Retorno": 15, "Status Retorno": 25,
     COL_DIAS_ITAIPU: 12, COL_ATRASO_ITAIPU: 14, COL_DIAS_CMI: 12,
-    COL_ATRASO_CMI: 14, COL_DATA_PREVISTA_CTRL: 20,
+    COL_ATRASO_CMI: 14, COL_DATA_PREVISTA: 16, COL_REPROGRAMACAO: 16, COL_DATA_PREVISTA_CTRL: 20,
 }
 
 _RENOMEAR_SAIDA = {COL_DATA_ENVIO: "Data de Envio", COL_DATA_RETORNO: "Data de Retorno"}
 
 
+def _achar_header_aconex(caminho, aba, max_scan=8) -> int:
+    """Linha (base 0) do cabeçalho da base Aconex, localizada por âncora
+    ('Tracking ID' ou 'No. do Documento'+'Revisão'). 0 se não achar (padrão).
+    Faz um 'peek' streaming (read_only) — barato mesmo em bases enormes."""
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(caminho, read_only=True, keep_links=False)
+        ws = wb[aba] if (aba and not isinstance(aba, int)) else wb.worksheets[aba if isinstance(aba, int) else 0]
+        for i, row in enumerate(ws.iter_rows(min_row=1, max_row=max_scan, values_only=True)):
+            cells = {str(v).strip().upper() for v in row if v is not None}
+            if "TRACKING ID" in cells or ("NO. DO DOCUMENTO" in cells and "REVISÃO" in cells):
+                wb.close()
+                return i
+        wb.close()
+    except Exception:  # noqa: BLE001
+        pass
+    return 0
+
+
 def carregar_base_aconex(caminho, aba=0) -> pd.DataFrame:
-    """Carrega a base Aconex como o backend espera: dtype=str, sem NaN, strip
-    nas colunas-chave (porta de DataManager.carregar_aconex)."""
-    df = pd.read_excel(caminho, sheet_name=aba, dtype=str).fillna("")
+    """Carrega a base Aconex: cabeçalho localizado dinamicamente (robusto a
+    linhas de título acima), dtype=str, sem NaN, strip nas colunas-chave."""
+    header = _achar_header_aconex(caminho, aba)
+    df = pd.read_excel(caminho, sheet_name=aba, header=header, dtype=str).fillna("")
     for col in COLS_STRIP_CARGA:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()
@@ -57,11 +81,22 @@ def carregar_base_aconex(caminho, aba=0) -> pd.DataFrame:
 
 
 def preparar_para_exportar(df_wide: pd.DataFrame) -> pd.DataFrame:
-    """Renomeia colunas internas → nomes do Excel, formata datas e ordena colunas."""
+    """Renomeia colunas internas → nomes do Excel, formata datas e ordena colunas.
+
+    'Data Prevista'/'Reprogramação' só aparecem na revisão 0A (e nas linhas
+    sintéticas de docs não emitidos); nas demais revisões ficam em branco."""
     df = df_wide.rename(columns=_RENOMEAR_SAIDA).copy()
-    for col in ("Data de Envio", "Data de Retorno", COL_DATA_PREVISTA_CTRL):
+    for col in ("Data de Envio", "Data de Retorno", COL_DATA_PREVISTA,
+                COL_REPROGRAMACAO, COL_DATA_PREVISTA_CTRL):
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%d/%m/%Y")
+    if COL_DATA_PREVISTA in df.columns or COL_REPROGRAMACAO in df.columns:
+        rev = df.get(COL_REVISAO, pd.Series("", index=df.index)).astype(str).str.strip().str.upper()
+        env = df.get(COL_STATUS_ENVIO, pd.Series("", index=df.index)).astype(str).str.strip().str.upper()
+        mostrar = (rev == "0A") | (env == "NÃO EMITIDO")   # 0A ou linha sintética
+        for col in (COL_DATA_PREVISTA, COL_REPROGRAMACAO):
+            if col in df.columns:
+                df.loc[~mostrar, col] = ""
     ordem = [c for c in (_COLUNAS_LEGADO + _COLUNAS_NOVAS) if c in df.columns]
     # Preserva Status Envio/Retorno mesmo que a lista mude no futuro
     for c in (COL_STATUS_ENVIO, COL_STATUS_RETORNO):
@@ -111,7 +146,7 @@ class MappingSheet:
 
     @staticmethod
     def _find_headers(ws):
-        for r in range(1, 6):
+        for r in range(1, 11):   # varre até a linha 10 (robusto se o cabeçalho descer)
             headers = {}
             for cell in ws[r]:
                 if cell.value is not None and str(cell.value).strip():
@@ -196,7 +231,8 @@ _BORDER = Border(left=_BORDA_FINA, right=_BORDA_FINA, top=_BORDA_FINA, bottom=_B
 _COLS_NOVAS_SET = set(_COLUNAS_NOVAS)
 _COLS_NUM = {COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU, COL_DIAS_CMI, COL_ATRASO_CMI}
 _COLS_CENTRO = {"Versão", "Current", "Revisão", *_COLS_NUM,
-                "Data de Envio", "Data de Retorno", COL_DATA_PREVISTA_CTRL}
+                "Data de Envio", "Data de Retorno", COL_DATA_PREVISTA,
+                COL_REPROGRAMACAO, COL_DATA_PREVISTA_CTRL}
 
 
 def _estilizar_historico(ws, df: pd.DataFrame) -> None:
@@ -397,34 +433,45 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Status Documentos"
-    larguras = [25, 25, 60, 10, 15, 25, 25]
-    for i, w in enumerate(larguras, 1):
-        ws.column_dimensions[get_column_letter(i)].width = w
     headers = ["Código Itaipu", "Código CMI", "Título", "Revisão", "Data", "Status Aconex", "Status Real"]
+    larguras = {"Código Itaipu": 25, "Código CMI": 25, "Título": 60, "Revisão": 10,
+                "Data": 15, "Status Aconex": 25, "Status Real": 25}
+    centro = {"Revisão", "Data", "Status Real"}
+    ws.freeze_panes = "A2"
+    ws.row_dimensions[1].height = 26
+
+    # Cabeçalho — mesmo padrão executivo do Histórico (slate + branco + borda).
     for c, h in enumerate(headers, 1):
         cell = ws.cell(1, c, h)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="366092")
-        cell.alignment = Alignment(horizontal="center")
-    ws.freeze_panes = "A2"
+        cell.fill = _FILL_HEADER
+        cell.font = _FONT_HEADER
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = _BORDER
+        ws.column_dimensions[get_column_letter(c)].width = larguras[h]
 
+    # Corpo — fonte, borda, zebra; 'Status Real' com cor semântica por cima.
     for r, d in enumerate(linhas, 2):
-        ws.cell(r, 1, d.get("Código Itaipu", ""))
-        ws.cell(r, 2, d.get("Código CMI", ""))
-        ws.cell(r, 3, d.get("Título", ""))
-        ws.cell(r, 4, d.get("Revisão", "")).alignment = Alignment(horizontal="center")
-        ws.cell(r, 5, d.get("Data", "")).alignment = Alignment(horizontal="center")
-        ws.cell(r, 6, d.get("Status Aconex", ""))
-        cell = ws.cell(r, 7, d.get("Status Real", ""))
-        cell.alignment = Alignment(horizontal="center", vertical="center")
+        banda = _FILL_BANDA if r % 2 == 0 else None
+        valores = [d.get("Código Itaipu", ""), d.get("Código CMI", ""), d.get("Título", ""),
+                   d.get("Revisão", ""), d.get("Data", ""), d.get("Status Aconex", ""),
+                   d.get("Status Real", "")]
+        for c, (h, v) in enumerate(zip(headers, valores), 1):
+            cell = ws.cell(r, c, v)
+            cell.font = _FONT_DADO
+            cell.border = _BORDER
+            cell.alignment = Alignment(wrap_text=True, vertical="center",
+                                       horizontal="center" if h in centro else "left")
+            if banda is not None:
+                cell.fill = banda
         s = str(d.get("Status Real", ""))
+        cell = ws.cell(r, 7)
         if s in ("Aprovado", "Aprovado com Comentários", "Para Assinatura") or s.startswith("Aprovado -"):
-            cell.font = Font(color="006100")
+            cell.font = Font(color="006100", name="Segoe UI", size=10)
             cell.fill = PatternFill("solid", fgColor="C6EFCE")
         elif s == "Em Processo" or s.startswith("Em Análise -") or s.startswith("Emissão Inicial -"):
-            cell.font = Font(color="0000FF")
+            cell.font = Font(color="1F4E79", name="Segoe UI", size=10, bold=True)
         elif s in ("Não Aprovado", "NÃO EMITIDO") or s.startswith("Não Aprovado -"):
-            cell.font = Font(color="9C0006")
+            cell.font = Font(color="9C0006", name="Segoe UI", size=10)
             cell.fill = PatternFill("solid", fgColor="FFC7CE")
     ws.auto_filter.ref = f"A1:G{len(linhas) + 1}"
 

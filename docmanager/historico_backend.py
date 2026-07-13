@@ -16,9 +16,11 @@ from .services.excel_io import exportar_historico
 from .core.delays import (
     COL_ATRASO_CMI,
     COL_ATRASO_ITAIPU,
+    COL_DATA_PREVISTA,
     COL_DATA_PREVISTA_CTRL,
     COL_DIAS_CMI,
     COL_DIAS_ITAIPU,
+    COL_REPROGRAMACAO,
     DelayPolicy,
     calcular_atrasos,
 )
@@ -34,6 +36,6 @@ __all__ = [
     "gerar_historico", "exportar_historico",
     "DelayPolicy", "calcular_atrasos",
     "COL_DIAS_ITAIPU", "COL_ATRASO_ITAIPU", "COL_DIAS_CMI", "COL_ATRASO_CMI",
-    "COL_DATA_PREVISTA_CTRL",
+    "COL_DATA_PREVISTA", "COL_REPROGRAMACAO", "COL_DATA_PREVISTA_CTRL",
     "dashboard_series", "create_app", "DashboardServer",
 ]

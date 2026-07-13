@@ -83,6 +83,40 @@ def test_injecao_de_linha_sintetica_para_doc_nao_postado(tmp_path):
     assert s[COL_ATRASO_CMI] == 213
 
 
+def test_colunas_prevista_reprogramacao_so_na_0a(tmp_path):
+    b = base(HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC A")
+             .evento("0A", 1, "Não Aprovado", "20/09/2024")
+             .evento("0B", 1, "Em Processo", "01/10/2024", current=True))
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "IT-1", "cmi": "CMI-1", "prevista": "01/08/2024", "reprog": "20/08/2024"},
+    ])
+    wide = gerar_historico(b, ler_controle(p), DelayPolicy(hoje=date(2024, 12, 31)))
+    out = tmp_path / "h.xlsx"
+    exportar_historico(wide, out)
+    lido = pd.read_excel(out, sheet_name="Histórico").fillna("")
+    assert "Data Prevista" in lido.columns and "Reprogramação" in lido.columns
+    por_rev = {r["Revisão"]: r for _, r in lido.iterrows()}
+    assert str(por_rev["0A"]["Data Prevista"]) != "" and str(por_rev["0A"]["Reprogramação"]) != ""
+    assert str(por_rev["0B"]["Data Prevista"]) == "" and str(por_rev["0B"]["Reprogramação"]) == ""
+
+
+def test_base_atraso_cmi_0a_alterna_reprogramacao_vs_prevista(tmp_path):
+    from docmanager.core.delays import COL_ATRASO_CMI
+    b = base(HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC A")
+             .evento("0A", 1, "Em Processo", "01/09/2024", current=True))
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "IT-1", "cmi": "CMI-1", "prevista": "01/08/2024", "reprog": "20/08/2024"},
+    ])
+    ctrl = ler_controle(p)
+    HJ = date(2024, 12, 31)
+    reprog = gerar_historico(b, ctrl, DelayPolicy(hoje=HJ, base_cmi_0a="reprogramacao"))
+    prev = gerar_historico(b, ctrl, DelayPolicy(hoje=HJ, base_cmi_0a="prevista"))
+    a_reprog = int(reprog[reprog["Revisão"] == "0A"].iloc[0][COL_ATRASO_CMI])
+    a_prev = int(prev[prev["Revisão"] == "0A"].iloc[0][COL_ATRASO_CMI])
+    assert a_reprog == 12    # 20/08 → 01/09
+    assert a_prev == 31      # 01/08 → 01/09
+
+
 def test_doc_postado_nao_gera_sintetica(tmp_path):
     b = base(HistoricoBuilder("T1", "IT-1", "CMI-1")
              .evento("0A", 1, "Em Processo", "01/09/2024", current=True))

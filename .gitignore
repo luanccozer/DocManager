@@ -1,5 +1,6 @@
 # Segredos e configuração local
 .env
+pip_corporativo.txt
 
 # Python
 __pycache__/

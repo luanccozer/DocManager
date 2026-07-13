@@ -29,6 +29,8 @@ def _pasta_config() -> Path:
 class AppSettings:
     regra_estrita_vip: bool = False
     dash_port: int = 8050
+    # Base do atraso CMI na 0A: "reprogramacao" (quando houver) ou "prevista".
+    base_atraso_cmi_0a: str = "reprogramacao"
 
 
 class ConfigManager:
@@ -68,6 +70,7 @@ class ConfigManager:
         return AppSettings(
             regra_estrita_vip=bool(s.get("regra_estrita_vip", False)),
             dash_port=int(s.get("dash_port", 8050)),
+            base_atraso_cmi_0a=str(s.get("base_atraso_cmi_0a", "reprogramacao")),
         )
 
     def set_setting(self, chave: str, valor) -> None:

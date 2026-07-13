@@ -57,12 +57,16 @@ class HistoricoView(BaseView):
                     if self.sel_ctrl.path else None)
         return base, controle
 
+    def _policy(self):
+        from ...historico_backend import DelayPolicy
+        return DelayPolicy(base_cmi_0a=self.ctx.config.settings.base_atraso_cmi_0a)
+
     def _gerar_planilha(self, run: RunBar):
         base, controle = self._base(run)
         if base is None:
             return
         from ...historico_backend import exportar_historico, gerar_historico
-        wide = gerar_historico(base, controle)
+        wide = gerar_historico(base, controle, self._policy())
         nome = f"Historico_Consolidado_{datetime.now().strftime('%d.%m.%y_%Hh%Mm')}.xlsx"
         saida = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nome, filetypes=[("Excel", "*.xlsx")])
         if not saida:
@@ -81,7 +85,7 @@ class HistoricoView(BaseView):
         from ...historico_backend import DashboardServer, gerar_historico
         self.log.log("Consolidando...")
         run.set_progress(0.7)
-        wide = gerar_historico(base, controle)
+        wide = gerar_historico(base, controle, self._policy())
         if self._server is None:
             self._server = DashboardServer(porta=self.ctx.config.settings.dash_port)
         url = self._server.iniciar(wide)

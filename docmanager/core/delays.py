@@ -38,7 +38,13 @@ COL_DIAS_ITAIPU = "Dias Itaipu"
 COL_ATRASO_ITAIPU = "Atraso Itaipu"
 COL_DIAS_CMI = "Dias CMI"
 COL_ATRASO_CMI = "Atraso CMI"
-COL_DATA_PREVISTA_CTRL = "Data Prevista (Controle)"
+COL_DATA_PREVISTA_CTRL = "Data Prevista (Controle)"  # base resolvida (interna)
+COL_DATA_PREVISTA = "Data Prevista"                  # exibição (só 0A/sintética)
+COL_REPROGRAMACAO = "Reprogramação"                  # exibição (só 0A/sintética)
+
+# Base do atraso CMI na 0A (config): "reprogramacao" (>prevista) ou "prevista".
+BASE_CMI_REPROGRAMACAO = "reprogramacao"
+BASE_CMI_PREVISTA = "prevista"
 
 _MARCADOR_SINTETICA = "NÃO EMITIDO"
 
@@ -48,6 +54,8 @@ class DelayPolicy:
     sla_itaipu_0a: int = SLA_ITAIPU_REV_0A
     sla_itaipu_demais: int = SLA_ITAIPU_DEMAIS
     sla_cmi_reemissao: int = SLA_ITAIPU_DEMAIS
+    # Base do atraso CMI da 0A: REPROGRAMAÇÃO (quando houver) ou DATA PREVISTA.
+    base_cmi_0a: str = BASE_CMI_REPROGRAMACAO
     hoje: date | None = None  # injetável para testes; None → data de hoje
 
     def hoje_ts(self) -> pd.Timestamp:

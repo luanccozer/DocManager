@@ -13,9 +13,11 @@ from .. import __version__
 from ..services.config import ConfigManager, resource_path
 from . import theme as t
 from .app_context import AppContext
+from .components import NavItem
 from .views.aconex_view import AconexView
 from .views.config_view import ConfigView
 from .views.historico_view import HistoricoView
+from .views.home_view import HomeView
 from .views.mapa_view import MapaView
 from .views.reports_view import ReportsView
 from .views.status_view import StatusDocsView
@@ -30,6 +32,7 @@ class ViewSpec:
 
 
 VIEWS = [
+    ViewSpec("home", "Início", "🏠", HomeView),
     ViewSpec("mapa", "Mapa dos Planos", "🗺️", MapaView),
     ViewSpec("status", "Status Documentos", "🔎", StatusDocsView),
     ViewSpec("historico", "Histórico e Dashboard", "📊", HistoricoView),
@@ -61,7 +64,7 @@ class MainApp(ctk.CTk):
 
         self._montar_sidebar()
         self._views: dict[str, ctk.CTkFrame] = {}
-        self._botoes: dict[str, ctk.CTkButton] = {}
+        self._botoes: dict[str, NavItem] = {}
         self._montar_botoes()
         self.selecionar(VIEWS[0].key)
 
@@ -98,21 +101,18 @@ class MainApp(ctk.CTk):
 
     def _montar_botoes(self):
         for i, spec in enumerate(VIEWS, start=1):
-            btn = ctk.CTkButton(
-                self.sidebar, text=f"  {spec.icone}   {spec.label}", anchor="w",
-                height=44, corner_radius=8, font=t.corpo(14), fg_color="transparent",
-                hover_color=t.SIDEBAR_HOVER, text_color=t.TEXTO,
-                command=lambda k=spec.key: self.selecionar(k))
-            btn.grid(row=i, column=0, sticky="ew", padx=12, pady=3)
-            self._botoes[spec.key] = btn
+            item = NavItem(self.sidebar, spec.icone, spec.label,
+                           command=lambda k=spec.key: self.selecionar(k))
+            item.grid(row=i, column=0, sticky="ew", padx=12, pady=2)
+            self._botoes[spec.key] = item
 
         rodape = ctk.CTkLabel(self.sidebar, text=f"v{__version__}", font=t.corpo(10),
                               text_color=t.TEXTO_FRACO)
         rodape.grid(row=100, column=0, sticky="w", padx=24, pady=16)
 
     def selecionar(self, key: str):
-        for k, btn in self._botoes.items():
-            btn.configure(fg_color=t.SIDEBAR_ATIVO if k == key else "transparent")
+        for k, item in self._botoes.items():
+            item.set_ativo(k == key)
         for k, v in self._views.items():
             v.grid_forget()
         if key not in self._views:  # instanciação lazy

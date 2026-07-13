@@ -16,7 +16,14 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..core.delays import COL_DATA_PREVISTA_CTRL, DelayPolicy, calcular_atrasos
+from ..core.delays import (
+    BASE_CMI_REPROGRAMACAO,
+    COL_DATA_PREVISTA,
+    COL_DATA_PREVISTA_CTRL,
+    COL_REPROGRAMACAO,
+    DelayPolicy,
+    calcular_atrasos,
+)
 from ..core.identity import construir_indice_reverso, obter_codigos_historicos
 from ..core.normalize import normalizar_codigo
 from ..core.wide import (
@@ -30,21 +37,40 @@ from .controle_docs import ControleDocs
 _SINTETICA_STATUS = "NÃO EMITIDO"
 
 
-def anexar_data_prevista(df_wide: pd.DataFrame, controle: ControleDocs | None,
-                         df_base: pd.DataFrame) -> pd.DataFrame:
-    """Preenche 'Data Prevista (Controle)' por Tracking (data_ref via códigos
-    históricos do doc, REPROGRAMAÇÃO > DATA PREVISTA)."""
+def _resolver_base(prevista, reprogramada, base_cmi_0a: str):
+    """Base do atraso CMI 0A conforme a config: reprogramação (>prevista) ou prevista."""
+    if base_cmi_0a == BASE_CMI_REPROGRAMACAO and reprogramada is not None:
+        return reprogramada
+    return prevista
+
+
+def anexar_datas_controle(df_wide: pd.DataFrame, controle: ControleDocs | None,
+                          df_base: pd.DataFrame, *,
+                          base_cmi_0a: str = BASE_CMI_REPROGRAMACAO) -> pd.DataFrame:
+    """Anexa por Tracking as datas do Controle:
+      - 'Data Prevista' e 'Reprogramação' (exibição, brutas);
+      - 'Data Prevista (Controle)' (base resolvida do atraso CMI 0A, interna)."""
     df = df_wide.copy()
     if controle is None or df.empty:
-        df[COL_DATA_PREVISTA_CTRL] = pd.NaT
+        for c in (COL_DATA_PREVISTA, COL_REPROGRAMACAO, COL_DATA_PREVISTA_CTRL):
+            df[c] = pd.NaT
         return df
-    ref_por_tracking: dict[str, object] = {}
+    prev_por, reprog_por, base_por = {}, {}, {}
     for tid, grp in df_base.groupby(COL_TRACKING, sort=False):
         codigos = obter_codigos_historicos(grp)
-        ref_por_tracking[str(tid)] = controle.data_ref_por_codigos(codigos)
-    df[COL_DATA_PREVISTA_CTRL] = df[COL_TRACKING].astype(str).map(ref_por_tracking)
-    df[COL_DATA_PREVISTA_CTRL] = pd.to_datetime(df[COL_DATA_PREVISTA_CTRL], errors="coerce")
+        prevista, reprogramada = controle.datas_por_codigos(codigos)
+        prev_por[str(tid)] = prevista
+        reprog_por[str(tid)] = reprogramada
+        base_por[str(tid)] = _resolver_base(prevista, reprogramada, base_cmi_0a)
+    chave = df[COL_TRACKING].astype(str)
+    df[COL_DATA_PREVISTA] = pd.to_datetime(chave.map(prev_por), errors="coerce")
+    df[COL_REPROGRAMACAO] = pd.to_datetime(chave.map(reprog_por), errors="coerce")
+    df[COL_DATA_PREVISTA_CTRL] = pd.to_datetime(chave.map(base_por), errors="coerce")
     return df
+
+
+# Compat: nome antigo mantido como alias.
+anexar_data_prevista = anexar_datas_controle
 
 
 def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | None,
@@ -69,6 +95,9 @@ def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | No
         if chave in ja_incluido:
             continue
         ja_incluido.add(chave)
+        prevista = pd.Timestamp(r.data_prevista) if r.data_prevista else pd.NaT
+        reprog = pd.Timestamp(r.data_reprogramada) if r.data_reprogramada else pd.NaT
+        base = pd.Timestamp(r.data_ref) if r.data_ref else pd.NaT
         novas.append({
             COL_DOC_ITAIPU: r.cod_itaipu,
             COL_DOC_CMI: r.cod_cmi,
@@ -76,7 +105,9 @@ def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | No
             COL_TITULO: r.titulo,
             "Revisão": "",
             COL_STATUS_ENVIO: _SINTETICA_STATUS,
-            COL_DATA_PREVISTA_CTRL: pd.Timestamp(r.data_ref) if r.data_ref else pd.NaT,
+            COL_DATA_PREVISTA: prevista,
+            COL_REPROGRAMACAO: reprog,
+            COL_DATA_PREVISTA_CTRL: base,
         })
     if not novas:
         return df_wide
@@ -84,7 +115,8 @@ def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | No
     # Alinha dtypes de data (o reindex deixa NaN float; concatenar com datetime64
     # dispara DeprecationWarning de timedelta no pandas 2.3).
     from ..core.wide import COL_DATA_ENVIO, COL_DATA_RETORNO
-    for col in (COL_DATA_ENVIO, COL_DATA_RETORNO, COL_DATA_PREVISTA_CTRL):
+    for col in (COL_DATA_ENVIO, COL_DATA_RETORNO, COL_DATA_PREVISTA,
+                COL_REPROGRAMACAO, COL_DATA_PREVISTA_CTRL):
         if col in df_novas.columns:
             df_novas[col] = pd.to_datetime(df_novas[col], errors="coerce")
     return pd.concat([df_wide, df_novas], ignore_index=True)
@@ -93,9 +125,10 @@ def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | No
 def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None = None,
                     policy: DelayPolicy | None = None) -> pd.DataFrame:
     """Do bruto ao wide final com atrasos e sintéticas (tudo em memória)."""
+    policy = policy or DelayPolicy()
     df_limpo = gerar_dataset_dashboard(df_bruto)
     df_wide = build_wide_table(df_limpo)
-    df_wide = anexar_data_prevista(df_wide, controle, df_limpo)
+    df_wide = anexar_datas_controle(df_wide, controle, df_limpo, base_cmi_0a=policy.base_cmi_0a)
     indice_reverso = construir_indice_reverso(df_bruto) if controle is not None else {}
     df_wide = injetar_linhas_sinteticas(df_wide, controle, indice_reverso)
     df_wide = calcular_atrasos(df_wide, policy)
