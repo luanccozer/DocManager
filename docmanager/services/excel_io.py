@@ -387,8 +387,12 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
     """
     import openpyxl
     from openpyxl.chart import BarChart, Reference
+    from openpyxl.chart.axis import ChartLines
     from openpyxl.chart.label import DataLabelList
     from openpyxl.chart.marker import DataPoint
+    from openpyxl.chart.shapes import GraphicalProperties
+    from openpyxl.drawing.colors import ColorChoice
+    from openpyxl.drawing.line import LineProperties
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -450,14 +454,30 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
         chart = BarChart()
         chart.type = "bar"
         chart.title = "Situação da documentação analisada"
+        chart.title.overlay = False
+        chart.style = 1
+        chart.height = 10
+        chart.width = 20
         chart.legend = None
-        chart.height, chart.width = 10, 20
         data = Reference(ws, min_col=col_chart + 1, min_row=1, max_row=row_aux - 1)
         cats = Reference(ws, min_col=col_chart, min_row=2, max_row=row_aux - 1)
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(cats)
-        chart.y_axis.delete = False
+        # Barras de cima para baixo (maior no topo), sem eixo Y poluído.
         chart.x_axis.delete = False
+        chart.x_axis.tickLblPos = "low"
+        chart.x_axis.scaling.orientation = "maxMin"
+        chart.y_axis.delete = False
+        chart.y_axis.tickLblPos = "none"
+        chart.y_axis.scaling.orientation = "minMax"
+        chart.y_axis.crosses = "max"
+        # Gridlines discretas (pontilhado cinza no eixo dos valores).
+        chart.y_axis.majorGridlines = ChartLines()
+        chart.y_axis.majorGridlines.spPr = GraphicalProperties(
+            ln=LineProperties(solidFill=ColorChoice(srgbClr="D9D9D9"), prstDash="sysDot", w=10000))
+        chart.x_axis.majorGridlines = ChartLines()
+        chart.x_axis.majorGridlines.spPr = GraphicalProperties(
+            ln=LineProperties(solidFill=ColorChoice(srgbClr="F2F2F2"), w=10000))
         series = chart.series[0]
         for i, cor in enumerate(cores):
             pt = DataPoint(idx=i)
@@ -465,6 +485,10 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
             series.dPt.append(pt)
         series.dLbls = DataLabelList()
         series.dLbls.showVal = True
+        series.dLbls.showCatName = False
+        series.dLbls.showSerName = False
+        series.dLbls.showLegendKey = False
+        series.dLbls.position = "outEnd"
         ws.add_chart(chart, "J5")
     except Exception:  # noqa: BLE001 — gráfico é acessório; nunca derruba a exportação
         pass
