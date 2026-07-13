@@ -117,6 +117,30 @@ def test_base_atraso_cmi_0a_alterna_reprogramacao_vs_prevista(tmp_path):
     assert a_prev == 31      # 01/08 → 01/09
 
 
+def test_ordem_revisao_por_familia_e_cadeia_cmi():
+    """Ciclo de vida (KB §3.1): 0A→0B→0 (aprovação fecha a família) → 1A…
+    A aprovação seca '0' vem ANTES da família seguinte '1A', e o atraso CMI de
+    uma reemissão mede contra o RETORNO da revisão imediatamente anterior."""
+    from docmanager.core.delays import COL_DIAS_CMI
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC FAMILIA")
+        .evento("0A", 1, "Em Processo", "01/09/2024")
+        .evento("0A", 2, "Não Aprovado", "10/09/2024")
+        .evento("0B", 1, "Em Processo", "15/09/2024")
+        .evento("0B", 2, "Aprovado com Comentários", "25/09/2024")
+        .evento("0", 1, "Em Processo", "01/10/2024")
+        .evento("0", 2, "Aprovado", "10/10/2024")
+        .evento("1A", 1, "Em Processo", "20/10/2024")
+        .evento("1A", 2, "Aprovado", "30/10/2024", current=True)
+    )
+    wide = gerar_historico(b, None, DelayPolicy(hoje=date(2024, 12, 31)))
+    # A '0' (aprovação) fica ANTES de '1A' (bug antigo jogava para o fim).
+    assert list(wide["Revisão"]) == ["0A", "0B", "0", "1A"], list(wide["Revisão"])
+    por_rev = {r["Revisão"]: r for _, r in wide.iterrows()}
+    # 1A mede contra o retorno da '0' (10/10 → 20/10 = 10 dias), não da '0B'.
+    assert int(por_rev["1A"][COL_DIAS_CMI]) == 10
+
+
 def test_doc_postado_nao_gera_sintetica(tmp_path):
     b = base(HistoricoBuilder("T1", "IT-1", "CMI-1")
              .evento("0A", 1, "Em Processo", "01/09/2024", current=True))

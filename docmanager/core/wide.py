@@ -9,11 +9,20 @@ Funde os dois caminhos divergentes do legado (`gerar_dataset_dashboard` L938,
   divergindo do motor de status. Aqui `is_regime_novo` manda em todo lugar.
 - `build_wide_table(df_limpo)` → df_wide (1 linha por Tracking+Revisão) com
   colunas internas `Data Envio`/`Data Retorno`, `Status Envio`/`Status Retorno`
-  e `SLA_Itaipu`. Ordenação pela sort key canônica de 3 níveis. A exportação
-  Excel renomeia para `Data de Envio`/`Data de Retorno` (layout legado).
+  e `SLA_Itaipu`. Ordenação pela CANÔNICA do ciclo de vida (`normalizar_revisao`,
+  ljust-'z'). A exportação Excel renomeia para `Data de Envio`/`Data de Retorno`.
 
-Divergências sancionadas: #2 (borda), #4 (sort key do Excel unificada na de 3
-níveis; base de metadados por data+keep-last como no wide).
+Ciclo de vida das revisões (KB §3.1): a família começa nas internas de
+integração 0AA/0AB (só alguns tipos), emite ao cliente na 0A, evolui 0B/0C… e
+FECHA na aprovação de número seco (0). Se algo muda depois, nasce a próxima
+família 1A/1B…→1, e assim por diante. A ordem correta é, portanto,
+`0AA<0AB<0A<0B<0<1A<1B<1<…` — exatamente o que `normalizar_revisao` produz.
+
+Divergências sancionadas: #2 (borda). O antigo #4 (ordenar o histórico pela
+sort key de 3 níveis, herdada de data_manager L1192) foi um ERRO: aquela chave
+joga TODOS os números secos (0,1,2 = aprovações) para o fim, depois das letras
+de famílias posteriores — desalinhando a família e bagunçando a cadeia de
+atraso CMI (que mede contra o retorno da revisão anterior). Corrigido aqui.
 """
 from __future__ import annotations
 
@@ -34,7 +43,7 @@ from .constants import (
     SLA_ITAIPU_DEMAIS,
     SLA_ITAIPU_REV_0A,
 )
-from .normalize import sort_key_revisao
+from .normalize import normalizar_revisao
 
 # Colunas internas do wide (sem "de"); a exportação Excel renomeia.
 COL_DATA_ENVIO = "Data Envio"
@@ -143,8 +152,9 @@ def build_wide_table(df_limpo: pd.DataFrame) -> pd.DataFrame:
     df_wide = pd.merge(df_base, df_envio, on=[COL_TRACKING, COL_REVISAO], how="left")
     df_wide = pd.merge(df_wide, df_retorno, on=[COL_TRACKING, COL_REVISAO], how="left")
 
-    df_wide["_sort"] = df_wide[COL_REVISAO].apply(sort_key_revisao)
-    df_wide = df_wide.sort_values(by=[COL_TRACKING, "_sort"]).drop(columns="_sort")
+    # Ordem canônica do ciclo de vida (família): 0AA<0AB<0A<0B<0<1A<1B<1<…
+    df_wide["_sort"] = df_wide[COL_REVISAO].apply(normalizar_revisao)
+    df_wide = df_wide.sort_values(by=[COL_TRACKING, "_sort"], kind="stable").drop(columns="_sort")
 
     df_wide[COL_SLA] = np.where(
         df_wide[COL_REVISAO].astype(str).str.strip().str.upper() == "0A",

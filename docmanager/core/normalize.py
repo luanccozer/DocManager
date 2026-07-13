@@ -28,9 +28,12 @@ REV_LIMITE_0A = normalizar_revisao("0A")  # '0Az' — limite da "primeira emiss�
 
 
 def sort_key_revisao(rev) -> str:
-    """Chave de ordenação canônica de revisões — a de 3 níveis do legado
-    (data_manager L1192-1196). A variante simplificada do Excel do histórico
-    (L1069) foi aposentada na unificação (divergência sancionada #4).
+    """LEGADO — NÃO usar para ordenar o ciclo de vida. Porta da chave de 3 níveis
+    (data_manager L1192-1196). ERRADA para famílias: joga TODOS os números secos
+    ('0','1','2' = aprovações) para o fim, depois das letras de famílias
+    posteriores (ex.: '0' cai depois de '2A'). Para a ordem correta do ciclo use
+    `normalizar_revisao` (ljust-'z'). Mantida só para reproduzir o legado no
+    harness de regressão.
 
         letras puras ('A')  -> '00_A'   (primeiro)
         revisões-letra ('0A') -> '10_0A' (segundo)
