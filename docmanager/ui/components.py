@@ -190,6 +190,7 @@ class RunBar(ctk.CTkFrame):
         self.log = log
         self._texto = texto          # rótulo original (restaurado ao terminar)
         self._rodando = False
+        self._desabilitado = False
         self.progress = ctk.CTkProgressBar(self, height=10, progress_color=t.ACENTO)
         self.progress.set(0)
         self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 12), pady=8)
@@ -200,8 +201,14 @@ class RunBar(ctk.CTkFrame):
     def set_progress(self, v: float):
         self.after(0, self.progress.set, v)
 
+    def desabilitar(self, texto: str | None = None):
+        """Deixa o botão visível porém inativo (funcionalidade em desenvolvimento)."""
+        self._desabilitado = True
+        self.btn.configure(state="disabled", fg_color=t.SIDEBAR_HOVER,
+                           text=texto or self._texto)
+
     def _run(self):
-        if self._rodando:            # evita reentrância enquanto processa
+        if self._desabilitado or self._rodando:   # inativo ou já processando
             return
         self._rodando = True
         self.btn.configure(state="disabled", text="Processando...")

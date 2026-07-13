@@ -70,6 +70,29 @@ Para usar a **Extração Aconex**:
 O `.env` fica só na sua máquina. Os demais módulos (Mapa, Status, Histórico,
 Relatórios) funcionam sem o `.env` — bastam os arquivos Excel.
 
+### 4. Atualizar para uma versão nova
+
+**Preferível — Git:** se o Git funcionar na sua rede, é só `git pull` dentro da
+pasta. Não recria nada.
+
+**Sem Git (baixar o ZIP e substituir) — funciona sim, com um cuidado:** o código
+não guarda estado dentro da pasta; suas configurações ficam em
+`Documentos/DocManager_Itaipu/config.json` (fora da pasta) e persistem. Então:
+
+1. Baixe o novo ZIP e extraia.
+2. **Copie do seu projeto atual para o novo, antes de rodar:** o `.env`, o
+   `pip_corporativo.txt` e — se não quiser reinstalar as bibliotecas — a pasta
+   `.venv`.
+3. Rode o `run.bat`.
+
+> Reaproveitar o `.venv` só vale se as dependências não mudaram (o
+> `requirements.txt` continua igual). **Se o `requirements.txt` mudou**, apague a
+> `.venv` e deixe o `run.bat` recriá-la (aí sim precisa de rede/pip).
+>
+> Alternativa mais simples: em vez de trocar a pasta inteira, substitua só a
+> pasta `docmanager/` e os arquivos da raiz (`run.bat`, `requirements.txt`,
+> `README.md`), mantendo `.venv`, `.env` e `pip_corporativo.txt` no lugar.
+
 ---
 
 ## Os módulos (como usar cada um)

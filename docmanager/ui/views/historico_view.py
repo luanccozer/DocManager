@@ -39,10 +39,13 @@ class HistoricoView(BaseView):
         RunBar(aba_plan, "Gerar Planilha", self._gerar_planilha, self.log).grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
 
         ctk.CTkLabel(aba_dash, text="Dashboard web: First Time Right, ciclo de aprovação, status vigente, "
-                     "fluxo de envios/retornos, evolução do atraso no tempo e gargalos por especialidade.",
+                     "fluxo de envios/retornos, evolução do atraso no tempo e gargalos por especialidade.\n"
+                     "Em desenvolvimento — será liberado em breve.",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700).grid(
             row=0, column=0, sticky="w", pady=8, padx=6)
-        RunBar(aba_dash, "Gerar e Abrir Dashboard", self._abrir_dashboard, self.log).grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+        run_dash = RunBar(aba_dash, "Gerar e Abrir Dashboard", self._abrir_dashboard, self.log)
+        run_dash.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+        run_dash.desabilitar("Dashboard (em desenvolvimento)")
 
     def _base(self, run):
         from ...common import carregar_base_aconex

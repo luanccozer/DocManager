@@ -144,6 +144,9 @@ class MainApp(ctk.CTk):
 
 def main():
     app = MainApp()
+    app.withdraw()   # oculta enquanto a splash aparece
+    from .splash import mostrar_splash
+    mostrar_splash(app, ms=1600, ao_fechar=lambda: (app.deiconify(), app.lift()))
     app.mainloop()
 
 
