@@ -225,6 +225,39 @@ def _estilizar_historico(ws, df: pd.DataFrame) -> None:
     ws.auto_filter.ref = ws.dimensions
 
 
+def exportar_dataframe(df: pd.DataFrame, caminho_saida, sheet_name="Relatório",
+                       larguras: dict | None = None) -> tuple[bool, str]:
+    """Exportação genérica com o mesmo cabeçalho profissional (slate + zebra)."""
+    if df is None or df.empty:
+        return False, "Nada a exportar."
+    try:
+        with pd.ExcelWriter(caminho_saida, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+            ws = writer.sheets[sheet_name]
+            ws.freeze_panes = "A2"
+            ws.row_dimensions[1].height = 26
+            for c, nome in enumerate(df.columns, 1):
+                cell = ws.cell(1, c)
+                cell.fill = _FILL_HEADER
+                cell.font = _FONT_HEADER
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = _BORDER
+                ws.column_dimensions[get_column_letter(c)].width = (larguras or {}).get(nome, 22)
+            for r in range(2, len(df) + 2):
+                banda = _FILL_BANDA if r % 2 == 0 else None
+                for c in range(1, len(df.columns) + 1):
+                    cell = ws.cell(r, c)
+                    cell.font = _FONT_DADO
+                    cell.border = _BORDER
+                    cell.alignment = Alignment(wrap_text=True, vertical="center")
+                    if banda is not None:
+                        cell.fill = banda
+            ws.auto_filter.ref = ws.dimensions
+        return True, f"Arquivo gerado: {caminho_saida}"
+    except Exception as e:  # noqa: BLE001
+        return False, f"Erro ao salvar Excel: {e}"
+
+
 def exportar_historico(df_wide: pd.DataFrame, caminho_saida) -> tuple[bool, str]:
     if df_wide is None or df_wide.empty:
         return False, "DataFrame vazio."

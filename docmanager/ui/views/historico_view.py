@@ -38,8 +38,9 @@ class HistoricoView(BaseView):
         from ...services.historico_consolidado import gerar_historico
         self.log.log("Lendo base Aconex...")
         run.set_progress(0.2)
-        base = carregar_base_aconex(self.sel_aconex.path)
-        controle = ler_controle(self.sel_ctrl.path, log_cb=self.log.log) if self.sel_ctrl.path else None
+        base = carregar_base_aconex(self.sel_aconex.path, self.sel_aconex.sheet)
+        controle = (ler_controle(self.sel_ctrl.path, self.sel_ctrl.sheet, log_cb=self.log.log)
+                    if self.sel_ctrl.path else None)
         self.log.log(f"{len(base)} linhas. Consolidando...")
         run.set_progress(0.6)
         wide = gerar_historico(base, controle)

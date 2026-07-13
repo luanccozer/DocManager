@@ -41,10 +41,12 @@ class MapaView(BaseView):
             return
         from ...services.controle_docs import ler_controle
         from ...services.mapping_update import atualizar_mapeamento
-        controle = ler_controle(self.sel_ctrl.path, log_cb=self.log.log) if self.sel_ctrl.path else None
+        controle = (ler_controle(self.sel_ctrl.path, self.sel_ctrl.sheet, log_cb=self.log.log)
+                    if self.sel_ctrl.path else None)
         r = atualizar_mapeamento(
-            self.sel_aconex.path, self.sel_mapa.path, controle=controle,
-            regra_estrita_vip=self.ctx.config.settings.regra_estrita_vip,
+            self.sel_aconex.path, self.sel_mapa.path,
+            sheet_aconex=self.sel_aconex.sheet, sheet_mapping=self.sel_mapa.sheet,
+            controle=controle, regra_estrita_vip=self.ctx.config.settings.regra_estrita_vip,
             log_cb=self.log.log, progress_cb=run.set_progress,
             retry_cb=lambda m: messagebox.askretrycancel("Salvar", m))
         self.log.log(r.mensagem)

@@ -33,18 +33,32 @@ class Card(ctk.CTkFrame):
         return widget
 
 
+def _listar_abas(caminho: str) -> list[str]:
+    """Nomes das abas do Excel (rápido, sem ler os dados)."""
+    try:
+        import pandas as pd
+        return list(pd.ExcelFile(caminho).sheet_names)
+    except Exception:
+        return []
+
+
 class FileSelector(ctk.CTkFrame):
-    """Rótulo + caminho + botão 'Selecionar'. Guarda o caminho escolhido."""
+    """Rótulo + caminho + botão 'Selecionar' + (opcional) dropdown de aba.
+
+    Expõe `.path` (caminho) e `.sheet` (nome da aba escolhida, ou 0)."""
 
     def __init__(self, master, label: str, config=None, tipo: str = "arquivo",
-                 filetypes=(("Excel", "*.xlsx *.xlsm *.xls"), ("Todos", "*.*")), on_change=None):
+                 filetypes=(("Excel", "*.xlsx *.xlsm *.xls"), ("Todos", "*.*")),
+                 on_change=None, escolher_aba=True):
         super().__init__(master, fg_color="transparent")
         self.grid_columnconfigure(1, weight=1)
         self.config_mgr = config
         self.tipo = tipo
         self.filetypes = filetypes
         self.on_change = on_change
+        self.escolher_aba = escolher_aba
         self.path: str | None = None
+        self.sheet = 0
 
         ctk.CTkLabel(self, text=label, width=170, anchor="w", font=t.corpo(12),
                      text_color=t.TEXTO).grid(row=0, column=0, padx=(0, 8), pady=4, sticky="w")
@@ -55,17 +69,36 @@ class FileSelector(ctk.CTkFrame):
                       fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
                       command=self._escolher).grid(row=0, column=2, padx=(8, 0), pady=4)
 
+        self._aba_frame = ctk.CTkFrame(self, fg_color="transparent")
+        ctk.CTkLabel(self._aba_frame, text="Aba:", font=t.corpo(11), text_color=t.TEXTO_FRACO,
+                     width=170, anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.opt_aba = ctk.CTkOptionMenu(self._aba_frame, values=["—"], width=260, font=t.corpo(11),
+                                         fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO,
+                                         command=self._set_aba)
+        self.opt_aba.grid(row=0, column=1, sticky="w")
+
+    def _set_aba(self, nome):
+        self.sheet = nome
+
     def _escolher(self):
         inicial = self.config_mgr.ultimo_dir(self.tipo) if self.config_mgr else None
         caminho = filedialog.askopenfilename(title="Selecionar arquivo", initialdir=inicial,
                                              filetypes=self.filetypes)
-        if caminho:
-            self.path = caminho
-            self.lbl.configure(text=os.path.basename(caminho), text_color=t.TEXTO)
-            if self.config_mgr:
-                self.config_mgr.lembrar_dir(self.tipo, caminho)
-            if self.on_change:
-                self.on_change(caminho)
+        if not caminho:
+            return
+        self.path = caminho
+        self.lbl.configure(text=os.path.basename(caminho), text_color=t.TEXTO)
+        if self.config_mgr:
+            self.config_mgr.lembrar_dir(self.tipo, caminho)
+        if self.escolher_aba:
+            abas = _listar_abas(caminho)
+            if abas:
+                self.opt_aba.configure(values=abas)
+                self.opt_aba.set(abas[0])
+                self.sheet = abas[0]
+                self._aba_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(2, 4))
+        if self.on_change:
+            self.on_change(caminho)
 
 
 class LogConsole(ctk.CTkTextbox):
