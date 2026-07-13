@@ -13,13 +13,21 @@ from __future__ import annotations
 import pandas as pd
 
 from .constants import (
+    COL_CURRENT,
     COL_DATA,
     COL_DOC_ITAIPU,
     COL_REVISAO,
     COL_STATUS,
+    COL_TITULO,
     COL_TRACKING,
     NAO_EMITIDO,
 )
+
+# Metadados da base que servem de classificação flexível no Delta por documento.
+METADADOS_AGRUPAVEIS = [
+    "Especialidade", "Subespecialidade", "Tipo do Documento DCC",
+    "Subtipo DCC", "Tipo do Documento", "Disciplina (Modelo)",
+]
 from .consolidation import calcula_status_consolidado_estrito
 from .status_engine import calcular_status_real
 from .truth_line import limpar_terminated_por_limiar
@@ -147,5 +155,71 @@ def calcular_mudancas_periodo(path_mapping, sheet_map, path_aconex, sheet_aconex
             "data_depois": data_d.strftime("%d/%m/%y") if pd.notna(data_d) else "-",
         }
         arvore.setdefault(valor_agr, {}).setdefault(nivel, []).append(item)
+
+    return True, arvore, total
+
+
+def calcular_mudancas_base(df_base, data_ini_str, data_fim_str, *,
+                           coluna_agrupar="Especialidade", tipo_visao="Efetiva",
+                           codigos=None):
+    """Delta FLEXÍVEL direto na base Aconex (KB §17, sem depender do mapeamento).
+
+    Agrupa por um metadado à escolha (Especialidade, DCC, etc.) — evita usar o
+    mapeamento como gambiarra para classificações que não são de plano.
+    `codigos`: se dado, restringe aos documentos cujo No. do Documento/Controle
+    do Emissor estão na lista. Retorna (ok, arvore{grupo: {"—": [itens]}}, total).
+    """
+    try:
+        dt_ini = pd.to_datetime(data_ini_str, dayfirst=True)
+        dt_fim = pd.to_datetime(data_fim_str, dayfirst=True).replace(hour=23, minute=59, second=59)
+        dt_antes = dt_ini - pd.Timedelta(seconds=1)
+    except Exception:
+        return False, "Erro na data", 0
+    if COL_TRACKING not in df_base.columns:
+        return False, "Base sem coluna Tracking ID", 0
+
+    df = df_base.copy()
+    df["Data_Obj"] = pd.to_datetime(df[COL_DATA], dayfirst=True, errors="coerce")
+    df = df.dropna(subset=["Data_Obj"])
+    if coluna_agrupar not in df.columns:
+        return False, f"Coluna '{coluna_agrupar}' não existe na base", 0
+
+    filtro = None
+    if codigos:
+        alvo = {str(c).strip().upper() for c in codigos if str(c).strip()}
+        filtro = alvo
+
+    arvore, total = {}, 0
+    for tracking, grupo in df.groupby(COL_TRACKING):
+        if filtro is not None:
+            cods = set(grupo[COL_DOC_ITAIPU].astype(str).str.strip().str.upper())
+            cods |= set(grupo.get("Controle do Emissor", pd.Series(dtype=str)).astype(str).str.strip().str.upper())
+            if not (cods & filtro):
+                continue
+        raw_a, real_a, rev_a, data_a = obter_snapshot_status(grupo, dt_antes)
+        raw_d, real_d, rev_d, data_d = obter_snapshot_status(grupo, dt_fim)
+
+        if tipo_visao == "Efetiva":
+            mudou = real_a != real_d
+        else:
+            mudou = (pd.isna(data_a) and pd.notna(data_d)) or \
+                    (pd.notna(data_a) and pd.notna(data_d) and data_a != data_d) or (real_a != real_d)
+        if not mudou:
+            continue
+        total += 1
+        # Classificação: metadado da linha vigente (Current) ou da última.
+        cur = grupo[grupo[COL_CURRENT].astype(str).str.lower() == "true"]
+        ref = cur.iloc[0] if not cur.empty else grupo.sort_values("Data_Obj").iloc[-1]
+        agr = str(ref.get(coluna_agrupar, "") or "(sem classificação)").strip() or "(sem classificação)"
+        doc = str(ref.get(COL_DOC_ITAIPU, "")).strip()
+        item = {
+            "doc": doc, "titulo": str(ref.get(COL_TITULO, "")).strip(), "nivel": "-",
+            "grupo": agr, "raw_antes": raw_a, "real_antes": real_a,
+            "raw_depois": raw_d, "real_depois": real_d, "rev_antes": rev_a,
+            "data_antes": data_a.strftime("%d/%m/%y") if pd.notna(data_a) else "-",
+            "rev_depois": rev_d,
+            "data_depois": data_d.strftime("%d/%m/%y") if pd.notna(data_d) else "-",
+        }
+        arvore.setdefault(agr, {}).setdefault("—", []).append(item)
 
     return True, arvore, total

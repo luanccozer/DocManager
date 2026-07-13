@@ -34,7 +34,7 @@ VIEWS = [
     ViewSpec("mapa", "Mapa dos Planos", "🗺️", MapaView),
     ViewSpec("delta", "Análise Delta", "⏳", DeltaView),
     ViewSpec("status", "Status Documentos", "🔎", StatusDocsView),
-    ViewSpec("historico", "Histórico Consolidado", "📊", HistoricoView),
+    ViewSpec("historico", "Histórico e Dashboard", "📊", HistoricoView),
     ViewSpec("relatorios", "Relatórios", "📋", ReportsView),
     ViewSpec("aconex", "Extração Aconex", "☁️", AconexView),
     ViewSpec("config", "Configurações", "⚙️", ConfigView),
