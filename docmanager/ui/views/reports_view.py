@@ -27,7 +27,7 @@ class ReportsView(BaseView):
         self.log.grid(row=2, column=0, sticky="nsew", pady=(4, 0))
 
     def _carregar(self):
-        from ...services.excel_io import carregar_base_aconex
+        from ...common import carregar_base_aconex
         if not self.sel.path:
             self.log.log("Selecione a base Aconex.")
             return None
@@ -35,7 +35,7 @@ class ReportsView(BaseView):
         return carregar_base_aconex(self.sel.path, self.sel.sheet)
 
     def _exportar(self, ok, obj, nome, sheet, run):
-        from ...services.excel_io import exportar_dataframe
+        from ...common import exportar_dataframe
         if not ok:
             self.log.log(f"ERRO: {obj}")
             return
@@ -57,7 +57,7 @@ class ReportsView(BaseView):
         base = self._carregar()
         if base is None:
             return
-        from ...core.reports.avanco import gerar_relatorio_avanco
+        from ...relatorios_backend import gerar_relatorio_avanco
         run.set_progress(0.6)
         ok, obj = gerar_relatorio_avanco(base)
         nome = f"Relatorio_Avanco_{datetime.now().strftime('%d%m%y')}.xlsx"
@@ -67,7 +67,7 @@ class ReportsView(BaseView):
         base = self._carregar()
         if base is None:
             return
-        from ...core.reports.integracao import auditar_fluxo_integracao
+        from ...relatorios_backend import auditar_fluxo_integracao
         run.set_progress(0.6)
         df = auditar_fluxo_integracao(base)
         nome = f"Auditoria_Integracao_{datetime.now().strftime('%d%m%y')}.xlsx"

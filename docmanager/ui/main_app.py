@@ -71,12 +71,30 @@ class MainApp(ctk.CTk):
         self.sidebar.grid_propagate(False)
         self.sidebar.grid_rowconfigure(99, weight=1)
 
-        # Marca (placeholder — logo real entra depois)
+        # Marca: logo definitivo do projeto + título.
         marca = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         marca.grid(row=0, column=0, sticky="ew", padx=20, pady=(24, 20))
-        ctk.CTkLabel(marca, text="📁 DocManager", font=t.titulo(20), text_color=t.TEXTO).pack(anchor="w")
+        topo = ctk.CTkFrame(marca, fg_color="transparent")
+        topo.pack(anchor="w", fill="x")
+        logo = self._carregar_logo(44)
+        if logo is not None:
+            ctk.CTkLabel(topo, image=logo, text="").pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(topo, text="DocManager", font=t.titulo(20), text_color=t.TEXTO).pack(side="left")
         ctk.CTkLabel(marca, text="Itaipu · Gestão Documental", font=t.corpo(11),
-                     text_color=t.TEXTO_FRACO).pack(anchor="w")
+                     text_color=t.TEXTO_FRACO).pack(anchor="w", pady=(6, 0))
+
+    def _carregar_logo(self, lado: int):
+        """CTkImage do logo definitivo (assets), ou None se indisponível."""
+        try:
+            from PIL import Image
+            caminho = resource_path(os.path.join("assets", "logo_definitivo.ico"))
+            if not os.path.exists(caminho):
+                return None
+            img = Image.open(caminho)
+            self._logo_ref = ctk.CTkImage(light_image=img, dark_image=img, size=(lado, lado))
+            return self._logo_ref
+        except Exception:
+            return None
 
     def _montar_botoes(self):
         for i, spec in enumerate(VIEWS, start=1):

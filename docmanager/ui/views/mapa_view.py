@@ -49,7 +49,7 @@ class MapaView(BaseView):
         cfg = dict(self._COLS_CFG)
         try:
             import openpyxl
-            from ...services.excel_io import MappingSheet
+            from ...mapa_backend import MappingSheet
             wb = openpyxl.load_workbook(self.sel_mapa.path, read_only=True)
             ws = wb[self.sel_mapa.sheet] if self.sel_mapa.sheet and not isinstance(self.sel_mapa.sheet, int) else wb.active
             cfg["header_row"] = MappingSheet(ws).row_header
@@ -70,8 +70,8 @@ class MapaView(BaseView):
         if not self.sel_aconex.path or not self.sel_mapa.path:
             self.log.log("Selecione a base Aconex e o mapeamento.")
             return
-        from ...services.controle_docs import ler_controle
-        from ...services.mapping_update import atualizar_mapeamento
+        from ...controle_backend import ler_controle
+        from ...mapa_backend import atualizar_mapeamento
         controle = (ler_controle(self.sel_ctrl.path, self.sel_ctrl.sheet, log_cb=self.log.log)
                     if self.sel_ctrl.path else None)
         r = atualizar_mapeamento(

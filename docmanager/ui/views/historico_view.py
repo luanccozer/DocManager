@@ -48,8 +48,8 @@ class HistoricoView(BaseView):
         self.log.grid(row=2, column=0, sticky="nsew", pady=(6, 0))
 
     def _base(self, run):
-        from ...services.controle_docs import ler_controle
-        from ...services.excel_io import carregar_base_aconex
+        from ...common import carregar_base_aconex
+        from ...controle_backend import ler_controle
         if not self.sel_aconex.path:
             self.log.log("Selecione a base Aconex.")
             return None, None
@@ -64,8 +64,7 @@ class HistoricoView(BaseView):
         base, controle = self._base(run)
         if base is None:
             return
-        from ...services.excel_io import exportar_historico
-        from ...services.historico_consolidado import gerar_historico
+        from ...historico_backend import exportar_historico, gerar_historico
         wide = gerar_historico(base, controle)
         nome = f"Historico_Consolidado_{datetime.now().strftime('%d.%m.%y_%Hh%Mm')}.xlsx"
         saida = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nome, filetypes=[("Excel", "*.xlsx")])
@@ -82,8 +81,7 @@ class HistoricoView(BaseView):
         base, controle = self._base(run)
         if base is None:
             return
-        from ...dashboard.server import DashboardServer
-        from ...services.historico_consolidado import gerar_historico
+        from ...historico_backend import DashboardServer, gerar_historico
         self.log.log("Consolidando...")
         run.set_progress(0.7)
         wide = gerar_historico(base, controle)

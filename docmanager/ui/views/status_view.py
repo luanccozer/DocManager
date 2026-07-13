@@ -163,7 +163,7 @@ class StatusDocsView(BaseView):
 
     # ---------------------------------------------------------- Ações (rodapé)
     def _montar_acoes(self, body):
-        from ...core.snapshots import METADADOS_AGRUPAVEIS
+        from ...status_backend import METADADOS_AGRUPAVEIS
         area = Card(body, "Ações (sobre os documentos da aba ativa)")
         area.grid(row=2, column=0, sticky="ew", pady=(0, 4))
 
@@ -194,7 +194,7 @@ class StatusDocsView(BaseView):
 
     # ---------------------------------------------------------- comuns
     def _carregar_base(self, run):
-        from ...services.excel_io import carregar_base_aconex
+        from ...common import carregar_base_aconex
         if not self.sel.path:
             self.log.log("Selecione a base Aconex no topo.")
             return None
@@ -226,8 +226,7 @@ class StatusDocsView(BaseView):
         if col is None:
             return
         base, pares, _ = col
-        from ...core.reports.status_docs import analisar_status_pares
-        from ...services.excel_io import exportar_status_documentos
+        from ...status_backend import analisar_status_pares, exportar_status_documentos
         if not pares:
             self.log.log("Nenhum código para analisar.")
             return
@@ -252,7 +251,7 @@ class StatusDocsView(BaseView):
         if col is None:
             return
         base, pares, is_todos = col
-        from ...core.snapshots import calcular_mudancas_base
+        from ...status_backend import calcular_mudancas_base
         codigos = None
         if not is_todos:
             codigos = [c for par in pares for c in par if c]
@@ -275,7 +274,7 @@ class StatusDocsView(BaseView):
         self._ultimo_delta = _flatten(arvore)
         if self._ultimo_delta and messagebox.askyesno("Delta", f"{total} mudanças. Exportar?"):
             import pandas as pd
-            from ...services.excel_io import exportar_dataframe
+            from ...common import exportar_dataframe
             saida = filedialog.asksaveasfilename(defaultextension=".xlsx",
                                                  initialfile=f"Delta_{self.agrup.get()}.xlsx", filetypes=[("Excel", "*.xlsx")])
             if saida:

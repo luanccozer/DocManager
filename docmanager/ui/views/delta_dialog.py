@@ -119,7 +119,7 @@ class DeltaDialog(ctk.CTkToplevel):
         threading.Thread(target=self._worker, args=(dt_ini, dt_fim), daemon=True).start()
 
     def _worker(self, dt_ini, dt_fim):
-        from ...core.snapshots import calcular_mudancas_periodo
+        from ...mapa_backend import calcular_mudancas_periodo
         try:
             ok, arvore, total = calcular_mudancas_periodo(
                 self.path_map, self.sheet_map, self.path_hist, self.sheet_hist,
@@ -202,7 +202,7 @@ class DeltaDialog(ctk.CTkToplevel):
                                                filetypes=[("Excel files", "*.xlsx")], parent=self)
         if not caminho:
             return
-        from ...services.excel_io import exportar_delta_arvore
+        from ...mapa_backend import exportar_delta_arvore
         ok, msg = exportar_delta_arvore(
             self.dados_cache, caminho, agrupador=self.var_agrup.get(), visao=self.var_visao.get(),
             ocultar_aprovados=self.var_ocultar.get())
