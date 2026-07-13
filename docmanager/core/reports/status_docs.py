@@ -6,10 +6,20 @@ existem no core; não duplica lógica.
 """
 from __future__ import annotations
 
+from collections import Counter
+
 import pandas as pd
 
 from ...core.consolidation import calcular_emitido_nao_emitido
-from ...core.constants import COL_TIPO_DOC, COL_TITULO, NAO_EMITIDO
+from ...core.constants import (
+    COL_DATA,
+    COL_DOC_CMI,
+    COL_DOC_ITAIPU,
+    COL_STATUS,
+    COL_TIPO_DOC,
+    COL_TITULO,
+    NAO_EMITIDO,
+)
 from ...core.identity import AconexIndex
 from ...core.status_engine import calcular_status_real
 from ...core.status_model_bim import calcular_status_real_modelo
@@ -50,3 +60,49 @@ def analisar_status_documentos(df_base: pd.DataFrame, codigos, *, tipo_codigo="i
             "Emitido": calcular_emitido_nao_emitido(status_real), "É Modelo": "SIM" if eh_modelo else "NÃO",
         })
     return pd.DataFrame(linhas)
+
+
+def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Counter, bool]:
+    """Status real por par (código Itaipu, código CMI) — porta de
+    StatusCheckView.iniciar_processo (aconex_reviewer L1474-1581).
+
+    Alimenta o Excel legado (Código Itaipu/CMI, Título, Revisão, Data, Status
+    Aconex, Status Real) + o gráfico de barras. Retorna (linhas, contador,
+    tem_modelos). `pares`: iterável de (cod_itaipu, cod_cmi).
+    """
+    idx = AconexIndex(df_base)
+    linhas: list[dict] = []
+    contador: Counter = Counter()
+    tem_modelos = False
+    for cod_it, cod_cmi in pares:
+        c_it = str(cod_it or "").strip()
+        c_cmi = str(cod_cmi or "").strip()
+        if not c_it and not c_cmi:
+            continue
+        dados = {"Código Itaipu": c_it, "Código CMI": c_cmi, "Título": "", "Revisão": "",
+                 "Data": "", "Status Aconex": "", "Status Real": NAO_EMITIDO}
+        df_t = idx.localizar(c_it, c_cmi)
+        if not df_t.empty:
+            tl = resolver_linha_da_verdade(df_t)
+            eh_modelo = _e_modelo(df_t)
+            tem_modelos = tem_modelos or eh_modelo
+            linha = tl.linha_dinamica
+            if linha is not None:
+                if str(linha.get(COL_DOC_ITAIPU, "")).strip():
+                    dados["Código Itaipu"] = str(linha.get(COL_DOC_ITAIPU, "")).strip()
+                if str(linha.get(COL_DOC_CMI, "")).strip():
+                    dados["Código CMI"] = str(linha.get(COL_DOC_CMI, "")).strip()
+                dados["Título"] = str(linha.get(COL_TITULO, ""))
+                dados["Revisão"] = str(linha.get("Revisão", ""))
+                dados["Data"] = str(linha.get(COL_DATA, ""))
+                dados["Status Aconex"] = str(linha.get(COL_STATUS, ""))
+            else:
+                dados["Título"] = str(df_t[COL_TITULO].iloc[0]) if COL_TITULO in df_t.columns else ""
+            if tl.nao_emitido:
+                dados["Status Real"] = NAO_EMITIDO
+            else:
+                motor = calcular_status_real_modelo if eh_modelo else calcular_status_real
+                dados["Status Real"] = motor(tl.df_para_calculo, tl.revisao_atual)
+        contador[dados["Status Real"]] += 1
+        linhas.append(dados)
+    return linhas, contador, tem_modelos

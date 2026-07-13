@@ -15,7 +15,6 @@ from . import theme as t
 from .app_context import AppContext
 from .views.aconex_view import AconexView
 from .views.config_view import ConfigView
-from .views.delta_view import DeltaView
 from .views.historico_view import HistoricoView
 from .views.mapa_view import MapaView
 from .views.reports_view import ReportsView
@@ -32,7 +31,6 @@ class ViewSpec:
 
 VIEWS = [
     ViewSpec("mapa", "Mapa dos Planos", "🗺️", MapaView),
-    ViewSpec("delta", "Análise Delta", "⏳", DeltaView),
     ViewSpec("status", "Status Documentos", "🔎", StatusDocsView),
     ViewSpec("historico", "Histórico e Dashboard", "📊", HistoricoView),
     ViewSpec("relatorios", "Relatórios", "📋", ReportsView),

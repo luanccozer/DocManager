@@ -22,7 +22,7 @@ class HistoricoView(BaseView):
         cfg = self.ctx.config
         card = Card(body, "Arquivos")
         card.grid(row=0, column=0, sticky="ew", pady=(0, 12))
-        self.sel_aconex = card.add(FileSelector(card, "Base Aconex", cfg, "aconex"))
+        self.sel_aconex = card.add(FileSelector(card, "Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
         self.sel_ctrl = card.add(FileSelector(card, "Controle de Documentos (opcional)", cfg, "controle"))
 
         self.tabs = ctk.CTkTabview(body, fg_color=t.CARD, segmented_button_selected_color=t.ACENTO,

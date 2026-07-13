@@ -42,14 +42,19 @@ def _listar_abas(caminho: str) -> list[str]:
         return []
 
 
-class FileSelector(ctk.CTkFrame):
-    """Rótulo + caminho + botão 'Selecionar' + (opcional) dropdown de aba.
+_PLACEHOLDER_ABA = "Selecione o arquivo primeiro"
 
-    Expõe `.path` (caminho) e `.sheet` (nome da aba escolhida, ou 0)."""
+
+class FileSelector(ctk.CTkFrame):
+    """Rótulo + caminho + botão 'Selecionar' + seletor de aba (sempre visível).
+
+    O seletor de aba fica sempre à mostra (como no app antigo): exibe um
+    placeholder até um arquivo ser escolhido e então lista as abas reais,
+    permitindo trocar a qualquer momento. Expõe `.path` e `.sheet`."""
 
     def __init__(self, master, label: str, config=None, tipo: str = "arquivo",
                  filetypes=(("Excel", "*.xlsx *.xlsm *.xls"), ("Todos", "*.*")),
-                 on_change=None, escolher_aba=True):
+                 on_change=None, escolher_aba=True, aba_padrao: str | None = None):
         super().__init__(master, fg_color="transparent")
         self.grid_columnconfigure(1, weight=1)
         self.config_mgr = config
@@ -57,6 +62,7 @@ class FileSelector(ctk.CTkFrame):
         self.filetypes = filetypes
         self.on_change = on_change
         self.escolher_aba = escolher_aba
+        self.aba_padrao = aba_padrao
         self.path: str | None = None
         self.sheet = 0
 
@@ -69,16 +75,18 @@ class FileSelector(ctk.CTkFrame):
                       fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
                       command=self._escolher).grid(row=0, column=2, padx=(8, 0), pady=4)
 
-        self._aba_frame = ctk.CTkFrame(self, fg_color="transparent")
-        ctk.CTkLabel(self._aba_frame, text="Aba:", font=t.corpo(11), text_color=t.TEXTO_FRACO,
-                     width=170, anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 8))
-        self.opt_aba = ctk.CTkOptionMenu(self._aba_frame, values=["—"], width=260, font=t.corpo(11),
-                                         fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO,
-                                         command=self._set_aba)
-        self.opt_aba.grid(row=0, column=1, sticky="w")
+        if self.escolher_aba:
+            self._aba_frame = ctk.CTkFrame(self, fg_color="transparent")
+            self._aba_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(2, 4))
+            ctk.CTkLabel(self._aba_frame, text="Aba (Sheet):", font=t.corpo(11), text_color=t.TEXTO_FRACO,
+                         width=170, anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 8))
+            self.opt_aba = ctk.CTkOptionMenu(self._aba_frame, values=[_PLACEHOLDER_ABA], width=280,
+                                             font=t.corpo(11), fg_color=t.SIDEBAR_HOVER,
+                                             button_color=t.SIDEBAR_ATIVO, command=self._set_aba)
+            self.opt_aba.grid(row=0, column=1, sticky="w")
 
     def _set_aba(self, nome):
-        self.sheet = nome
+        self.sheet = nome if nome != _PLACEHOLDER_ABA else 0
 
     def _escolher(self):
         inicial = self.config_mgr.ultimo_dir(self.tipo) if self.config_mgr else None
@@ -93,10 +101,14 @@ class FileSelector(ctk.CTkFrame):
         if self.escolher_aba:
             abas = _listar_abas(caminho)
             if abas:
+                escolhida = self.aba_padrao if (self.aba_padrao and self.aba_padrao in abas) else abas[0]
                 self.opt_aba.configure(values=abas)
-                self.opt_aba.set(abas[0])
-                self.sheet = abas[0]
-                self._aba_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(2, 4))
+                self.opt_aba.set(escolhida)
+                self.sheet = escolhida
+            else:
+                self.opt_aba.configure(values=[_PLACEHOLDER_ABA])
+                self.opt_aba.set(_PLACEHOLDER_ABA)
+                self.sheet = 0
         if self.on_change:
             self.on_change(caminho)
 

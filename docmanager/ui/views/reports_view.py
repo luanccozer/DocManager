@@ -17,7 +17,7 @@ class ReportsView(BaseView):
     def montar(self, body):
         card = Card(body, "Base Aconex")
         card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-        self.sel = card.add(FileSelector(card, "Base Aconex", self.ctx.config, "aconex"))
+        self.sel = card.add(FileSelector(card, "Base Aconex", self.ctx.config, "aconex", aba_padrao="Documentos"))
 
         self.log = LogConsole(body, height=260)
         botoes = ctk.CTkFrame(body, fg_color="transparent")
