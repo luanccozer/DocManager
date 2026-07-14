@@ -113,13 +113,50 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
         stripped = df[col].astype(str).str.strip()
         df[col] = stripped.groupby(df[COL_TRACKING]).transform(_ultimo_nao_vazio)
 
-    # 5. Separação ENVIOS (Em Processo) vs RETORNOS (não contém "Em Processo").
-    df_envios = df[df[COL_STATUS] == "Em Processo"].drop_duplicates(
-        subset=[COL_TRACKING, COL_REVISAO], keep="first"
-    )
-    df_retornos = df[~df[COL_STATUS].str.contains("Em Processo", case=False, na=False)].drop_duplicates(
-        subset=[COL_TRACKING, COL_REVISAO], keep="first"
-    )
+    # 5. Seleção do ciclo por revisão — REGRA DO ÚLTIMO CICLO CONSISTENTE
+    # (validada pelo usuário em 2026-07-14; KB §24.6). Por (Tracking, Revisão):
+    #   - retorno = último retorno (como sempre);
+    #   - envio   = último 'Em Processo' com data ≤ retorno (par consistente);
+    #   - envio POSTERIOR ao último retorno da revisão:
+    #       · é o último evento do documento (data+versão) → RELANÇAMENTO:
+    #         ciclo novo em aberto (envio = ele; a revisão fica SEM retorno);
+    #       · senão → subida com revisão errada, corrigida em seguida
+    #         (ex.: "0C" de 24/07 que virou 0D no mesmo dia) → ignorada;
+    #   - sem retorno → último envio (pendente, comportamento de sempre).
+    asc = df.sort_values(by=[COL_DATA, "Versão_Int"])
+    env = asc[asc[COL_STATUS] == "Em Processo"]
+    ret = asc[~asc[COL_STATUS].str.contains("Em Processo", case=False, na=False)]
+    ult = asc.groupby(COL_TRACKING).tail(1)
+    ult_key = {t: (d, v) for t, d, v in zip(ult[COL_TRACKING], ult[COL_DATA], ult["Versão_Int"])}
+
+    env_g = dict(iter(env.groupby([COL_TRACKING, COL_REVISAO], sort=False)))
+    ret_g = dict(iter(ret.groupby([COL_TRACKING, COL_REVISAO], sort=False)))
+    idx_env: list = []
+    idx_ret: list = []
+    for chave in set(env_g) | set(ret_g):
+        g_env = env_g.get(chave)
+        g_ret = ret_g.get(chave)
+        if g_env is None:                       # só retorno (sem envio na base)
+            idx_ret.append(g_ret.index[-1])
+            continue
+        if g_ret is None:                       # pendente: último envio
+            idx_env.append(g_env.index[-1])
+            continue
+        linha_ret = g_ret.iloc[-1]
+        data_ret = linha_ret[COL_DATA]
+        tardios = g_env[g_env[COL_DATA] > data_ret]
+        if not tardios.empty:
+            s = tardios.iloc[-1]
+            if (s[COL_DATA], s["Versão_Int"]) == ult_key.get(chave[0]):
+                idx_env.append(s.name)          # relançamento → em aberto
+                continue
+        consistentes = g_env[g_env[COL_DATA] <= data_ret]
+        if not consistentes.empty:
+            idx_env.append(consistentes.index[-1])
+        idx_ret.append(linha_ret.name)
+
+    df_envios = df.loc[idx_env]
+    df_retornos = df.loc[idx_ret]
     # Filtra partes vazias antes do concat: concatenar um frame vazio com
     # colunas datetime dispara DeprecationWarning de timedelta no pandas 2.3.
     partes = [p for p in (df_envios, df_retornos) if not p.empty]

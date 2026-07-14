@@ -141,6 +141,43 @@ def test_ordem_revisao_por_familia_e_cadeia_cmi():
     assert int(por_rev["1A"][COL_DIAS_CMI]) == 10
 
 
+def test_ciclo_consistente_subida_errada_ignorada():
+    """Caso 0C/0D real (KB §24.6): envio etiquetado com a revisão errada e
+    corrigido em seguida NÃO pode virar o envio da revisão anterior."""
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
+        .evento("0C", 1, "Em Processo", "05/06/2025")
+        .evento("0C", 2, "Aprovado com Comentários", "19/06/2025")
+        .evento("0C", 3, "Em Processo", "24/07/2025")          # subida errada
+        .evento("0D", 4, "Em Processo", "24/07/2025")           # corrigida p/ 0D
+        .evento("0D", 5, "Para Assinatura", "14/08/2025", current=True)
+    )
+    wide = gerar_historico(b, None, DelayPolicy(hoje=date(2025, 12, 31)))
+    c = wide[wide["Revisão"] == "0C"].iloc[0]
+    assert c["Data Envio"] == pd.Timestamp("2025-06-05")        # não o 24/07
+    assert c["Data Retorno"] == pd.Timestamp("2025-06-19")
+    assert int(c["Dias Itaipu"]) == 14                          # antes: em branco
+    d = wide[wide["Revisão"] == "0D"].iloc[0]
+    assert d["Data Envio"] == pd.Timestamp("2025-07-24")
+
+
+def test_ciclo_consistente_relancamento_vira_pendente():
+    """Relançamento (doc volta à mesma revisão como último evento): conta a
+    segunda vida — envio novo, sem retorno, relógio em aberto correndo."""
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
+        .evento("0A", 1, "Em Processo", "01/03/2025")
+        .evento("0A", 2, "Não Aprovado", "20/03/2025")
+        .evento("0A", 3, "Em Processo", "01/06/2025", current=True)  # relançada
+    )
+    wide = gerar_historico(b, None, DelayPolicy(hoje=date(2025, 12, 31)))
+    a = wide.iloc[0]
+    assert a["Data Envio"] == pd.Timestamp("2025-06-01")
+    assert pd.isna(a["Data Retorno"])                           # vida anterior descartada
+    assert int(a["Dias Itaipu"]) == 213                         # 01/06 → 31/12 em aberto
+    assert int(a["Atraso Itaipu"]) == 183                       # 213 − SLA 30
+
+
 def test_doc_postado_nao_gera_sintetica(tmp_path):
     b = base(HistoricoBuilder("T1", "IT-1", "CMI-1")
              .evento("0A", 1, "Em Processo", "01/09/2024", current=True))

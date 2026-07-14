@@ -757,7 +757,9 @@ Caso real (Tracking `1353331688112390977`, doc `#ITA0=Y01YBQ00&ACC051`): a 0C re
    b. senão → subida errada (corrigida logo depois, como a 0C→0D) → ignorar;
 3. sem retorno na revisão → último envio (comportamento atual).
 
-**Impacto medido na base real**: altera **29 de 12.936 revisões (0,2%)** — TODAS hoje quebradas (datas invertidas/em branco). 4 viram ciclos completos corretos (padrão 0C: a linha volta a contar, ex.: 0C = 14 dias) e 25 viram "em aberto com a Itaipu" (padrão relançamento). Nenhuma linha saudável muda. **Aguardando validação do usuário para implementar.**
+**Impacto medido na base real**: altera **29 de 12.936 revisões (0,2%)** — TODAS hoje quebradas (datas invertidas/em branco). 4 viram ciclos completos corretos (padrão 0C: a linha volta a contar, ex.: 0C = 14 dias) e 25 viram "em aberto com a Itaipu" (padrão relançamento). Nenhuma linha saudável muda.
+
+**✅ IMPLEMENTADA (2026-07-14, regra completa validada pelo usuário)** em `core/wide.py` (etapa 5 do `gerar_dataset_dashboard`), com 2 testes travando os padrões (subida errada ignorada; relançamento vira pendente). Conferido na base real: doc do exemplo com 0C = 14 d e **zero** linhas de datas invertidas no histórico (eram 29); 13.105 revisões preservadas.
 
 ---
 
