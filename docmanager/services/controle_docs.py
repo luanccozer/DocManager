@@ -54,8 +54,14 @@ class ControleDocs:
         self._por_codigo: dict[str, ControleRow] = {}
         for r in rows:
             for cod in (normalizar_codigo(r.cod_itaipu), normalizar_codigo(r.cod_cmi)):
-                if cod:
-                    self._por_codigo.setdefault(cod, r)
+                if not cod:
+                    continue
+                # Código duplicado (mesmo doc em mais de uma linha/aba): a linha
+                # COM data vence a sem data — uma linha vazia não pode "sombrear"
+                # a que tem a informação (§24.8).
+                atual = self._por_codigo.get(cod)
+                if atual is None or (atual.data_ref is None and r.data_ref is not None):
+                    self._por_codigo[cod] = r
 
     def linha_por_codigo(self, codigo) -> ControleRow | None:
         return self._por_codigo.get(normalizar_codigo(codigo))
@@ -161,29 +167,23 @@ def _parse_col_datas(series) -> list[date | None]:
     return [None if pd.isna(x) else x.date() for x in dt]
 
 
-def ler_controle(caminho, sheet=0, *, log_cb=None) -> ControleDocs:
-    """Lê o Controle de Documentos de forma dinâmica. Nunca lança por coluna
-    ausente — apenas avisa via `log_cb` e segue com o que houver."""
-    def log(msg):
-        if log_cb:
-            log_cb(msg)
-
-    header = _achar_header_row(caminho, sheet)
-    df = pd.read_excel(caminho, sheet_name=sheet, header=header, dtype=str).fillna("")
-    log(f"Controle: cabeçalho detectado na linha {header + 1}; {len(df.columns)} colunas.")
+def _ler_aba(caminho, aba, log) -> list[ControleRow]:
+    """Lê UMA aba; devolve [] se a aba não tem cara de Controle (sem códigos)."""
+    header = _achar_header_row(caminho, aba)
+    df = pd.read_excel(caminho, sheet_name=aba, header=header, dtype=str).fillna("")
 
     col_it = _col(df, CTRL_COL_ITAIPU, "CODIFICACAO ITAIPU (ACONEX)")
     col_cmi = _col(df, CTRL_COL_CMI)
+    if col_it is None and col_cmi is None:
+        log(f"Controle: aba '{aba}' ignorada (sem colunas de código).")
+        return []
     col_prev = _col(df, CTRL_COL_DATA_PREVISTA)
     col_reprog = _col(df, CTRL_COL_REPROGRAMACAO_HINT)
     col_desc = _col(df, "DESCRIÇÃO", "TÍTULO")
-
-    if col_it is None and col_cmi is None:
-        log("Aviso: nenhuma coluna de código encontrada no Controle.")
     if col_prev is None:
-        log(f"Aviso: coluna '{CTRL_COL_DATA_PREVISTA}' ausente no Controle.")
+        log(f"Aviso: aba '{aba}' sem coluna '{CTRL_COL_DATA_PREVISTA}'.")
     if col_reprog is None:
-        log("Aviso: coluna de REPROGRAMAÇÃO não encontrada (precedência desativada).")
+        log(f"Aviso: aba '{aba}' sem coluna de REPROGRAMAÇÃO (precedência desativada).")
 
     prevista = _parse_col_datas(df[col_prev]) if col_prev else [None] * len(df)
     reprog = _parse_col_datas(df[col_reprog]) if col_reprog else [None] * len(df)
@@ -201,5 +201,30 @@ def ler_controle(caminho, sheet=0, *, log_cb=None) -> ControleDocs:
             data_prevista=prevista[i],
             data_reprogramada=reprog[i],
         ))
-    log(f"Controle de Documentos: {len(rows)} linhas com código.")
+    log(f"Controle: aba '{aba}' → {len(rows)} linhas (cabeçalho na linha {header + 1}).")
+    return rows
+
+
+def ler_controle(caminho, sheet=None, *, log_cb=None) -> ControleDocs:
+    """Lê o Controle de Documentos de forma dinâmica, varrendo TODAS AS ABAS do
+    arquivo (§24.8 — o Controle real espalha documentos em várias abas, ex.
+    'Dados Planilhas Comissionamento'); abas sem colunas de código são
+    ignoradas com aviso. `sheet` é aceito por compatibilidade, mas não limita a
+    leitura. Nunca lança por coluna ausente — avisa via `log_cb` e segue."""
+    def log(msg):
+        if log_cb:
+            log_cb(msg)
+
+    try:
+        abas = pd.ExcelFile(caminho).sheet_names
+    except Exception:  # noqa: BLE001 — deixa o read_excel padrão reportar
+        abas = [sheet if sheet is not None else 0]
+
+    rows: list[ControleRow] = []
+    for aba in abas:
+        try:
+            rows.extend(_ler_aba(caminho, aba, log))
+        except Exception as e:  # noqa: BLE001 — uma aba ruim não derruba o resto
+            log(f"Aviso: falha ao ler a aba '{aba}' do Controle: {e}")
+    log(f"Controle de Documentos: {len(rows)} linhas com código ({len(abas)} abas varridas).")
     return ControleDocs(rows)

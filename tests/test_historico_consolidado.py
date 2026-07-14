@@ -178,6 +178,87 @@ def test_ciclo_consistente_relancamento_vira_pendente():
     assert int(a["Atraso Itaipu"]) == 183                       # 213 − SLA 30
 
 
+def test_comissionamento_sem_envio_nao_gera_retorno_fantasma(tmp_path):
+    """Caso real (KB §24.8): planilha de comissionamento com 'Para Aprovação'
+    e NENHUM envio — não pode aparecer com retorno 'Para Assinatura'. Some do
+    wide e, se estiver no Controle, vira sintética NÃO EMITIDO."""
+    b = base(
+        HistoricoBuilder("T1", "IT-PL-1", "CMI-PL-1",
+                         "SISTEMA X - PLANILHA DE COMISSIONAMENTO")
+        .evento("0A", 1, "Para Aprovação", "10/04/2025")
+        .evento("0A", 2, "Para Aprovação", "10/04/2025", current=True)
+    )
+    wide = gerar_historico(b, None, DelayPolicy(hoje=date(2025, 12, 31)))
+    assert wide.empty                                        # antes: retorno fantasma
+    # com o Controle carregado, aparece como NÃO EMITIDO (sintética)
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "IT-PL-1", "cmi": "CMI-PL-1", "titulo": "PLANILHA COMISS", "prevista": "01/03/2025"},
+    ])
+    wide2 = gerar_historico(b, ler_controle(p), DelayPolicy(hoje=date(2025, 12, 31)))
+    assert len(wide2) == 1
+    assert wide2.iloc[0]["Status Envio"] == "NÃO EMITIDO"
+
+
+def test_comissionamento_com_envio_mantem_para_assinatura():
+    """A exceção do comissionamento continua valendo quando a planilha FOI
+    emitida: PA vira retorno 'Para Assinatura' normalmente."""
+    b = base(
+        HistoricoBuilder("T1", "IT-PL-2", "CMI-PL-2",
+                         "SISTEMA Y - PLANILHA DE COMISSIONAMENTO")
+        .evento("0A", 1, "Em Processo", "01/03/2025")
+        .evento("0A", 2, "Para Aprovação", "20/03/2025", current=True)
+    )
+    wide = gerar_historico(b, None, DelayPolicy(hoje=date(2025, 12, 31)))
+    r = wide.iloc[0]
+    assert r["Data Envio"] == pd.Timestamp("2025-03-01")
+    assert r["Status Retorno"] == "Para Assinatura"
+    assert int(r["Dias Itaipu"]) == 19
+
+
+def test_controle_le_todas_as_abas(tmp_path):
+    """O Controle real espalha documentos em várias abas (ex. 'Dados Planilhas
+    Comissionamento'): TODAS devem ser varridas (KB §24.8)."""
+    from openpyxl import Workbook
+
+    from docmanager.core.constants import (
+        CTRL_COL_CMI,
+        CTRL_COL_DATA_PREVISTA,
+        CTRL_COL_ITAIPU,
+    )
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.title = "Principal"
+    ws1.append(["ITAIPU - CONTROLE DE DOCUMENTOS"])
+    ws1.append([])
+    ws1.append([])
+    ws1.append(["ITEM", CTRL_COL_CMI, CTRL_COL_ITAIPU, "DESCRIÇÃO", CTRL_COL_DATA_PREVISTA, "REPROGRAMAÇÃO"])
+    ws1.append([1, "CMI-A", "IT-A", "DOC A", "01/03/2025", ""])
+    ws2 = wb.create_sheet("Dados Planilhas Comissionamento")
+    ws2.append(["PLANO GERAL"])
+    ws2.append(["ITEM", CTRL_COL_CMI, CTRL_COL_ITAIPU, "DESCRIÇÃO", CTRL_COL_DATA_PREVISTA, "REPROGRAMAÇÃO"])
+    ws2.append([1, "CMI-B", "IT-B", "PLANILHA B", "16/10/2025", ""])
+    ws3 = wb.create_sheet("Resumo")            # aba sem estrutura → ignorada
+    ws3.append(["gráficos e anotações"])
+    p = tmp_path / "controle_multiabas.xlsx"
+    wb.save(p)
+
+    ctrl = ler_controle(p)
+    assert ctrl.linha_por_codigo("IT-A").data_ref == date(2025, 3, 1)
+    assert ctrl.linha_por_codigo("IT-B").data_ref == date(2025, 10, 16)   # estava em outra aba
+    assert ctrl.linha_por_codigo("CMI-B") is not None
+
+
+def test_controle_codigo_duplicado_prefere_linha_datada(tmp_path):
+    """Mesmo código em duas linhas (uma sem data, outra com): a datada vence —
+    uma linha vazia não pode sombrear a informação (KB §24.8)."""
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "IT-DUP", "cmi": "CMI-DUP", "prevista": ""},              # sem data
+        {"itaipu": "IT-DUP", "cmi": "CMI-DUP", "prevista": "16/10/2025"},    # com data
+    ])
+    ctrl = ler_controle(p)
+    assert ctrl.linha_por_codigo("IT-DUP").data_ref == date(2025, 10, 16)
+
+
 def test_para_aprovacao_vira_envio_fallback():
     """Caso da revisão '0' no início do projeto (KB §24.7): o envio subia como
     'Para Aprovação'. Quando a revisão NÃO tem 'Em Processo', o último PA

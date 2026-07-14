@@ -94,10 +94,13 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     df = df[~((~antigo) & (df[COL_STATUS] == "Para Análise"))]
 
     # Regras cirúrgicas do "Para Aprovação": comissionamento vira retorno
-    # ("Para Assinatura"); o restante NÃO é mais exterminado aqui — segue no
-    # frame até a etapa 5, onde serve de ENVIO-fallback (§24.7) e sai do fluxo.
+    # ("Para Assinatura"), MARCADO com _pa_comiss — a etapa 5 só o aceita como
+    # retorno se a revisão tiver envio (não existe retorno de doc não emitido,
+    # §24.8). O restante NÃO é mais exterminado aqui — segue no frame até a
+    # etapa 5, onde serve de ENVIO-fallback (§24.7) e sai do fluxo.
     mask_para_aprov = df[COL_STATUS] == "Para Aprovação"
     mask_comiss = df[COL_TITULO].str.contains(r"PLANILHA[S]? DE COMISSIONAMENTO", case=False, na=False)
+    df["_pa_comiss"] = mask_para_aprov & mask_comiss
     df.loc[mask_para_aprov & mask_comiss, COL_STATUS] = "Para Assinatura"
 
     # 4. Ordenação para deduplicação.
@@ -149,7 +152,12 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
         g_env = env_g.get(chave)
         g_ret = ret_g.get(chave)
         if g_env is None:                       # só retorno (sem envio na base)
-            linha_ret = g_ret.iloc[-1]
+            # 'Para Assinatura' fabricado do PA de comissionamento NÃO vale como
+            # retorno de revisão nunca emitida (§24.8) — fica só o que é real.
+            g_ret_ok = g_ret[~g_ret["_pa_comiss"]] if "_pa_comiss" in g_ret.columns else g_ret
+            if g_ret_ok.empty:
+                continue                        # nada real → revisão não existe no wide
+            linha_ret = g_ret_ok.iloc[-1]
             g_pa = pa_g.get(chave)
             if g_pa is not None:                # PA anterior ao retorno = envio
                 cand = g_pa[g_pa[COL_DATA] <= linha_ret[COL_DATA]]
@@ -186,7 +194,7 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     partes = [p for p in (df_envios, df_retornos) if not p.empty]
     df_final = pd.concat(partes) if partes else df.iloc[0:0]
     df_final = df_final.sort_values(by=[COL_TRACKING, COL_REVISAO, COL_DATA])
-    return df_final
+    return df_final.drop(columns=["_pa_comiss"], errors="ignore")
 
 
 def build_wide_table(df_limpo: pd.DataFrame) -> pd.DataFrame:

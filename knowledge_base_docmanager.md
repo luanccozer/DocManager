@@ -765,6 +765,17 @@ Caso real (Tracking `1353331688112390977`, doc `#ITA0=Y01YBQ00&ACC051`): a 0C re
 
 No início do projeto, o envio da revisão definitiva ("0") subia como **'Para Aprovação'** — que o pipeline extermina — deixando a revisão com retorno e SEM envio (ex.: doc `#ITA0=Y01YBQ00&ACC051`, rev 0: PA 17/10/23 → Aprovado 23/10/23). Regra implementada em `core/wide.py`: quando a revisão **não tem** 'Em Processo', o último `Para Aprovação` com data ≤ retorno vira o envio (rotulado 'Em Processo' no wide, mesma convenção do 'Para Análise' pré-corte). **PA nunca vira retorno e nunca substitui envio real** (os 3.407 PA em revisões com envio ficam intocados; comissionamento→'Para Assinatura' inalterado). Base real: **118 revisões resgatadas** (103 na rev "0"; 115 pré-corte; Dias Itaipu mediana 9 d) — retorno-sem-envio caiu de 169 para 51. 2 testes travam o fallback e a não-substituição.
 
+### 24.8 ✅ Retorno fantasma de comissionamento + Controle multi-abas (2026-07-14)
+
+Dois erros apontados pelo usuário com prints reais:
+
+**(a) Planilha de comissionamento NUNCA emitida aparecia com retorno "Para Assinatura"** (doc `#ST50=B01BDV10&BDC031`: só `Para Aprovação`×2 + `Em Validação`, sem nenhum envio). Causa: a exceção do comissionamento (PA→`Para Assinatura`) fabricava um RETORNO para revisão sem emissão. Regra corrigida em `core/wide.py`: o `Para Assinatura` vindo do relabel (`_pa_comiss`) **só vale como retorno se a revisão tiver envio**; sem envio e sem retorno real, a revisão **não entra** no wide (e o doc vira sintética NÃO EMITIDO se estiver no Controle). Princípio do domínio: **não existe retorno de documento não emitido**. Planilhas emitidas seguem exatamente como antes. Base real: 2 fantasmas eliminados (13.105→13.103); zero `Para Assinatura` órfãos restantes.
+
+**(b) Data Prevista em branco com a linha PREENCHIDA no Controle** (doc `#ST00=U01BFA10UC012-UC009&EDC080` / `0893410CYU20-209FDC-16`). Causa raiz: o Controle real espalha documentos em **VÁRIAS ABAS** (ex. "Dados Planilhas Comissionamento") e `ler_controle` lia só a aba selecionada. Correções em `services/controle_docs.py`:
+- `ler_controle` agora varre **todas as abas** do arquivo (abas sem colunas de código são ignoradas com aviso; log por aba). O parâmetro `sheet` ficou por compatibilidade e não limita mais a leitura.
+- Código duplicado (mesmo doc em mais de uma linha/aba): a linha **com data vence** a sem data (antes o `setdefault` deixava a primeira — possivelmente vazia — sombrear a datada).
+Beneficia igualmente o Mapa (injeção da Data Prevista Etapa 1). 4 testes novos travam os dois comportamentos.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*
