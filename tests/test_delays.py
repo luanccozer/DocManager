@@ -89,19 +89,42 @@ def test_sintetica_atraso_cmi_corre_ate_hoje():
 
 def test_descontinuidades_viram_vazio():
     df = calcular_atrasos(_wide([
-        # sem retorno → Itaipu vazio
+        # sem retorno mas SUPERADA por envio mais novo → Itaipu vazio (doc seguiu adiante)
         {"tracking": "A", "rev": "0A", "envio": "2024-03-01", "retorno": None, "sla": 30, "prev": "2024-02-01"},
+        {"tracking": "A", "rev": "0B", "envio": "2024-04-05", "retorno": "2024-04-20", "sla": 15},
         # datas invertidas (retorno antes do envio) → Itaipu vazio
         {"tracking": "B", "rev": "0A", "envio": "2024-04-01", "retorno": "2024-03-01", "sla": 30},
         # 1ª emissão sem data_ref → CMI vazio
         {"tracking": "C", "rev": "0A", "envio": "2024-03-01", "retorno": "2024-03-20", "sla": 30},
     ]), POLICY)
-    a = df[df["Tracking ID"] == "A"].iloc[0]
+    a = df[(df["Tracking ID"] == "A") & (df["Revisão"] == "0A")].iloc[0]
     assert pd.isna(a[COL_DIAS_ITAIPU]) and pd.isna(a[COL_ATRASO_ITAIPU])
     b = df[df["Tracking ID"] == "B"].iloc[0]
     assert pd.isna(b[COL_DIAS_ITAIPU])
     c = df[df["Tracking ID"] == "C"].iloc[0]
     assert pd.isna(c[COL_DIAS_CMI]) and pd.isna(c[COL_ATRASO_CMI])
+
+
+def test_em_aberto_com_itaipu_conta_ate_hoje():
+    """Pedido do usuário (2026-07-14): enviado e ainda não devolvido = o relógio
+    corre até hoje NAS PRÓPRIAS colunas Dias/Atraso Itaipu — mas só para o envio
+    mais recente do documento (revisões superadas continuam vazias)."""
+    df = calcular_atrasos(_wide([
+        # documento com uma única revisão pendente: 01/09 → 31/12 = 121 dias
+        {"tracking": "P", "rev": "0A", "envio": "2024-09-01", "retorno": None, "sla": 30},
+        # documento em que a 0A pendente foi superada pela 0B (também pendente):
+        # só a 0B (envio mais recente) conta; a 0A fica vazia
+        {"tracking": "Q", "rev": "0A", "envio": "2024-03-01", "retorno": None, "sla": 30, "prev": "2024-02-25"},
+        {"tracking": "Q", "rev": "0B", "envio": "2024-04-30", "retorno": None, "sla": 15},
+    ]), POLICY)
+    p = df[df["Tracking ID"] == "P"].iloc[0]
+    assert p[COL_DIAS_ITAIPU] == 121          # 01/09 → 31/12
+    assert p[COL_ATRASO_ITAIPU] == 91         # 121 − SLA 30
+    q0a = df[(df["Tracking ID"] == "Q") & (df["Revisão"] == "0A")].iloc[0]
+    assert pd.isna(q0a[COL_DIAS_ITAIPU]) and pd.isna(q0a[COL_ATRASO_ITAIPU])
+    q0b = df[(df["Tracking ID"] == "Q") & (df["Revisão"] == "0B")].iloc[0]
+    assert q0b[COL_DIAS_ITAIPU] == 245        # 30/04 → 31/12
+    assert q0b[COL_ATRASO_ITAIPU] == 230      # 245 − SLA 15
 
 
 def test_reemissao_sem_retorno_anterior_vira_vazio():

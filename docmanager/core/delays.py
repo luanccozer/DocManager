@@ -4,6 +4,8 @@ Decisão do usuário (2026-07-11): QUATRO colunas — dias corridos brutos (temp
 de ciclo) E atraso com desconto de SLA, para cada lado (Itaipu e CMI):
 
   Dias Itaipu    = (Data Retorno − Data Envio).days
+                   EM ABERTO (sem retorno E envio mais recente do documento):
+                   (hoje − Data Envio).days — o relógio corre até hoje (2026-07-14)
   Atraso Itaipu  = max(0, Dias Itaipu − SLA[30 se 0A senão 15])
   Dias CMI       = 1ª emissão: (Data Envio − data_ref).days
                    demais revs: (Data Envio − Retorno da rev anterior).days
@@ -17,8 +19,12 @@ recorte "só conta quando a revisão anterior foi reprovada" (regra de
 necessidade) é aplicado depois, na camada de análise de dados — que tem o
 Status Retorno da revisão anterior disponível no próprio histórico.
 
-Qualquer descontinuidade (sem envio, sem retorno, rev anterior sem retorno,
-datas invertidas, sem data_ref) → célula VAZIA. Nunca inventar número.
+Qualquer descontinuidade (sem envio, rev anterior sem retorno, datas
+invertidas, sem data_ref) → célula VAZIA. Nunca inventar número. Exceção
+deliberada (pedido do usuário, 2026-07-14): revisão SEM retorno cujo envio é o
+mais recente do documento = "está com a Itaipu AGORA" → Dias/Atraso Itaipu
+contam até hoje. Revisões sem retorno SUPERADAS por envio mais novo (o doc
+seguiu adiante) continuam vazias — o relógio delas não corre para sempre.
 
 `data_ref` chega pré-calculada na coluna 'Data Prevista (Controle)' de cada
 linha do wide (REPROGRAMAÇÃO > DATA PREVISTA, resolvida em wide.py).
@@ -92,6 +98,9 @@ def calcular_atrasos(df_wide: pd.DataFrame, policy: DelayPolicy | None = None) -
     for _, grupo in df.groupby(COL_TRACKING, sort=False):
         primeira_emissao_vista = False
         retorno_anterior = pd.NaT
+        # Envio mais recente do documento: é ELE que está "com a Itaipu" quando
+        # não tem retorno; revisões antigas sem retorno foram superadas.
+        max_envio = grupo[COL_DATA_ENVIO].max() if COL_DATA_ENVIO in grupo.columns else pd.NaT
         for _, row in grupo.iterrows():
             envio = row.get(COL_DATA_ENVIO, pd.NaT)
             retorno = row.get(COL_DATA_RETORNO, pd.NaT)
@@ -100,6 +109,10 @@ def calcular_atrasos(df_wide: pd.DataFrame, policy: DelayPolicy | None = None) -
 
             # --- ITAIPU ---
             di = _dias(retorno, envio)
+            if (di is None and pd.notna(envio) and pd.isna(retorno)
+                    and pd.notna(max_envio) and envio == max_envio):
+                # EM ABERTO com a Itaipu: o relógio corre até hoje.
+                di = max(0, (hoje - pd.Timestamp(envio)).days)
             dias_it.append(di)
             atraso_it.append(max(0, di - policy.sla_itaipu(row.get(COL_REVISAO))) if di is not None else None)
 

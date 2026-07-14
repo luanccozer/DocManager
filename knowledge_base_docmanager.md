@@ -719,7 +719,7 @@ Estudo empírico sobre a base real (80.688 linhas, 5.181 documentos no recorte d
 
 - **S1. Parear ciclos por WF id** (`Fonte`): envio↔veredito do MESMO workflow. Resolve L1/L2 na raiz. Formatos possíveis: (a) 1 linha por ciclo (muda a granularidade do Excel) ou (b) manter 1 linha por revisão e acrescentar `Nº de Ciclos`, `Data 1º Veredito`, `Status 1º Veredito` (menos invasivo).
 - **S2. Separar veredito de formalização**: `Dias Itaipu (veredito)` = 1º retorno − envio; manter o status final em coluna própria (`Status Final`/`Data Formalização`). Elimina a inflação de p90 243 d.
-- **S3. Aging em aberto**: coluna `Dias com Itaipu (em aberto)` = hoje − envio quando não há retorno (a linha já aparece; só falta o número). É a resposta direta a "a Itaipu está nos atrasando AGORA" (349 documentos estourando o SLA de 15 d hoje).
+- **S3. Aging em aberto — ✅ IMPLEMENTADA (2026-07-14, forma decidida pelo usuário)**: nas PRÓPRIAS colunas `Dias Itaipu`/`Atraso Itaipu` (não em coluna nova). Regra: revisão sem retorno cujo envio é o **mais recente do documento** conta hoje − envio (e atraso = − SLA); revisões sem retorno **superadas** por envio mais novo continuam vazias (o relógio não corre para sempre). Na base real: 569 pendências passaram a contar (238 com atraso corrente), 56 superadas vazias, 12.282 fechadas inalteradas. Séries mensais do dashboard agrupam por Data Retorno → pendências não distorcem a evolução; médias gerais passam a incluí-las (intencional).
 - ~~**S4. Fallback de envio**~~ — RETIRADA: com a regra do corte aplicada, resgataria só 2 revisões (ver ~~L4~~).
 - **S5. Métricas de lote**: `Docs no mesmo WF` por ciclo; cruzar tamanho do lote × tempo de resposta.
 - **S6. Ciclo interno (opcional/aba separada)**: `Dias ciclo interno` (1º evento interno → envio 0A) por documento; usa os eventos hoje descartados. Contrapartida justa: mede a CMI com a mesma régua.
@@ -745,6 +745,19 @@ O schema do register DESTE projeto expõe 31 campos. Resultado dos testes (scrip
 **NÃO existem no schema deste projeto** (embora citados no guia genérico da Documents API): `dateReviewed`, `dateForReview`, `toClientDate`, `plannedSubmissionDate`, `milestoneDate`, `comments`, `author`, `approved`, `received`, `attribute1–4`. Janelas oficiais de análise e datas planejadas, se quisermos, teriam de vir da **Workflows API** (guia em PDF; contrato a confirmar) — os `WF-…` do nosso `Fonte` e os `CMI-…-WTR-…` do Controle apontam para esses objetos. Mail API idem (transmittals/threads).
 
 Observação: `Control CMI` (2% preenchido) é hoje extraído e quase inútil.
+
+### 24.6 PROPOSTA EM VALIDAÇÃO — regra do "último ciclo consistente" (caso 0C/0D, 2026-07-14)
+
+Caso real (Tracking `1353331688112390977`, doc `#ITA0=Y01YBQ00&ACC051`): a 0C real foi enviada 05/06/23 e voltou 19/06/23; em 24/07/23 subiram a emissão seguinte etiquetada "0C" por engano (corrigida para 0D no mesmo dia). Como o pipeline escolhe o ÚLTIMO envio da revisão, a 0C ficou com envio 24/07 > retorno 19/06 → datas invertidas, contagem em branco, Data de Envio errada. O usuário alertou que "pegar sempre o primeiro" também erraria: existe o caso legítimo de RELANÇAMENTO (doc volta à 0A depois da 0B — reinício de vida), onde vale a segunda parte e desprezam-se os eventos anteriores.
+
+**Regra proposta (por revisão)** — retorno permanece o último (S2 fora desta decisão):
+1. envio = último `Em Processo` com data ≤ data do retorno escolhido (par consistente);
+2. envio POSTERIOR ao último retorno da revisão:
+   a. se for o ÚLTIMO evento do documento inteiro (data+versão) → ciclo novo EM ABERTO: envio = ele, retorno = vazio (cai na contagem em aberto da S3) — cobre o relançamento;
+   b. senão → subida errada (corrigida logo depois, como a 0C→0D) → ignorar;
+3. sem retorno na revisão → último envio (comportamento atual).
+
+**Impacto medido na base real**: altera **29 de 12.936 revisões (0,2%)** — TODAS hoje quebradas (datas invertidas/em branco). 4 viram ciclos completos corretos (padrão 0C: a linha volta a contar, ex.: 0C = 14 dias) e 25 viram "em aberto com a Itaipu" (padrão relançamento). Nenhuma linha saudável muda. **Aguardando validação do usuário para implementar.**
 
 ---
 
