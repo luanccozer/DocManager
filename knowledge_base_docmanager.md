@@ -682,4 +682,66 @@ Refatoração backend/frontend iniciada em 2026-07. Código antigo preservado em
 
 ---
 
+## 24. Entendimento profundo da base Aconex e avaliação do Histórico Consolidado (2026-07-14)
+
+Estudo empírico sobre a base real (80.688 linhas, 5.181 documentos no recorte do histórico) + documentação oficial da API. **Nada desta seção foi implementado** — os itens 24.4/24.5 são um backlog de sugestões aguardando decisão do usuário.
+
+### 24.1 Semântica real dos eventos (o que cada linha da extração É)
+
+- Cada linha = **uma versão de uma revisão** (o Aconex incrementa `Versão` a cada re-upload/mudança de status). Mediana de 3 versões por revisão, p90 = 7, máx = 36 — a sequência de versões é a trilha de auditoria completa do trâmite.
+- **`Fonte` (ReviewSource) carrega o ID do workflow** (`WF-xxxxxx`) quando a linha pertence a um ciclo de revisão; `Nenhum` caso contrário (37.898 linhas, exatamente as com `Status da Revisão` vazio). Semântica oficial: `WF-…` = Workflow, numérico = Transmittal, `SD-…` = Supplier Docs.
+- **1 workflow = 1 ciclo de análise**: sequências típicas dentro de (WF, doc) são `Em Processo → veredito` (Aprovado c/ Comentários 3.756×, Para Assinatura 2.875×, Não Aprovado 2.759×, Aprovado 1.243×). Nenhum WF cobre 2 revisões do mesmo doc. Envios têm WF em 99,9%; vereditos em 87–99,6%.
+- **45% dos workflows cobrem mais de um documento** → a Itaipu analisa em LOTE. Tamanho do lote é uma variável explicativa de atraso ainda não explorada.
+- **Pós-corte, `Para Análise` é um ESPELHO administrativo do envio** (sem WF; gap mediano de 0 dias vs `Em Processo`; 92,6% em 0–1 dia). Descartá-lo (regra atual) perde quase nada — EXCETO 291 revisões onde ele é o único marcador de envio (não têm `Em Processo`).
+- **O último retorno costuma ser formalização, não veredito**: nas 679 revisões com retornos múltiplos, o gap 1º→último é mediana 40 d / p90 243 d, com pares `Não Aprovado → Aprovado` (244×) e `Para Assinatura → Aprovado` (111×). O "Aprovado" final vem SEMPRE em outro WF (0 casos no mesmo WF) — é o ciclo de assinatura/formalização. O veredito técnico da Itaipu é o PRIMEIRO retorno do ciclo.
+- Ciclo interno do consórcio é visível nos status descartados (`Para Integraçao` 5.226, `Em Validação` 4.797, `Validado` 2.817, `Em Integração` 2.381, `Não Validado` 1.291, `Integrado` 881…) e nas revisões de 3 chars (12.118 linhas, 15% da base): 253 docs têm ciclo interno E 0A, mediana 69 d de integração→0A.
+- Qualidade de dados: 36 linhas com revisões anômalas (`-` 27×, `OA` 8×, `OB` 1× — letra O no lugar de zero). Volume desprezível, mas merece flag.
+
+### 24.2 O que as regras atuais acertam (validado nos dados)
+
+1. 1 linha por (Tracking, Revisão) com envio/retorno atende ao objetivo do relatório; ordenação por família corrigida (§18.5).
+2. Filtros (Terminated, status internos, modelos, revisões 3+ chars) são CORRETOS para um relatório de trâmite com o CLIENTE.
+3. Mapeamento pré-corte (`Em Processo`→interno, `Para Análise`→envio) e descarte do espelho pós-corte: empiricamente sustentados.
+4. Célula vazia em descontinuidade ("nunca inventar número") e data_ref (REPROGRAMAÇÃO > prevista) + linhas sintéticas: sólidos.
+
+### 24.3 Limitações encontradas (quantificadas)
+
+| # | Limitação | Evidência |
+|---|---|---|
+| L1 | Sub-ciclos dentro da revisão são colapsados (fica só o último envio + último retorno) | 12,9% das revisões têm >1 envio (máx 7); 5,4% >1 retorno (máx 5) |
+| L2 | `Dias Itaipu` usa o ÚLTIMO retorno → mistura formalização com veredito | 679 revisões; inflação mediana 40 d, p90 243 d |
+| L3 | Revisões EM ABERTO (enviadas, sem retorno) ficam com atraso em branco — invisíveis | 625 em aberto; 349 > 15 d; 199 > 90 d |
+| L4 | 291 revisões só têm `Para Análise` como envio → perdem o envio no pipeline | 291 (≈2,3%) |
+| L5 | `Para Aprovação` exterminado sem registro do que é (estágio de assinatura do fluxo novo) | 8.341 eventos |
+| L6 | Ciclo interno CMI (0AA/validação/integração) 100% invisível no histórico | ≈17k eventos descartados |
+
+### 24.4 SUGESTÕES — melhorias no tratamento (backlog, aguardando decisão)
+
+- **S1. Parear ciclos por WF id** (`Fonte`): envio↔veredito do MESMO workflow. Resolve L1/L2 na raiz. Formatos possíveis: (a) 1 linha por ciclo (muda a granularidade do Excel) ou (b) manter 1 linha por revisão e acrescentar `Nº de Ciclos`, `Data 1º Veredito`, `Status 1º Veredito` (menos invasivo).
+- **S2. Separar veredito de formalização**: `Dias Itaipu (veredito)` = 1º retorno − envio; manter o status final em coluna própria (`Status Final`/`Data Formalização`). Elimina a inflação de p90 243 d.
+- **S3. Aging em aberto**: coluna `Dias com Itaipu (em aberto)` = hoje − envio quando não há retorno. É a resposta direta a "a Itaipu está nos atrasando AGORA" (349 documentos estourando o SLA de 15 d hoje).
+- **S4. Fallback de envio**: usar `Para Análise` como envio quando `Em Processo` não existir na revisão (recupera as 291).
+- **S5. Métricas de lote**: `Docs no mesmo WF` por ciclo; cruzar tamanho do lote × tempo de resposta.
+- **S6. Ciclo interno (opcional/aba separada)**: `Dias ciclo interno` (1º evento interno → envio 0A) por documento; usa os eventos hoje descartados. Contrapartida justa: mede a CMI com a mesma régua.
+- **S7. % no prazo por mês** no dashboard (taxa de cumprimento de SLA) em vez de só média de atraso — média esconde bimodalidade (muitos no prazo + cauda longa).
+- **S8. Flag de família**: `Reemissão pós-aprovação` (1A depois do "0" aprovado) ≠ retrabalho por reprovação — ajuda a camada de análise a cortar o atraso CMI "sempre conta" com critério (312 docs têm >1 família).
+- **S9. Relatório de qualidade de dados**: revisões anômalas (`OA`, `-`), retorno sem envio, envio duplicado sem retorno etc.
+
+### 24.5 SUGESTÕES — dados novos da API (custo baixo: mesmos endpoint/fluxo)
+
+Campos retornáveis pelo `/register` que HOJE NÃO extraímos (confirmados no guia oficial Documents API):
+
+- **`numberOfMarkups`** — nº de marcações (comentários gráficos) por versão → proxy direto de "quantidade de comentários do cliente por revisão" e da severidade da análise. + `markupLastModifiedDate`.
+- **`dateForReview` / `dateReviewed`** — janelas de análise registradas pelo próprio Aconex (cross-check dos nossos envio/retorno heurísticos).
+- **`toClientDate`**, `approved`, `received`, `registered`, `uploaddate`, `revisiondate` — carimbos adicionais de trâmite.
+- **`plannedsubmissiondate` / `milestonedate`** — datas planejadas DENTRO do Aconex (complementam/validam o Controle de Documentos).
+- `comments`/`comments2`, `author`, `authorisedBy`, `attribute1–4`, `category`, `percentComplete`.
+- Endpoint **`/register/{documentid}/eventlog`** — trilha de eventos por documento (auditoria fina, sob demanda).
+- **Workflows API** (`/apis/workflows-api-developer-guide/`, guia em PDF — contrato exato a confirmar): passos, responsáveis, prazos por etapa, datas de conclusão e desfecho por revisor → a fonte DEFINITIVA de SLA da Itaipu (por etapa e por pessoa/organização). Os números `WF-…` do nosso `Fonte` e os `CMI-…-WTR-…` do Controle apontam para esses objetos.
+- **Mail API** (guia em PDF) — transmittals e threads de resposta (tempo de resposta entre organizações).
+
+Observação: `Control CMI` (2% preenchido) é hoje extraído e quase inútil; `registered` é pedido no `return_fields` mas não volta com esse nome — revisar a lista de campos quando mexermos na extração.
+
+---
+
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*
