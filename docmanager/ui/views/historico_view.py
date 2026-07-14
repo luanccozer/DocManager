@@ -69,7 +69,7 @@ class HistoricoView(BaseView):
         if base is None:
             return
         from ...historico_backend import exportar_historico, gerar_historico
-        wide = gerar_historico(base, controle, self._policy())
+        wide = gerar_historico(base, controle, self._policy(), log_cb=self.log.log)
         nome = f"Historico_Consolidado_{datetime.now().strftime('%d.%m.%y_%Hh%Mm')}.xlsx"
         saida = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nome, filetypes=[("Excel", "*.xlsx")])
         if not saida:
@@ -88,7 +88,7 @@ class HistoricoView(BaseView):
         from ...historico_backend import DashboardServer, gerar_historico
         self.log.log("Consolidando...")
         run.set_progress(0.7)
-        wide = gerar_historico(base, controle, self._policy())
+        wide = gerar_historico(base, controle, self._policy(), log_cb=self.log.log)
         if self._server is None:
             self._server = DashboardServer(porta=self.ctx.config.settings.dash_port)
         url = self._server.iniciar(wide)

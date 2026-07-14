@@ -771,10 +771,16 @@ Dois erros apontados pelo usuário com prints reais:
 
 **(a) Planilha de comissionamento NUNCA emitida aparecia com retorno "Para Assinatura"** (doc `#ST50=B01BDV10&BDC031`: só `Para Aprovação`×2 + `Em Validação`, sem nenhum envio). Causa: a exceção do comissionamento (PA→`Para Assinatura`) fabricava um RETORNO para revisão sem emissão. Regra corrigida em `core/wide.py`: o `Para Assinatura` vindo do relabel (`_pa_comiss`) **só vale como retorno se a revisão tiver envio**; sem envio e sem retorno real, a revisão **não entra** no wide (e o doc vira sintética NÃO EMITIDO se estiver no Controle). Princípio do domínio: **não existe retorno de documento não emitido**. Planilhas emitidas seguem exatamente como antes. Base real: 2 fantasmas eliminados (13.105→13.103); zero `Para Assinatura` órfãos restantes.
 
-**(b) Data Prevista em branco com a linha PREENCHIDA no Controle** (doc `#ST00=U01BFA10UC012-UC009&EDC080` / `0893410CYU20-209FDC-16`). Causa raiz: o Controle real espalha documentos em **VÁRIAS ABAS** (ex. "Dados Planilhas Comissionamento") e `ler_controle` lia só a aba selecionada. Correções em `services/controle_docs.py`:
-- `ler_controle` agora varre **todas as abas** do arquivo (abas sem colunas de código são ignoradas com aviso; log por aba). O parâmetro `sheet` ficou por compatibilidade e não limita mais a leitura.
-- Código duplicado (mesmo doc em mais de uma linha/aba): a linha **com data vence** a sem data (antes o `setdefault` deixava a primeira — possivelmente vazia — sombrear a datada).
-Beneficia igualmente o Mapa (injeção da Data Prevista Etapa 1). 4 testes novos travam os dois comportamentos.
+**(b) Data Prevista em branco com a linha PREENCHIDA no Controle** (doc `#ST00=U01BFA10UC012-UC009&EDC080` / `0893410CYU20-209FDC-16`). Correções em camadas (`services/controle_docs.py`):
+- `ler_controle` varre **todas as abas** do arquivo (abas sem colunas de código são ignoradas com aviso; log por aba). O parâmetro `sheet` ficou por compatibilidade e não limita mais a leitura. *(O usuário reportou que o doc estava na MESMA aba — a multi-aba fica como blindagem, não como causa.)*
+- Código duplicado (mesmo doc em mais de uma linha/aba): a linha **com data vence** a sem data.
+
+**§24.8b — causa raiz provável (2026-07-14, segunda rodada)**: `obter_codigos_historicos` devolve um **set (ordem aleatória)** e `datas_por_codigos` retornava na PRIMEIRA linha casada **mesmo sem data** — se um dos códigos do doc casasse com uma linha sem data do Controle, o sorteio da ordem decidia se a data aparecia. Correções:
+- `datas_por_codigos`/`resolver_para_codigos`: linha **com data** vence; a sem data só entra se não houver melhor.
+- **Chave de casamento tolerante** (`chave_codigo`): além do `normalizar_codigo`, remove TODO espaço interno, NBSP e invisíveis (zero-width/BOM) — "como a busca na mão" do usuário.
+- **Célula multi-código** (quebra de linha/';' numa célula): indexa todos os códigos; as sintéticas usam a mesma chave (senão doc postado viraria sintética duplicada).
+- **Log de diagnóstico**: `gerar_historico(log_cb=...)` informa "Controle ↔ histórico: X de Y documentos casaram" no console da view.
+7 testes travam os comportamentos. Beneficia igualmente o Mapa (injeção da Data Prevista Etapa 1).
 
 ---
 

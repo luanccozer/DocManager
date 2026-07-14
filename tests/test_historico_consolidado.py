@@ -248,6 +248,46 @@ def test_controle_le_todas_as_abas(tmp_path):
     assert ctrl.linha_por_codigo("CMI-B") is not None
 
 
+def test_controle_codigo_com_sujeira_de_excel_casa(tmp_path):
+    """Espaço interno/NBSP/quebra de linha DENTRO do código no Controle não podem
+    impedir o casamento — a chave é tolerante como a busca manual (§24.8b)."""
+    b = base(HistoricoBuilder("T1", "#ST00=U01BFA10UC012-UC009&EDC080", "0893410CYU20-209FDC-16", "DOC X")
+             .evento("0A", 1, "Em Processo", "01/09/2025", current=True))
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        # código com espaços internos e à volta (sujeira típica de Excel)
+        {"itaipu": "  #ST00=U01BFA10 UC012 - UC009&EDC080 ", "cmi": "0893410CYU20 -209FDC-16",
+         "prevista": "16/10/2025"},
+    ])
+    ctrl = ler_controle(p)
+    wide = gerar_historico(b, ctrl, DelayPolicy(hoje=date(2025, 12, 31)))
+    assert len(wide) == 1                                        # sem sintética duplicada
+    assert wide.iloc[0]["Data Prevista"] == pd.Timestamp("2025-10-16")
+
+
+def test_controle_celula_com_varios_codigos(tmp_path):
+    """Célula com mais de um código (quebra de linha) indexa TODOS."""
+    from docmanager.services.controle_docs import ControleDocs, ControleRow
+    ctrl = ControleDocs([ControleRow(
+        cod_itaipu="IT-A\nIT-B", cod_cmi="", titulo="DOC MULTI",
+        data_prevista=date(2025, 3, 1), data_reprogramada=None)])
+    assert ctrl.linha_por_codigo("IT-A").data_ref == date(2025, 3, 1)
+    assert ctrl.linha_por_codigo("IT-B").data_ref == date(2025, 3, 1)
+
+
+def test_datas_por_codigos_nao_para_em_linha_sem_data():
+    """Os códigos históricos chegam em ordem ALEATÓRIA (set): se um código casa
+    com linha SEM data e outro com linha datada, a datada deve vencer —
+    causa raiz do 'Data Prevista em branco com o Controle preenchido' (§24.8b)."""
+    from docmanager.services.controle_docs import ControleDocs, ControleRow
+    sem_data = ControleRow("IT-1", "", "LINHA VELHA", None, None)
+    com_data = ControleRow("", "CMI-1", "LINHA ATUAL", date(2025, 10, 16), None)
+    ctrl = ControleDocs([sem_data, com_data])
+    # ordem desfavorável: o código da linha sem data vem primeiro
+    prev, reprog = ctrl.datas_por_codigos(["IT-1", "CMI-1"])
+    assert prev == date(2025, 10, 16)
+    assert ctrl.resolver_para_codigos(["IT-1", "CMI-1"]).tem_data
+
+
 def test_controle_codigo_duplicado_prefere_linha_datada(tmp_path):
     """Mesmo código em duas linhas (uma sem data, outra com): a datada vence —
     uma linha vazia não pode sombrear a informação (KB §24.8)."""

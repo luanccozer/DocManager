@@ -25,14 +25,13 @@ from ..core.delays import (
     calcular_atrasos,
 )
 from ..core.identity import construir_indice_reverso, obter_codigos_historicos
-from ..core.normalize import normalizar_codigo
 from ..core.wide import (
     COL_STATUS_ENVIO,
     build_wide_table,
     gerar_dataset_dashboard,
 )
 from ..core.constants import COL_DOC_CMI, COL_DOC_ITAIPU, COL_TITULO, COL_TRACKING
-from .controle_docs import ControleDocs
+from .controle_docs import ControleDocs, chave_codigo, partes_codigo
 
 _SINTETICA_STATUS = "NÃO EMITIDO"
 
@@ -84,7 +83,9 @@ def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | No
     novas: list[dict] = []
     ja_incluido: set[str] = set()
     for r in controle.rows:
-        codigos = [normalizar_codigo(r.cod_itaipu), normalizar_codigo(r.cod_cmi)]
+        # Célula multi-código e sujeira de Excel: mesma chave tolerante do match
+        # (senão um doc já postado viraria sintética duplicada) — §24.8b.
+        codigos = [chave_codigo(p) for cod in (r.cod_itaipu, r.cod_cmi) for p in partes_codigo(cod)]
         codigos = [c for c in codigos if c]
         if not codigos:
             continue
@@ -123,12 +124,18 @@ def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | No
 
 
 def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None = None,
-                    policy: DelayPolicy | None = None) -> pd.DataFrame:
+                    policy: DelayPolicy | None = None, *, log_cb=None) -> pd.DataFrame:
     """Do bruto ao wide final com atrasos e sintéticas (tudo em memória)."""
     policy = policy or DelayPolicy()
     df_limpo = gerar_dataset_dashboard(df_bruto)
     df_wide = build_wide_table(df_limpo)
     df_wide = anexar_datas_controle(df_wide, controle, df_limpo, base_cmi_0a=policy.base_cmi_0a)
+    if controle is not None and log_cb is not None and not df_wide.empty:
+        # Diagnóstico do casamento com o Controle (§24.8b): quantos documentos
+        # do histórico receberam data — permite ver na hora se o match falhou.
+        por_doc = df_wide.groupby(COL_TRACKING)[COL_DATA_PREVISTA_CTRL].max()
+        log_cb(f"Controle ↔ histórico: {int(por_doc.notna().sum())} de {len(por_doc)} "
+               f"documentos casaram com data prevista/reprogramação.")
     indice_reverso = construir_indice_reverso(df_bruto) if controle is not None else {}
     df_wide = injetar_linhas_sinteticas(df_wide, controle, indice_reverso)
     df_wide = calcular_atrasos(df_wide, policy)

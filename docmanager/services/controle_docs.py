@@ -47,54 +47,94 @@ class ControleRow:
         """REPROGRAMAÇÃO vence a DATA PREVISTA quando preenchida."""
         return self.data_reprogramada if self.data_reprogramada is not None else self.data_prevista
 
+    @property
+    def tem_data(self) -> bool:
+        return self.data_prevista is not None or self.data_reprogramada is not None
+
+
+# Sujeira comum de Excel dentro de códigos: espaços internos, NBSP, invisíveis.
+_INVISIVEIS = '\xa0\u200b\u200e\u200f\ufeff'  # NBSP, zero-width, marcas RTL/LTR, BOM
+_RE_INVISIVEIS = re.compile('\\s' + '|[' + _INVISIVEIS + ']')
+# Célula com MAIS DE UM código (quebra de linha / ';').
+_RE_SEPARA_CODIGOS = re.compile(r"[\n\r;]+")
+
+
+def chave_codigo(cod) -> str:
+    """Chave de casamento tolerante ("como a busca na mão"): normalizar_codigo +
+    remoção de TODO espaço/invisível interno (§24.8b)."""
+    return _RE_INVISIVEIS.sub("", normalizar_codigo(cod))
+
+
+def partes_codigo(cod) -> list[str]:
+    """Divide célula multi-código (quebra de linha/';') em códigos individuais."""
+    if cod is None:
+        return []
+    return [p.strip() for p in _RE_SEPARA_CODIGOS.split(str(cod)) if p.strip()]
+
 
 class ControleDocs:
     def __init__(self, rows: list[ControleRow]):
         self.rows = rows
         self._por_codigo: dict[str, ControleRow] = {}
         for r in rows:
-            for cod in (normalizar_codigo(r.cod_itaipu), normalizar_codigo(r.cod_cmi)):
-                if not cod:
-                    continue
-                # Código duplicado (mesmo doc em mais de uma linha/aba): a linha
-                # COM data vence a sem data — uma linha vazia não pode "sombrear"
-                # a que tem a informação (§24.8).
-                atual = self._por_codigo.get(cod)
-                if atual is None or (atual.data_ref is None and r.data_ref is not None):
-                    self._por_codigo[cod] = r
+            for cod_bruto in (r.cod_itaipu, r.cod_cmi):
+                for parte in partes_codigo(cod_bruto):
+                    cod = chave_codigo(parte)
+                    if not cod:
+                        continue
+                    # Código duplicado (mesmo doc em mais de uma linha/aba): a
+                    # linha COM data vence a sem data — linha vazia não pode
+                    # "sombrear" a que tem a informação (§24.8).
+                    atual = self._por_codigo.get(cod)
+                    if atual is None or (not atual.tem_data and r.tem_data):
+                        self._por_codigo[cod] = r
 
     def linha_por_codigo(self, codigo) -> ControleRow | None:
-        return self._por_codigo.get(normalizar_codigo(codigo))
+        return self._por_codigo.get(chave_codigo(codigo))
 
     def data_ref_por_codigos(self, codigos) -> date | None:
         """Primeira data_ref encontrada varrendo os códigos históricos do doc."""
         for cod in codigos:
-            r = self._por_codigo.get(normalizar_codigo(cod))
+            r = self._por_codigo.get(chave_codigo(cod))
             if r is not None and r.data_ref is not None:
                 return r.data_ref
         return None
 
     def datas_por_codigos(self, codigos) -> tuple[date | None, date | None]:
-        """(data_prevista, data_reprogramada) da 1ª linha do Controle que casa."""
+        """(data_prevista, data_reprogramada) do documento. Os códigos chegam em
+        ordem arbitrária (set), então uma linha SEM data não pode encerrar a
+        busca: prefere a 1ª linha COM alguma data; senão a 1ª que casou (§24.8b)."""
+        primeira: ControleRow | None = None
         for cod in codigos:
-            r = self._por_codigo.get(normalizar_codigo(cod))
-            if r is not None:
+            r = self._por_codigo.get(chave_codigo(cod))
+            if r is None:
+                continue
+            if r.tem_data:
                 return r.data_prevista, r.data_reprogramada
+            if primeira is None:
+                primeira = r
+        if primeira is not None:
+            return primeira.data_prevista, primeira.data_reprogramada
         return None, None
 
     def resolver_para_codigos(self, codigos, cod_itaipu_atual="", cod_cmi_atual="") -> ControleRow | None:
         """Linha do Controle para um documento, priorizando o código Itaipu atual,
-        depois o CMI atual, depois qualquer código histórico que case."""
+        depois o CMI atual, depois códigos históricos (com data > sem data)."""
         for pref in (cod_itaipu_atual, cod_cmi_atual):
             if pref:
                 r = self.linha_por_codigo(pref)
                 if r is not None:
                     return r
+        primeira: ControleRow | None = None
         for cod in codigos:
-            r = self._por_codigo.get(normalizar_codigo(cod))
-            if r is not None:
+            r = self._por_codigo.get(chave_codigo(cod))
+            if r is None:
+                continue
+            if r.tem_data:
                 return r
-        return None
+            if primeira is None:
+                primeira = r
+        return primeira
 
     def __len__(self) -> int:
         return len(self.rows)
