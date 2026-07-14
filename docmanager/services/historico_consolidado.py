@@ -72,17 +72,69 @@ def anexar_datas_controle(df_wide: pd.DataFrame, controle: ControleDocs | None,
 anexar_data_prevista = anexar_datas_controle
 
 
+def varredura_final_controle(df_wide: pd.DataFrame, controle: ControleDocs | None, *,
+                             base_cmi_0a: str = BASE_CMI_REPROGRAMACAO,
+                             ) -> tuple[pd.DataFrame, int, set[int]]:
+    """Varredura FINAL (§24.8c, pedido do usuário): cada documento que ficou SEM
+    data prevista procura os códigos DA PRÓPRIA LINHA direto no Controle —
+    primeiro por igualdade (chave tolerante), depois por CONTÉM (como o Ctrl+F
+    na mão). Retorna (df, nº de resgatados, ids das linhas do Controle usadas —
+    para a injeção de sintéticas não duplicá-las)."""
+    if controle is None or df_wide.empty or COL_DATA_PREVISTA_CTRL not in df_wide.columns:
+        return df_wide, 0, set()
+    df = df_wide
+    sem_data = df[df[COL_DATA_PREVISTA_CTRL].isna()]
+    if sem_data.empty:
+        return df, 0, set()
+    resgatados = 0
+    usadas: set[int] = set()
+    for tid, grp in sem_data.groupby(COL_TRACKING, sort=False):
+        codigos: list[str] = []
+        for col in (COL_DOC_ITAIPU, COL_DOC_CMI):
+            if col in grp.columns:
+                codigos.extend(str(v).strip() for v in grp[col].tolist() if str(v).strip())
+        linha = None
+        for c in dict.fromkeys(codigos):          # ordem estável, sem duplicatas
+            r = controle.linha_por_codigo(c)
+            if r is not None and r.tem_data:
+                linha = r
+                break
+        if linha is None:
+            for c in dict.fromkeys(codigos):
+                r = controle.buscar_contendo(c)
+                if r is not None and r.tem_data:
+                    linha = r
+                    break
+        if linha is None:
+            continue
+        resgatados += 1
+        usadas.add(id(linha))
+        mask = df[COL_TRACKING] == tid
+        prev = pd.Timestamp(linha.data_prevista) if linha.data_prevista else pd.NaT
+        reprog = pd.Timestamp(linha.data_reprogramada) if linha.data_reprogramada else pd.NaT
+        base = _resolver_base(linha.data_prevista, linha.data_reprogramada, base_cmi_0a)
+        df.loc[mask, COL_DATA_PREVISTA] = prev
+        df.loc[mask, COL_REPROGRAMACAO] = reprog
+        df.loc[mask, COL_DATA_PREVISTA_CTRL] = pd.Timestamp(base) if base else pd.NaT
+    return df, resgatados, usadas
+
+
 def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | None,
-                              indice_reverso: dict) -> pd.DataFrame:
+                              indice_reverso: dict,
+                              ignorar_ids: set[int] | None = None) -> pd.DataFrame:
     """Adiciona linhas NÃO EMITIDO para docs do Controle sem representação no
     wide (não resolvem no índice reverso, ou resolvem para um Tracking que foi
-    filtrado — ex.: preso em integração/0AA)."""
+    filtrado — ex.: preso em integração/0AA). `ignorar_ids`: linhas do Controle
+    já casadas pela varredura final (§24.8c) — não podem virar sintética."""
     if controle is None:
         return df_wide
+    ignorar_ids = ignorar_ids or set()
     trackings_no_wide = set(df_wide[COL_TRACKING].astype(str)) if not df_wide.empty else set()
     novas: list[dict] = []
     ja_incluido: set[str] = set()
     for r in controle.rows:
+        if id(r) in ignorar_ids:
+            continue  # já casou com um doc do wide pela varredura final
         # Célula multi-código e sujeira de Excel: mesma chave tolerante do match
         # (senão um doc já postado viraria sintética duplicada) — §24.8b.
         codigos = [chave_codigo(p) for cod in (r.cod_itaipu, r.cod_cmi) for p in partes_codigo(cod)]
@@ -130,13 +182,18 @@ def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None = None
     df_limpo = gerar_dataset_dashboard(df_bruto)
     df_wide = build_wide_table(df_limpo)
     df_wide = anexar_datas_controle(df_wide, controle, df_limpo, base_cmi_0a=policy.base_cmi_0a)
+    # Varredura final (§24.8c): quem ficou sem data procura direto no Controle
+    # pelos códigos da própria linha (igualdade tolerante e depois CONTÉM).
+    df_wide, resgatados, usadas = varredura_final_controle(
+        df_wide, controle, base_cmi_0a=policy.base_cmi_0a)
     if controle is not None and log_cb is not None and not df_wide.empty:
         # Diagnóstico do casamento com o Controle (§24.8b): quantos documentos
         # do histórico receberam data — permite ver na hora se o match falhou.
         por_doc = df_wide.groupby(COL_TRACKING)[COL_DATA_PREVISTA_CTRL].max()
         log_cb(f"Controle ↔ histórico: {int(por_doc.notna().sum())} de {len(por_doc)} "
-               f"documentos casaram com data prevista/reprogramação.")
+               f"documentos com data prevista/reprogramação"
+               f" ({resgatados} pela varredura final).")
     indice_reverso = construir_indice_reverso(df_bruto) if controle is not None else {}
-    df_wide = injetar_linhas_sinteticas(df_wide, controle, indice_reverso)
+    df_wide = injetar_linhas_sinteticas(df_wide, controle, indice_reverso, ignorar_ids=usadas)
     df_wide = calcular_atrasos(df_wide, policy)
     return df_wide

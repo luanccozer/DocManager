@@ -772,8 +772,8 @@ Dois erros apontados pelo usuário com prints reais:
 **(a) Planilha de comissionamento NUNCA emitida aparecia com retorno "Para Assinatura"** (doc `#ST50=B01BDV10&BDC031`: só `Para Aprovação`×2 + `Em Validação`, sem nenhum envio). Causa: a exceção do comissionamento (PA→`Para Assinatura`) fabricava um RETORNO para revisão sem emissão. Regra corrigida em `core/wide.py`: o `Para Assinatura` vindo do relabel (`_pa_comiss`) **só vale como retorno se a revisão tiver envio**; sem envio e sem retorno real, a revisão **não entra** no wide (e o doc vira sintética NÃO EMITIDO se estiver no Controle). Princípio do domínio: **não existe retorno de documento não emitido**. Planilhas emitidas seguem exatamente como antes. Base real: 2 fantasmas eliminados (13.105→13.103); zero `Para Assinatura` órfãos restantes.
 
 **(b) Data Prevista em branco com a linha PREENCHIDA no Controle** (doc `#ST00=U01BFA10UC012-UC009&EDC080` / `0893410CYU20-209FDC-16`). Correções em camadas (`services/controle_docs.py`):
-- `ler_controle` varre **todas as abas** do arquivo (abas sem colunas de código são ignoradas com aviso; log por aba). O parâmetro `sheet` ficou por compatibilidade e não limita mais a leitura. *(O usuário reportou que o doc estava na MESMA aba — a multi-aba fica como blindagem, não como causa.)*
-- Código duplicado (mesmo doc em mais de uma linha/aba): a linha **com data vence** a sem data.
+- ~~`ler_controle` varre todas as abas~~ → **REVERTIDO a pedido do usuário (§24.8c)**: lê **apenas a aba selecionada** no seletor da interface — o usuário aponta a aba certa; o seletor existe para isso.
+- Código duplicado (mesmo doc em mais de uma linha): a linha **com data vence** a sem data.
 
 **§24.8b — causa raiz provável (2026-07-14, segunda rodada)**: `obter_codigos_historicos` devolve um **set (ordem aleatória)** e `datas_por_codigos` retornava na PRIMEIRA linha casada **mesmo sem data** — se um dos códigos do doc casasse com uma linha sem data do Controle, o sorteio da ordem decidia se a data aparecia. Correções:
 - `datas_por_codigos`/`resolver_para_codigos`: linha **com data** vence; a sem data só entra se não houver melhor.
@@ -781,6 +781,8 @@ Dois erros apontados pelo usuário com prints reais:
 - **Célula multi-código** (quebra de linha/';' numa célula): indexa todos os códigos; as sintéticas usam a mesma chave (senão doc postado viraria sintética duplicada).
 - **Log de diagnóstico**: `gerar_historico(log_cb=...)` informa "Controle ↔ histórico: X de Y documentos casaram" no console da view.
 7 testes travam os comportamentos. Beneficia igualmente o Mapa (injeção da Data Prevista Etapa 1).
+
+**§24.8c — varredura final (2026-07-14, terceira rodada, sugestão do usuário)**: como o caso persistiu no corporativo, foi implementada a varredura de ÚLTIMO recurso em `varredura_final_controle` (historico_consolidado): ao fim do casamento normal, cada documento que ficou SEM data procura os códigos **da própria linha do wide** direto no Controle — 1º por igualdade (chave tolerante), 2º por **CONTÉM** (`ControleDocs.buscar_contendo`, como o Ctrl+F manual que o usuário usou: pega célula com decoração/texto em volta do código; `min_len=8` evita falsos positivos; linha com data vence). As linhas do Controle usadas pela varredura NÃO viram sintéticas (`ignorar_ids`). O log passou a informar "(N pela varredura final)". Decisão do usuário na mesma rodada: `ler_controle` **voltou a ler só a aba selecionada** (o seletor da interface aponta a aba certa). Se AINDA falhar no corporativo: próxima etapa é depurar com o arquivo real (autorização/compliance do usuário).
 
 ---
 

@@ -215,9 +215,9 @@ def test_comissionamento_com_envio_mantem_para_assinatura():
     assert int(r["Dias Itaipu"]) == 19
 
 
-def test_controle_le_todas_as_abas(tmp_path):
-    """O Controle real espalha documentos em várias abas (ex. 'Dados Planilhas
-    Comissionamento'): TODAS devem ser varridas (KB §24.8)."""
+def test_controle_le_apenas_a_aba_selecionada(tmp_path):
+    """Decisão do usuário (§24.8c): lê SÓ a aba escolhida no seletor da
+    interface — quem aponta a aba certa é o usuário."""
     from openpyxl import Workbook
 
     from docmanager.core.constants import (
@@ -237,15 +237,34 @@ def test_controle_le_todas_as_abas(tmp_path):
     ws2.append(["PLANO GERAL"])
     ws2.append(["ITEM", CTRL_COL_CMI, CTRL_COL_ITAIPU, "DESCRIÇÃO", CTRL_COL_DATA_PREVISTA, "REPROGRAMAÇÃO"])
     ws2.append([1, "CMI-B", "IT-B", "PLANILHA B", "16/10/2025", ""])
-    ws3 = wb.create_sheet("Resumo")            # aba sem estrutura → ignorada
-    ws3.append(["gráficos e anotações"])
     p = tmp_path / "controle_multiabas.xlsx"
     wb.save(p)
 
-    ctrl = ler_controle(p)
-    assert ctrl.linha_por_codigo("IT-A").data_ref == date(2025, 3, 1)
-    assert ctrl.linha_por_codigo("IT-B").data_ref == date(2025, 10, 16)   # estava em outra aba
-    assert ctrl.linha_por_codigo("CMI-B") is not None
+    ctrl1 = ler_controle(p, "Principal")
+    assert ctrl1.linha_por_codigo("IT-A").data_ref == date(2025, 3, 1)
+    assert ctrl1.linha_por_codigo("IT-B") is None            # outra aba NÃO é lida
+    ctrl2 = ler_controle(p, "Dados Planilhas Comissionamento")
+    assert ctrl2.linha_por_codigo("IT-B").data_ref == date(2025, 10, 16)
+    assert ctrl2.linha_por_codigo("IT-A") is None
+
+
+def test_varredura_final_resgata_por_igualdade_e_por_contem(tmp_path):
+    """§24.8c (sugestão do usuário): no fim do processo, quem ficou sem data
+    procura o código da própria linha no Controle — inclusive por CONTÉM
+    (célula com decoração em volta do código, que o Ctrl+F manual acha)."""
+    b = base(
+        HistoricoBuilder("T1", "IT-DEC-1", "CMI-DEC-1", "DOC DECORADO")
+        .evento("0A", 1, "Em Processo", "01/09/2025", current=True),
+    )
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        # célula com texto extra em volta do código → só o CONTÉM acha
+        {"itaipu": "VER: IT-DEC-1 (rev. B)", "cmi": "", "prevista": "16/10/2025"},
+    ])
+    wide = gerar_historico(b, ler_controle(p), DelayPolicy(hoje=date(2025, 12, 31)))
+    assert len(wide) == 1                                     # sem sintética duplicada
+    r = wide.iloc[0]
+    assert r["Data Prevista"] == pd.Timestamp("2025-10-16")   # resgatado pela varredura
+    assert r["Data Prevista (Controle)"] == pd.Timestamp("2025-10-16")
 
 
 def test_controle_codigo_com_sujeira_de_excel_casa(tmp_path):

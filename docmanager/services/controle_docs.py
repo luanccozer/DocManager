@@ -117,6 +117,28 @@ class ControleDocs:
             return primeira.data_prevista, primeira.data_reprogramada
         return None, None
 
+    def buscar_contendo(self, codigo, *, min_len: int = 8) -> ControleRow | None:
+        """Busca de ÚLTIMO recurso (§24.8c), como o Ctrl+F na mão: varre as
+        linhas testando se a célula CONTÉM o código (ou o inverso) — pega
+        células com decoração/texto extra em volta do código. Linha com data
+        vence; `min_len` evita casamentos absurdos com códigos curtos."""
+        alvo = chave_codigo(codigo)
+        if len(alvo) < min_len:
+            return None
+        primeira: ControleRow | None = None
+        for r in self.rows:
+            for cod_bruto in (r.cod_itaipu, r.cod_cmi):
+                for parte in partes_codigo(cod_bruto):
+                    cel = chave_codigo(parte)
+                    if len(cel) < min_len:
+                        continue
+                    if alvo in cel or cel in alvo:
+                        if r.tem_data:
+                            return r
+                        if primeira is None:
+                            primeira = r
+        return primeira
+
     def resolver_para_codigos(self, codigos, cod_itaipu_atual="", cod_cmi_atual="") -> ControleRow | None:
         """Linha do Controle para um documento, priorizando o código Itaipu atual,
         depois o CMI atual, depois códigos históricos (com data > sem data)."""
@@ -245,26 +267,18 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
     return rows
 
 
-def ler_controle(caminho, sheet=None, *, log_cb=None) -> ControleDocs:
-    """Lê o Controle de Documentos de forma dinâmica, varrendo TODAS AS ABAS do
-    arquivo (§24.8 — o Controle real espalha documentos em várias abas, ex.
-    'Dados Planilhas Comissionamento'); abas sem colunas de código são
-    ignoradas com aviso. `sheet` é aceito por compatibilidade, mas não limita a
-    leitura. Nunca lança por coluna ausente — avisa via `log_cb` e segue."""
+def ler_controle(caminho, sheet=0, *, log_cb=None) -> ControleDocs:
+    """Lê o Controle de Documentos de forma dinâmica, da ABA SELECIONADA na
+    interface (decisão do usuário, §24.8c: o seletor de aba existe exatamente
+    para apontar a aba certa — não varremos as demais). Nunca lança por coluna
+    ausente — avisa via `log_cb` e segue."""
     def log(msg):
         if log_cb:
             log_cb(msg)
 
-    try:
-        abas = pd.ExcelFile(caminho).sheet_names
-    except Exception:  # noqa: BLE001 — deixa o read_excel padrão reportar
-        abas = [sheet if sheet is not None else 0]
-
-    rows: list[ControleRow] = []
-    for aba in abas:
-        try:
-            rows.extend(_ler_aba(caminho, aba, log))
-        except Exception as e:  # noqa: BLE001 — uma aba ruim não derruba o resto
-            log(f"Aviso: falha ao ler a aba '{aba}' do Controle: {e}")
-    log(f"Controle de Documentos: {len(rows)} linhas com código ({len(abas)} abas varridas).")
+    aba = sheet if sheet is not None else 0
+    rows = _ler_aba(caminho, aba, log)
+    n_com_data = sum(1 for r in rows if r.tem_data)
+    log(f"Controle de Documentos: {len(rows)} linhas com código na aba selecionada "
+        f"({n_com_data} com alguma data).")
     return ControleDocs(rows)
