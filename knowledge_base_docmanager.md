@@ -709,9 +709,9 @@ Estudo empírico sobre a base real (80.688 linhas, 5.181 documentos no recorte d
 | # | Limitação | Evidência |
 |---|---|---|
 | L1 | Sub-ciclos dentro da revisão são colapsados (fica só o último envio + último retorno) | 12,9% das revisões têm >1 envio (máx 7); 5,4% >1 retorno (máx 5) |
-| L2 | `Dias Itaipu` usa o ÚLTIMO retorno → mistura formalização com veredito | 679 revisões; inflação mediana 40 d, p90 243 d |
-| L3 | Revisões EM ABERTO (enviadas, sem retorno) ficam com atraso em branco — invisíveis | 625 em aberto; 349 > 15 d; 199 > 90 d |
-| L4 | 291 revisões só têm `Para Análise` como envio → perdem o envio no pipeline | 291 (≈2,3%) |
+| L2 | `Dias Itaipu` usa o ÚLTIMO envio e o ÚLTIMO retorno da revisão → quando há formalização depois do veredito, mistura as duas coisas. **Verificado empiricamente (2026-07-14, novo = legado)**: no caso-teste (0B com 2 ciclos + formalização) ambos mostram 86 d, em vez dos 19 d/10 d dos ciclos reais. No caso comum (1 ciclo por revisão, ~95%) o número está CORRETO — a distorção vive na cauda | 679 revisões (5,4%); inflação mediana 40 d, p90 243 d |
+| L3 | Revisões EM ABERTO **aparecem no relatório** (linha com envio preenchido e retorno vazio) — o usuário estava certo. O que falta é só o NÚMERO de dias correndo: as 4 colunas de contagem ficam `<NA>` | 625 em aberto; 349 > 15 d; 199 > 90 d |
+| ~~L4~~ | **RETIRADA (2026-07-14)** — o usuário mandou reconferir com a regra do corte, e ele tinha razão: os 291 vinham de uma conta que ignorava o mapeamento pré-corte (`Para Análise` antigo → envio). Refeita a conta com o pipeline completo, um fallback de `Para Análise` pós-corte resgataria só **2** revisões. Restam 169 (T,R) com retorno sem NENHUM evento de envio na base (causa diversa, sem regra que valha) e 379 só-`Para Análise` (sem envio nem retorno) | verificação de 2026-07-14 |
 | L5 | `Para Aprovação` exterminado sem registro do que é (estágio de assinatura do fluxo novo) | 8.341 eventos |
 | L6 | Ciclo interno CMI (0AA/validação/integração) 100% invisível no histórico | ≈17k eventos descartados |
 
@@ -719,28 +719,32 @@ Estudo empírico sobre a base real (80.688 linhas, 5.181 documentos no recorte d
 
 - **S1. Parear ciclos por WF id** (`Fonte`): envio↔veredito do MESMO workflow. Resolve L1/L2 na raiz. Formatos possíveis: (a) 1 linha por ciclo (muda a granularidade do Excel) ou (b) manter 1 linha por revisão e acrescentar `Nº de Ciclos`, `Data 1º Veredito`, `Status 1º Veredito` (menos invasivo).
 - **S2. Separar veredito de formalização**: `Dias Itaipu (veredito)` = 1º retorno − envio; manter o status final em coluna própria (`Status Final`/`Data Formalização`). Elimina a inflação de p90 243 d.
-- **S3. Aging em aberto**: coluna `Dias com Itaipu (em aberto)` = hoje − envio quando não há retorno. É a resposta direta a "a Itaipu está nos atrasando AGORA" (349 documentos estourando o SLA de 15 d hoje).
-- **S4. Fallback de envio**: usar `Para Análise` como envio quando `Em Processo` não existir na revisão (recupera as 291).
+- **S3. Aging em aberto**: coluna `Dias com Itaipu (em aberto)` = hoje − envio quando não há retorno (a linha já aparece; só falta o número). É a resposta direta a "a Itaipu está nos atrasando AGORA" (349 documentos estourando o SLA de 15 d hoje).
+- ~~**S4. Fallback de envio**~~ — RETIRADA: com a regra do corte aplicada, resgataria só 2 revisões (ver ~~L4~~).
 - **S5. Métricas de lote**: `Docs no mesmo WF` por ciclo; cruzar tamanho do lote × tempo de resposta.
 - **S6. Ciclo interno (opcional/aba separada)**: `Dias ciclo interno` (1º evento interno → envio 0A) por documento; usa os eventos hoje descartados. Contrapartida justa: mede a CMI com a mesma régua.
 - **S7. % no prazo por mês** no dashboard (taxa de cumprimento de SLA) em vez de só média de atraso — média esconde bimodalidade (muitos no prazo + cauda longa).
 - **S8. Flag de família**: `Reemissão pós-aprovação` (1A depois do "0" aprovado) ≠ retrabalho por reprovação — ajuda a camada de análise a cortar o atraso CMI "sempre conta" com critério (312 docs têm >1 família).
 - **S9. Relatório de qualidade de dados**: revisões anômalas (`OA`, `-`), retorno sem envio, envio duplicado sem retorno etc.
 
-### 24.5 SUGESTÕES — dados novos da API (custo baixo: mesmos endpoint/fluxo)
+### 24.5 Dados novos da API — VERIFICADO NO PROJETO REAL (2026-07-14, via `/register/schema` + consultas de teste)
 
-Campos retornáveis pelo `/register` que HOJE NÃO extraímos (confirmados no guia oficial Documents API):
+O schema do register DESTE projeto expõe 31 campos. Resultado dos testes (scripts no scratchpad, nenhum código do repositório alterado):
 
-- **`numberOfMarkups`** — nº de marcações (comentários gráficos) por versão → proxy direto de "quantidade de comentários do cliente por revisão" e da severidade da análise. + `markupLastModifiedDate`.
-- **`dateForReview` / `dateReviewed`** — janelas de análise registradas pelo próprio Aconex (cross-check dos nossos envio/retorno heurísticos).
-- **`toClientDate`**, `approved`, `received`, `registered`, `uploaddate`, `revisiondate` — carimbos adicionais de trâmite.
-- **`plannedsubmissiondate` / `milestonedate`** — datas planejadas DENTRO do Aconex (complementam/validam o Controle de Documentos).
-- `comments`/`comments2`, `author`, `authorisedBy`, `attribute1–4`, `category`, `percentComplete`.
-- Endpoint **`/register/{documentid}/eventlog`** — trilha de eventos por documento (auditoria fina, sob demanda).
-- **Workflows API** (`/apis/workflows-api-developer-guide/`, guia em PDF — contrato exato a confirmar): passos, responsáveis, prazos por etapa, datas de conclusão e desfecho por revisor → a fonte DEFINITIVA de SLA da Itaipu (por etapa e por pessoa/organização). Os números `WF-…` do nosso `Fonte` e os `CMI-…-WTR-…` do Controle apontam para esses objetos.
-- **Mail API** (guia em PDF) — transmittals e threads de resposta (tempo de resposta entre organizações).
+**Disponíveis e ÚTEIS (testados com HTTP 200 e dados reais):**
+- **`numberOfMarkups`** (rótulo "Número de Anotações"; tag XML `NumberOfMarkups`) — **CONFIRMADO COM DADOS**: em amostra de 2.000 versões, 16,6% têm anotações; mediana 7, máx 294; concentradas nos vereditos (`Para Assinatura` 107, `Aprovado com Comentários` 86, `Não Aprovado` 68). É a métrica de "comentários do cliente por revisão". Implementação futura = acrescentar `,numberOfMarkups,markupLastModifiedDate` ao `CAMPOS_STRING` + 2 entradas no `MAPA_COLUNAS` do `aconex_backend.py`.
+- **`markupLastModifiedDate`** (tag `MarkupLastModifiedDate`) — data da última anotação.
+- `modifiedby` (tag `ModifiedBy`) — devolve **IDs numéricos de usuário** (não nomes); para distinguir CMI×Itaipu exigiria a Directory API. Valor secundário.
+- `filename`, `fileType`, `confidential` — funcionam; pouco úteis para o histórico.
 
-Observação: `Control CMI` (2% preenchido) é hoje extraído e quase inútil; `registered` é pedido no `return_fields` mas não volta com esse nome — revisar a lista de campos quando mexermos na extração.
+**Armadilhas descobertas (registrar!):**
+- `page_size` do register só aceita os valores canônicos (25/50/…/500) — `page_size=1` responde **400** para QUALQUER campo (custou uma rodada inteira de falsos negativos).
+- `registered` volta com a tag **`DateModified`** — é o MESMO campo que já usamos como "Data de Alteração" (por isso "não aparecia" na extração; é duplicado, não faltante).
+- `markupdate` e `uploaddate` constam do schema mas são **rejeitados** como `return_fields` (provavelmente só pesquisáveis).
+
+**NÃO existem no schema deste projeto** (embora citados no guia genérico da Documents API): `dateReviewed`, `dateForReview`, `toClientDate`, `plannedSubmissionDate`, `milestoneDate`, `comments`, `author`, `approved`, `received`, `attribute1–4`. Janelas oficiais de análise e datas planejadas, se quisermos, teriam de vir da **Workflows API** (guia em PDF; contrato a confirmar) — os `WF-…` do nosso `Fonte` e os `CMI-…-WTR-…` do Controle apontam para esses objetos. Mail API idem (transmittals/threads).
+
+Observação: `Control CMI` (2% preenchido) é hoje extraído e quase inútil.
 
 ---
 
