@@ -93,11 +93,12 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     df.loc[antigo & (df[COL_STATUS] == "Para Análise"), COL_STATUS] = "Em Processo"
     df = df[~((~antigo) & (df[COL_STATUS] == "Para Análise"))]
 
-    # Regras cirúrgicas do "Para Aprovação":
+    # Regras cirúrgicas do "Para Aprovação": comissionamento vira retorno
+    # ("Para Assinatura"); o restante NÃO é mais exterminado aqui — segue no
+    # frame até a etapa 5, onde serve de ENVIO-fallback (§24.7) e sai do fluxo.
     mask_para_aprov = df[COL_STATUS] == "Para Aprovação"
     mask_comiss = df[COL_TITULO].str.contains(r"PLANILHA[S]? DE COMISSIONAMENTO", case=False, na=False)
     df.loc[mask_para_aprov & mask_comiss, COL_STATUS] = "Para Assinatura"
-    df = df[df[COL_STATUS] != "Para Aprovação"]  # o resto é exterminado
 
     # 4. Ordenação para deduplicação.
     df = df.sort_values(
@@ -123,6 +124,14 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     #       · senão → subida com revisão errada, corrigida em seguida
     #         (ex.: "0C" de 24/07 que virou 0D no mesmo dia) → ignorada;
     #   - sem retorno → último envio (pendente, comportamento de sempre).
+    # E o ENVIO-FALLBACK do "Para Aprovação" (§24.7, pedido do usuário): no
+    # início do projeto a revisão definitiva ("0") subia como 'Para Aprovação';
+    # quando a revisão NÃO tem 'Em Processo', o último PA ≤ retorno vira envio.
+    # PA nunca vira retorno e nunca substitui envio real (só fallback).
+    mask_pa_rest = df[COL_STATUS] == "Para Aprovação"
+    pa_fallback = df[mask_pa_rest]
+    df = df[~mask_pa_rest]                       # extermínio (agora aqui)
+
     asc = df.sort_values(by=[COL_DATA, "Versão_Int"])
     env = asc[asc[COL_STATUS] == "Em Processo"]
     ret = asc[~asc[COL_STATUS].str.contains("Em Processo", case=False, na=False)]
@@ -131,13 +140,22 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
 
     env_g = dict(iter(env.groupby([COL_TRACKING, COL_REVISAO], sort=False)))
     ret_g = dict(iter(ret.groupby([COL_TRACKING, COL_REVISAO], sort=False)))
+    pa_g = dict(iter(pa_fallback.sort_values(by=[COL_DATA, "Versão_Int"])
+                     .groupby([COL_TRACKING, COL_REVISAO], sort=False)))
     idx_env: list = []
     idx_ret: list = []
+    idx_env_pa: list = []
     for chave in set(env_g) | set(ret_g):
         g_env = env_g.get(chave)
         g_ret = ret_g.get(chave)
         if g_env is None:                       # só retorno (sem envio na base)
-            idx_ret.append(g_ret.index[-1])
+            linha_ret = g_ret.iloc[-1]
+            g_pa = pa_g.get(chave)
+            if g_pa is not None:                # PA anterior ao retorno = envio
+                cand = g_pa[g_pa[COL_DATA] <= linha_ret[COL_DATA]]
+                if not cand.empty:
+                    idx_env_pa.append(cand.index[-1])
+            idx_ret.append(linha_ret.name)
             continue
         if g_ret is None:                       # pendente: último envio
             idx_env.append(g_env.index[-1])
@@ -156,6 +174,12 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
         idx_ret.append(linha_ret.name)
 
     df_envios = df.loc[idx_env]
+    if idx_env_pa:
+        # PA promovido a envio: rotulado 'Em Processo' (marcador canônico de
+        # envio no wide, mesma convenção do 'Para Análise' pré-corte).
+        extras = pa_fallback.loc[idx_env_pa].copy()
+        extras[COL_STATUS] = "Em Processo"
+        df_envios = pd.concat([df_envios, extras])
     df_retornos = df.loc[idx_ret]
     # Filtra partes vazias antes do concat: concatenar um frame vazio com
     # colunas datetime dispara DeprecationWarning de timedelta no pandas 2.3.

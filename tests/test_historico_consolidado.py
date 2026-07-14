@@ -178,6 +178,39 @@ def test_ciclo_consistente_relancamento_vira_pendente():
     assert int(a["Atraso Itaipu"]) == 183                       # 213 − SLA 30
 
 
+def test_para_aprovacao_vira_envio_fallback():
+    """Caso da revisão '0' no início do projeto (KB §24.7): o envio subia como
+    'Para Aprovação'. Quando a revisão NÃO tem 'Em Processo', o último PA
+    anterior ao retorno vira o envio (rev 0 real: 17/10→23/10 = 6 dias)."""
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
+        .evento("0", 85, "Para Aprovação", "17/10/2023")
+        .evento("0", 87, "Aprovado", "23/10/2023", current=True)
+    )
+    wide = gerar_historico(b, None, DelayPolicy(hoje=date(2023, 12, 31)))
+    r = wide.iloc[0]
+    assert r["Data Envio"] == pd.Timestamp("2023-10-17")     # antes: vazio
+    assert r["Data Retorno"] == pd.Timestamp("2023-10-23")
+    assert int(r["Dias Itaipu"]) == 6
+    assert int(r["Atraso Itaipu"]) == 0                      # SLA 15
+
+
+def test_para_aprovacao_nao_substitui_envio_real():
+    """'Para Aprovação' é SÓ fallback: revisão com 'Em Processo' fica intacta
+    (e o PA continua sem virar retorno)."""
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
+        .evento("0B", 1, "Em Processo", "01/03/2025")
+        .evento("0B", 2, "Não Aprovado", "20/03/2025")
+        .evento("0B", 3, "Para Aprovação", "25/03/2025", current=True)
+    )
+    wide = gerar_historico(b, None, DelayPolicy(hoje=date(2025, 12, 31)))
+    r = wide.iloc[0]
+    assert r["Data Envio"] == pd.Timestamp("2025-03-01")     # envio real preservado
+    assert r["Data Retorno"] == pd.Timestamp("2025-03-20")   # PA não é retorno
+    assert int(r["Dias Itaipu"]) == 19
+
+
 def test_doc_postado_nao_gera_sintetica(tmp_path):
     b = base(HistoricoBuilder("T1", "IT-1", "CMI-1")
              .evento("0A", 1, "Em Processo", "01/09/2024", current=True))
