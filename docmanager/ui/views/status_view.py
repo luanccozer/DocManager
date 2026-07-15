@@ -202,6 +202,9 @@ class StatusDocsView(BaseView):
         linhas, contador, tem_modelos = analisar_status_pares(base, pares)
         for st, n in contador.most_common():
             self.log.log(f"  {st}: {n}")
+        n_alterados = sum(1 for d in linhas if d.get("_itaipu_alterado") or d.get("_cmi_alterado"))
+        if n_alterados:
+            self.log.log(f"  {n_alterados} com código atualizado no Aconex vs. a busca (em azul na planilha).")
         run.set_progress(0.9)
         nome = f"Status_Docs_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
         saida = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nome, filetypes=[("Excel", "*.xlsx")])

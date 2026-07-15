@@ -21,6 +21,7 @@ from ...core.constants import (
     NAO_EMITIDO,
 )
 from ...core.identity import AconexIndex
+from ...core.normalize import normalizar_codigo
 from ...core.status_engine import calcular_status_real
 from ...core.status_model_bim import calcular_status_real_modelo
 from ...core.truth_line import resolver_linha_da_verdade
@@ -69,6 +70,12 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
     Alimenta o Excel legado (Código Itaipu/CMI, Título, Revisão, Data, Status
     Aconex, Status Real) + o gráfico de barras. Retorna (linhas, contador,
     tem_modelos). `pares`: iterável de (cod_itaipu, cod_cmi).
+
+    Cada linha carrega ainda as flags internas `_itaipu_alterado`/`_cmi_alterado`
+    (prefixo '_' → não viram coluna do Excel): True quando o código VIGENTE do
+    documento (resolvido via Tracking ID) difere do que foi BUSCADO — ou seja, o
+    código mudou no Aconex desde a lista de busca. O exportador pinta essas
+    células de azul (pedido do usuário).
     """
     idx = AconexIndex(df_base)
     linhas: list[dict] = []
@@ -80,7 +87,8 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
         if not c_it and not c_cmi:
             continue
         dados = {"Código Itaipu": c_it, "Código CMI": c_cmi, "Título": "", "Revisão": "",
-                 "Data": "", "Status Aconex": "", "Status Real": NAO_EMITIDO}
+                 "Data": "", "Status Aconex": "", "Status Real": NAO_EMITIDO,
+                 "_itaipu_alterado": False, "_cmi_alterado": False}
         df_t = idx.localizar(c_it, c_cmi)
         if not df_t.empty:
             tl = resolver_linha_da_verdade(df_t)
@@ -88,10 +96,18 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
             tem_modelos = tem_modelos or eh_modelo
             linha = tl.linha_dinamica
             if linha is not None:
-                if str(linha.get(COL_DOC_ITAIPU, "")).strip():
-                    dados["Código Itaipu"] = str(linha.get(COL_DOC_ITAIPU, "")).strip()
-                if str(linha.get(COL_DOC_CMI, "")).strip():
-                    dados["Código CMI"] = str(linha.get(COL_DOC_CMI, "")).strip()
+                cur_it = str(linha.get(COL_DOC_ITAIPU, "")).strip()
+                cur_cmi = str(linha.get(COL_DOC_CMI, "")).strip()
+                if cur_it:
+                    dados["Código Itaipu"] = cur_it
+                    # Só é "atualizado" se o usuário buscou por esse código e o
+                    # vigente difere (comparação normalizada: caixa/'.0'/espaços).
+                    if c_it and normalizar_codigo(c_it) != normalizar_codigo(cur_it):
+                        dados["_itaipu_alterado"] = True
+                if cur_cmi:
+                    dados["Código CMI"] = cur_cmi
+                    if c_cmi and normalizar_codigo(c_cmi) != normalizar_codigo(cur_cmi):
+                        dados["_cmi_alterado"] = True
                 dados["Título"] = str(linha.get(COL_TITULO, ""))
                 dados["Revisão"] = str(linha.get("Revisão", ""))
                 dados["Data"] = str(linha.get(COL_DATA, ""))

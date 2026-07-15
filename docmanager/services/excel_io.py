@@ -226,6 +226,9 @@ _FILL_HEADER_NOVO = PatternFill("solid", fgColor="1F6F5C")   # cabeçalho coluna
 _FILL_BANDA = PatternFill("solid", fgColor="F4F6F7")         # linha ímpar (zebra)
 _FONT_HEADER = Font(color="FFFFFF", bold=True, size=10, name="Segoe UI")
 _FONT_DADO = Font(size=10, name="Segoe UI")
+# Status Docs: código vigente ≠ código buscado → só o TEXTO em azul (pedido do
+# usuário: apenas a fonte, sem preencher a célula), mantendo a zebra por baixo.
+_FONT_COD_ALTERADO = Font(color="0070C0", bold=True, size=10, name="Segoe UI")
 _BORDA_FINA = Side(style="thin", color="D5DBDB")
 _BORDER = Border(left=_BORDA_FINA, right=_BORDA_FINA, top=_BORDA_FINA, bottom=_BORDA_FINA)
 _COLS_NOVAS_SET = set(_COLUNAS_NOVAS)
@@ -427,6 +430,7 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
     from openpyxl.chart.label import DataLabelList
     from openpyxl.chart.marker import DataPoint
     from openpyxl.chart.shapes import GraphicalProperties
+    from openpyxl.comments import Comment
     from openpyxl.drawing.colors import ColorChoice
     from openpyxl.drawing.line import LineProperties
 
@@ -448,6 +452,12 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.border = _BORDER
         ws.column_dimensions[get_column_letter(c)].width = larguras[h]
+
+    # Legenda do destaque azul, nos cabeçalhos de código (tooltip ao passar o mouse).
+    _legenda = ("Azul = código atualizado no Aconex em relação ao que foi buscado "
+                "(documento resolvido pelo Tracking ID).")
+    ws.cell(1, 1).comment = Comment(_legenda, "DocManager")
+    ws.cell(1, 2).comment = Comment(_legenda, "DocManager")
 
     # Corpo — fonte, borda, zebra; 'Status Real' com cor semântica por cima.
     for r, d in enumerate(linhas, 2):
@@ -473,6 +483,11 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
         elif s in ("Não Aprovado", "NÃO EMITIDO") or s.startswith("Não Aprovado -"):
             cell.font = Font(color="9C0006", name="Segoe UI", size=10)
             cell.fill = PatternFill("solid", fgColor="FFC7CE")
+        # Código vigente ≠ código buscado (mudou no Aconex) → texto em azul.
+        if d.get("_itaipu_alterado"):
+            ws.cell(r, 1).font = _FONT_COD_ALTERADO
+        if d.get("_cmi_alterado"):
+            ws.cell(r, 2).font = _FONT_COD_ALTERADO
     ws.auto_filter.ref = f"A1:G{len(linhas) + 1}"
 
     # Tabela auxiliar + gráfico

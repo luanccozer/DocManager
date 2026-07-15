@@ -799,6 +799,14 @@ Pedido: trazer para a **extração do Aconex** (a) os comentários de cada revis
 
 **Próximo (aguardando o usuário)**: decidir como levar `Qtd. de Comentários` ao Histórico Consolidado (1 linha por revisão) — provável coluna nova ao fim, herdada da versão-veredito da revisão. E, se quiser o TEXTO/roteamento, abrir a frente Workflows API no corporativo.
 
+### 24.10 ✅ Status Documentos: destaque azul de código atualizado (2026-07-15, pedido do usuário)
+
+O módulo de Status resolve cada código buscado pelo **Tracking ID** (via `AconexIndex`, cascata ouro/prata/bronze), então acha o documento mesmo quando o código Itaipu/CMI mudou entre revisões — e a saída mostra o código **vigente** (sobrescreve o buscado em `analisar_status_pares`). O usuário não tinha como enxergar *quais* haviam mudado. Implementado:
+- **Detecção** (`core/reports/status_docs.py::analisar_status_pares`): cada linha ganhou as flags internas `_itaipu_alterado`/`_cmi_alterado` — `True` quando o código VIGENTE (resolvido) difere do BUSCADO, comparado por `normalizar_codigo` (caixa/'.0'/espaços não geram falso positivo). Só marca o código que o usuário **realmente buscou** (valor não vazio) — se ele deixou o CMI em branco e o doc tem CMI, isso não é "atualização".
+- **Pintura** (`services/excel_io.py::exportar_status_documentos`): o **texto** do código (col Itaipu e/ou CMI) fica **azul `#0070C0`** em negrito (`_FONT_COD_ALTERADO`) — só a fonte, sem preencher a célula (decisão do usuário, 2026-07-15), preservando a zebra. Legenda via comentário (tooltip) nos cabeçalhos de código. As flags `_...` NÃO viram coluna (o exportador escolhe as chaves).
+- **UI** (`ui/views/status_view.py`): loga "N com código atualizado no Aconex vs. a busca (em azul na planilha)".
+- Testes em `test_reports.py` (4): marca Itaipu, marca CMI, código já vigente não marca (mesmo com caixa diferente), e export end-to-end lê de volta o `0070C0` em A2. Verde nos 2 venvs. (Obs.: o usuário escreveu `#00700C0` — 7 dígitos; interpretado como o azul padrão Office `#0070C0`.)
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*
