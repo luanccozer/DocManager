@@ -732,7 +732,7 @@ Estudo empírico sobre a base real (80.688 linhas, 5.181 documentos no recorte d
 O schema do register DESTE projeto expõe 31 campos. Resultado dos testes (scripts no scratchpad, nenhum código do repositório alterado):
 
 **Disponíveis e ÚTEIS (testados com HTTP 200 e dados reais):**
-- **`numberOfMarkups`** (rótulo "Número de Anotações"; tag XML `NumberOfMarkups`) — **CONFIRMADO COM DADOS**: em amostra de 2.000 versões, 16,6% têm anotações; mediana 7, máx 294; concentradas nos vereditos (`Para Assinatura` 107, `Aprovado com Comentários` 86, `Não Aprovado` 68). É a métrica de "comentários do cliente por revisão". Implementação futura = acrescentar `,numberOfMarkups,markupLastModifiedDate` ao `CAMPOS_STRING` + 2 entradas no `MAPA_COLUNAS` do `aconex_backend.py`.
+- **`numberOfMarkups`** (rótulo "Número de Anotações"; tag XML `NumberOfMarkups`) — **CONFIRMADO COM DADOS**: em amostra de 2.000 versões, 16,6% têm anotações; mediana 7, máx 294; concentradas nos vereditos (`Para Assinatura` 107, `Aprovado com Comentários` 86, `Não Aprovado` 68). É a métrica de "comentários do cliente por revisão". **✅ IMPLEMENTADO (2026-07-15) — ver §24.9.**
 - **`markupLastModifiedDate`** (tag `MarkupLastModifiedDate`) — data da última anotação.
 - `modifiedby` (tag `ModifiedBy`) — devolve **IDs numéricos de usuário** (não nomes); para distinguir CMI×Itaipu exigiria a Directory API. Valor secundário.
 - `filename`, `fileType`, `confidential` — funcionam; pouco úteis para o histórico.
@@ -782,7 +782,22 @@ Dois erros apontados pelo usuário com prints reais:
 - **Log de diagnóstico**: `gerar_historico(log_cb=...)` informa "Controle ↔ histórico: X de Y documentos casaram" no console da view.
 7 testes travam os comportamentos. Beneficia igualmente o Mapa (injeção da Data Prevista Etapa 1).
 
-**§24.8c — varredura final (2026-07-14, terceira rodada, sugestão do usuário)**: como o caso persistiu no corporativo, foi implementada a varredura de ÚLTIMO recurso em `varredura_final_controle` (historico_consolidado): ao fim do casamento normal, cada documento que ficou SEM data procura os códigos **da própria linha do wide** direto no Controle — 1º por igualdade (chave tolerante), 2º por **CONTÉM** (`ControleDocs.buscar_contendo`, como o Ctrl+F manual que o usuário usou: pega célula com decoração/texto em volta do código; `min_len=8` evita falsos positivos; linha com data vence). As linhas do Controle usadas pela varredura NÃO viram sintéticas (`ignorar_ids`). O log passou a informar "(N pela varredura final)". Decisão do usuário na mesma rodada: `ler_controle` **voltou a ler só a aba selecionada** (o seletor da interface aponta a aba certa). Se AINDA falhar no corporativo: próxima etapa é depurar com o arquivo real (autorização/compliance do usuário).
+**§24.8c — varredura final (2026-07-14, terceira rodada, sugestão do usuário)**: como o caso persistiu no corporativo, foi implementada a varredura de ÚLTIMO recurso em `varredura_final_controle` (historico_consolidado): ao fim do casamento normal, cada documento que ficou SEM data procura os códigos **da própria linha do wide** direto no Controle — 1º por igualdade (chave tolerante), 2º por **CONTÉM** (`ControleDocs.buscar_contendo`, como o Ctrl+F manual que o usuário usou: pega célula com decoração/texto em volta do código; `min_len=8` evita falsos positivos; linha com data vence). As linhas do Controle usadas pela varredura NÃO viram sintéticas (`ignorar_ids`). O log passou a informar "(N pela varredura final)". Decisão do usuário na mesma rodada: `ler_controle` **voltou a ler só a aba selecionada** (o seletor da interface aponta a aba certa). **Status (2026-07-15): não resolveu 100% no corporativo** — usuário decidiu deixar de lado por ora e priorizar §24.9 (comentários). A depuração com o arquivo real (compliance) fica como próximo passo quando ele retomar.
+
+### 24.9 ✅ Comentários por revisão + tipo de tramitação na EXTRAÇÃO (2026-07-15, pedido do usuário)
+
+Pedido: trazer para a **extração do Aconex** (a) os comentários de cada revisão e (b) os fluxos ("onde cada revisão foi tramitada"), sem quebrar nada. Implementado em `docmanager/aconex_backend.py` — puramente **aditivo** (só novas colunas; nada downstream lê por posição, `carregar_base_aconex` casa tudo por nome).
+
+**(a) Comentários por revisão** — `numberOfMarkups` + `markupLastModifiedDate` acrescentados ao `CAMPOS_STRING` (return_fields) e ao `MAPA_COLUNAS`:
+- `Qtd. de Comentários` (tag `NumberOfMarkups`) — nº de **anotações/markups** do cliente naquela versão. É a QUANTIDADE, não o texto. O Aconex chama de "anotações"; o usuário, de "comentários" — é a mesma coisa (redlines na revisão).
+- `Data do Último Comentário` (tag `MarkupLastModifiedDate`) — formatada dd/mm/yyyy como as demais datas.
+- Confirmados HTTP 200 no schema real (§24.5). **O TEXTO dos comentários NÃO está no register** — exigiria a Workflows/Markups API (por documento, contrato a confirmar, ~lento) → só dá para testar/implementar no corporativo. Fica como próximo passo se o usuário quiser o conteúdo, não só a contagem.
+
+**(b) Fluxos / "onde foi tramitada"** — a Fonte (ReviewSource) **já carrega** o `WF-…`/Transmittal/`SD-…` (o usuário suspeitava certo). Acrescentei a coluna derivada **`Tipo de Tramitação`** (ao lado de Fonte) via `classificar_fonte`: `WF-…`→"Fluxo", numérico→"Transmissão", `SD-…`→"Docs. Fornecedor", `Nenhum`/vazio→"". Isso torna legível o MECANISMO na própria base. **NÃO diz a etapa/organização** de destino — isso é workflow routing e também depende da Workflows API (corporativo).
+
+**Robustez**: `import requests` virou **tardio** (dentro de `extrair_base`) — o módulo passou a importar sem a lib, então `montar_dataframe`/`classificar_fonte`/`_parse_pagina` (funções puras) rodam em qualquer ambiente. A montagem do DataFrame foi extraída para `montar_dataframe(registros)` (pura, sem rede) → testável. `tests/test_aconex_backend.py`: 12 testes (classificação da Fonte, parse de XML sintético, rename/derivação/ordem/formatação de data, colunas desconhecidas preservadas no fim). Verde nos 2 venvs; suíte completa intacta.
+
+**Próximo (aguardando o usuário)**: decidir como levar `Qtd. de Comentários` ao Histórico Consolidado (1 linha por revisão) — provável coluna nova ao fim, herdada da versão-veredito da revisão. E, se quiser o TEXTO/roteamento, abrir a frente Workflows API no corporativo.
 
 ---
 

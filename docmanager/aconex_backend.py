@@ -15,11 +15,14 @@ import base64
 import os
 import urllib.request
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pandas as pd
-import requests
+
+if TYPE_CHECKING:  # 'requests' é import tardio (só a extração ao vivo usa)
+    import requests
 
 PROJECT_ID = "1207975853"
 ACONEX_INSTANCE = "https://us1.aconex.com"
@@ -31,7 +34,11 @@ CAMPOS_STRING = (
     "Subespecialidad_singleSelect,doctype,registered,Dcc_singleSelect,"
     "ControlDelEmisor_singleLineText,Idioma_singleSelect,reviewsource,"
     "Disciplina_singleSelect,"
-    "TipoDeDocumentoDcc_singleSelect,ControlCmi_singleLineText"
+    "TipoDeDocumentoDcc_singleSelect,ControlCmi_singleLineText,"
+    # Comentários por revisão (KB §24.5): nº de anotações/markups do cliente na
+    # versão + data da última. Confirmados HTTP 200 no schema real do projeto.
+    # (markupdate/uploaddate existem no schema mas são REJEITADOS como campo.)
+    "numberOfMarkups,markupLastModifiedDate"
 )
 
 # Usuários conhecidos: Client ID/User ID públicos; secret sempre do ambiente.
@@ -51,6 +58,8 @@ MAPA_COLUNAS = {
     "DocumentType": "Tipo do Documento",
     "ReviewSource": "Fonte",
     "ReviewStatus": "Status da Revisão",
+    "NumberOfMarkups": "Qtd. de Comentários",
+    "MarkupLastModifiedDate": "Data do Último Comentário",
     "VersionNumber": "Versão",
     "Idioma_singleSelect": "Idioma",
     "Subespecialidad_singleSelect": "Subespecialidade",
@@ -65,7 +74,8 @@ ORDEM_COLUNAS = [
     "No. do Documento", "Controle do Emissor", "Tracking ID", "Revisão",
     "Data de Alteração", "Status", "Título", "Tipo do Documento",
     "Especialidade", "Subespecialidade", "Tipo do Documento DCC",
-    "Subtipo DCC", "Fonte", "Status da Revisão", "Versão",
+    "Subtipo DCC", "Fonte", "Tipo de Tramitação", "Status da Revisão",
+    "Qtd. de Comentários", "Data do Último Comentário", "Versão",
     "Current", "Idioma", "Control CMI", "Disciplina (Modelo)",
 ]
 
@@ -137,12 +147,59 @@ def _parse_pagina(conteudo: bytes) -> list[dict]:
     return docs
 
 
+def classificar_fonte(fonte) -> str:
+    """Mecanismo de tramitação a partir da Fonte (ReviewSource) — KB §24.1:
+      - 'WF-…'  → 'Fluxo'           (Workflow: ciclo de revisão pós-19/08/2024)
+      - numérico → 'Transmissão'     (Transmittal)
+      - 'SD-…'  → 'Docs. Fornecedor' (Supplier Docs)
+      - 'Nenhum'/vazio → ''          (linha fora de qualquer ciclo)
+
+    NÃO diz ONDE (qual etapa/organização) — isso exige a Workflows API. Só
+    torna legível, na própria base, o TIPO de trâmite que a Fonte já carrega."""
+    s = str(fonte or "").strip()
+    if not s or s.upper() == "NENHUM":
+        return ""
+    up = s.upper()
+    if up.startswith("WF"):
+        return "Fluxo"
+    if up.startswith("SD"):
+        return "Docs. Fornecedor"
+    if s.replace("-", "").isdigit():
+        return "Transmissão"
+    return "Outro"
+
+
+def montar_dataframe(registros: list[dict]) -> pd.DataFrame:
+    """Monta o DataFrame canônico a partir dos dicts brutos do XML (função pura,
+    sem rede — testável): rename (§5) → coluna derivada 'Tipo de Tramitação' →
+    ordem de colunas → datas dd/mm/yyyy. Colunas novas do Aconex que não estejam
+    no `ORDEM_COLUNAS` vão para o fim (nunca somem)."""
+    if not registros:
+        return pd.DataFrame()
+    df = pd.DataFrame(registros).dropna(how="all")
+    df = df.rename(columns=MAPA_COLUNAS)
+    # Fluxo: a Fonte já traz o WF/Transmittal; deriva o tipo legível ao lado.
+    if "Fonte" in df.columns:
+        df["Tipo de Tramitação"] = df["Fonte"].map(classificar_fonte)
+    existentes = [c for c in ORDEM_COLUNAS if c in df.columns]
+    extras = [c for c in df.columns if c not in existentes]
+    df = df[existentes + extras]
+    for col in ("Data de Alteração", "Data do Último Comentário", "registered",
+                "FechaDeInicio_date", "FechaFin_date"):
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna("")
+    return df
+
+
 def extrair_base(config: AconexConfig, *, log_cb=print) -> pd.DataFrame:
     """Extrai o histórico completo do projeto e devolve o DataFrame canônico.
 
     Operação longa (paginação sobre todo o registro; ~30 min em produção).
     """
     import time
+
+    import requests  # só a extração ao vivo precisa; import tardio deixa o
+    #                  parser/monta-DF (funções puras) usáveis sem a lib.
 
     try:
         import truststore  # certificados do Windows (Zscaler); opcional fora do corporativo
@@ -213,14 +270,7 @@ def extrair_base(config: AconexConfig, *, log_cb=print) -> pd.DataFrame:
         log_cb("Nenhum dado extraído.")
         return pd.DataFrame()
 
-    df = pd.DataFrame(all_data).dropna(how="all")
-    df = df.rename(columns=MAPA_COLUNAS)
-    existentes = [c for c in ORDEM_COLUNAS if c in df.columns]
-    extras = [c for c in df.columns if c not in existentes]
-    df = df[existentes + extras]
-    for col in ("Data de Alteração", "registered", "FechaDeInicio_date", "FechaFin_date"):
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna("")
+    df = montar_dataframe(all_data)
     log_cb(f"Extração concluída: {len(df)} linhas.")
     return df
 
@@ -240,6 +290,8 @@ def salvar_excel(df: pd.DataFrame, caminho) -> None:
             "No. do Documento": 26.27, "Controle do Emissor": 24.09, "Revisão": 10.18,
             "Data de Alteração": 19.18, "Status": 17, "Status da Revisão": 17,
             "Título": 76, "Current": 8.09, "Tipo do Documento": 23.27,
+            "Tipo de Tramitação": 16, "Qtd. de Comentários": 16,
+            "Data do Último Comentário": 21,
         }
         for i, col in enumerate(df.columns):
             ws.set_column(i, i, larguras.get(col, 18), fmt)
