@@ -731,9 +731,9 @@ Estudo empírico sobre a base real (80.688 linhas, 5.181 documentos no recorte d
 
 O schema do register DESTE projeto expõe 31 campos. Resultado dos testes (scripts no scratchpad, nenhum código do repositório alterado):
 
-**Disponíveis e ÚTEIS (testados com HTTP 200 e dados reais):**
-- **`numberOfMarkups`** (rótulo "Número de Anotações"; tag XML `NumberOfMarkups`) — **CONFIRMADO COM DADOS**: em amostra de 2.000 versões, 16,6% têm anotações; mediana 7, máx 294; concentradas nos vereditos (`Para Assinatura` 107, `Aprovado com Comentários` 86, `Não Aprovado` 68). É a métrica de "comentários do cliente por revisão". **✅ IMPLEMENTADO (2026-07-15) — ver §24.9.**
-- **`markupLastModifiedDate`** (tag `MarkupLastModifiedDate`) — data da última anotação.
+**Disponíveis mas DESCARTADOS:**
+- **`numberOfMarkups`** (rótulo do schema "Número de Anotações"; tag `NumberOfMarkups`) — **❌ NÃO é a contagem de Anotações do site (§24.9, verificado 2026-07-15)**. Conta **elementos de marcação**, não anotações: no doc `6213-60-T0201-P` deu v32=344 (site 147), v93=19 (site 10); só coincide quando a anotação tem 1 elemento (v55=86, v66=7). Não há endpoint de markups (todos 404 `URL_UNKNOWN`) nem outro campo no schema → **impossível obter a contagem real por esta API; coluna REMOVIDA da extração**. O "16,6%/mediana 7" abaixo era contagem de ELEMENTOS, não de anotações.
+- **`markupLastModifiedDate`** (tag `MarkupLastModifiedDate`) — data do último markup; removida junto (sem a contagem, inútil).
 - `modifiedby` (tag `ModifiedBy`) — devolve **IDs numéricos de usuário** (não nomes); para distinguir CMI×Itaipu exigiria a Directory API. Valor secundário.
 - `filename`, `fileType`, `confidential` — funcionam; pouco úteis para o histórico.
 
@@ -784,20 +784,21 @@ Dois erros apontados pelo usuário com prints reais:
 
 **§24.8c — varredura final (2026-07-14, terceira rodada, sugestão do usuário)**: como o caso persistiu no corporativo, foi implementada a varredura de ÚLTIMO recurso em `varredura_final_controle` (historico_consolidado): ao fim do casamento normal, cada documento que ficou SEM data procura os códigos **da própria linha do wide** direto no Controle — 1º por igualdade (chave tolerante), 2º por **CONTÉM** (`ControleDocs.buscar_contendo`, como o Ctrl+F manual que o usuário usou: pega célula com decoração/texto em volta do código; `min_len=8` evita falsos positivos; linha com data vence). As linhas do Controle usadas pela varredura NÃO viram sintéticas (`ignorar_ids`). O log passou a informar "(N pela varredura final)". Decisão do usuário na mesma rodada: `ler_controle` **voltou a ler só a aba selecionada** (o seletor da interface aponta a aba certa). **Status (2026-07-15): não resolveu 100% no corporativo** — usuário decidiu deixar de lado por ora e priorizar §24.9 (comentários). A depuração com o arquivo real (compliance) fica como próximo passo quando ele retomar.
 
-### 24.9 ✅ Comentários por revisão + tipo de tramitação na EXTRAÇÃO (2026-07-15, pedido do usuário)
+### 24.9 Extração: Tipo de Tramitação (✅ mantido) + Anotações (❌ removido) (2026-07-15, pedido do usuário)
 
 Pedido: trazer para a **extração do Aconex** (a) os comentários de cada revisão e (b) os fluxos ("onde cada revisão foi tramitada"), sem quebrar nada. Implementado em `docmanager/aconex_backend.py` — puramente **aditivo** (só novas colunas; nada downstream lê por posição, `carregar_base_aconex` casa tudo por nome).
 
-**(a) Comentários por revisão** — `numberOfMarkups` + `markupLastModifiedDate` acrescentados ao `CAMPOS_STRING` (return_fields) e ao `MAPA_COLUNAS`:
-- `Qtd. de Comentários` (tag `NumberOfMarkups`) — nº de **anotações/markups** do cliente naquela versão. É a QUANTIDADE, não o texto. O Aconex chama de "anotações"; o usuário, de "comentários" — é a mesma coisa (redlines na revisão).
-- `Data do Último Comentário` (tag `MarkupLastModifiedDate`) — formatada dd/mm/yyyy como as demais datas.
-- Confirmados HTTP 200 no schema real (§24.5). **O TEXTO dos comentários NÃO está no register** — exigiria a Workflows/Markups API (por documento, contrato a confirmar, ~lento) → só dá para testar/implementar no corporativo. Fica como próximo passo se o usuário quiser o conteúdo, não só a contagem.
+**(a) Anotações por revisão — ❌ TENTADA E REMOVIDA (2026-07-15)**. Tinha sido implementada via `numberOfMarkups` + `markupLastModifiedDate` (colunas "Qtd. de Anotações"/"Data da Última Anotação"). **Removida** após verificação na API real (doc `6213-60-T0201-P`): o campo conta **elementos de marcação**, NÃO as "Anotações" do site. Comparação com o site: v32=344/**147**, v93=19/**10** (infla ~2×), coincidindo só quando a anotação tem 1 elemento (v55=86/86, v66=7/7). Investigação (scripts no scratchpad, 3 rodadas):
+- **Nenhum endpoint de markups existe** — `/register/{docId}/markups`, `/markup`, `/annotations`, `/comments`, nível projeto, documento único: TODOS **404 `URL_UNKNOWN`**. O register é só busca.
+- **Schema** (200): únicos campos de markup são `numberOfMarkups`, `markupLastModifiedDate`, `markupdate` (rejeitado). **Nenhum** campo de contagem de anotações.
+- Sem fonte confiável e sem fórmula de correção (razões 2,34 / 1,9 / 1,0 / 1,0), a decisão do usuário foi **"melhor tirar do que ter algo errado"** → colunas removidas do `CAMPOS_STRING`/`MAPA_COLUNAS`/`ORDEM_COLUNAS`. **A contagem de anotações do site NÃO é obtível por esta API REST.** (Falso positivo intermediário: 0D/0E *pareciam* bater com 32/19, mas eram os valores da versão de veredito; com mais dados do site o usuário mostrou que não fecha.)
+- Nota lateral a investigar: nas 20 versões desse doc o `current` voltou `false` em TODAS — conferir a semântica do campo `Current` no register.
 
 **(b) Fluxos / "onde foi tramitada"** — a Fonte (ReviewSource) **já carrega** o `WF-…`/Transmittal/`SD-…` (o usuário suspeitava certo). Acrescentei a coluna derivada **`Tipo de Tramitação`** (ao lado de Fonte) via `classificar_fonte`: `WF-…`→"Fluxo", numérico→"Transmissão", `SD-…`→"Docs. Fornecedor", `Nenhum`/vazio→"". Isso torna legível o MECANISMO na própria base. **NÃO diz a etapa/organização** de destino — isso é workflow routing e também depende da Workflows API (corporativo).
 
-**Robustez**: `import requests` virou **tardio** (dentro de `extrair_base`) — o módulo passou a importar sem a lib, então `montar_dataframe`/`classificar_fonte`/`_parse_pagina` (funções puras) rodam em qualquer ambiente. A montagem do DataFrame foi extraída para `montar_dataframe(registros)` (pura, sem rede) → testável. `tests/test_aconex_backend.py`: 12 testes (classificação da Fonte, parse de XML sintético, rename/derivação/ordem/formatação de data, colunas desconhecidas preservadas no fim). Verde nos 2 venvs; suíte completa intacta.
+**Robustez**: `import requests` virou **tardio** (dentro de `extrair_base`) — o módulo passou a importar sem a lib, então `montar_dataframe`/`classificar_fonte`/`_parse_pagina` (funções puras) rodam em qualquer ambiente. A montagem do DataFrame foi extraída para `montar_dataframe(registros)` (pura, sem rede) → testável. `tests/test_aconex_backend.py`: 10 testes (classificação da Fonte, parse de XML, rename/derivação/ordem/formatação de data, colunas desconhecidas preservadas no fim). Verde nos 2 venvs; suíte completa intacta.
 
-**Próximo (aguardando o usuário)**: decidir como levar `Qtd. de Comentários` ao Histórico Consolidado (1 linha por revisão) — provável coluna nova ao fim, herdada da versão-veredito da revisão. E, se quiser o TEXTO/roteamento, abrir a frente Workflows API no corporativo.
+**Próximo (aguardando o usuário)**: o usuário avisou (2026-07-15) que o **Histórico Consolidado será REFORMULADO** e passará a especificação depois. A contagem de anotações NÃO entra (não é obtível pela API — ver acima). Se quiser o TEXTO/roteamento dos fluxos, seria a Workflows API no corporativo.
 
 ### 24.10 ✅ Status Documentos: destaque do código buscado vs. o resolvido (2026-07-15, pedido do usuário)
 

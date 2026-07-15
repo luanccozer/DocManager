@@ -34,12 +34,12 @@ CAMPOS_STRING = (
     "Subespecialidad_singleSelect,doctype,registered,Dcc_singleSelect,"
     "ControlDelEmisor_singleLineText,Idioma_singleSelect,reviewsource,"
     "Disciplina_singleSelect,"
-    "TipoDeDocumentoDcc_singleSelect,ControlCmi_singleLineText,"
-    # Comentários por revisão (KB §24.5): nº de anotações/markups do cliente na
-    # versão + data da última. Confirmados HTTP 200 no schema real do projeto.
-    # (markupdate/uploaddate existem no schema mas são REJEITADOS como campo.)
-    "numberOfMarkups,markupLastModifiedDate"
+    "TipoDeDocumentoDcc_singleSelect,ControlCmi_singleLineText"
 )
+# NOTA (KB §24.5/§24.9): 'numberOfMarkups' foi testado e DESCARTADO — conta
+# ELEMENTOS de marcação, não as "Anotações" do site (v32: 344 vs 147; v93: 19 vs
+# 10). Não há endpoint de markups (todos 404) nem outro campo no schema. Sem
+# fonte confiável da contagem de anotações, a coluna foi removida (2026-07-15).
 
 # Usuários conhecidos: Client ID/User ID públicos; secret sempre do ambiente.
 USUARIOS = {
@@ -58,8 +58,6 @@ MAPA_COLUNAS = {
     "DocumentType": "Tipo do Documento",
     "ReviewSource": "Fonte",
     "ReviewStatus": "Status da Revisão",
-    "NumberOfMarkups": "Qtd. de Comentários",
-    "MarkupLastModifiedDate": "Data do Último Comentário",
     "VersionNumber": "Versão",
     "Idioma_singleSelect": "Idioma",
     "Subespecialidad_singleSelect": "Subespecialidade",
@@ -74,8 +72,7 @@ ORDEM_COLUNAS = [
     "No. do Documento", "Controle do Emissor", "Tracking ID", "Revisão",
     "Data de Alteração", "Status", "Título", "Tipo do Documento",
     "Especialidade", "Subespecialidade", "Tipo do Documento DCC",
-    "Subtipo DCC", "Fonte", "Tipo de Tramitação", "Status da Revisão",
-    "Qtd. de Comentários", "Data do Último Comentário", "Versão",
+    "Subtipo DCC", "Fonte", "Tipo de Tramitação", "Status da Revisão", "Versão",
     "Current", "Idioma", "Control CMI", "Disciplina (Modelo)",
 ]
 
@@ -184,7 +181,7 @@ def montar_dataframe(registros: list[dict]) -> pd.DataFrame:
     existentes = [c for c in ORDEM_COLUNAS if c in df.columns]
     extras = [c for c in df.columns if c not in existentes]
     df = df[existentes + extras]
-    for col in ("Data de Alteração", "Data do Último Comentário", "registered",
+    for col in ("Data de Alteração", "registered",
                 "FechaDeInicio_date", "FechaFin_date"):
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna("")
@@ -290,8 +287,7 @@ def salvar_excel(df: pd.DataFrame, caminho) -> None:
             "No. do Documento": 26.27, "Controle do Emissor": 24.09, "Revisão": 10.18,
             "Data de Alteração": 19.18, "Status": 17, "Status da Revisão": 17,
             "Título": 76, "Current": 8.09, "Tipo do Documento": 23.27,
-            "Tipo de Tramitação": 16, "Qtd. de Comentários": 16,
-            "Data do Último Comentário": 21,
+            "Tipo de Tramitação": 16,
         }
         for i, col in enumerate(df.columns):
             ws.set_column(i, i, larguras.get(col, 18), fmt)

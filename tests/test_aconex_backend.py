@@ -1,12 +1,11 @@
-"""Extração Aconex: comentários por revisão (markups) + tipo de tramitação.
+"""Extração Aconex: tipo de tramitação (Fonte) + montagem do DataFrame.
 
 Testa a montagem do DataFrame SEM rede (função pura `montar_dataframe`) e o
 parse de XML sintético — nada aqui toca a API nem depende de segredo (KB §24.5).
+(As colunas de anotações/markups foram removidas — §24.9: numberOfMarkups conta
+elementos, não as Anotações do site, e não há endpoint confiável.)
 """
 from docmanager.aconex_backend import (
-    CAMPOS_STRING,
-    MAPA_COLUNAS,
-    ORDEM_COLUNAS,
     _parse_pagina,
     classificar_fonte,
     montar_dataframe,
@@ -38,21 +37,6 @@ def test_classificar_fonte_fora_de_ciclo():
 
 
 # --------------------------------------------------------------------------
-# Campos pedidos à API: os markups precisam estar no return_fields
-# --------------------------------------------------------------------------
-def test_campos_pedem_markups():
-    assert "numberOfMarkups" in CAMPOS_STRING
-    assert "markupLastModifiedDate" in CAMPOS_STRING
-
-
-def test_mapa_renomeia_markups_para_comentarios():
-    assert MAPA_COLUNAS["NumberOfMarkups"] == "Qtd. de Comentários"
-    assert MAPA_COLUNAS["MarkupLastModifiedDate"] == "Data do Último Comentário"
-    for nome in ("Qtd. de Comentários", "Data do Último Comentário", "Tipo de Tramitação"):
-        assert nome in ORDEM_COLUNAS
-
-
-# --------------------------------------------------------------------------
 # Parse de XML sintético (tags CamelCase como o Aconex devolve)
 # --------------------------------------------------------------------------
 def _xml(*docs: str) -> bytes:
@@ -65,16 +49,10 @@ def _doc(**tags: str) -> str:
     return f"<Document>{dentro}</Document>"
 
 
-def test_parse_pagina_le_markups_e_fonte():
-    xml = _xml(_doc(
-        DocumentNumber="DOC-1", Revision="0A", ReviewSource="WF-77",
-        NumberOfMarkups="7", MarkupLastModifiedDate="2024-03-15T10:00:00",
-    ))
+def test_parse_pagina_le_campos_e_fonte():
+    xml = _xml(_doc(DocumentNumber="DOC-1", Revision="0A", ReviewSource="WF-77"))
     docs = _parse_pagina(xml)
-    assert docs == [{
-        "DocumentNumber": "DOC-1", "Revision": "0A", "ReviewSource": "WF-77",
-        "NumberOfMarkups": "7", "MarkupLastModifiedDate": "2024-03-15T10:00:00",
-    }]
+    assert docs == [{"DocumentNumber": "DOC-1", "Revision": "0A", "ReviewSource": "WF-77"}]
 
 
 # --------------------------------------------------------------------------
@@ -83,17 +61,16 @@ def test_parse_pagina_le_markups_e_fonte():
 def test_montar_dataframe_renomeia_deriva_e_formata():
     registros = [
         {"DocumentNumber": "DOC-1", "Revision": "0A", "ReviewSource": "WF-77",
-         "NumberOfMarkups": "7", "MarkupLastModifiedDate": "2024-03-15T10:00:00"},
+         "DateModified": "2024-03-15T10:00:00"},
         {"DocumentNumber": "DOC-2", "Revision": "0B", "ReviewSource": "1234567",
-         "NumberOfMarkups": "0", "MarkupLastModifiedDate": ""},
+         "DateModified": ""},
     ]
     df = montar_dataframe(registros)
 
     # rename (§5)
     assert list(df["No. do Documento"]) == ["DOC-1", "DOC-2"]
-    assert list(df["Qtd. de Comentários"]) == ["7", "0"]
     # data formatada dd/mm/yyyy (e vazio permanece vazio)
-    assert list(df["Data do Último Comentário"]) == ["15/03/2024", ""]
+    assert list(df["Data de Alteração"]) == ["15/03/2024", ""]
     # coluna derivada de tramitação
     assert list(df["Tipo de Tramitação"]) == ["Fluxo", "Transmissão"]
     # Fonte crua preservada
