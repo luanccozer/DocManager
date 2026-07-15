@@ -1,4 +1,5 @@
 """Relatórios: avanço, integração (diferencial vs legado) e status docs."""
+import pandas as pd
 from builders import HistoricoBuilder, base
 
 from docmanager.core.reports.avanco import gerar_relatorio_avanco
@@ -66,8 +67,9 @@ def test_status_docs_resolve_lista():
 
 
 # --------------------------------------------------------------------------
-# Status Docs: destaque azul quando o código VIGENTE difere do BUSCADO
-# (documento resolvido via Tracking ID mesmo com o código trocado).
+# Status Docs: destaque do código buscado vs. o documento resolvido (Tracking).
+#   texto AZUL   = código mudou no sistema ('atualizado')
+#   texto LARANJA = código não pertence ao doc achado ('nao_confere' → erro)
 # --------------------------------------------------------------------------
 def _base_troca_codigo():
     return base(
@@ -82,43 +84,73 @@ def _base_troca_codigo():
     )
 
 
+def _base_codigo_errado():
+    return base(
+        HistoricoBuilder("T3", "IT-3003", "CMI-3003", "DOC COM CMI CERTO")
+        .evento("0A", 1, "Aprovado", "01/03/2024", current=True),
+        HistoricoBuilder("T4", "IT-4004", "", "DOC SEM CMI NO SISTEMA")
+        .evento("0A", 1, "Em Processo", "01/03/2024", current=True),
+    )
+
+
 def test_status_pares_marca_itaipu_atualizado():
     linhas, _, _ = analisar_status_pares(_base_troca_codigo(), [("IT-OLD", "")])
     d = linhas[0]
     assert d["Código Itaipu"] == "IT-NEW"     # mostra o vigente, não o buscado
-    assert d["_itaipu_alterado"] is True
-    assert d["_cmi_alterado"] is False        # CMI não foi buscado → não marca
+    assert d["_itaipu_status"] == "atualizado"
+    assert d["_cmi_status"] == ""             # CMI não foi buscado → não marca
 
 
 def test_status_pares_marca_cmi_atualizado():
     linhas, _, _ = analisar_status_pares(_base_troca_codigo(), [("", "CMI-OLD")])
     d = linhas[0]
     assert d["Código CMI"] == "CMI-NEW"
-    assert d["_cmi_alterado"] is True
-    assert d["_itaipu_alterado"] is False
+    assert d["_cmi_status"] == "atualizado"
+    assert d["_itaipu_status"] == ""
 
 
 def test_status_pares_codigo_vigente_nao_marca():
     # Buscar já pelo código atual (mesmo com caixa diferente) não deve marcar.
     linhas, _, _ = analisar_status_pares(_base_troca_codigo(), [("it-new", "")])
+    assert linhas[0]["_itaipu_status"] == ""
+
+
+def test_status_pares_cmi_nao_confere_mostra_o_correto():
+    # Itaipu certo acha o doc; CMI colado é erro (nunca pertenceu) → nao_confere.
+    linhas, _, _ = analisar_status_pares(_base_codigo_errado(), [("IT-3003", "CMI-ERRADO-XYZ")])
     d = linhas[0]
-    assert d["_itaipu_alterado"] is False
+    assert d["_itaipu_status"] == ""                 # Itaipu confere
+    assert d["_cmi_status"] == "nao_confere"
+    assert d["Código CMI"] == "CMI-3003"             # célula mostra o CORRETO
+    assert d["_cmi_buscado"] == "CMI-ERRADO-XYZ"     # o errado vai para o comentário
 
 
-def test_status_pares_export_texto_azul(tmp_path):
+def test_status_pares_cmi_nao_confere_sem_cmi_no_sistema():
+    # Doc achado por Itaipu, mas não tem CMI no sistema; CMI colado é espúrio.
+    linhas, _, _ = analisar_status_pares(_base_codigo_errado(), [("IT-4004", "CMI-FANTASMA")])
+    d = linhas[0]
+    assert d["_cmi_status"] == "nao_confere"
+    assert d["_cmi_real"] == ""                      # sem código real → comentário "não possui"
+    assert d["Código CMI"] == "CMI-FANTASMA"         # sem correto, mantém o buscado
+
+
+def test_status_pares_export_azul_e_comentario(tmp_path):
     import openpyxl
 
     from docmanager.services.excel_io import exportar_status_documentos
-    linhas, contador, _ = analisar_status_pares(_base_troca_codigo(), [("IT-OLD", "")])
+    b = pd.concat([_base_troca_codigo(), _base_codigo_errado()], ignore_index=True)
+    linhas, contador, _ = analisar_status_pares(b, [("IT-OLD", ""), ("IT-3003", "CMI-ERRADO-XYZ")])
     saida = tmp_path / "status.xlsx"
     ok, _ = exportar_status_documentos(linhas, contador, str(saida))
     assert ok
     ws = openpyxl.load_workbook(saida)["Status Documentos"]
-    # A2 = Código Itaipu da 1ª linha → TEXTO azul 0070C0 (fonte, não preenchimento).
+    # Linha 1 (IT-OLD→IT-NEW): Código Itaipu em AZUL, sem preenchimento (não bold).
     assert str(ws["A2"].font.color.rgb).endswith("0070C0")
-    # e a célula NÃO é preenchida de azul (só o texto muda).
+    assert not ws["A2"].font.bold
     a2_fill = ws["A2"].fill.fgColor.rgb
     assert a2_fill is None or not str(a2_fill).endswith("0070C0")
-    # B2 = Código CMI (não mudou) → texto sem o azul.
-    b2 = ws["B2"].font.color
-    assert b2 is None or not str(b2.rgb).endswith("0070C0")
+    # Linha 2 (IT-3003 + CMI errado): célula com o código correto, SEM cor, + comentário.
+    assert ws["B3"].value == "CMI-3003"
+    b3_color = ws["B3"].font.color
+    assert b3_color is None or not str(b3_color.rgb).endswith("0070C0")
+    assert ws["B3"].comment is not None and "CMI-ERRADO-XYZ" in ws["B3"].comment.text

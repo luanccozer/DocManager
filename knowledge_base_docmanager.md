@@ -799,13 +799,19 @@ Pedido: trazer para a **extração do Aconex** (a) os comentários de cada revis
 
 **Próximo (aguardando o usuário)**: decidir como levar `Qtd. de Comentários` ao Histórico Consolidado (1 linha por revisão) — provável coluna nova ao fim, herdada da versão-veredito da revisão. E, se quiser o TEXTO/roteamento, abrir a frente Workflows API no corporativo.
 
-### 24.10 ✅ Status Documentos: destaque azul de código atualizado (2026-07-15, pedido do usuário)
+### 24.10 ✅ Status Documentos: destaque do código buscado vs. o resolvido (2026-07-15, pedido do usuário)
 
-O módulo de Status resolve cada código buscado pelo **Tracking ID** (via `AconexIndex`, cascata ouro/prata/bronze), então acha o documento mesmo quando o código Itaipu/CMI mudou entre revisões — e a saída mostra o código **vigente** (sobrescreve o buscado em `analisar_status_pares`). O usuário não tinha como enxergar *quais* haviam mudado. Implementado:
-- **Detecção** (`core/reports/status_docs.py::analisar_status_pares`): cada linha ganhou as flags internas `_itaipu_alterado`/`_cmi_alterado` — `True` quando o código VIGENTE (resolvido) difere do BUSCADO, comparado por `normalizar_codigo` (caixa/'.0'/espaços não geram falso positivo). Só marca o código que o usuário **realmente buscou** (valor não vazio) — se ele deixou o CMI em branco e o doc tem CMI, isso não é "atualização".
-- **Pintura** (`services/excel_io.py::exportar_status_documentos`): o **texto** do código (col Itaipu e/ou CMI) fica **azul `#0070C0`** em negrito (`_FONT_COD_ALTERADO`) — só a fonte, sem preencher a célula (decisão do usuário, 2026-07-15), preservando a zebra. Legenda via comentário (tooltip) nos cabeçalhos de código. As flags `_...` NÃO viram coluna (o exportador escolhe as chaves).
-- **UI** (`ui/views/status_view.py`): loga "N com código atualizado no Aconex vs. a busca (em azul na planilha)".
-- Testes em `test_reports.py` (4): marca Itaipu, marca CMI, código já vigente não marca (mesmo com caixa diferente), e export end-to-end lê de volta o `0070C0` em A2. Verde nos 2 venvs. (Obs.: o usuário escreveu `#00700C0` — 7 dígitos; interpretado como o azul padrão Office `#0070C0`.)
+O módulo de Status resolve cada código buscado pelo **Tracking ID** (via `AconexIndex`, cascata ouro/prata/bronze), então acha o documento mesmo quando o código Itaipu/CMI mudou — e a saída mostra o código **vigente**. O usuário não enxergava *quais* haviam divergido da busca. Duas causas de divergência, distinguidas (o usuário percebeu ambas ao ver 23 NÃO EMITIDO na Via Rápida por CMI vs. 6 na Via Excel com os 2 códigos → os "extras" foram achados pelo Itaipu porque o CMI colado estava errado):
+
+- **Detecção** (`core/reports/status_docs.py`): `_classificar_codigo_busca(buscado, vigente, hist_norm)` compara por `normalizar_codigo` e devolve, por posição de código, uma de 3:
+  - `''` — não buscado ou confere com o vigente;
+  - `'atualizado'` — difere do vigente MAS o buscado É um código que o documento já teve (`obter_codigos_historicos`) → **mudou no sistema**;
+  - `'nao_confere'` — difere e o buscado NUNCA pertenceu ao doc → o doc foi achado pelo OUTRO código e este não bate → **provável erro na lista**.
+  Cada linha carrega `_itaipu_status`/`_cmi_status` + `_itaipu_buscado`/`_cmi_buscado` (o que o usuário digitou, p/ o comentário) + `_itaipu_real`/`_cmi_real`. **A célula mostra sempre o código VIGENTE (correto) do documento quando ele existe** — inclusive no `'nao_confere'` (o correto vai para a célula; o errado, para o comentário — inversão pedida pelo usuário 2026-07-15). Sem código vigente (doc não possui esse código), mantém o buscado.
+- **Destaque** (`services/excel_io.py`): `'atualizado'` → **texto azul `#0070C0`** (só a fonte, sem preencher a célula, **sem negrito**, preservando a zebra). `'nao_confere'` → **SEM cor, apenas um comentário** na célula (decisão do usuário 2026-07-15): "O código informado ('X') estava errado…" (ou "…não confere — o documento não possui esse código"). Legenda (tooltip) nos cabeçalhos. As chaves `_...` NÃO viram coluna.
+- **Coerência com a Via Rápida**: `'nao_confere'` só dispara quando o doc É encontrado (pelo outro código). Um código único errado na Via Rápida → não acha → NÃO EMITIDO → nada marcado (correto: não há cruzamento possível), exatamente como o usuário raciocinou.
+- **UI** (`ui/views/status_view.py`): loga separadamente "N com código atualizado (azul)" e "M com código informado errado — corrigido; ver comentário".
+- Testes em `test_reports.py` (6): marca Itaipu/CMI atualizado, vigente não marca, CMI não confere (célula com o CORRETO + `_cmi_buscado`), não confere sem CMI no sistema, e export lê o azul `0070C0` + o comentário do não-confere. Verde nos 2 venvs. (Obs.: usuário escreveu `#00700C0` — 7 dígitos; usado o azul padrão Office `#0070C0`.)
 
 ---
 

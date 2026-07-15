@@ -20,7 +20,7 @@ from ...core.constants import (
     COL_TITULO,
     NAO_EMITIDO,
 )
-from ...core.identity import AconexIndex
+from ...core.identity import AconexIndex, obter_codigos_historicos
 from ...core.normalize import normalizar_codigo
 from ...core.status_engine import calcular_status_real
 from ...core.status_model_bim import calcular_status_real_modelo
@@ -31,6 +31,23 @@ def _e_modelo(df_tracking: pd.DataFrame) -> bool:
     if COL_TIPO_DOC not in df_tracking.columns or df_tracking.empty:
         return False
     return "MODEL" in str(df_tracking[COL_TIPO_DOC].iloc[0]).upper()
+
+
+def _classificar_codigo_busca(buscado: str, vigente: str, hist_norm: set) -> str:
+    """Compara o código BUSCADO com o do documento resolvido pelo Tracking ID:
+      - ''            → não foi buscado, ou confere com o vigente;
+      - 'atualizado'  → difere do vigente MAS é um código que o documento já
+                        teve → mudou no sistema (destaque azul);
+      - 'nao_confere' → difere e NUNCA pertenceu ao documento → o doc foi achado
+                        pelo OUTRO código e este não bate → provável erro de
+                        digitação na lista (destaque laranja).
+    """
+    p = normalizar_codigo(buscado)
+    if not p:
+        return ""
+    if p == normalizar_codigo(vigente):
+        return ""
+    return "atualizado" if p in hist_norm else "nao_confere"
 
 
 def analisar_status_documentos(df_base: pd.DataFrame, codigos, *, tipo_codigo="itaipu") -> pd.DataFrame:
@@ -71,11 +88,15 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
     Aconex, Status Real) + o gráfico de barras. Retorna (linhas, contador,
     tem_modelos). `pares`: iterável de (cod_itaipu, cod_cmi).
 
-    Cada linha carrega ainda as flags internas `_itaipu_alterado`/`_cmi_alterado`
-    (prefixo '_' → não viram coluna do Excel): True quando o código VIGENTE do
-    documento (resolvido via Tracking ID) difere do que foi BUSCADO — ou seja, o
-    código mudou no Aconex desde a lista de busca. O exportador pinta essas
-    células de azul (pedido do usuário).
+    Cada linha carrega ainda campos internos (prefixo '_' → não viram coluna do
+    Excel) que o exportador usa para destacar o código:
+      - `_itaipu_status`/`_cmi_status` ∈ {'', 'atualizado', 'nao_confere'} — ver
+        `_classificar_codigo_busca`. 'atualizado' → azul; 'nao_confere' → laranja.
+      - `_itaipu_buscado`/`_cmi_buscado` — o que o usuário digitou (vai para o
+        comentário do 'nao_confere', avisando que estava errado).
+      - `_itaipu_real`/`_cmi_real` — o código vigente do documento ('' se o doc
+        não tem esse código); distingue "corrigido" de "doc não possui".
+    A célula mostra o código VIGENTE (correto) sempre que ele existe.
     """
     idx = AconexIndex(df_base)
     linhas: list[dict] = []
@@ -88,26 +109,30 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
             continue
         dados = {"Código Itaipu": c_it, "Código CMI": c_cmi, "Título": "", "Revisão": "",
                  "Data": "", "Status Aconex": "", "Status Real": NAO_EMITIDO,
-                 "_itaipu_alterado": False, "_cmi_alterado": False}
+                 "_itaipu_status": "", "_cmi_status": "",
+                 "_itaipu_buscado": c_it, "_cmi_buscado": c_cmi,
+                 "_itaipu_real": "", "_cmi_real": ""}
         df_t = idx.localizar(c_it, c_cmi)
         if not df_t.empty:
             tl = resolver_linha_da_verdade(df_t)
             eh_modelo = _e_modelo(df_t)
             tem_modelos = tem_modelos or eh_modelo
+            hist_norm = {normalizar_codigo(c) for c in obter_codigos_historicos(df_t)}
             linha = tl.linha_dinamica
             if linha is not None:
                 cur_it = str(linha.get(COL_DOC_ITAIPU, "")).strip()
                 cur_cmi = str(linha.get(COL_DOC_CMI, "")).strip()
+                dados["_itaipu_status"] = _classificar_codigo_busca(c_it, cur_it, hist_norm)
+                dados["_cmi_status"] = _classificar_codigo_busca(c_cmi, cur_cmi, hist_norm)
+                dados["_itaipu_real"], dados["_cmi_real"] = cur_it, cur_cmi
+                # A célula mostra o código VIGENTE (correto) do documento sempre
+                # que ele existe — inclusive no 'nao_confere' (o correto vai para
+                # a célula; o código errado buscado vai para o comentário; pedido
+                # do usuário). Sem código vigente, mantém o buscado.
                 if cur_it:
                     dados["Código Itaipu"] = cur_it
-                    # Só é "atualizado" se o usuário buscou por esse código e o
-                    # vigente difere (comparação normalizada: caixa/'.0'/espaços).
-                    if c_it and normalizar_codigo(c_it) != normalizar_codigo(cur_it):
-                        dados["_itaipu_alterado"] = True
                 if cur_cmi:
                     dados["Código CMI"] = cur_cmi
-                    if c_cmi and normalizar_codigo(c_cmi) != normalizar_codigo(cur_cmi):
-                        dados["_cmi_alterado"] = True
                 dados["Título"] = str(linha.get(COL_TITULO, ""))
                 dados["Revisão"] = str(linha.get("Revisão", ""))
                 dados["Data"] = str(linha.get(COL_DATA, ""))
