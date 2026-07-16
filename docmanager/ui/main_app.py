@@ -146,6 +146,13 @@ class MainApp(ctk.CTk):
 def main():
     app = MainApp()
     app.withdraw()   # oculta enquanto a splash aparece
+    # Fecha o splash NATIVO do PyInstaller (pyi_splash) — cobriu a carga desde o
+    # duplo-clique no .exe. Em desenvolvimento não existe → ignora.
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except Exception:  # noqa: BLE001
+        pass
     from .splash import mostrar_splash
     mostrar_splash(app, ms=1600, ao_fechar=lambda: (app.deiconify(), app.lift()))
     app.mainloop()
