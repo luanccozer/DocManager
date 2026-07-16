@@ -42,6 +42,23 @@ def test_wide_diferencial_fora_da_borda():
         assert n[col].fillna("").astype(str).tolist() == g[col].fillna("").astype(str).tolist()
 
 
+def test_retorno_mesma_revisao_mesmo_status_usa_primeira_data():
+    # Caso do gerador diesel (#ST00=B01BDV10&ACC051): 2 'Aprovado' na mesma
+    # revisão → vale a 1ª data (a 2ª é atualização de metadados; não pode gerar
+    # atraso artificial). Sem o fix, o retorno seria 15/05 (75 d); com, 20/03 (19 d).
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "GERADOR DIESEL")
+        .evento("0A", 1, "Em Processo", "01/09/2024")     # pós-corte → envio real
+        .evento("0A", 2, "Aprovado", "20/09/2024")        # 1º veredito
+        .evento("0A", 3, "Aprovado", "15/11/2024", current=True)  # metadados
+    )
+    wide = build_wide_table(gerar_dataset_dashboard(b))
+    linha = wide[wide["Revisão"] == "0A"].iloc[0]
+    assert pd.Timestamp(linha["Data Retorno"]) == pd.Timestamp("2024-09-20")
+    assert str(linha["Status Retorno"]) == "Aprovado"
+    assert pd.Timestamp(linha["Data Envio"]) == pd.Timestamp("2024-09-01")
+
+
 def test_borda_19_08_em_processo_e_regime_novo():
     # 'Em Processo' em 19/08 é ENVIO REAL no regime novo (não vira 'Em Processo (CMI)').
     b = base(HistoricoBuilder("T", "IT", "CMI").evento("0A", 1, "Em Processo", "19/08/2024", current=True))

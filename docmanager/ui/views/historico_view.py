@@ -23,7 +23,7 @@ class HistoricoView(BaseView):
         card = Card(body, "Arquivos")
         card.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         self.sel_aconex = card.add(FileSelector(card, "Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
-        self.sel_ctrl = card.add(FileSelector(card, "Controle de Documentos (opcional)", cfg, "controle"))
+        self.sel_ctrl = card.add(FileSelector(card, "Controle de Documentos (obrigatório)", cfg, "controle"))
 
         self.tabs = ctk.CTkTabview(body, fg_color=t.CARD, segmented_button_selected_color=t.ACENTO,
                                    segmented_button_selected_hover_color=t.ACENTO_HOVER)
@@ -53,11 +53,14 @@ class HistoricoView(BaseView):
         if not self.sel_aconex.path:
             self.log.log("Selecione a base Aconex.")
             return None, None
+        if not self.sel_ctrl.path:
+            self.log.log("Selecione o Controle de Documentos: ele define quais documentos "
+                         "entram no histórico (agora é obrigatório).")
+            return None, None
         self.log.log("Lendo base Aconex...")
         run.set_progress(0.3)
         base = carregar_base_aconex(self.sel_aconex.path, self.sel_aconex.sheet)
-        controle = (ler_controle(self.sel_ctrl.path, self.sel_ctrl.sheet, log_cb=self.log.log)
-                    if self.sel_ctrl.path else None)
+        controle = ler_controle(self.sel_ctrl.path, self.sel_ctrl.sheet, log_cb=self.log.log)
         return base, controle
 
     def _policy(self):

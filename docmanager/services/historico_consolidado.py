@@ -1,21 +1,37 @@
-"""Orquestração do Histórico Consolidado turbinado (KB §18.5 + feature nova).
+"""Orquestração do Histórico Consolidado — DIRIGIDO PELO CONTROLE (§24.11).
 
-Pipeline:
-  base Aconex bruta
-    → gerar_dataset_dashboard (long, borda 19/08 corrigida)
-    → build_wide_table (1 linha por Tracking+Revisão + SLA)
-    → anexar_data_prevista (data_ref do Controle por Tracking)
-    → injetar_linhas_sinteticas (docs previstos e não postados)
-    → calcular_atrasos (4 colunas de atraso)
-    → exportar Excel (renomeia Data Envio→Data de Envio, layout legado + novas)
+O Controle de Documentos (agora OBRIGATÓRIO) determina QUAIS documentos entram
+no histórico; o extrato Aconex fornece o histórico (revisões, envios, retornos)
+de cada um. Fluxo:
 
-Este módulo é a ponte core↔serviços: o core (wide/delays) permanece puro;
-aqui ele se casa com o Controle de Documentos.
+  Controle (aba selecionada) → para cada documento (com sua Fase de Projeto):
+    busca no Aconex pela CASCATA dos demais módulos (AconexIndex.localizar:
+    par Itaipu+CMI → CMI → Itaipu, desempate por data)
+      • achou   → revisões do doc (build_wide_table) + Tracking ID + Fase de
+                  Projeto + Data Prevista/Reprogramação do Controle
+      • não achou → 1 linha NÃO EMITIDO (campos do Aconex em branco, Tracking em
+                    branco; mantém Fase/códigos/datas do Controle)
+    → calcular_atrasos (4 colunas: CMI antes de Itaipu) → Excel
+
+O extrato ainda passa por gerar_dataset_dashboard (limpeza, borda 19/08, ciclo
+consistente, PA-fallback, retorno representativo) e build_wide_table; a novidade
+é que a SELEÇÃO dos documentos vem do Controle, não mais do Aconex. Documentos
+que estão no Aconex mas NÃO no Controle não aparecem. Se o Controle marca um doc
+como EMITIDO mas a busca não acha tracking, isso é sinalizado no log.
 """
 from __future__ import annotations
 
 import pandas as pd
 
+from ..core.constants import (
+    COL_DATA,
+    COL_DOC_CMI,
+    COL_DOC_ITAIPU,
+    COL_REVISAO,
+    COL_TITULO,
+    COL_TRACKING,
+    NAO_EMITIDO,
+)
 from ..core.delays import (
     BASE_CMI_REPROGRAMACAO,
     COL_DATA_PREVISTA,
@@ -24,176 +40,162 @@ from ..core.delays import (
     DelayPolicy,
     calcular_atrasos,
 )
-from ..core.identity import construir_indice_reverso, obter_codigos_historicos
+from ..core.identity import AconexIndex
 from ..core.wide import (
+    COL_DATA_ENVIO,
+    COL_DATA_RETORNO,
     COL_STATUS_ENVIO,
     build_wide_table,
     gerar_dataset_dashboard,
 )
-from ..core.constants import COL_DOC_CMI, COL_DOC_ITAIPU, COL_TITULO, COL_TRACKING
 from .controle_docs import ControleDocs, chave_codigo, partes_codigo
 
-_SINTETICA_STATUS = "NÃO EMITIDO"
+# Coluna nova pedida pelo usuário (§24.11): a fase de projeto do Controle.
+COL_FASE = "Fase de Projeto"
 
 
 def _resolver_base(prevista, reprogramada, base_cmi_0a: str):
-    """Base do atraso CMI 0A conforme a config: reprogramação (>prevista) ou prevista."""
+    """Base do atraso CMI 0A: reprogramação (>prevista) ou prevista, conforme config."""
     if base_cmi_0a == BASE_CMI_REPROGRAMACAO and reprogramada is not None:
         return reprogramada
     return prevista
 
 
-def anexar_datas_controle(df_wide: pd.DataFrame, controle: ControleDocs | None,
-                          df_base: pd.DataFrame, *,
-                          base_cmi_0a: str = BASE_CMI_REPROGRAMACAO) -> pd.DataFrame:
-    """Anexa por Tracking as datas do Controle:
-      - 'Data Prevista' e 'Reprogramação' (exibição, brutas);
-      - 'Data Prevista (Controle)' (base resolvida do atraso CMI 0A, interna)."""
-    df = df_wide.copy()
-    if controle is None or df.empty:
-        for c in (COL_DATA_PREVISTA, COL_REPROGRAMACAO, COL_DATA_PREVISTA_CTRL):
-            df[c] = pd.NaT
-        return df
-    prev_por, reprog_por, base_por = {}, {}, {}
-    for tid, grp in df_base.groupby(COL_TRACKING, sort=False):
-        codigos = obter_codigos_historicos(grp)
-        prevista, reprogramada = controle.datas_por_codigos(codigos)
-        prev_por[str(tid)] = prevista
-        reprog_por[str(tid)] = reprogramada
-        base_por[str(tid)] = _resolver_base(prevista, reprogramada, base_cmi_0a)
-    chave = df[COL_TRACKING].astype(str)
-    df[COL_DATA_PREVISTA] = pd.to_datetime(chave.map(prev_por), errors="coerce")
-    df[COL_REPROGRAMACAO] = pd.to_datetime(chave.map(reprog_por), errors="coerce")
-    df[COL_DATA_PREVISTA_CTRL] = pd.to_datetime(chave.map(base_por), errors="coerce")
-    return df
-
-
-# Compat: nome antigo mantido como alias.
-anexar_data_prevista = anexar_datas_controle
-
-
-def varredura_final_controle(df_wide: pd.DataFrame, controle: ControleDocs | None, *,
-                             base_cmi_0a: str = BASE_CMI_REPROGRAMACAO,
-                             ) -> tuple[pd.DataFrame, int, set[int]]:
-    """Varredura FINAL (§24.8c, pedido do usuário): cada documento que ficou SEM
-    data prevista procura os códigos DA PRÓPRIA LINHA direto no Controle —
-    primeiro por igualdade (chave tolerante), depois por CONTÉM (como o Ctrl+F
-    na mão). Retorna (df, nº de resgatados, ids das linhas do Controle usadas —
-    para a injeção de sintéticas não duplicá-las)."""
-    if controle is None or df_wide.empty or COL_DATA_PREVISTA_CTRL not in df_wide.columns:
-        return df_wide, 0, set()
-    df = df_wide
-    sem_data = df[df[COL_DATA_PREVISTA_CTRL].isna()]
-    if sem_data.empty:
-        return df, 0, set()
-    resgatados = 0
-    usadas: set[int] = set()
-    for tid, grp in sem_data.groupby(COL_TRACKING, sort=False):
-        codigos: list[str] = []
-        for col in (COL_DOC_ITAIPU, COL_DOC_CMI):
-            if col in grp.columns:
-                codigos.extend(str(v).strip() for v in grp[col].tolist() if str(v).strip())
-        linha = None
-        for c in dict.fromkeys(codigos):          # ordem estável, sem duplicatas
-            r = controle.linha_por_codigo(c)
-            if r is not None and r.tem_data:
-                linha = r
-                break
-        if linha is None:
-            for c in dict.fromkeys(codigos):
-                r = controle.buscar_contendo(c)
-                if r is not None and r.tem_data:
-                    linha = r
-                    break
-        if linha is None:
+def _indice_chave(df_bruto: pd.DataFrame) -> dict:
+    """{chave_codigo(código) → Tracking ID} sobre a base bruta, tolerante a
+    espaços/invisíveis internos (§24.8b). Fallback da busca quando a cascata
+    exata falha. Colisão: vence o Tracking de Data de Alteração mais recente."""
+    if df_bruto.empty:
+        return {}
+    datas = pd.to_datetime(df_bruto[COL_DATA], dayfirst=True, errors="coerce")
+    docs = df_bruto[COL_DOC_ITAIPU].astype(str)
+    cmis = df_bruto[COL_DOC_CMI].astype(str)
+    tids = df_bruto[COL_TRACKING].astype(str)
+    melhor: dict[str, tuple] = {}
+    for pos in range(len(df_bruto)):
+        tid = tids.iat[pos].strip()
+        if not tid:
             continue
-        resgatados += 1
-        usadas.add(id(linha))
-        mask = df[COL_TRACKING] == tid
-        prev = pd.Timestamp(linha.data_prevista) if linha.data_prevista else pd.NaT
-        reprog = pd.Timestamp(linha.data_reprogramada) if linha.data_reprogramada else pd.NaT
-        base = _resolver_base(linha.data_prevista, linha.data_reprogramada, base_cmi_0a)
-        df.loc[mask, COL_DATA_PREVISTA] = prev
-        df.loc[mask, COL_REPROGRAMACAO] = reprog
-        df.loc[mask, COL_DATA_PREVISTA_CTRL] = pd.Timestamp(base) if base else pd.NaT
-    return df, resgatados, usadas
+        data = datas.iat[pos]
+        for cod in (chave_codigo(docs.iat[pos]), chave_codigo(cmis.iat[pos])):
+            if not cod:
+                continue
+            atual = melhor.get(cod)
+            if atual is None or (pd.notna(data) and (pd.isna(atual[0]) or data > atual[0])):
+                melhor[cod] = (data, tid)
+    return {c: t for c, (_, t) in melhor.items()}
 
 
-def injetar_linhas_sinteticas(df_wide: pd.DataFrame, controle: ControleDocs | None,
-                              indice_reverso: dict,
-                              ignorar_ids: set[int] | None = None) -> pd.DataFrame:
-    """Adiciona linhas NÃO EMITIDO para docs do Controle sem representação no
-    wide (não resolvem no índice reverso, ou resolvem para um Tracking que foi
-    filtrado — ex.: preso em integração/0AA). `ignorar_ids`: linhas do Controle
-    já casadas pela varredura final (§24.8c) — não podem virar sintética."""
+def _buscar_tracking(r, idx: AconexIndex, idx_chave: dict) -> str:
+    """Tracking do documento do Controle no Aconex: cascata EXATA (par Itaipu+CMI
+    → CMI → Itaipu, como o módulo de Status) e, se falhar, fallback tolerante por
+    `chave_codigo` (cobre sujeira de Excel e célula multi-código)."""
+    df_t = idx.localizar(r.cod_itaipu, r.cod_cmi)
+    if not df_t.empty:
+        return str(df_t[COL_TRACKING].iloc[0]).strip()
+    for cod_bruto in (r.cod_itaipu, r.cod_cmi):
+        for parte in partes_codigo(cod_bruto):
+            tid = idx_chave.get(chave_codigo(parte))
+            if tid:
+                return str(tid).strip()
+    return ""
+
+
+def _ts(d):
+    return pd.Timestamp(d) if d else pd.NaT
+
+
+def _anexar_controle(d: dict, r, base_cmi_0a: str) -> None:
+    """Anexa a uma linha (do wide ou sintética) as infos do Controle."""
+    d[COL_FASE] = r.fase
+    d[COL_DATA_PREVISTA] = _ts(r.data_prevista)
+    d[COL_REPROGRAMACAO] = _ts(r.data_reprogramada)
+    d[COL_DATA_PREVISTA_CTRL] = _ts(_resolver_base(r.data_prevista, r.data_reprogramada, base_cmi_0a))
+
+
+def _linha_nao_emitido(r, base_cmi_0a: str) -> dict:
+    """Documento do Controle sem tracking no Aconex → 1 linha NÃO EMITIDO. Recebe
+    um Tracking interno único (para o atraso agrupar corretamente) que é APAGADO
+    na saída — o usuário quer o Tracking em branco para os não emitidos."""
+    chave = chave_codigo(r.cod_itaipu) or chave_codigo(r.cod_cmi) or r.titulo
+    d = {
+        COL_DOC_ITAIPU: r.cod_itaipu,
+        COL_DOC_CMI: r.cod_cmi,
+        COL_TRACKING: f"NE::{chave}",
+        COL_TITULO: r.titulo,
+        COL_REVISAO: "",
+        COL_STATUS_ENVIO: NAO_EMITIDO,
+    }
+    _anexar_controle(d, r, base_cmi_0a)
+    return d
+
+
+def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None,
+                    policy: DelayPolicy | None = None, *, log_cb=None) -> pd.DataFrame:
+    """Histórico dirigido pelo Controle (obrigatório). Ver docstring do módulo."""
+    policy = policy or DelayPolicy()
+
+    def log(msg):
+        if log_cb:
+            log_cb(msg)
+
     if controle is None:
-        return df_wide
-    ignorar_ids = ignorar_ids or set()
-    trackings_no_wide = set(df_wide[COL_TRACKING].astype(str)) if not df_wide.empty else set()
-    novas: list[dict] = []
-    ja_incluido: set[str] = set()
+        raise ValueError(
+            "Controle de Documentos é obrigatório: ele determina os documentos "
+            "do histórico (nova estrutura §24.11).")
+
+    df_limpo = gerar_dataset_dashboard(df_bruto)
+    df_wide_all = build_wide_table(df_limpo)
+    idx = AconexIndex(df_bruto)
+    idx_chave = _indice_chave(df_bruto)
+    wide_por_tracking = ({str(tid): g for tid, g in df_wide_all.groupby(COL_TRACKING, sort=False)}
+                         if not df_wide_all.empty else {})
+
+    linhas: list[dict] = []
+    vistos: set[str] = set()
+    n_ach = n_ne = 0
+    emitido_sem_tracking: list = []
     for r in controle.rows:
-        if id(r) in ignorar_ids:
-            continue  # já casou com um doc do wide pela varredura final
-        # Célula multi-código e sujeira de Excel: mesma chave tolerante do match
-        # (senão um doc já postado viraria sintética duplicada) — §24.8b.
-        codigos = [chave_codigo(p) for cod in (r.cod_itaipu, r.cod_cmi) for p in partes_codigo(cod)]
-        codigos = [c for c in codigos if c]
-        if not codigos:
-            continue
-        tid = next((indice_reverso[c] for c in codigos if c in indice_reverso), None)
-        if tid is not None and str(tid) in trackings_no_wide:
-            continue  # já está no wide
-        chave = codigos[0]
-        if chave in ja_incluido:
-            continue
-        ja_incluido.add(chave)
-        prevista = pd.Timestamp(r.data_prevista) if r.data_prevista else pd.NaT
-        reprog = pd.Timestamp(r.data_reprogramada) if r.data_reprogramada else pd.NaT
-        base = pd.Timestamp(r.data_ref) if r.data_ref else pd.NaT
-        novas.append({
-            COL_DOC_ITAIPU: r.cod_itaipu,
-            COL_DOC_CMI: r.cod_cmi,
-            COL_TRACKING: f"SINT::{chave}",
-            COL_TITULO: r.titulo,
-            "Revisão": "",
-            COL_STATUS_ENVIO: _SINTETICA_STATUS,
-            COL_DATA_PREVISTA: prevista,
-            COL_REPROGRAMACAO: reprog,
-            COL_DATA_PREVISTA_CTRL: base,
-        })
-    if not novas:
-        return df_wide
-    df_novas = pd.DataFrame(novas).reindex(columns=df_wide.columns if not df_wide.empty else None)
-    # Alinha dtypes de data (o reindex deixa NaN float; concatenar com datetime64
-    # dispara DeprecationWarning de timedelta no pandas 2.3).
-    from ..core.wide import COL_DATA_ENVIO, COL_DATA_RETORNO
+        tracking = _buscar_tracking(r, idx, idx_chave)
+        revs = wide_por_tracking.get(tracking) if tracking else None
+        if revs is not None and not revs.empty:
+            if tracking in vistos:
+                continue  # doc já incluído por outra linha do Controle (código histórico)
+            vistos.add(tracking)
+            n_ach += 1
+            for _, rev in revs.iterrows():
+                d = rev.to_dict()
+                _anexar_controle(d, r, policy.base_cmi_0a)
+                linhas.append(d)
+        else:
+            n_ne += 1
+            linhas.append(_linha_nao_emitido(r, policy.base_cmi_0a))
+            # Sinaliza: Controle diz EMITIDO mas a busca NÃO achou tracking algum
+            # (pedido do usuário). Se achou tracking mas sem revisão válida
+            # (fantasma filtrado), não é "sem tracking" — não entra aqui.
+            if r.esta_emitido and not tracking:
+                emitido_sem_tracking.append(r)
+
+    if not linhas:
+        log("Controle → histórico: nenhum documento (Controle vazio na aba selecionada?).")
+        return pd.DataFrame()
+
+    df = pd.DataFrame(linhas)
     for col in (COL_DATA_ENVIO, COL_DATA_RETORNO, COL_DATA_PREVISTA,
                 COL_REPROGRAMACAO, COL_DATA_PREVISTA_CTRL):
-        if col in df_novas.columns:
-            df_novas[col] = pd.to_datetime(df_novas[col], errors="coerce")
-    return pd.concat([df_wide, df_novas], ignore_index=True)
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+    df = calcular_atrasos(df, policy)
+    # Tracking em branco na SAÍDA para os não emitidos (pedido do usuário).
+    df.loc[df[COL_STATUS_ENVIO].astype(str) == NAO_EMITIDO, COL_TRACKING] = ""
 
-
-def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None = None,
-                    policy: DelayPolicy | None = None, *, log_cb=None) -> pd.DataFrame:
-    """Do bruto ao wide final com atrasos e sintéticas (tudo em memória)."""
-    policy = policy or DelayPolicy()
-    df_limpo = gerar_dataset_dashboard(df_bruto)
-    df_wide = build_wide_table(df_limpo)
-    df_wide = anexar_datas_controle(df_wide, controle, df_limpo, base_cmi_0a=policy.base_cmi_0a)
-    # Varredura final (§24.8c): quem ficou sem data procura direto no Controle
-    # pelos códigos da própria linha (igualdade tolerante e depois CONTÉM).
-    df_wide, resgatados, usadas = varredura_final_controle(
-        df_wide, controle, base_cmi_0a=policy.base_cmi_0a)
-    if controle is not None and log_cb is not None and not df_wide.empty:
-        # Diagnóstico do casamento com o Controle (§24.8b): quantos documentos
-        # do histórico receberam data — permite ver na hora se o match falhou.
-        por_doc = df_wide.groupby(COL_TRACKING)[COL_DATA_PREVISTA_CTRL].max()
-        log_cb(f"Controle ↔ histórico: {int(por_doc.notna().sum())} de {len(por_doc)} "
-               f"documentos com data prevista/reprogramação"
-               f" ({resgatados} pela varredura final).")
-    indice_reverso = construir_indice_reverso(df_bruto) if controle is not None else {}
-    df_wide = injetar_linhas_sinteticas(df_wide, controle, indice_reverso, ignorar_ids=usadas)
-    df_wide = calcular_atrasos(df_wide, policy)
-    return df_wide
+    log(f"Controle → histórico: {n_ach} documentos encontrados no Aconex, "
+        f"{n_ne} não emitidos (de {len(controle.rows)} no Controle).")
+    if emitido_sem_tracking:
+        log(f"⚠️ {len(emitido_sem_tracking)} documento(s) marcado(s) EMITIDO no "
+            f"Controle mas SEM tracking no Aconex (verificar códigos):")
+        for r in emitido_sem_tracking[:30]:
+            log(f"    {r.cod_itaipu} | {r.cod_cmi}")
+        if len(emitido_sem_tracking) > 30:
+            log(f"    … (+{len(emitido_sem_tracking) - 30} outros)")
+    return df

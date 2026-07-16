@@ -41,6 +41,8 @@ class ControleRow:
     titulo: str
     data_prevista: date | None
     data_reprogramada: date | None
+    fase: str = ""          # FASE DE PROJETO (§24.11) — vai ao histórico
+    emitido: str = ""       # EMITIDO / NÃO EMITIDO — para o log de divergência
 
     @property
     def data_ref(self) -> date | None:
@@ -50,6 +52,13 @@ class ControleRow:
     @property
     def tem_data(self) -> bool:
         return self.data_prevista is not None or self.data_reprogramada is not None
+
+    @property
+    def esta_emitido(self) -> bool:
+        """A coluna EMITIDO / NÃO EMITIDO diz que o doc foi emitido. 'NÃO
+        EMITIDO' → False; 'EMITIDO'/'SIM' → True; vazio → False (sem informação)."""
+        v = remover_acentos(str(self.emitido)).strip().upper()
+        return v.startswith("EMITIDO") or v in ("SIM", "S", "YES")
 
 
 # Sujeira comum de Excel dentro de códigos: espaços internos, NBSP, invisíveis.
@@ -242,6 +251,8 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
     col_prev = _col(df, CTRL_COL_DATA_PREVISTA)
     col_reprog = _col(df, CTRL_COL_REPROGRAMACAO_HINT)
     col_desc = _col(df, "DESCRIÇÃO", "TÍTULO")
+    col_fase = _col(df, "FASE DE PROJETO", "FASE DEL PROYECTO", "FASE DE PROYECTO")
+    col_emit = _col(df, "EMITIDO / NÃO EMITIDO", "EMITIDO / NAO EMITIDO", "EMITIDO")
     if col_prev is None:
         log(f"Aviso: aba '{aba}' sem coluna '{CTRL_COL_DATA_PREVISTA}'.")
     if col_reprog is None:
@@ -262,6 +273,8 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
             titulo=str(df.iloc[i][col_desc]).strip() if col_desc else "",
             data_prevista=prevista[i],
             data_reprogramada=reprog[i],
+            fase=str(df.iloc[i][col_fase]).strip() if col_fase else "",
+            emitido=str(df.iloc[i][col_emit]).strip() if col_emit else "",
         ))
     log(f"Controle: aba '{aba}' → {len(rows)} linhas (cabeçalho na linha {header + 1}).")
     return rows

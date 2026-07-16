@@ -66,6 +66,18 @@ def _ultimo_nao_vazio(s: pd.Series) -> str:
     return nao_vazios.iloc[-1] if len(nao_vazios) else ""
 
 
+def _retorno_representativo(g_ret: pd.DataFrame) -> pd.Series:
+    """Linha de retorno da revisão (g_ret já ASC por data+versão). O STATUS é o do
+    ÚLTIMO retorno (veredito vigente), mas a DATA é a da PRIMEIRA vez que esse
+    status apareceu: retornos repetidos do MESMO status são atualização de
+    metadados e não podem empurrar a data (gera atraso artificial). Pedido do
+    usuário 2026-07-15, caso do workstatement do gerador diesel
+    (#ST00=B01BDV10&ACC051): 2 'Aprovado' na mesma revisão → vale o 1º."""
+    status_final = g_ret[COL_STATUS].iloc[-1]
+    mesmos = g_ret[g_ret[COL_STATUS] == status_final]
+    return mesmos.iloc[0]
+
+
 def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     """Dataset long limpo (envios vs retornos), base do histórico e do dashboard."""
     if df_bruto.empty:
@@ -157,7 +169,7 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
             g_ret_ok = g_ret[~g_ret["_pa_comiss"]] if "_pa_comiss" in g_ret.columns else g_ret
             if g_ret_ok.empty:
                 continue                        # nada real → revisão não existe no wide
-            linha_ret = g_ret_ok.iloc[-1]
+            linha_ret = _retorno_representativo(g_ret_ok)
             g_pa = pa_g.get(chave)
             if g_pa is not None:                # PA anterior ao retorno = envio
                 cand = g_pa[g_pa[COL_DATA] <= linha_ret[COL_DATA]]
@@ -168,7 +180,7 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
         if g_ret is None:                       # pendente: último envio
             idx_env.append(g_env.index[-1])
             continue
-        linha_ret = g_ret.iloc[-1]
+        linha_ret = _retorno_representativo(g_ret)
         data_ret = linha_ret[COL_DATA]
         tardios = g_env[g_env[COL_DATA] > data_ret]
         if not tardios.empty:

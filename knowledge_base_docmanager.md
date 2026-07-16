@@ -814,6 +814,30 @@ O módulo de Status resolve cada código buscado pelo **Tracking ID** (via `Acon
 - **UI** (`ui/views/status_view.py`): loga separadamente "N com código atualizado (azul)" e "M com código informado errado — corrigido; ver comentário".
 - Testes em `test_reports.py` (6): marca Itaipu/CMI atualizado, vigente não marca, CMI não confere (célula com o CORRETO + `_cmi_buscado`), não confere sem CMI no sistema, e export lê o azul `0070C0` + o comentário do não-confere. Verde nos 2 venvs. (Obs.: usuário escreveu `#00700C0` — 7 dígitos; usado o azul padrão Office `#0070C0`.)
 
+### 24.11 ✅ Histórico Consolidado REFORMULADO — dirigido pelo Controle (2026-07-15, spec do usuário)
+
+**Inversão do motor**: o Histórico deixou de ser dirigido pelo Aconex (listava todos os docs + sintéticas) e passou a ser **dirigido pelo Controle (obrigatório)** — o Controle define QUAIS documentos entram; o extrato Aconex fornece o histórico de cada um. `gerar_historico(df_bruto, controle, ...)` agora **exige** o Controle (erra se `None`); a UI marcou o seletor como obrigatório.
+
+**Fluxo** (`services/historico_consolidado.py`): `gerar_dataset_dashboard` → `build_wide_table` (todos os docs) → `AconexIndex` + índice `chave_codigo` (`_indice_chave`). Para cada linha do Controle:
+- `_buscar_tracking`: cascata EXATA `idx.localizar` (par Itaipu+CMI → CMI → Itaipu, como o módulo de Status) e, se falhar, fallback tolerante por `chave_codigo` (sujeira de Excel / multi-código, §24.8b).
+- **achou tracking com revisões** → as revisões do doc (do wide) + `Tracking ID` + nova coluna **`Fase de Projeto`** + Data Prevista/Reprogramação do Controle.
+- **não achou** (ou tracking sem revisão válida — ex.: só integração interna/`Para Integração`, ou fantasma de comissionamento) → **1 linha `NÃO EMITIDO`** com `Tracking ID` em BRANCO (interno único durante o cálculo do atraso, apagado na saída), campos do Aconex vazios, Fase/códigos/datas do Controle. Atraso CMI "correndo até hoje" (`hoje − data_prevista`).
+- **Log de divergência**: doc marcado `EMITIDO` no Controle (coluna `EMITIDO / NÃO EMITIDO`) mas SEM tracking algum → sinalizado no log (pedido do usuário). Não dispara para tracking-sem-revisão (esse tem tracking).
+- Docs no Aconex mas **fora do Controle** → não aparecem.
+
+**`controle_docs.py`**: `ControleRow` ganhou `fase` (FASE DE PROJETO) e `emitido` (+ `esta_emitido`); `_ler_aba` casa as colunas `FASE DE PROJETO`/`FASE DEL PROYECTO` e `EMITIDO / NÃO EMITIDO`.
+
+**Outras mudanças pedidas juntas**:
+- **Ordem das colunas de atraso**: `Dias CMI`, `Atraso CMI` agora vêm ANTES de `Dias Itaipu`, `Atraso Itaipu` (`excel_io._COLUNAS_NOVAS`). `Fase de Projeto` é a 1ª coluna.
+- **Primeira data do retorno** (`core/wide.py::_retorno_representativo`): mesma revisão + mesmo status de retorno com 2+ datas → vale a 1ª (a 2ª é atualização de metadados, gerava atraso artificial). Caso real do gerador diesel `#ST00=B01BDV10&ACC051` (envio 03/01/2024, retorno real ~2 dias depois, não 25/09/2025). Divergência SANCIONADA do legado (só muda quando há retornos duplicados de mesmo status).
+- **O motor de atraso do Histórico NÃO se propaga ao Mapa**: são caminhos separados (`core/delays.py::calcular_atrasos` vs `core/kpis.py::calcular_atrasos_acumulados`). O Mapa pode ter o mesmo problema do metadado poluído (pega a versão mais alta) — conserto seria separado, na linha da verdade.
+
+**Validação na base real** (`dados_reais/base_aconex.xlsx`, 80.688 linhas / 9.465 trackings, × os 311 docs do Controle colados, 2026-07-15): **188 encontrados** (446 revisões), **121 não emitidos** = 71 futuros (execução 2027-2035, legítimo) + 48 ausentes da base (não emitidos de verdade / pós-extração de 12/jul / eventuais typos da transcrição) + 2 presos em integração interna (NÃO EMITIDO correto). **ZERO bugs de busca.** Todas as 6 fases fluíram; Tracking preenchido nos emitidos e em branco nos não emitidos.
+
+**Testes**: `test_historico_consolidado.py` reescrito (26) para o fluxo Controle-dirigido (Controle obrigatório, só-docs-do-Controle, Fase+Tracking, não-emitido tracking-em-branco + atraso corrente, log emitido-sem-tracking, busca tolerante, ordem CMI<Itaipu, e todas as regras do wide preservadas via Controle). `test_wide.py`: +1 (primeira data do retorno). Verde nos 2 venvs.
+
+**Pendências**: `EMITIDO / NÃO EMITIDO` não veio na amostra de 311 (só 5 colunas) → o log de divergência não teve como disparar no teste, mas está programado para o arquivo real completo (8289 linhas). Docs com código dirty/multi-código extremos: cobertos pelo fallback `chave_codigo`; decorado por prosa (containment, ex-`buscar_contendo`) NÃO é mais usado (Controle-dirigido busca no Aconex, não o contrário).
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

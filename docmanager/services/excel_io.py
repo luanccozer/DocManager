@@ -27,6 +27,7 @@ from ..core.wide import COL_DATA_ENVIO, COL_DATA_RETORNO, COL_STATUS_ENVIO, COL_
 
 # Ordem final das colunas do Excel (layout legado + novas ao fim).
 _COLUNAS_LEGADO = [
+    "Fase de Projeto",  # §24.11: histórico dirigido pelo Controle
     "No. do Documento", "Controle do Emissor", "Tracking ID", "Título",
     "Tipo do Documento", "Especialidade", "Subespecialidade",
     "Tipo do Documento DCC", "Subtipo DCC", "Versão", "Current", "Revisão",
@@ -34,10 +35,12 @@ _COLUNAS_LEGADO = [
 ]
 # 'Data Prevista (Controle)' é interna (base do cálculo); NÃO vai ao Excel.
 # 'Data Prevista' e 'Reprogramação' vão ao Excel, mas só na revisão 0A (§ time).
-_COLUNAS_NOVAS = [COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU, COL_DIAS_CMI, COL_ATRASO_CMI,
+# CMI antes de Itaipu (pedido do usuário 2026-07-15): a régua da CMI vem primeiro.
+_COLUNAS_NOVAS = [COL_DIAS_CMI, COL_ATRASO_CMI, COL_DIAS_ITAIPU, COL_ATRASO_ITAIPU,
                   COL_DATA_PREVISTA, COL_REPROGRAMACAO]
 
 _LARGURAS = {
+    "Fase de Projeto": 22,
     "No. do Documento": 27, "Controle do Emissor": 27, "Tracking ID": 27,
     "Título": 60, "Tipo do Documento": 20, "Especialidade": 27,
     "Subespecialidade": 33, "Tipo do Documento DCC": 25, "Subtipo DCC": 25,
