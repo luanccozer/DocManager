@@ -45,6 +45,24 @@ def _listar_abas(caminho: str) -> list[str]:
 _PLACEHOLDER_ABA = "Selecione o arquivo primeiro"
 
 
+def pedir_salvar(config, tipo: str, nome_inicial: str,
+                 filetypes=(("Excel", "*.xlsx"),), titulo: str = "Salvar como",
+                 parent=None) -> str:
+    """`asksaveasfilename` que abre no ÚLTIMO diretório usado e o memoriza (item 4).
+
+    `config` = ConfigManager (ou None). `tipo` = chave de memória (ex.: 'saida').
+    Retorna o caminho escolhido, ou '' se o usuário cancelar."""
+    inicial = config.ultimo_dir(tipo) if config else None
+    ext = os.path.splitext(nome_inicial)[1] or ".xlsx"
+    kw = {"parent": parent} if parent is not None else {}
+    caminho = filedialog.asksaveasfilename(
+        title=titulo, initialdir=inicial, initialfile=nome_inicial,
+        defaultextension=ext, filetypes=list(filetypes), **kw)
+    if caminho and config:
+        config.lembrar_dir(tipo, caminho)
+    return caminho
+
+
 class FileSelector(ctk.CTkFrame):
     """Rótulo + caminho + botão 'Selecionar' + seletor de aba (sempre visível).
 

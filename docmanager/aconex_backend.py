@@ -47,6 +47,16 @@ USUARIOS = {
     "Rafhael Martins": {"client_id": "SCP_RAFHAEL_MARTINS_ACONEX_client_APPID", "user_id": "1208639621", "env": "SECRET_RAFHAEL"},
 }
 
+# Rótulo da opção de entrada manual (usuário não previsto informa os dados dele).
+OUTRO_USUARIO = "Outro (inserir manualmente)"
+
+
+def usuarios_disponiveis() -> list[str]:
+    """Usuários conhecidos cujo secret ESTÁ definido no .env (item 2). A lista da
+    extração mostra só quem tem secret — some quem não tem, aparece quem for
+    acrescentado. Sempre acompanhada da opção `OUTRO_USUARIO` na interface."""
+    return [nome for nome, u in USUARIOS.items() if os.getenv(u["env"], "").strip()]
+
 MAPA_COLUNAS = {
     "ControlDelEmisor_singleLineText": "Controle do Emissor",
     "DateModified": "Data de Alteração",
@@ -129,6 +139,90 @@ def _get_token(session: requests.Session, config: AconexConfig, log) -> str | No
     return None
 
 
+def _tentar_token(session, config: AconexConfig) -> str:
+    """Autentica DEIXANDO as exceções de rede/SSL propagarem (para a cascata
+    distinguir a via que funciona). Retorna o token no 200; levanta
+    PermissionError se a API recusar as credenciais (trocar de proxy não ajuda)."""
+    creds = base64.b64encode(f"{config.client_id}:{config.client_secret}".encode()).decode()
+    headers = {"Authorization": f"Basic {creds}",
+               "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"}
+    data = {"grant_type": "client_credentials", "user_id": config.user_id, "user_site": config.instance}
+    resp = session.post(config.auth_url, headers=headers, data=data, timeout=30)
+    if resp.status_code == 200:
+        tok = resp.json().get("access_token")
+        if tok:
+            return tok
+        raise PermissionError("resposta 200 sem access_token")
+    raise PermissionError(f"HTTP {resp.status_code}: {resp.text[:160]}")
+
+
+def _estrategias_conexao(config: AconexConfig) -> list:
+    """Vias de conexão a tentar, em ordem (item 3 — robustez VPN/Zscaler). Cada
+    item: (nome, proxies|None, trust_env). proxies=None → deixa o requests usar
+    o ambiente; {} → força SEM proxy."""
+    if config.proxy:
+        return [("proxy informado", {"http": config.proxy, "https": config.proxy}, False)]
+    estr: list = []
+    try:
+        sistema = urllib.request.getproxies()
+    except Exception:  # noqa: BLE001
+        sistema = {}
+    if sistema:
+        estr.append(("proxy do sistema", sistema, False))
+    if any(os.getenv(v) for v in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy")):
+        estr.append(("variáveis de ambiente", None, True))
+    estr.append(("conexão direta", {}, False))
+    return estr
+
+
+def _estabelecer_sessao(config: AconexConfig, log_cb):
+    """Tenta autenticar por várias vias (proxy do sistema, ambiente, direta) e —
+    só se houver falha de CERTIFICADO — repete SEM verificação SSL (último
+    recurso, com aviso). Devolve (session, token) ou levanta RuntimeError com
+    diagnóstico. Não prejudica quem já funciona: a via boa vem primeiro."""
+    import requests
+
+    estrategias = _estrategias_conexao(config)
+    houve_ssl = False
+    for verify in (True, False):
+        if not verify:
+            if not houve_ssl:
+                break   # nenhuma falha foi de SSL → não desabilita verificação
+            log_cb("⚠️ Último recurso: tentando SEM verificação de certificado SSL "
+                   "(o certificado do Zscaler/GlobalProtect não está no sistema). "
+                   "Só use em rede corporativa confiável.")
+            try:
+                import urllib3
+                urllib3.disable_warnings()
+            except Exception:  # noqa: BLE001
+                pass
+        for nome, proxies, trust_env in estrategias:
+            session = requests.Session()
+            session.trust_env = trust_env
+            if proxies is not None:
+                session.proxies = dict(proxies)
+            session.verify = verify
+            try:
+                token = _tentar_token(session, config)
+            except requests.exceptions.SSLError as e:
+                houve_ssl = True
+                log_cb(f"  [{nome}] certificado SSL não confiável ({str(e)[:90]}).")
+                continue
+            except PermissionError as e:
+                # Conectou, mas as credenciais foram recusadas — proxy não muda isso.
+                raise RuntimeError(f"Conectou, mas o Aconex recusou as credenciais "
+                                   f"({e}). Verifique o secret/usuário.") from e
+            except requests.exceptions.RequestException as e:
+                log_cb(f"  [{nome}] sem conexão ({str(e)[:90]}).")
+                continue
+            via = nome + ("" if verify else " · SSL NÃO verificado")
+            log_cb(f"Conectado ao Aconex via {via}.")
+            return session, token
+    raise RuntimeError("Não foi possível conectar ao Aconex por nenhuma via "
+                       "(proxy do sistema, variáveis de ambiente, conexão direta, "
+                       "SSL). Verifique VPN/Zscaler, proxy e conexão de rede.")
+
+
 def _parse_pagina(conteudo: bytes) -> list[dict]:
     root = ET.fromstring(conteudo)
     docs = []
@@ -195,23 +289,16 @@ def extrair_base(config: AconexConfig, *, log_cb=print) -> pd.DataFrame:
     """
     import time
 
-    import requests  # só a extração ao vivo precisa; import tardio deixa o
-    #                  parser/monta-DF (funções puras) usáveis sem a lib.
-
     try:
-        import truststore  # certificados do Windows (Zscaler); opcional fora do corporativo
-        truststore.inject_into_ssl()
+        import truststore  # injeta os certificados do Windows (inclui o do Zscaler
+        truststore.inject_into_ssl()  # nas máquinas gerenciadas) na verificação SSL.
+        log_cb("Certificados do Windows carregados (truststore).")
     except Exception as e:  # noqa: BLE001
-        log_cb(f"(truststore indisponível: {e} — seguindo sem injeção de certificados)")
+        log_cb(f"(truststore indisponível: {e} — se o Zscaler/GlobalProtect inspecionar "
+               f"o SSL, a conexão pode cair no modo sem verificação de certificado)")
 
-    session = requests.Session()
-    proxies = _proxies(config, log_cb)
-    if proxies:
-        session.proxies.update(proxies)
-
-    token = _get_token(session, config, log_cb)
-    if not token:
-        raise RuntimeError("Falha na autenticação Aconex.")
+    # Cascata de conexão robusta a VPN/Zscaler (item 3): tenta várias vias.
+    session, token = _estabelecer_sessao(config, log_cb)
 
     base_url = f"{config.instance}/api/projects/{config.project_id}/register"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/xml", "Accept-Encoding": "gzip, deflate"}

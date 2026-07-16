@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import threading
 from datetime import datetime
-from tkinter import filedialog, messagebox, ttk
+from tkinter import messagebox, ttk
 
 import customtkinter as ctk
 
@@ -197,9 +197,10 @@ class DeltaDialog(ctk.CTkToplevel):
         d2 = self.entry_fim.get().strip().replace("/", ".")
         aba = str(self.sheet_map).replace(" ", "_")
         nome = f"Delta_{aba}_{d1}_ate_{d2}.xlsx"
-        caminho = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nome,
-                                               title="Salvar Exportação Delta",
-                                               filetypes=[("Excel files", "*.xlsx")], parent=self)
+        from ..components import pedir_salvar
+        ctx = getattr(getattr(self, "master", None), "ctx", None)
+        caminho = pedir_salvar(getattr(ctx, "config", None), "saida", nome,
+                               titulo="Salvar Exportação Delta", parent=self)
         if not caminho:
             return
         from ...mapa_backend import exportar_delta_arvore

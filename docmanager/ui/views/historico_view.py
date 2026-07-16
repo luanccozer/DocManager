@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 
 import customtkinter as ctk
 
 from .. import theme as t
-from ..components import Card, FileSelector, RunBar
+from ..components import Card, FileSelector, RunBar, pedir_salvar
 from .base import BaseView
 
 
@@ -74,7 +74,7 @@ class HistoricoView(BaseView):
         from ...historico_backend import exportar_historico, gerar_historico
         wide = gerar_historico(base, controle, self._policy(), log_cb=self.log.log)
         nome = f"Historico_Consolidado_{datetime.now().strftime('%d.%m.%y_%Hh%Mm')}.xlsx"
-        saida = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nome, filetypes=[("Excel", "*.xlsx")])
+        saida = pedir_salvar(self.ctx.config, "saida", nome)
         if not saida:
             self.log.log("Salvamento cancelado.")
             return

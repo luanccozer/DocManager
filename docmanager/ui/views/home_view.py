@@ -23,19 +23,20 @@ NOVIDADES: list[str] = [
     "Console de log padronizado em todas as telas.",
 ]
 
-# (ícone, título, descrição) de cada bloco.
+# (key da view, ícone, título, descrição) de cada bloco. A `key` casa com as
+# ViewSpec da MainApp: clicar no bloco navega para o módulo.
 MODULOS = [
-    ("🗺️", "Mapa dos Planos", "Atualiza a planilha de mapeamento: status real, hierarquia, "
+    ("mapa", "🧭", "Mapa dos Planos", "Atualiza a planilha de mapeamento: status real, hierarquia, "
      "KPIs e atrasos. Traz também o Delta (Máquina do Tempo) por Grupo/Nível."),
-    ("🔎", "Status Documentos", "Status real de uma lista, de um arquivo Excel ou de toda a base "
+    ("status", "🔎", "Status Documentos", "Status real de uma lista, de um arquivo Excel ou de toda a base "
      "vigente. Gera Excel com gráfico e abre o Delta por período (por classificação)."),
-    ("📊", "Histórico e Dashboard", "Planilha detalhada (1 linha por revisão + atrasos Itaipu/CMI) "
+    ("historico", "📊", "Histórico e Dashboard", "Planilha detalhada (1 linha por revisão + atrasos Itaipu/CMI) "
      "e o painel executivo com evolução do atraso, First Time Right e gargalos."),
-    ("📋", "Relatórios", "Relatório de Avanço (prazos de devolução da Itaipu) e Auditoria de "
+    ("relatorios", "📋", "Relatórios", "Relatório de Avanço (prazos de devolução da Itaipu) e Auditoria de "
      "Integração (documentos presos em 0AA)."),
-    ("☁️", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex "
+    ("aconex", "☁️", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex "
      "(requer o segredo no arquivo .env)."),
-    ("⚙️", "Configurações", "Regra da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
+    ("config", "⚙️", "Configurações", "Regra da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
 ]
 
 
@@ -69,7 +70,7 @@ class HomeView(ctk.CTkFrame):
                      text_color=t.TEXTO).pack(anchor="w")
         ctk.CTkLabel(texto, text=f"Gestão documental · CMI ↔ Itaipu · v{self.ctx.versao}",
                      font=t.corpo(13), text_color=t.TEXTO_FRACO).pack(anchor="w", pady=(4, 0))
-        ctk.CTkLabel(card, text="Escolha um módulo na barra lateral para começar.",
+        ctk.CTkLabel(card, text="Clique em um módulo abaixo (ou use a barra lateral) para começar.",
                      font=t.corpo(13), text_color=t.TEXTO_FRACO,
                      justify="left", wraplength=760).pack(anchor="w", padx=24, pady=(0, 18))
 
@@ -79,7 +80,7 @@ class HomeView(ctk.CTkFrame):
         card.grid_columnconfigure((0, 1), weight=1, uniform="mod")
         ctk.CTkLabel(card, text="🧭 Módulos", font=t.titulo(16), text_color=t.TEXTO).grid(
             row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        for i, (ic, nome, desc) in enumerate(MODULOS):
+        for i, (key, ic, nome, desc) in enumerate(MODULOS):
             bloco = ctk.CTkFrame(card, fg_color=t.CARD, corner_radius=12,
                                  border_width=1, border_color=t.CARD_BORDA)
             bloco.grid(row=1 + i // 2, column=i % 2, sticky="nsew",
@@ -88,8 +89,25 @@ class HomeView(ctk.CTkFrame):
             topo.pack(anchor="w", padx=16, pady=(14, 2), fill="x")
             ctk.CTkLabel(topo, text=ic, font=t.corpo(18)).pack(side="left", padx=(0, 8))
             ctk.CTkLabel(topo, text=nome, font=t.corpo(14, "bold"), text_color=t.TEXTO).pack(side="left")
-            ctk.CTkLabel(bloco, text=desc, font=t.corpo(12), text_color=t.TEXTO_FRACO,
-                         justify="left", wraplength=340).pack(anchor="w", padx=16, pady=(0, 14))
+            desc_lbl = ctk.CTkLabel(bloco, text=desc, font=t.corpo(12), text_color=t.TEXTO_FRACO,
+                                    justify="left", wraplength=340)
+            desc_lbl.pack(anchor="w", padx=16, pady=(0, 14))
+            # Clicar em qualquer parte do bloco abre o módulo (item 5).
+            self._tornar_clicavel(bloco, key, [bloco, topo, desc_lbl, *topo.winfo_children()])
+
+    def _tornar_clicavel(self, bloco, key: str, widgets):
+        """Bloco inteiro clicável → navega para o módulo; hover destaca a borda."""
+        def abrir(_e=None):
+            if self.ctx.navegar:
+                self.ctx.navegar(key)
+        for w in widgets:
+            w.bind("<Button-1>", abrir)
+            try:
+                w.configure(cursor="hand2")
+            except Exception:  # noqa: BLE001 — nem todo widget aceita cursor
+                pass
+        bloco.bind("<Enter>", lambda _e: bloco.configure(border_color=t.ACENTO))
+        bloco.bind("<Leave>", lambda _e: bloco.configure(border_color=t.CARD_BORDA))
 
     def _novidades(self, body):
         if not NOVIDADES:

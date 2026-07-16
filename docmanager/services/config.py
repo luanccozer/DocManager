@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -53,14 +53,25 @@ class ConfigManager:
         except Exception:
             pass
 
-    # --- últimos caminhos por tipo ---
+    # --- últimos caminhos por tipo (com memória global "onde cliquei por último") ---
     def ultimo_dir(self, tipo: str) -> str:
-        d = self._data.get("paths", {}).get(tipo, "")
-        return d if d and os.path.isdir(d) else str(Path.home() / "Documents")
+        """Diretório inicial para o diálogo: o último do próprio `tipo`; se ainda
+        não houver, o último de QUALQUER diálogo (`_ultimo`); senão Documentos."""
+        paths = self._data.get("paths", {})
+        for chave in (tipo, "_ultimo"):
+            d = paths.get(chave, "")
+            if d and os.path.isdir(d):
+                return d
+        return str(Path.home() / "Documents")
 
     def lembrar_dir(self, tipo: str, caminho: str) -> None:
+        """Guarda o diretório do `caminho` para o `tipo` E na memória global
+        `_ultimo` — assim abrir/salvar em qualquer módulo lembra o último local."""
         if caminho:
-            self._data.setdefault("paths", {})[tipo] = os.path.dirname(caminho)
+            d = os.path.dirname(caminho)
+            paths = self._data.setdefault("paths", {})
+            paths[tipo] = d
+            paths["_ultimo"] = d
             self.salvar()
 
     # --- settings ---

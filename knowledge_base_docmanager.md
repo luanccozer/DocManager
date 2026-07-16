@@ -838,6 +838,22 @@ O módulo de Status resolve cada código buscado pelo **Tracking ID** (via `Acon
 
 **Pendências**: `EMITIDO / NÃO EMITIDO` não veio na amostra de 311 (só 5 colunas) → o log de divergência não teve como disparar no teste, mas está programado para o arquivo real completo (8289 linhas). Docs com código dirty/multi-código extremos: cobertos pelo fallback `chave_codigo`; decorado por prosa (containment, ex-`buscar_contendo`) NÃO é mais usado (Controle-dirigido busca no Aconex, não o contrário).
 
+## 25. Melhorias de UI/infra (2026-07-16, pedido do usuário)
+
+Cinco ajustes de "comunicação" entre partes do código, sem regra de negócio nova:
+
+1. **Versão (`VERSAO` no `.env`)** — `docmanager.__version__ = os.getenv("VERSAO", "3.0.0")` (lido no import, via `load_dotenv`). Já fluía para o título, o rodapé da sidebar e a Home; **faltava o splash** — agora exibe `v{__version__}` também. Trocar `VERSAO` no `.env` muda em todos os painéis (após reiniciar).
+
+2. **Extração Aconex — usuários dinâmicos + manual** (`aconex_backend.usuarios_disponiveis()`): a lista mostra só os usuários de `USUARIOS` cujo secret (`SECRET_<NOME>`) está **preenchido** no `.env` — some quem não tem, aparece quem for acrescentado (por máquina). Sempre acompanha a opção **`OUTRO_USUARIO`** ("Outro (inserir manualmente)"), que revela campos Client ID + User ID + Secret na `AconexView` para um usuário não previsto (não é salvo). Client ID/User ID continuam fora do `.env` (não são derivá­veis do nome), por isso o "Outro" pede os três.
+
+3. **Robustez de conexão (Zscaler/GlobalProtect)** — `_estabelecer_sessao` tenta uma **cascata** de vias até autenticar: **proxy do sistema** (`getproxies`) → **variáveis de ambiente** (`HTTPS_PROXY`…) → **conexão direta**; e, SÓ se houver falha de **certificado SSL**, repete tudo **sem verificação SSL** (último recurso, com aviso — cobre máquinas sem o certificado do Zscaler). `_tentar_token` propaga exceções de rede/SSL (para a cascata escolher a via) e levanta `PermissionError` em credencial recusada (trocar de proxy não ajuda → para e reporta). `truststore` segue injetando os certificados do Windows primeiro. Não prejudica quem já funciona (a via boa vem primeiro). **Não testável aqui** (sem a rede corporativa) — validação real é Rafhael/outros testarem; a lógica cobre "VPN on/off" e "sem certificado".
+
+4. **Memória de diretório em TODOS os diálogos** (`config.ultimo_dir`/`lembrar_dir` + `components.pedir_salvar`): `lembrar_dir` grava por tipo E numa chave global `_ultimo`; `ultimo_dir` cai no `_ultimo` quando o tipo ainda não tem histórico. Os `asksaveasfilename` (Histórico, Aconex, Relatórios, Status, os 2 Delta) passaram a usar `pedir_salvar(config, "saida", nome)` → abrem no último diretório e o memorizam. Os `FileSelector` (abrir) já lembravam por tipo; agora também herdam o global.
+
+5. **Home clicável + ícone do Mapa** — `AppContext.navegar` (preenchido pela `MainApp` com `self.selecionar`); os blocos de módulo da Home viraram clicáveis (cursor mão + hover na borda) e abrem a view (`MODULOS` ganhou a `key`). Ícone do Mapa `🗺️`→`🧭` (o `🗺️` tem seletor de variação U+FE0F que desalinha) na sidebar e na Home.
+
+**Verificação**: ruff limpo, suíte verde nos 2 venvs, e um **SMOKE headless** que instancia a `MainApp` e todas as 7 views sem erro. (Limpei 2 imports não usados pré-existentes: `dataclasses.field` em `config.py` e `theme` em `reports_view.py`.)
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

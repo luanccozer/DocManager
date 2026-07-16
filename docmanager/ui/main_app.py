@@ -33,7 +33,7 @@ class ViewSpec:
 
 VIEWS = [
     ViewSpec("home", "Início", "🏠", HomeView),
-    ViewSpec("mapa", "Mapa dos Planos", "🗺️", MapaView),
+    ViewSpec("mapa", "Mapa dos Planos", "🧭", MapaView),
     ViewSpec("status", "Status Documentos", "🔎", StatusDocsView),
     ViewSpec("historico", "Histórico e Dashboard", "📊", HistoricoView),
     ViewSpec("relatorios", "Relatórios", "📋", ReportsView),
@@ -59,6 +59,7 @@ class MainApp(ctk.CTk):
             pass
 
         self.ctx = AppContext(config=ConfigManager(), versao=__version__)
+        self.ctx.navegar = self.selecionar   # Home usa para abrir módulos ao clicar
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 

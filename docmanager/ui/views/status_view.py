@@ -12,12 +12,12 @@ conjunto da aba ativa:
 from __future__ import annotations
 
 from datetime import datetime
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 
 import customtkinter as ctk
 
 from .. import theme as t
-from ..components import Card, FileSelector, RunBar
+from ..components import Card, FileSelector, RunBar, pedir_salvar
 from .base import BaseView
 
 _NENHUM = "- NENHUM -"
@@ -212,7 +212,7 @@ class StatusDocsView(BaseView):
             self.log.log(f"  {n_nao_confere} com código informado errado — corrigido; ver comentário na célula.")
         run.set_progress(0.9)
         nome = f"Status_Docs_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-        saida = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nome, filetypes=[("Excel", "*.xlsx")])
+        saida = pedir_salvar(self.ctx.config, "saida", nome)
         if not saida:
             self.log.log("Salvamento cancelado.")
             return

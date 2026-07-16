@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import threading
 from datetime import datetime, timedelta
-from tkinter import filedialog, messagebox, ttk
+from tkinter import messagebox, ttk
 
 import customtkinter as ctk
 
 from .. import theme as t
+from ..components import pedir_salvar
 
 _APROVADOS = {"Aprovado", "Aprovado com Comentários", "Para Assinatura"}
 
@@ -214,9 +215,9 @@ class StatusDeltaDialog(ctk.CTkToplevel):
             return
         d1 = self.entry_ini.get().strip().replace("/", ".")
         d2 = self.entry_fim.get().strip().replace("/", ".")
-        caminho = filedialog.asksaveasfilename(defaultextension=".xlsx",
-                                               initialfile=f"Delta_Status_{d1}_ate_{d2}.xlsx",
-                                               filetypes=[("Excel", "*.xlsx")], parent=self)
+        ctx = getattr(getattr(self, "master", None), "ctx", None)
+        caminho = pedir_salvar(getattr(ctx, "config", None), "saida",
+                               f"Delta_Status_{d1}_ate_{d2}.xlsx", parent=self)
         if not caminho:
             return
         ok, msg = exportar_dataframe(pd.DataFrame(linhas), caminho, sheet_name="Delta")
