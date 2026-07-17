@@ -855,9 +855,18 @@ Cinco ajustes de "comunicação" entre partes do código, sem regra de negócio 
 
 5. **Home clicável + alinhamento dos ícones** — `AppContext.navegar` (preenchido pela `MainApp` com `self.selecionar`); os blocos de módulo da Home viraram clicáveis (cursor mão + hover na borda) e abrem a view (`MODULOS` ganhou a `key`).
 
-   **Causa raiz do "item deslocado" (medida em 2026-07-16, corrige a hipótese anterior)**: não é o seletor de variação U+FE0F — é a **largura do glifo**. Medindo `winfo_reqwidth()` de cada ícone: 🏠 🧭 🔎 📊 📋 ⚙️ = **27 px**, mas **☁️ = 47 px**. (O ⚙️ tem U+FE0F e mede 27 → o VS16 não explica; é fallback de fonte do Windows por glifo.) Como o rótulo do ícone dimensionava a coluna, o glifo largo **empurrava o texto** daquele item. Trocar `🗺️`→`🧭` só mascarou o sintoma no Mapa (o `🗺️` era largo como o ☁️) e deixou o **Aconex** torto.
+   **Causa raiz do "item deslocado" (medida na UI real, 2026-07-16)** — são DOIS problemas, e o culpado é o tipo de emoji:
 
-   **Correção estrutural** (`components.NavItem` e `home_view._modulos`): o ícone vai numa **célula de tamanho fixo** com `grid_propagate(False)`/`pack_propagate(False)` e é centralizado com `place` — o glifo nunca altera a largura da coluna. Vale para **qualquer** emoji, hoje e no futuro. Provado medindo a UI real: os 7 rótulos da sidebar em `x=61` e célula de ícone de 33 px em todos.
+   - Emojis de **apresentação colorida nativa** (blocos U+1F3xx+, codepoint único: 🏠 🧭 🔎 📊 📋) medem **27 px** e usam a fonte de emoji.
+   - Símbolos do bloco *Miscellaneous Symbols* com **seletor U+FE0F** (`☁️` = U+2601+FE0F, `⚙️` = U+2699+FE0F) o Windows renderiza com **outra fonte** (estilo texto): ink menor/monocromático e métrica diferente — o **☁️ media 47 px** contra 27 px dos demais.
+
+   Efeito: (a) o glifo largo dimensionava a coluna e **empurrava o rótulo**; (b) mesmo com a largura igual, o ⚙️ *parecia* menor por ser estilo texto. Trocar `🗺️`→`🧭` só mascarou o sintoma no Mapa (o `🗺️` era largo como o ☁️) e deixou o **Aconex** torto.
+
+   **Correção em duas camadas**:
+   1. **Estrutural** (`components.NavItem` e `home_view._modulos`): o ícone vai numa **célula de tamanho fixo** (`grid_propagate(False)`/`pack_propagate(False)`) e é centralizado com `place` — nenhum glifo altera a largura da coluna. Protege contra qualquer emoji futuro.
+   2. **De conteúdo**: `☁️`→**`📥`** (U+1F4E5) e `⚙️`→**`🔧`** (U+1F527). **Regra para novos módulos: usar sempre emoji de codepoint único e apresentação colorida; nunca símbolo + U+FE0F.**
+
+   Provado medindo a janela real: os 7 ícones com glifo de **27 px**, os 7 rótulos em **x=61**, nenhum ícone com U+FE0F, e a Home usando os mesmos ícones da sidebar.
 
 **Verificação**: ruff limpo, suíte verde nos 2 venvs, e um **SMOKE headless** que instancia a `MainApp` e todas as 7 views sem erro, medindo o alinhamento. (Limpei 2 imports não usados pré-existentes: `dataclasses.field` em `config.py` e `theme` em `reports_view.py`; e a função morta `_proxies` do `aconex_backend`, substituída pela cascata do item 3.)
 

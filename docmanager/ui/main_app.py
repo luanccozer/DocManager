@@ -37,8 +37,12 @@ VIEWS = [
     ViewSpec("status", "Status Documentos", "🔎", StatusDocsView),
     ViewSpec("historico", "Histórico e Dashboard", "📊", HistoricoView),
     ViewSpec("relatorios", "Relatórios", "📋", ReportsView),
-    ViewSpec("aconex", "Extração Aconex", "☁️", AconexView),
-    ViewSpec("config", "Configurações", "⚙️", ConfigView),
+    # Use SEMPRE emojis de apresentação colorida nativa (blocos U+1F3xx+), de
+    # codepoint único. Símbolos "texto" com seletor U+FE0F (☁️ U+2601, ⚙️ U+2699)
+    # o Windows renderiza com outra fonte: ink menor e largura diferente (o ☁️
+    # media 47 px contra 27 px dos demais) → o item fica destoando na sidebar.
+    ViewSpec("aconex", "Extração Aconex", "📥", AconexView),
+    ViewSpec("config", "Configurações", "🔧", ConfigView),
 ]
 
 

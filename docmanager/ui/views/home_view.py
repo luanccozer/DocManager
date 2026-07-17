@@ -34,9 +34,9 @@ MODULOS = [
      "e o painel executivo com evolução do atraso, First Time Right e gargalos."),
     ("relatorios", "📋", "Relatórios", "Relatório de Avanço (prazos de devolução da Itaipu) e Auditoria de "
      "Integração (documentos presos em 0AA)."),
-    ("aconex", "☁️", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex "
+    ("aconex", "📥", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex "
      "(requer o segredo no arquivo .env)."),
-    ("config", "⚙️", "Configurações", "Regra da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
+    ("config", "🔧", "Configurações", "Regra da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
 ]
 
 
