@@ -43,7 +43,9 @@ echo [2/3] Limpando build anterior...
 if exist "build" rmdir /s /q "build"
 if exist "dist" rmdir /s /q "dist"
 
-echo [3/3] Gerando o executavel (onedir)...
+echo [3/3] Gerando o executavel. Leva cerca de 2 MINUTOS.
+echo        NAO FECHE esta janela: o .exe so aparece no fim, na ultima etapa.
+echo.
 pyinstaller docmanager.spec --noconfirm
 if errorlevel 1 (
     echo.
@@ -53,12 +55,32 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM O .exe e copiado para o dist so na ultima etapa. Se ele nao existe, o build
+REM foi interrompido ou o antivirus removeu o arquivo.
+if not exist "dist\DocManager\DocManager.exe" (
+    echo.
+    echo ERRO: o executavel NAO foi gerado.
+    echo Causas comuns:
+    echo   - a janela foi fechada antes do fim do build;
+    echo   - o antivirus removeu o DocManager.exe recem-criado.
+    echo Rode o build.bat de novo sem fechar a janela e, se persistir,
+    echo peca ao TI para liberar a pasta dist do projeto.
+    pause
+    exit /b 1
+)
+
 echo.
 echo ============================================================
 echo  PRONTO: dist\DocManager\DocManager.exe
 echo.
-echo  ULTIMO PASSO OBRIGATORIO: copie o seu arquivo .env para
-echo  dist\DocManager\  (ao lado do DocManager.exe), com VERSAO
-echo  e o SECRET_ do usuario. Sem o .env a extracao nao funciona.
+echo  ULTIMO PASSO OBRIGATORIO - o .env:
+echo    copie o seu .env para DENTRO de  dist\DocManager\
+echo    ou seja, na MESMA pasta do DocManager.exe.
+echo    Nao adianta deixar em dist\ - tem que ser dist\DocManager\.
+echo    Sem o .env, a Extracao Aconex nao funciona.
+echo.
+echo  AO COMPARTILHAR: zipe a pasta dist\DocManager INTEIRA, mas
+echo  APAGUE o .env antes - o secret e pessoal. Cada pessoa usa o
+echo  dela em Documentos\DocManager_Itaipu\.env
 echo ============================================================
 pause

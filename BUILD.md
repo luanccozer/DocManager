@@ -65,9 +65,11 @@ Duplo-clique em **`run.bat`**. Ele cria o ambiente virtual, instala tudo e abre 
 Duplo-clique em **`build.bat`**. Ele instala o PyInstaller, limpa builds antigos e gera:
 
 ```
-dist\DocManager\DocManager.exe      ← o executável
+dist\DocManager\DocManager.exe      ← o executável (~30 MB)
 dist\DocManager\_internal\...       ← dependências (não mexer)
 ```
+
+> ⚠️ **Leva ~2 minutos e NÃO pode ser interrompido.** O `.exe` só é copiado para o `dist` na **última etapa** (`COLLECT`). Se você fechar a janela antes, fica um `dist\DocManager\` só com o `_internal` **e sem o .exe** — que é exatamente o sintoma de build interrompido. Espere aparecer a mensagem **PRONTO**. O script confere isso e avisa se o `.exe` não foi gerado.
 
 <details>
 <summary>Prefere na mão? (equivalente ao build.bat)</summary>
@@ -84,10 +86,14 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 
 ### 3. Colocar o `.env` (obrigatório)
 
-O `.env` **nunca** é embutido no executável (contém segredos). O app procura, nesta ordem:
+O `.env` **nunca** é embutido no executável (contém segredos) — precisa ser copiado à parte. O app procura nestes dois lugares, nesta ordem:
 
-1. **ao lado do `DocManager.exe`** — precisa de admin se estiver em *Program Files*;
-2. **`Documentos\DocManager_Itaipu\.env`** — *recomendado*, cada usuário edita o seu sem admin.
+| Onde | Observação |
+|---|---|
+| **Na mesma pasta do `DocManager.exe`** | testando o build → **`dist\DocManager\.env`** |
+| **`Documentos\DocManager_Itaipu\.env`** | **recomendado** no dia a dia: cada pessoa tem o seu e edita sem admin |
+
+> ❌ **Erro comum:** deixar em `dist\.env`. Tem que ser **`dist\DocManager\.env`** — *dentro* da pasta, junto do `.exe`.
 
 Use o `.env.example` como modelo (`VERSAO` e `SECRET_<NOME>`).
 
