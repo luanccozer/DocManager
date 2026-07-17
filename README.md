@@ -38,22 +38,30 @@ próximas vezes, só abre — em segundos.
 > python -m docmanager
 > ```
 
-#### Rede corporativa (Zscaler) — instalar as bibliotecas
+#### Rede corporativa (Zscaler) — já vem resolvido
 
-Atrás do Zscaler, o `pip` costuma falhar por causa do certificado. A solução é
-passar o índice interno e o host confiável. Para o `run.bat` fazer isso
-automaticamente, **crie um arquivo `pip_corporativo.txt`** na pasta do projeto
-com os seus argumentos numa única linha, por exemplo:
+Atrás do Zscaler o `pip` erra e trava por causa da inspeção de SSL. O `run.bat` e
+o `build.bat` **já chamam o pip com os argumentos que resolvem isso**, sem você
+precisar fazer nada:
+
+```
+--isolated --index-url https://pypi.org/simple --trusted-host pypi.org --trusted-host files.pythonhosted.org
+```
+
+Eles apontam o índice público do PyPI e dispensam a verificação TLS **somente**
+para os hosts do PyPI. Fora da empresa são inofensivos. Instalando na mão, use
+os mesmos:
+
+```powershell
+python -m pip install --isolated --index-url https://pypi.org/simple --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+```
+
+**Só se a sua rede exigir um mirror interno**, sobrescreva o padrão criando um
+`pip_corporativo.txt` na pasta do projeto com os seus argumentos numa única
+linha (ou defina a variável de ambiente `DOCMANAGER_PIP_ARGS`):
 
 ```
 --isolated --index-url https://SEU-MIRROR-INTERNO/simple --trusted-host SEU-HOST
-```
-
-O `run.bat` lê esse arquivo e repassa os argumentos ao `pip` (ou use a variável
-de ambiente `DOCMANAGER_PIP_ARGS`). Instalando manualmente, é o mesmo:
-
-```bat
-pip install --isolated --index-url https://SEU-MIRROR-INTERNO/simple --trusted-host SEU-HOST -r requirements.txt
 ```
 
 > `pip_corporativo.txt` fica fora do Git (é específico da sua rede).

@@ -15,7 +15,14 @@ REM ============================================================
 setlocal EnableExtensions
 pushd "%~dp0"
 
-set "PIP_ARGS="
+REM --- Argumentos do pip --------------------------------------------
+REM Padrao pensado para a rede da empresa: o Zscaler inspeciona o SSL e
+REM o pip trava/erra por causa do certificado. Estes argumentos apontam
+REM o indice publico do PyPI e dispensam a verificacao TLS SOMENTE para
+REM os hosts do PyPI. Fora da empresa sao inofensivos.
+REM Para usar um mirror interno, sobrescreva com pip_corporativo.txt
+REM ou com a variavel de ambiente DOCMANAGER_PIP_ARGS.
+set "PIP_ARGS=--isolated --index-url https://pypi.org/simple --trusted-host pypi.org --trusted-host files.pythonhosted.org"
 if defined DOCMANAGER_PIP_ARGS set "PIP_ARGS=%DOCMANAGER_PIP_ARGS%"
 if exist "pip_corporativo.txt" set /p PIP_ARGS=<pip_corporativo.txt
 

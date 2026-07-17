@@ -51,7 +51,11 @@ Duplo-clique em **`run.bat`**. Ele cria o ambiente virtual, instala tudo e abre 
 
 > **Onde o venv é criado:** em `%LOCALAPPDATA%\DocManagerItaipu\venv`, **fora do OneDrive** de propósito. Um venv tem milhares de arquivos; dentro de uma pasta sincronizada, a instalação fica lenta e chega a travar.
 
-> **Rede corporativa (Zscaler):** se o `pip` falhar com erro de certificado/conexão, crie um arquivo `pip_corporativo.txt` na raiz do projeto com os seus argumentos numa única linha, ex.:
+> **Rede corporativa (Zscaler) — já vem resolvido:** o `run.bat` e o `build.bat` já chamam o pip com os argumentos que passam pela inspeção SSL do Zscaler (sem eles o pip erra e trava):
+> ```
+> --isolated --index-url https://pypi.org/simple --trusted-host pypi.org --trusted-host files.pythonhosted.org
+> ```
+> Só mexa nisso se a empresa exigir um **mirror interno** — nesse caso crie `pip_corporativo.txt` na raiz do projeto com os seus argumentos numa única linha (ou defina a variável `DOCMANAGER_PIP_ARGS`), que ele substitui o padrão:
 > ```
 > --index-url https://SEU-MIRROR/simple --trusted-host SEU-MIRROR
 > ```

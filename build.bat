@@ -12,7 +12,10 @@ REM ============================================================
 setlocal
 cd /d "%~dp0"
 
-set "PIP_ARGS="
+REM --- Argumentos do pip --------------------------------------------
+REM Mesmo padrao do run.bat: passam pela inspecao SSL do Zscaler sem
+REM travar. Sobrescreva com pip_corporativo.txt ou DOCMANAGER_PIP_ARGS.
+set "PIP_ARGS=--isolated --index-url https://pypi.org/simple --trusted-host pypi.org --trusted-host files.pythonhosted.org"
 if defined DOCMANAGER_PIP_ARGS set "PIP_ARGS=%DOCMANAGER_PIP_ARGS%"
 if exist "pip_corporativo.txt" set /p PIP_ARGS=<pip_corporativo.txt
 
