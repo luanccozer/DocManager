@@ -87,13 +87,20 @@ class HomeView(ctk.CTkFrame):
                        padx=(0 if i % 2 == 0 else 8, 8 if i % 2 == 0 else 0), pady=6)
             topo = ctk.CTkFrame(bloco, fg_color="transparent")
             topo.pack(anchor="w", padx=16, pady=(14, 2), fill="x")
-            ctk.CTkLabel(topo, text=ic, font=t.corpo(18)).pack(side="left", padx=(0, 8))
-            ctk.CTkLabel(topo, text=nome, font=t.corpo(14, "bold"), text_color=t.TEXTO).pack(side="left")
+            # Célula de largura travada: o glifo do emoji não empurra o nome
+            # (emojis têm métricas diferentes) — mesma razão do NavItem.
+            cel = ctk.CTkFrame(topo, fg_color="transparent", width=26, height=26)
+            cel.pack(side="left", padx=(0, 8))
+            cel.pack_propagate(False)
+            ic_lbl = ctk.CTkLabel(cel, text=ic, font=t.corpo(18))
+            ic_lbl.place(relx=0.5, rely=0.5, anchor="center")
+            nome_lbl = ctk.CTkLabel(topo, text=nome, font=t.corpo(14, "bold"), text_color=t.TEXTO)
+            nome_lbl.pack(side="left")
             desc_lbl = ctk.CTkLabel(bloco, text=desc, font=t.corpo(12), text_color=t.TEXTO_FRACO,
                                     justify="left", wraplength=340)
             desc_lbl.pack(anchor="w", padx=16, pady=(0, 14))
             # Clicar em qualquer parte do bloco abre o módulo (item 5).
-            self._tornar_clicavel(bloco, key, [bloco, topo, desc_lbl, *topo.winfo_children()])
+            self._tornar_clicavel(bloco, key, [bloco, topo, cel, ic_lbl, nome_lbl, desc_lbl])
 
     def _tornar_clicavel(self, bloco, key: str, widgets):
         """Bloco inteiro clicável → navega para o módulo; hover destaca a borda."""

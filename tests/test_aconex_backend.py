@@ -5,11 +5,63 @@ parse de XML sintético — nada aqui toca a API nem depende de segredo (KB §24
 (As colunas de anotações/markups foram removidas — §24.9: numberOfMarkups conta
 elementos, não as Anotações do site, e não há endpoint confiável.)
 """
+import os
+
 from docmanager.aconex_backend import (
+    AconexConfig,
     _parse_pagina,
     classificar_fonte,
     montar_dataframe,
+    usuarios_disponiveis,
 )
+
+
+def _env_limpo(monkeypatch):
+    """Remove todo SECRET_/CLIENTID_/USERID_ do ambiente (o .env real vaza no import)."""
+    for k in list(os.environ):
+        if k.startswith(("SECRET_", "CLIENTID_", "USERID_")):
+            monkeypatch.delenv(k, raising=False)
+
+
+# --------------------------------------------------------------------------
+# Usuários da extração descobertos pelo .env (item 2)
+# --------------------------------------------------------------------------
+def test_sem_secret_nenhum_lista_vazia(monkeypatch):
+    _env_limpo(monkeypatch)
+    assert usuarios_disponiveis() == []
+
+
+def test_lista_apenas_conhecidos_com_secret(monkeypatch):
+    _env_limpo(monkeypatch)
+    monkeypatch.setenv("SECRET_LUAN", "x")
+    assert usuarios_disponiveis() == ["Luan Cozer"]      # Rafhael some (sem secret)
+    monkeypatch.setenv("SECRET_RAFHAEL", "y")
+    assert set(usuarios_disponiveis()) == {"Luan Cozer", "Rafhael Martins"}
+
+
+def test_usuario_novo_do_env_aparece_sozinho(monkeypatch):
+    """A lista cresce conforme os secrets: um SECRET_<NOME> novo entra sozinho,
+    desde que traga CLIENTID_/USERID_ (o Aconex exige os três)."""
+    _env_limpo(monkeypatch)
+    monkeypatch.setenv("SECRET_JOAO", "s3cr3t")
+    assert "Joao" not in usuarios_disponiveis()          # só o secret não basta
+    monkeypatch.setenv("CLIENTID_JOAO", "SCP_JOAO_APPID")
+    monkeypatch.setenv("USERID_JOAO", "999")
+    assert "Joao" in usuarios_disponiveis()
+    cfg = AconexConfig.para_usuario("Joao")
+    assert cfg.client_id == "SCP_JOAO_APPID"
+    assert cfg.user_id == "999"
+    assert cfg.client_secret == "s3cr3t"
+
+
+def test_usuario_conhecido_sem_secret_erra_por_secret_vazio(monkeypatch):
+    _env_limpo(monkeypatch)
+    try:
+        AconexConfig.para_usuario("Luan Cozer")
+    except ValueError as e:
+        assert "SECRET_LUAN" in str(e)                   # erro acionável
+    else:
+        raise AssertionError("deveria acusar secret vazio")
 
 
 # --------------------------------------------------------------------------

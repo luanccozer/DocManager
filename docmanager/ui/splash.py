@@ -6,6 +6,7 @@ import os
 
 import customtkinter as ctk
 
+from .. import __version__
 from . import theme as t
 
 
@@ -47,7 +48,6 @@ def mostrar_splash(app, *, ms: int = 1600, ao_fechar=None):
         ctk.CTkLabel(frame, text="DocManager Itaipu", font=t.titulo(24),
                      text_color=t.TEXTO).pack()
         # Versão vinda do .env (VERSAO) — mesma fonte do título/sidebar/Home.
-        from .. import __version__
         ctk.CTkLabel(frame, text=f"Gestão documental · CMI ↔ Itaipu · v{__version__}",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO).pack(pady=(4, 18))
         barra = ctk.CTkProgressBar(frame, width=260, height=6, progress_color=t.ACENTO,

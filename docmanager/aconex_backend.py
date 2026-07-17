@@ -51,11 +51,41 @@ USUARIOS = {
 OUTRO_USUARIO = "Outro (inserir manualmente)"
 
 
+def _perfil_do_env(sufixo: str) -> dict | None:
+    """Perfil de um usuário NOVO, descoberto só pelo .env. O Aconex exige os três
+    dados, então além do SECRET_<NOME> é preciso CLIENTID_<NOME> e USERID_<NOME>
+    (o secret sozinho não autentica). Sem eles → None (usa-se a opção manual)."""
+    cid = os.getenv(f"CLIENTID_{sufixo}", "").strip()
+    uid = os.getenv(f"USERID_{sufixo}", "").strip()
+    return {"client_id": cid, "user_id": uid, "env": f"SECRET_{sufixo}"} if cid and uid else None
+
+
+def perfis_disponiveis() -> dict[str, dict]:
+    """{nome exibido → perfil} de todos os usuários utilizáveis (item 2).
+
+    A lista CRESCE SOZINHA conforme os secrets do .env, sem tocar no código:
+      • usuários conhecidos (USUARIOS): basta ter o SECRET_<NOME> — os IDs já
+        estão aqui;
+      • usuários novos: SECRET_<NOME> + CLIENTID_<NOME> + USERID_<NOME> no .env.
+    Quem não tem secret some da lista. A opção `OUTRO_USUARIO` (entrada manual)
+    cobre quem não está no .env."""
+    perfis: dict[str, dict] = {
+        nome: dict(u) for nome, u in USUARIOS.items() if os.getenv(u["env"], "").strip()
+    }
+    ja_conhecidos = {u["env"] for u in USUARIOS.values()}
+    for chave, valor in os.environ.items():
+        if (not chave.startswith("SECRET_") or chave in ja_conhecidos
+                or not str(valor).strip()):
+            continue
+        perfil = _perfil_do_env(chave[len("SECRET_"):])
+        if perfil:
+            perfis[chave[len("SECRET_"):].replace("_", " ").title()] = perfil
+    return perfis
+
+
 def usuarios_disponiveis() -> list[str]:
-    """Usuários conhecidos cujo secret ESTÁ definido no .env (item 2). A lista da
-    extração mostra só quem tem secret — some quem não tem, aparece quem for
-    acrescentado. Sempre acompanhada da opção `OUTRO_USUARIO` na interface."""
-    return [nome for nome, u in USUARIOS.items() if os.getenv(u["env"], "").strip()]
+    """Nomes para o seletor da extração (ver `perfis_disponiveis`)."""
+    return list(perfis_disponiveis())
 
 MAPA_COLUNAS = {
     "ControlDelEmisor_singleLineText": "Controle do Emissor",
@@ -100,29 +130,18 @@ class AconexConfig:
 
     @classmethod
     def para_usuario(cls, nome: str, *, secret: str | None = None, proxy: str | None = None) -> "AconexConfig":
-        if nome not in USUARIOS:
-            raise KeyError(f"Usuário '{nome}' desconhecido. Conhecidos: {list(USUARIOS)}")
-        u = USUARIOS[nome]
+        """Config de um usuário do .env (conhecido ou descoberto por SECRET_<NOME>)."""
+        # Cai no USUARIOS mesmo sem secret, para o erro ser "secret vazio"
+        # (acionável) em vez de "usuário desconhecido".
+        u = perfis_disponiveis().get(nome) or USUARIOS.get(nome)
+        if u is None:
+            raise KeyError(f"Usuário '{nome}' desconhecido. Disponíveis no .env: "
+                           f"{usuarios_disponiveis() or '(nenhum)'}")
         seg = secret if secret is not None else os.getenv(u["env"], "")
         if not seg:
-            raise ValueError(f"Secret vazio. Defina {u['env']} no .env ou passe --secret.")
+            raise ValueError(f"Secret vazio. Defina {u['env']} no .env ou use a opção "
+                             f"'{OUTRO_USUARIO}'.")
         return cls(client_id=u["client_id"], client_secret=seg, user_id=u["user_id"], proxy=proxy)
-
-
-def _proxies(config: AconexConfig, log) -> dict | None:
-    if config.proxy:
-        return {"http": config.proxy, "https": config.proxy}
-    if config.proxy == "":
-        return None
-    try:
-        p = urllib.request.getproxies()
-        if p:
-            log("Proxy do sistema detectado.")
-            return p
-    except Exception:
-        pass
-    log("Nenhum proxy detectado. Conexão direta.")
-    return None
 
 
 def _get_token(session: requests.Session, config: AconexConfig, log) -> str | None:

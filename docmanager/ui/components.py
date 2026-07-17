@@ -163,9 +163,16 @@ class LogConsole(ctk.CTkTextbox):
 
 
 class NavItem(ctk.CTkFrame):
-    """Item da barra lateral: ícone em coluna de LARGURA FIXA + rótulo, para que
-    todos os rótulos alinhem independentemente da largura do emoji. Todo o item
-    é clicável e tem estados de hover/ativo."""
+    """Item da barra lateral: ícone numa CÉLULA de largura travada + rótulo.
+
+    Por que a célula travada: os emojis têm métricas diferentes entre si (alguns
+    caem em fonte de fallback do Windows). Se o rótulo do ícone dimensionar a
+    coluna, o glifo mais largo empurra o texto e aquele item fica DESLOCADO em
+    relação aos outros. Com `grid_propagate(False)` numa célula de tamanho fixo,
+    o glifo é centralizado dentro dela e nunca altera a largura — todos os
+    rótulos começam no mesmo x, qualquer que seja o emoji."""
+
+    LARGURA_ICONE = 26
 
     def __init__(self, master, icone: str, label: str, command):
         super().__init__(master, fg_color="transparent", corner_radius=8, height=44)
@@ -174,13 +181,19 @@ class NavItem(ctk.CTkFrame):
         self.grid_propagate(False)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
-        self._ic = ctk.CTkLabel(self, text=icone, width=26, font=t.corpo(16),
+
+        cel = ctk.CTkFrame(self, fg_color="transparent", width=self.LARGURA_ICONE, height=44)
+        cel.grid(row=0, column=0, padx=(14, 8))
+        cel.grid_propagate(False)
+        cel.pack_propagate(False)
+        self._ic = ctk.CTkLabel(cel, text=icone, font=t.corpo(16),
                                 text_color=t.TEXTO, fg_color="transparent")
-        self._ic.grid(row=0, column=0, padx=(14, 8))
+        self._ic.place(relx=0.5, rely=0.5, anchor="center")
+
         self._lb = ctk.CTkLabel(self, text=label, anchor="w", font=t.corpo(14),
                                 text_color=t.TEXTO, fg_color="transparent")
         self._lb.grid(row=0, column=1, sticky="w")
-        for w in (self, self._ic, self._lb):
+        for w in (self, cel, self._ic, self._lb):
             w.bind("<Button-1>", lambda _e: self.command())
             w.bind("<Enter>", self._enter)
             w.bind("<Leave>", self._leave)
