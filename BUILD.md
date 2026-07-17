@@ -26,10 +26,14 @@ O build é **onedir** de propósito. Em ambiente corporativo (GE/Zscaler/GlobalP
 
 São **duas coisas diferentes**:
 
-1. **Splash nativo do PyInstaller** (`pyi_splash`) — é o que existia no legado: aparece **no duplo-clique**, enquanto o Python e as bibliotecas carregam. Está configurado no `docmanager.spec` (objeto `Splash`, usando `assets/logo_final.png`) e é fechado por `pyi_splash.close()` em `ui/main_app.py` assim que o app fica pronto.
-2. **Splash do app** (`ui/splash.py`) — a janela com o logo que já existe, mostrada logo depois.
+1. **Splash nativo do PyInstaller** (`pyi_splash`) — é o que existia no legado: aparece **no duplo-clique**, enquanto o Python e as bibliotecas carregam. Configurado no `docmanager.spec` (objeto `Splash`) com **`assets/splash.png`**, e fechado por `pyi_splash.close()` em `ui/main_app.py` assim que o app fica pronto.
+2. **Splash do app** (`ui/splash.py`) — a janela com o logo, mostrada logo depois.
 
-No onedir **não há descompactação**, então a espera é curta — mas o splash nativo continua lá para o clique não parecer “sem resposta”. Para um splash mais bonito, troque `assets/logo_final.png` por um banner (ex.: 480×300 px).
+No onedir **não há descompactação**, então a espera é curta — mas o splash nativo continua lá para o clique não parecer “sem resposta”.
+
+**Para mudar a imagem de carregamento**: edite e rode `tools/gerar_splash.py` (usa as cores do tema do app e escreve `assets/splash.png`), depois rebuilde. Como o bootloader **não anima**, o “está carregando” é comunicado pelo texto + a barra parcialmente preenchida.
+
+> ⚠️ **Não aponte o `Splash` para `assets/logo_final.png`** — apesar do nome, é um **placeholder** herdado do legado (a imagem tem “DM placeholder” escrito). O logo real do projeto é o `assets/logo_definitivo.ico`, usado na janela/ícone.
 
 ---
 
