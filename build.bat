@@ -4,7 +4,10 @@ REM  DocManager Itaipu - GERADOR DO EXECUTAVEL (onedir)
 REM  Duplo-clique para gerar dist\DocManager\DocManager.exe
 REM
 REM  Rede corporativa (Zscaler): crie pip_corporativo.txt com os
-REM  seus argumentos de pip (--index-url/--trusted-host), igual ao run.bat.
+REM  seus argumentos de pip --index-url/--trusted-host, igual ao run.bat.
+REM
+REM  AO EDITAR: dentro de um bloco "if ( ... )" um parentese solto
+REM  num echo FECHA o bloco e quebra o script inteiro. Escape com ^) .
 REM ============================================================
 setlocal
 cd /d "%~dp0"
@@ -41,8 +44,8 @@ echo [3/3] Gerando o executavel (onedir)...
 pyinstaller docmanager.spec --noconfirm
 if errorlevel 1 (
     echo.
-    echo ERRO no PyInstaller. Se faltar algum modulo em tempo de execucao, veja o BUILD.md
-    echo (secao "hidden imports") e me avise o nome do modulo para acrescentar no .spec.
+    echo ERRO no PyInstaller. Se faltar algum modulo em tempo de execucao,
+    echo veja a secao "hidden imports" do BUILD.md e acrescente o modulo no .spec.
     pause
     exit /b 1
 )

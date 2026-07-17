@@ -33,20 +33,52 @@ No onedir **não há descompactação**, então a espera é curta — mas o spla
 
 ---
 
-## Passo a passo
+## Passo a passo (no computador da empresa)
 
-### 1. Gerar a pasta do app
+### 0. Pré-requisitos
 
-Duplo-clique em **`build.bat`** (ou rode no venv). Ele instala o PyInstaller, limpa builds antigos e gera:
+- **Python 3.12+** instalado, marcando **“Add Python to PATH”** na instalação.
+- A pasta do projeto copiada para a máquina.
+
+Confira no PowerShell:
+```powershell
+py -0p        # deve listar ao menos uma versão 3.12+
+```
+
+### 1. Preparar o ambiente (só na 1ª vez)
+
+Duplo-clique em **`run.bat`**. Ele cria o ambiente virtual, instala tudo e abre o app — serve como teste de que está tudo certo antes de empacotar.
+
+> **Onde o venv é criado:** em `%LOCALAPPDATA%\DocManagerItaipu\venv`, **fora do OneDrive** de propósito. Um venv tem milhares de arquivos; dentro de uma pasta sincronizada, a instalação fica lenta e chega a travar.
+
+> **Rede corporativa (Zscaler):** se o `pip` falhar com erro de certificado/conexão, crie um arquivo `pip_corporativo.txt` na raiz do projeto com os seus argumentos numa única linha, ex.:
+> ```
+> --index-url https://SEU-MIRROR/simple --trusted-host SEU-MIRROR
+> ```
+
+### 2. Gerar a pasta do app
+
+Duplo-clique em **`build.bat`**. Ele instala o PyInstaller, limpa builds antigos e gera:
 
 ```
 dist\DocManager\DocManager.exe      ← o executável
 dist\DocManager\_internal\...       ← dependências (não mexer)
 ```
 
-> Rede corporativa: se o `pip` falhar, crie `pip_corporativo.txt` na raiz com os seus argumentos (`--index-url ... --trusted-host ...`), igual ao `run.bat`.
+<details>
+<summary>Prefere na mão? (equivalente ao build.bat)</summary>
 
-### 2. Colocar o `.env` (obrigatório)
+```powershell
+cd "CAMINHO\DO\PROJETO"
+$py = "$env:LOCALAPPDATA\DocManagerItaipu\venv\Scripts\python.exe"
+& $py -m pip install -r requirements.txt
+& $py -m pip install "pyinstaller>=6,<7"
+Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
+& $py -m PyInstaller docmanager.spec --noconfirm
+```
+</details>
+
+### 3. Colocar o `.env` (obrigatório)
 
 O `.env` **nunca** é embutido no executável (contém segredos). O app procura, nesta ordem:
 
@@ -55,11 +87,11 @@ O `.env` **nunca** é embutido no executável (contém segredos). O app procura,
 
 Use o `.env.example` como modelo (`VERSAO` e `SECRET_<NOME>`).
 
-### 3. Testar
+### 4. Testar
 
 Abra `dist\DocManager\DocManager.exe`. Confira: splash → app abre, versão do `.env` no título/rodapé/Home, e a Extração Aconex lista o seu usuário.
 
-### 4. (Opcional) Gerar o instalador
+### 5. (Opcional) Gerar o instalador
 
 Instale o [Inno Setup 6](https://jrsoftware.org/isdl.php), abra `installer\docmanager.iss` e clique em **Compile** (ou `iscc installer\docmanager.iss`).
 
@@ -67,9 +99,23 @@ Saída: `installer\Output\DocManager_Itaipu_Setup.exe` — instala em *Program F
 
 ---
 
-## Distribuir sem instalador
+## Compartilhar com outras pessoas (onedir)
 
-Zipe a pasta `dist\DocManager\` inteira e mande. A pessoa extrai **em uma pasta local** (não na rede/OneDrive — dá lentidão e trava de antivírus) e cria o `.env`.
+**O que enviar:** zipe a pasta **`dist\DocManager\` inteira** (o `.exe` sozinho não funciona — ele precisa do `_internal\` ao lado).
+
+```powershell
+Compress-Archive -Path "dist\DocManager\*" -DestinationPath "DocManager_v3.0.0.zip" -Force
+```
+
+**Instruções para quem recebe:**
+
+1. Extrair o zip numa **pasta local** — ex.: `C:\DocManager`. **Não** rodar de dentro do OneDrive/rede: fica lento e o antivírus costuma bloquear.
+2. Criar o **`.env`** em `Documentos\DocManager_Itaipu\` com o secret dela (modelo no `.env.example`).
+3. Abrir o **`DocManager.exe`**.
+
+> **Não inclua o seu `.env` no zip** — o secret é pessoal e a `.gitignore` já o mantém fora do repositório. Cada pessoa usa o dela (ou a opção *“Outro (inserir manualmente)”* na tela de extração).
+
+Se preferir entregar um instalador em vez do zip, veja o passo 5.
 
 ---
 
