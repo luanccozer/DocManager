@@ -19,7 +19,8 @@ from .. import theme as t
 NOVIDADES: list[str] = [
     "Tela inicial (Home) com os módulos e as novidades.",
     "Histórico com datas de previsão e reprogramação na revisão 0A.",
-    "Excel do Status no mesmo padrão executivo do Histórico.",
+    "Excel do Status modificado, e adicionado a verificação de atualização dos códigos dos documentos analisado.",
+    "Status dos documentos recebe a possibilidade de analisar modificações de documentação por período",
     "Console de log padronizado em todas as telas.",
 ]
 
@@ -36,7 +37,7 @@ MODULOS = [
      "Integração (documentos presos em 0AA)."),
     ("aconex", "📥", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex "
      "(requer o segredo no arquivo .env)."),
-    ("config", "🔧", "Configurações", "Regra da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
+    ("config", "⚙️", "Configurações", "Regra da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
 ]
 
 

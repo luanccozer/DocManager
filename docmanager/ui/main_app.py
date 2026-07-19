@@ -42,7 +42,7 @@ VIEWS = [
     # o Windows renderiza com outra fonte: ink menor e largura diferente (o ☁️
     # media 47 px contra 27 px dos demais) → o item fica destoando na sidebar.
     ViewSpec("aconex", "Extração Aconex", "📥", AconexView),
-    ViewSpec("config", "Configurações", "🔧", ConfigView),
+    ViewSpec("config", "Configurações", "⚙️", ConfigView),
 ]
 
 

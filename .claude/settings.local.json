@@ -4,7 +4,15 @@
       "Bash(C:/venvs/docmanager/Scripts/python)",
       "Bash(C:/venvs/docmanager/Scripts/python -m pytest tests/test_delays.py -q)",
       "Bash(C:/venvs/docmanager/Scripts/python -m docmanager.cli historico --aconex dados_reais/base_aconex.xlsx --out dados_reais/historico_real.xlsx)",
-      "Bash(C:/venvs/docmanager/Scripts/python -m pytest -q)"
+      "Bash(C:/venvs/docmanager/Scripts/python -m pytest -q)",
+      "Bash(/c/venvs/docmanager/Scripts/python \"C:/Users/LCCoz/AppData/Local/Temp/claude/c--Users-LCCoz-OneDrive-Documents-Acad-micos-PROJETOS-DocManager-Itaipu/76a0ae21-942a-4bdc-b20a-fdef14957af3/scratchpad/analise_profunda.py\")",
+      "Bash(/c/venvs/docmanager/Scripts/python \"C:/Users/LCCoz/AppData/Local/Temp/claude/c--Users-LCCoz-OneDrive-Documents-Acad-micos-PROJETOS-DocManager-Itaipu/76a0ae21-942a-4bdc-b20a-fdef14957af3/scratchpad/analise2.py\")",
+      "Bash(/c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/aconex_backend.py tests/test_aconex_backend.py)",
+      "Bash(/c/venvs/docmanager/Scripts/python.exe -m pytest tests/test_aconex_backend.py -q)",
+      "Bash(/c/venvs/docmanager/Scripts/python.exe -m pytest tests/test_reports.py -q)",
+      "Bash(/c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/core/reports/status_docs.py docmanager/services/excel_io.py docmanager/ui/views/status_view.py tests/test_reports.py)",
+      "Bash(/c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/services/excel_io.py tests/test_reports.py)",
+      "Bash(/c/venvs/docmanager-compat/Scripts/python.exe -m pytest tests/test_reports.py -q)"
     ]
   }
 }
