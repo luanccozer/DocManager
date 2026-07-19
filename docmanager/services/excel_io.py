@@ -233,6 +233,9 @@ _FONT_DADO = Font(size=10, name="Segoe UI")
 # preencher a célula, mantendo a zebra). O 'não confere' NÃO recebe cor — só um
 # comentário na célula (decisão do usuário 2026-07-15).
 _FONT_COD_ALTERADO = Font(color="0070C0", size=10, name="Segoe UI")
+# Delta: documento presente em mais de um grupo de classificação → linha em
+# vermelho (decisão do usuário 2026-07-19).
+_FONT_DADO_REPETIDO = Font(color="C00000", size=10, name="Segoe UI")
 _BORDA_FINA = Side(style="thin", color="D5DBDB")
 _BORDER = Border(left=_BORDA_FINA, right=_BORDA_FINA, top=_BORDA_FINA, bottom=_BORDA_FINA)
 _COLS_NOVAS_SET = set(_COLUNAS_NOVAS)
@@ -327,6 +330,7 @@ def exportar_delta_arvore(arvore, caminho_saida, *, agrupador="Grupo", visao="Ef
     """
     import openpyxl
     from datetime import datetime as _dt
+    from openpyxl.comments import Comment
 
     aprovados = {"Aprovado", "Aprovado com Comentários", "Para Assinatura"}
     wb = openpyxl.Workbook()
@@ -346,6 +350,10 @@ def exportar_delta_arvore(arvore, caminho_saida, *, agrupador="Grupo", visao="Ef
         cell.font = _FONT_HEADER
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.border = _BORDER
+    # Legenda do destaque no cabeçalho da coluna Documento (tooltip no Excel).
+    ws.cell(1, headers.index("Documento") + 1).comment = Comment(
+        "Texto em VERMELHO = documento presente em mais de um grupo de "
+        "classificação (aparece uma vez em cada grupo).", "DocManager")
 
     def _data_excel(s):
         if s and s != "-":
@@ -377,9 +385,10 @@ def exportar_delta_arvore(arvore, caminho_saida, *, agrupador="Grupo", visao="Ef
                     if linha[9] != "-":
                         ws.cell(row=row_idx, column=10).number_format = "dd/mm/yyyy"
                 banda = _FILL_BANDA if row_idx % 2 == 0 else None
+                fonte = _FONT_DADO_REPETIDO if d.get("repetido_grupos") else _FONT_DADO
                 for cell in ws[row_idx]:
                     cell.border = _BORDER
-                    cell.font = _FONT_DADO
+                    cell.font = fonte
                     cell.alignment = Alignment(vertical="center", wrap_text=True)
                     if banda is not None:
                         cell.fill = banda

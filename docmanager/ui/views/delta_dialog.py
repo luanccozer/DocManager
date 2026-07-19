@@ -95,6 +95,8 @@ class DeltaDialog(ctk.CTkToplevel):
         self.lbl_status = ctk.CTkLabel(footer, text="Informe o período e clique em Verificar Mudanças.",
                                        text_color=t.TEXTO_FRACO, font=t.corpo(12))
         self.lbl_status.pack(side="left")
+        ctk.CTkLabel(footer, text="●  em vermelho: documento presente em mais de um grupo",
+                     text_color="#C00000", font=t.corpo(11)).pack(side="left", padx=(16, 0))
         self.btn_exportar = ctk.CTkButton(footer, text="📊 Exportar Excel", command=self._exportar,
                                           fg_color=t.SIDEBAR_ATIVO, state="disabled")
         self.btn_exportar.pack(side="right")
@@ -107,6 +109,8 @@ class DeltaDialog(ctk.CTkToplevel):
         style.configure("Treeview.Heading", background=t.SIDEBAR, foreground=t.TEXTO,
                         font=("Segoe UI", 10, "bold"))
         style.map("Treeview", background=[("selected", t.ACENTO)])
+        # Documento presente em mais de um grupo de classificação: texto vermelho.
+        self.tree.tag_configure("repetido", foreground="#C00000")
 
     # ------------------------------------------------------------ ações
     def _executar(self):
@@ -139,7 +143,7 @@ class DeltaDialog(ctk.CTkToplevel):
             return
         self.dados_cache = arvore
         self._repovoar()
-        self.lbl_status.configure(text=f"Análise concluída. Base bruta: {total} alterações.")
+        self.lbl_status.configure(text=f"Análise concluída. {total} documento(s) com mudança no período.")
         self.btn_exportar.configure(state="normal" if total else "disabled")
 
     def _repovoar(self):
@@ -172,9 +176,10 @@ class DeltaDialog(ctk.CTkToplevel):
                     exibidos += 1
                     info_a = f"Rev {d.get('rev_antes', '-')} ({d.get('data_antes', '-')})" if d.get("rev_antes", "-") != "-" else "-"
                     info_d = f"Rev {d.get('rev_depois', '-')} ({d.get('data_depois', '-')})" if d.get("rev_depois", "-") != "-" else "-"
+                    tags = ("repetido",) if d.get("repetido_grupos") else ()
                     self.tree.insert(id_n, "end", text=f"📄 {d['doc']}",
                                      values=(info_a, d["raw_antes"], d["real_antes"], "➜",
-                                             info_d, d["raw_depois"], d["real_depois"]))
+                                             info_d, d["raw_depois"], d["real_depois"]), tags=tags)
         if ocultar:
             self.lbl_status.configure(text=f"Exibindo {exibidos} documentos (filtro ativo).")
 

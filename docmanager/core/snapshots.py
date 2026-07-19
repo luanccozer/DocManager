@@ -156,7 +156,42 @@ def calcular_mudancas_periodo(path_mapping, sheet_map, path_aconex, sheet_aconex
         }
         arvore.setdefault(valor_agr, {}).setdefault(nivel, []).append(item)
 
+    total = _deduplicar_e_marcar_repetidos(arvore)
     return True, arvore, total
+
+
+def _deduplicar_e_marcar_repetidos(arvore) -> int:
+    """Colapsa repetições do mesmo documento dentro do grupo e sinaliza os que
+    caem em grupos diferentes (regra do usuário 2026-07-19).
+
+    O mapeamento lista o mesmo documento em várias linhas (predecessores, planos
+    que aparecem em mais de um lugar): antes ele contava/aparecia N vezes no mesmo
+    nível do grupo, como se fossem N documentos. Aqui um documento repetido no
+    MESMO grupo vira 1 (mantém a 1ª ocorrência); um documento presente em MAIS DE
+    UM grupo recebe `repetido_grupos=True` para a UI/Excel destacarem em vermelho.
+    Retorna o total de documentos já deduplicados.
+    """
+    grupos_por_doc: dict[str, set] = {}
+    for grupo, niveis in arvore.items():
+        for docs in niveis.values():
+            for it in docs:
+                grupos_por_doc.setdefault(it["doc"].strip().upper(), set()).add(grupo)
+
+    total = 0
+    for niveis in arvore.values():
+        for nivel, docs in niveis.items():
+            vistos: set[str] = set()
+            unicos = []
+            for it in docs:
+                chave = it["doc"].strip().upper()
+                if chave in vistos:
+                    continue
+                vistos.add(chave)
+                it["repetido_grupos"] = len(grupos_por_doc.get(chave, ())) > 1
+                unicos.append(it)
+            niveis[nivel] = unicos
+            total += len(unicos)
+    return total
 
 
 def calcular_mudancas_base(df_base, data_ini_str, data_fim_str, *,
