@@ -870,6 +870,18 @@ Cinco ajustes de "comunicação" entre partes do código, sem regra de negócio 
 
 **Verificação**: ruff limpo, suíte verde nos 2 venvs, e um **SMOKE headless** que instancia a `MainApp` e todas as 7 views sem erro, medindo o alinhamento. (Limpei 2 imports não usados pré-existentes: `dataclasses.field` em `config.py` e `theme` em `reports_view.py`; e a função morta `_proxies` do `aconex_backend`, substituída pela cascata do item 3.)
 
+## 26. ✅ Histórico Consolidado: remoção manual de documentos por lista (2026-07-19, pedido do usuário)
+
+**Pedido**: alguns documentos entram no Histórico mas **não deveriam** (nunca serão aplicados, ou deveriam ter saído do Controle e não saíram). Até a limpeza na origem, o usuário quer uma **lista manual de remoção** colada na interface — códigos Itaipu copiados do Excel — com a MESMA quebra da Via Lista Rápida do Status (um por linha).
+
+**UI** (`ui/views/historico_view.py`): novo card **"Remover documentos (opcional)"** entre o card de Arquivos e as abas (Planilha/Dashboard), com uma `CTkTextbox` (`self.txt_excluir`). Fica no card compartilhado de propósito — vale para a **Planilha e o Dashboard** (ambos chamam `gerar_historico`). `_codigos_excluir()` = `[c.strip() for c in txt.get("1.0","end").splitlines() if c.strip()]` — idêntico ao `_pares_da_lista` do Status. Passado como `excluir_codigos=` nas duas ações.
+
+**Backend** (`services/historico_consolidado.py`): `gerar_historico(..., *, excluir_codigos=None, ...)`. `_chaves_exclusao` monta `{chave_codigo → texto original}` (tolerante a sujeira de Excel e célula multi-código, via `partes_codigo`+`chave_codigo`, §24.8b); `_chaves_da_linha` dá as chaves Itaipu **e** CMI de cada `ControleRow`. No loop do Controle, a linha cujas chaves cruzam a lista é **pulada** (não vira revisão nem sintética NÃO EMITIDO). Casa por Itaipu **ou** CMI (mais tolerante; o usuário pensa em Itaipu, mas colar CMI também funciona). Log: "Remoção manual: N documento(s) retirado(s) (…)" + **aviso dos códigos NÃO encontrados** no Controle (pega typo/cabeçalho colado por engano).
+
+**Escopo**: a remoção é **por linha do Controle** (semântica "como se o doc tivesse saído do Controle"), não pós-DataFrame — casa com o modelo mental do usuário. Assinatura só ganhou keyword-only com default `None` → todos os chamadores (CLI, testes) intactos.
+
+**Testes**: `test_historico_consolidado.py` +3 (remove por Itaipu; casa por CMI e tolera caixa/espaços/linha em branco; remover todos → histórico vazio sem quebrar). Verde nos 2 venvs (suíte completa intacta). Verificação end-to-end: texto colado com CRLF + cabeçalho + linha em branco + código inexistente → parse da view → só o alvo sai, cabeçalho/inexistente sinalizados no log.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

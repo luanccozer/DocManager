@@ -130,9 +130,40 @@ def _linha_nao_emitido(r, base_cmi_0a: str) -> dict:
     return d
 
 
+def _chaves_exclusao(codigos) -> dict[str, str]:
+    """{chave_codigo → texto original} da lista MANUAL de remoção (pedido do
+    usuário): documentos que o usuário cola na interface para NÃO entrarem no
+    histórico. Tolerante à sujeira de Excel e à célula multi-código, como o resto
+    do módulo (§24.8b)."""
+    mapa: dict[str, str] = {}
+    for bruto in codigos or ():
+        for parte in partes_codigo(bruto):
+            ch = chave_codigo(parte)
+            if ch:
+                mapa.setdefault(ch, str(parte).strip())
+    return mapa
+
+
+def _chaves_da_linha(r) -> set[str]:
+    """Chaves de código (Itaipu e CMI, célula multi-código) de uma linha do
+    Controle — para casar contra a lista manual de remoção."""
+    chaves: set[str] = set()
+    for cod_bruto in (r.cod_itaipu, r.cod_cmi):
+        for parte in partes_codigo(cod_bruto):
+            ch = chave_codigo(parte)
+            if ch:
+                chaves.add(ch)
+    return chaves
+
+
 def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None,
-                    policy: DelayPolicy | None = None, *, log_cb=None) -> pd.DataFrame:
-    """Histórico dirigido pelo Controle (obrigatório). Ver docstring do módulo."""
+                    policy: DelayPolicy | None = None, *,
+                    excluir_codigos=None, log_cb=None) -> pd.DataFrame:
+    """Histórico dirigido pelo Controle (obrigatório). Ver docstring do módulo.
+
+    `excluir_codigos`: lista MANUAL de códigos (Itaipu ou CMI) colada na interface
+    para remover documentos do histórico — casada de forma tolerante contra o
+    código Itaipu E o CMI de cada linha do Controle."""
     policy = policy or DelayPolicy()
 
     def log(msg):
@@ -151,11 +182,21 @@ def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None,
     wide_por_tracking = ({str(tid): g for tid, g in df_wide_all.groupby(COL_TRACKING, sort=False)}
                          if not df_wide_all.empty else {})
 
+    excluir = _chaves_exclusao(excluir_codigos)   # {chave → texto original}
+    excluir_set = set(excluir)
+    usados_excluir: set[str] = set()
+
     linhas: list[dict] = []
     vistos: set[str] = set()
-    n_ach = n_ne = 0
+    n_ach = n_ne = n_rem = 0
     emitido_sem_tracking: list = []
     for r in controle.rows:
+        if excluir_set:
+            atinge = _chaves_da_linha(r) & excluir_set
+            if atinge:
+                usados_excluir |= atinge
+                n_rem += 1
+                continue  # documento na lista MANUAL de remoção (pedido do usuário)
         tracking = _buscar_tracking(r, idx, idx_chave)
         revs = wide_por_tracking.get(tracking) if tracking else None
         if revs is not None and not revs.empty:
@@ -175,6 +216,16 @@ def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None,
             # (fantasma filtrado), não é "sem tracking" — não entra aqui.
             if r.esta_emitido and not tracking:
                 emitido_sem_tracking.append(r)
+
+    if excluir:
+        log(f"Remoção manual: {n_rem} documento(s) retirado(s) do histórico "
+            f"({len(excluir)} código(s) na lista).")
+        nao_achados = [txt for ch, txt in excluir.items() if ch not in usados_excluir]
+        if nao_achados:
+            amostra = ", ".join(nao_achados[:30])
+            resto = f" (+{len(nao_achados) - 30} outros)" if len(nao_achados) > 30 else ""
+            log(f"⚠️ {len(nao_achados)} código(s) da lista NÃO encontrado(s) no "
+                f"Controle: {amostra}{resto}")
 
     if not linhas:
         log("Controle → histórico: nenhum documento (Controle vazio na aba selecionada?).")

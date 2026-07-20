@@ -142,6 +142,42 @@ def test_so_documentos_do_controle_aparecem():
     assert set(wide["No. do Documento"]) == {"IT-1"}
 
 
+def _dois_docs():
+    """Base + Controle com dois documentos (IT-1/CMI-1 e IT-2/CMI-2)."""
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "FICA")
+        .evento("0A", 1, "Em Processo", "01/09/2024", current=True),
+        HistoricoBuilder("T2", "IT-2", "CMI-2", "SAI")
+        .evento("0A", 1, "Em Processo", "01/09/2024", current=True),
+    )
+    ctrl = _ctrl({"itaipu": "IT-1", "cmi": "CMI-1"}, {"itaipu": "IT-2", "cmi": "CMI-2"})
+    return b, ctrl
+
+
+def test_remocao_manual_retira_doc_por_itaipu():
+    """Lista manual de remoção (colada na interface) retira o doc do histórico."""
+    b, ctrl = _dois_docs()
+    wide = gerar_historico(b, ctrl, DelayPolicy(hoje=date(2024, 12, 31)),
+                           excluir_codigos=["IT-2"])
+    assert set(wide["No. do Documento"]) == {"IT-1"}
+
+
+def test_remocao_manual_por_cmi_e_tolerante_a_sujeira():
+    """Casa por CMI e tolera caixa/espaços/linhas em branco (como colado do Excel)."""
+    b, ctrl = _dois_docs()
+    wide = gerar_historico(b, ctrl, DelayPolicy(hoje=date(2024, 12, 31)),
+                           excluir_codigos=["  cmi-2 ", ""])
+    assert set(wide["No. do Documento"]) == {"IT-1"}
+
+
+def test_remocao_manual_de_todos_gera_historico_vazio():
+    """Remover todos os documentos não deve quebrar — histórico vazio."""
+    b, ctrl = _dois_docs()
+    wide = gerar_historico(b, ctrl, DelayPolicy(hoje=date(2024, 12, 31)),
+                           excluir_codigos=["IT-1", "IT-2"])
+    assert wide.empty
+
+
 def test_fase_de_projeto_e_tracking_no_historico():
     b = base(HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
              .evento("0A", 1, "Em Processo", "01/09/2024", current=True))
