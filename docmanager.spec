@@ -46,7 +46,7 @@ pyz = PYZ(a.pure)
 
 # Splash NATIVO: aparece já no duplo-clique, cobrindo a carga do Python/libs.
 # Fechado por `pyi_splash.close()` em ui/main_app.main() quando o app fica pronto.
-# A imagem é a de CARREGAMENTO (barra + "Carregando..."), gerada por
+# A imagem é a de CARREGAMENTO (logo + "Carregando...", SEM barra), gerada por
 # tools/gerar_splash.py com as cores do tema. NÃO usar assets/logo_final.png:
 # aquilo é um placeholder antigo ("DM placeholder"), herdado do legado.
 splash = Splash(
