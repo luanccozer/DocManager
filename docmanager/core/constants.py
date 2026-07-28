@@ -135,6 +135,10 @@ CTRL_COL_REPROGRAMACAO_HINT = "REPROGRAMA"
 # ---------------------------------------------------------------------------
 CONS_APROVADO = "APROVADO"
 CONS_APROVACAO_INTERMEDIARIA = "APROVAÇÃO INTERMEDIÁRIA"
+# Doc List Mapping (§27): o consolidado separa os três sabores de aprovação, em
+# vez de fundir tudo em APROVADO como faz o Mapa dos Planos.
+CONS_APROVADO_COM_COMENTARIOS = "APROVADO COM COMENTÁRIOS"
+CONS_PARA_ASSINATURA = "PARA ASSINATURA"
 CONS_NAO_APROVADO = "NÃO APROVADO"
 CONS_EM_PROCESSO = "EM PROCESSO"
 CONS_CANCELADO = "CANCELADO"

@@ -17,11 +17,12 @@ from .. import theme as t
 #  esconder a seção "O que há de novo". Nada mais precisa ser mexido.
 # ──────────────────────────────────────────────────────────────────────────
 NOVIDADES: list[str] = [
+    "Novo módulo Doc List Mapping: follow-up da lista de documentos com dois níveis e agrupamento por escopo.",
+    "Doc List Mapping traz a Análise por Período — quais documentos estão previstos para emitir nos próximos tempos.",
+    "Busca das datas previstas no Controle de Documentos corrigida e com diagnóstico no log.",
+    "Extração do Aconex retoma de onde parou quando a conexão cai.",
     "Tela inicial (Home) com os módulos e as novidades.",
     "Histórico com datas de previsão e reprogramação na revisão 0A.",
-    "Excel do Status modificado, e adicionado a verificação de atualização dos códigos dos documentos analisado.",
-    "Status dos documentos recebe a possibilidade de analisar modificações de documentação por período",
-    "Console de log padronizado em todas as telas.",
 ]
 
 # (key da view, ícone, título, descrição) de cada bloco. A `key` casa com as
@@ -29,6 +30,8 @@ NOVIDADES: list[str] = [
 MODULOS = [
     ("mapa", "🧭", "Mapa dos Planos", "Atualiza a planilha de mapeamento: status real, hierarquia, "
      "KPIs e atrasos. Traz também o Delta (Máquina do Tempo) por Grupo/Nível."),
+    ("doclist", "📑", "Doc List Mapping", "Follow-up da lista de documentos (dois níveis, agrupamento por "
+     "escopo). Traz o planejamento do Controle e a Análise por Período: o que está previsto para emitir."),
     ("status", "🔎", "Status Documentos", "Status real de uma lista, de um arquivo Excel ou de toda a base "
      "vigente. Gera Excel com gráfico e abre o Delta por período (por classificação)."),
     ("historico", "📊", "Histórico e Dashboard", "Planilha detalhada (1 linha por revisão + atrasos Itaipu/CMI) "

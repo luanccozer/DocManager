@@ -884,4 +884,95 @@ Cinco ajustes de "comunicação" entre partes do código, sem regra de negócio 
 
 ---
 
+## 24.12 ✅ Busca das datas previstas CORRIGIDA — cinco causas (2026-07-27, pedido do usuário)
+
+**Pedido**: "vários documentos com datas no Controle de Documentos não foram colocadas no mapeamento, sendo que com um simples Ctrl+C e no localizar do código Itaipu você encontra o documento e a data prevista". O §24.8c tinha ficado em aberto ("não resolveu 100% no corporativo"). Nesta rodada as causas foram encontradas — são **cinco**, independentes, e todas produziam **falha silenciosa** (sem data, o mapeamento sai idêntico ao de quem roda sem Controle):
+
+1. **Cabeçalho com quebra de linha dentro da célula.** `_norm` fazia só `.strip().replace("  ", " ")`, então `"DATA PREVISTA DE\nEMISSÃO ACONEX"` normalizava com o `\n` intacto e o `_col` NUNCA achava a coluna → a planilha inteira era lida sem nenhuma data. Agora `_norm` colapsa **todo** espaço em branco (`\s+` → `" "`), inclusive NBSP. *Esta é a candidata mais forte para o caso do corporativo* — cabeçalho quebrado em duas linhas é o padrão do Excel.
+2. **`pd.to_datetime` em coluna de formatos MISTOS.** Sem `format="mixed"`, o pandas infere UM formato pelo primeiro valor e devolve `NaT` para todo o resto. Como o Controle real mistura datas de verdade do Excel (que com `dtype=str` chegam em ISO, `2025-10-13 00:00:00`) com datas digitadas (`10/20/2025`), **uma célula ISO no topo zerava a coluna**. `_para_datetime` agora usa `format="mixed"` (com fallback), e `_parse_valor_data` resgata individualmente o que sobrou (serial do Excel inclusive).
+3. **Inferência de day/month-first decidida no PRIMEIRO valor.** Bastava uma célula ISO no topo de uma coluna M/D/AAAA para a coluna inteira ser lida ao contrário. Agora `_infer_dayfirst` **vota** na coluna toda e datas ISO não votam (não são ambíguas).
+4. **Linha SEM data sombreando a linha COM data.** `resolver_para_codigos` devolvia imediatamente a linha casada pelo código Itaipu/CMI preferido, **mesmo vazia** — escondendo a linha preenchida de outro código do mesmo documento. Correção do §24.8b tinha sido aplicada só ao caminho dos códigos históricos, não ao dos preferidos. Agora a cascata inteira usa "com data vence".
+5. **O Mapa nunca chegava a procurar o não emitido.** `mapping_update` tinha `if controle is not None and not df_tracking.empty:` — ou seja, o documento **ausente do Aconex**, que é exatamente o que mais precisa da data planejada, era pulado. Portão removido.
+
+**Cascata de busca unificada** (`ControleDocs.resolver`, novo): chave exata → **chave frouxa** (`chave_frouxa`, só alfanuméricos: `#ST00=M00MYA10&EAB010` casa com `ST00-M00MYA10 EAB010`) → **contém** (`buscar_contendo`, o Ctrl+F na mão). Em todos os níveis, linha com data vence. `MatchControle` carrega a proveniência (`exato`/`frouxo`/`contido`) para o log. `MIN_LEN_FALLBACK=8` mantém códigos curtos fora dos fallbacks.
+
+**Sanidade das datas**: janela 1990–2100 (`_data_plausivel`). O pandas aceita `'1234'` como ano 1234 e `'2'` como dia do mês corrente — um código ou quantidade esquecido na coluna viraria "data prevista".
+
+**Fim da falha silenciosa** (`DiagnosticoControle` em `mapping_update`): o log passa a dizer quantos documentos casaram e **por qual via**, quantas previstas/reprogramações foram escritas, e **nomeia** os que ficaram sem correspondência (amostra de 15) sugerindo conferir a aba selecionada. `ler_controle` também avisa quando nenhuma linha do Controle tem data e lista os cabeçalhos lidos quando não acha a coluna de data.
+
+**Testes**: `tests/test_controle_docs.py` (16) travam as cinco causas + a cascata. Verde nos 2 venvs.
+
+---
+
+## 24.13 ✅ Regras de data UNIFICADAS — o Mapa adotou as do Doc List (2026-07-28, decisão do usuário)
+
+**Decisão**: *"Vamos tornar as duas regras do Doc List Mapping como regras para o mapeamento de planos também. A lógica dele é melhor."*
+
+| | Mapa (antes) | **Agora, nos dois** |
+|---|---|---|
+| `DATA PREVISTA` | só escrevia se a célula estivesse vazia | vence a **data mais recente** entre planilha e Controle |
+| `DATA REPROGRAMADA` | **sobrescrevia sempre** | só preenche o **vazio** — input manual manda |
+| `data_ref` (base do atraso) | vinha só do Controle | `REPROGRAMAÇÃO > PREVISTA` sobre os valores **FINAIS** das células |
+
+O que as regras antigas custavam: uma data replanejada no Controle **nunca chegava** ao mapeamento (a célula preenchida era intocável), e uma reprogramação **digitada à mão** era apagada a cada rodada. A terceira linha da tabela é consequência das outras duas — se a planilha pode ter a data mais recente, o atraso tem de ser calculado sobre o que o leitor vê na planilha, não sobre o que estava no Controle.
+
+**Regra em UM lugar só** (`core/planejamento.py::reconciliar_datas`, função pura): `core/mapping.py::resolver_datas_controle` e `core/doclist.py::resolver_datas_doclist` agora só adaptam entrada/saída — a decisão é a mesma. Antes da extração havia duas implementações equivalentes, que iam divergir na primeira manutenção; `test_mapa_e_doclist_concordam_nas_datas` guarda a equivalência mesmo assim.
+
+**Infra que faltava**: `MappingSheet` não sabia **ler** a `DATA REPROGRAMADA` (ela é endereçada por posição, §21.1) — ganhou `get_reprogramada_etapa1` e `get_data`, ambas sobre `celula_para_date` (`core/normalize.py`), que normaliza datetime nativo / texto / serial do Excel para `date`. Comparar "qual é mais recente" exige `date` dos dois lados; a leitura antiga devolvia string. `celula_para_date` é a implementação única, compartilhada com o Doc List.
+
+**Testes**: `tests/test_controle_docs.py` +8 (atualização pela mais recente, preservação da mais recente da planilha, reprogramada manual intocada, reprogramada vazia preenchida, `data_ref` sem match, equivalência Mapa↔Doc List e um end-to-end no mapeamento). 612 testes verdes nos 2 venvs.
+
+---
+
+## 27. ✅ Módulo Doc List Mapping (2026-07-27, spec do usuário)
+
+**Motivação**: a equipe gostou do follow-up semanal do Mapa dos Planos e passou a usar a planilha de mapeamento para acompanhar **outro tipo de documentação**, forçando regras que não se aplicam ("gambiarra"). O módulo formaliza aquela adaptação.
+
+### 27.1 Layout e regras
+
+Cabeçalho (21 colunas, `core/doclist.py::COLUNAS_DOCLIST`, âncora `N° ITAIPU`):
+`GRUPO · SISTEMA · FASE DE PROJETO · Nº CMI · N° ITAIPU · DESCRIÇÃO DO DOCUMENTO · DATA PREVISTA EMISSÃO · DATA REPROGRAMADA · DATA-ALVO EMISSÃO · EMITIDO / NÃO EMITIDO · DATA ÚLTIMA EMISSÃO · ÚLTIMA REV. EMITIDA · STATUS REAL · STATUS · RESPONSIBLE (COE/VENDOR) · NÍVEL · STATUS CONSOLIDADO · COM ITAIPU · PREDECESSOR · OBSERVAÇÕES · RESUMO QUANTIDADES`
+
+Diferenças em relação ao Mapa dos Planos:
+
+- **Dois níveis.** Nível 1 deixou de ser documento: é um **agrupamento**, um por escopo das Unidades Geradoras. Não é procurado no Aconex nem no Controle; recebe o bloco `NÃO EMITIDO`/`CMI` e o RESUMO QUANTIDADES.
+- **Uma coluna de hierarquia.** Com só dois níveis, `PLANO DE EXECUÇÃO` e `PREDECESSOR` davam sempre o mesmo valor — restou `PREDECESSOR`. Nível 1 → o próprio código (decisão do usuário; é o que faz o resumo fechar); nível 2 → o código do grupo acima. Nível fora de {1,2} é tratado como documento e avisado no log.
+- **Consolidado com três sabores de aprovação** (decisão do usuário): `Aprovado com Comentários` → `APROVADO COM COMENTÁRIOS`; `Para Assinatura` → `PARA ASSINATURA`; o resto segue `calcula_status_consolidado` do Mapa. O RESUMO QUANTIDADES ganhou as linhas correspondentes e **sempre fecha o total** (bucket inesperado cai em "Outros").
+- **Sem TAG ETAPA, KPIs e atrasos** — colunas que não existem neste layout são simplesmente ignoradas na escrita.
+
+### 27.2 Planejamento dirigido pelo Controle e a coluna DATA-ALVO
+
+| Coluna | Origem | Regra |
+|---|---|---|
+| `FASE DE PROJETO` | `FASE DE PROJETO` do Controle | escreve quando o Controle tem valor; senão preserva |
+| `DATA PREVISTA EMISSÃO` | `DATA PREVISTA DE EMISSÃO ACONEX` | divergência → vence a **data mais recente** |
+| `DATA REPROGRAMADA` | `REPROGRAMAÇÃO` do Controle **ou** input manual | **nunca sobrescreve** valor existente |
+| `DATA-ALVO EMISSÃO` | derivada | `REPROGRAMADA > PREVISTA`, sempre recalculada |
+
+As duas regras de data são as mesmas do Mapa dos Planos desde §24.13 (`core/planejamento.py`); nasceram aqui e foram adotadas lá.
+
+`DATA-ALVO EMISSÃO` ocupa o lugar da antiga coluna **`TROCAR`** (renomeada automaticamente na primeira atualização, junto com `RESPONSÁVEL`→`RESPONSIBLE (COE/VENDOR)` e `OBSERVAÇÃO`→`OBSERVAÇÕES`). É ela que prepara a leitura por período no dashboard: gravada como **data nativa** do Excel, não texto — assim como `DATA ÚLTIMA EMISSÃO` neste módulo (o Mapa escreve texto).
+
+**Análise por Período** (`core/doclist_periodo.py` + `ui/views/periodo_dialog.py`): janela sobre a DATA-ALVO com atalhos (vencidos, próximos 7/30/90 dias, restante do mês, mês que vem, este ano) ou intervalo manual; árvore por Mês/Grupo/Sistema/Fase; cada item traz a **origem** da data (Prevista ou Reprogramada) e os dias até o alvo. Agrupamentos (nível 1) e já emitidos ficam de fora por padrão. O Excel sai com quadro por mês, o detalhe e uma aba **"Sem Planejamento"** — os documentos sem nenhuma data, que a análise por período não enxerga.
+
+**Módulos**: `core/doclist.py`, `core/doclist_periodo.py`, `services/doclist_io.py` (inclui `criar_modelo` — planilha em branco com o cabeçalho oficial), `services/doclist_update.py`, `doclist_backend.py`, `ui/views/doclist_view.py`, `ui/views/periodo_dialog.py`. Detalhes de uso em `docs/doc_list_mapping.md`. Testes: `tests/test_doclist.py` (22).
+
+---
+
+## 28. ✅ Extração Aconex retomável (2026-07-27, pedido do usuário)
+
+**Pedido**: "quando ele perde conexão, dar um jeito dele continuar a extração de onde parou".
+
+**O bug por trás do pedido**: a extração não só perdia o tempo — ela **mentia**. Depois de 3 tentativas falhas numa página, o laço fazia `break`, logava "Fim da paginação ou erro" e **devolvia o DataFrame parcial como se estivesse completo**. Essa base truncada ia para o Excel e para todos os módulos a jusante.
+
+**Checkpoint** (`services/aconex_checkpoint.py`): cada página baixada é persistida em `Documents/DocManager_Itaipu/extracoes/<chave>.jsonl`, com o estado em `<chave>.meta.json`. A chave inclui projeto + campos + paginação — mudou a consulta, mudou o checkpoint (nunca se retoma extração com parâmetros diferentes). O commit de página grava as linhas, faz `fsync` e **só então** atualiza o meta (troca atômica via `os.replace`); o meta guarda o **offset em bytes** do último ponto íntegro, e a retomada **trunca** o `.jsonl` de volta a ele — uma página escrita pela metade nunca vira registro duplicado nem JSON quebrado. O `.jsonl` é aberto em modo **binário** de propósito: em modo texto o `tell()` é um cookie opaco, inútil como offset de `truncate`.
+
+**Resiliência da paginação** (`_baixar_pagina`): 5 tentativas com backoff progressivo (5/15/30/60 s); `401` renova o token **sem gastar tentativa** (expirar depois de meia hora de paginação é o esperado); falha de rede repetida **reconstrói a sessão inteira** — nova conexão pela cascata do §25 e novo token — e a sessão nova volta ao laço (uma sessão morta não se recupera sozinha); `400` continua sendo o fim normal.
+
+**Contrato honesto**: `extrair_base` passou a devolver `ResultadoExtracao(df, completa, paginas, registros, motivo, checkpoint, retomada)`. A view oferece salvar a base **parcial** (avisando que é parcial) e o CLI sai com **código 2** — base parcial não pode passar por completa num script. O checkpoint só é apagado (`limpar_checkpoint`) **depois** que o Excel está em disco: cancelar o diálogo de salvamento não joga a extração fora. `cancelado_cb` permite interromper preservando o progresso; `limpar_antigos` recolhe checkpoints esquecidos há mais de 30 dias.
+
+**Testes**: `tests/test_aconex_checkpoint.py` (13), com a sessão HTTP simulada — sem rede e sem segredo. Cobrem retomada exata (a página já baixada não é rebaixada), página escrita pela metade, meta corrompido, cancelamento e a regressão principal: falha de rede **não** devolve base truncada como completa.
+
+---
+
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

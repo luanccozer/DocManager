@@ -301,12 +301,118 @@ def montar_dataframe(registros: list[dict]) -> pd.DataFrame:
     return df
 
 
-def extrair_base(config: AconexConfig, *, log_cb=print) -> pd.DataFrame:
-    """Extrai o histórico completo do projeto e devolve o DataFrame canônico.
+PAGE_SIZE = 500          # o register só aceita 25/50/…/500 (KB §24)
+SORT_FIELD = "docno"
+SORT_DIRECTION = "ASC"
+TENTATIVAS_POR_PAGINA = 5
+ESPERAS_BACKOFF = (5, 15, 30, 60)   # segundos entre tentativas
 
-    Operação longa (paginação sobre todo o registro; ~30 min em produção).
+
+@dataclass
+class ResultadoExtracao:
+    """Desfecho de uma extração — inclusive quando ela NÃO terminou.
+
+    Antes `extrair_base` devolvia um DataFrame e pronto: uma queda de conexão no
+    meio da paginação produzia uma base truncada indistinguível de uma completa,
+    que ia direto para o Excel e para os demais módulos. Agora `completa` diz a
+    verdade e `checkpoint` aponta de onde a próxima tentativa continua.
+    """
+    df: pd.DataFrame
+    completa: bool
+    paginas: int = 0
+    registros: int = 0
+    motivo: str = ""          # por que parou, quando incompleta
+    checkpoint: str = ""      # arquivo de retomada (vazio = sem retomada)
+    retomada: bool = False    # esta execução continuou uma anterior
+
+    @property
+    def ok(self) -> bool:
+        return self.completa and not self.df.empty
+
+
+def _chave_checkpoint(config: AconexConfig) -> str:
+    from .services.aconex_checkpoint import chave_extracao
+    return chave_extracao(project_id=config.project_id, campos=config.campos,
+                          page_size=PAGE_SIZE, sort_field=SORT_FIELD,
+                          sort_direction=SORT_DIRECTION)
+
+
+def _baixar_pagina(session, config, base_url, headers, page, log_cb):
+    """Baixa UMA página com retentativas e backoff progressivo.
+
+    Devolve `(docs, fim_da_paginacao, erro, session)` — a sessão volta junto
+    porque uma reconexão a SUBSTITUI, e o laço de paginação precisa seguir com a
+    nova (a antiga está morta). Renovar o token (401) não gasta tentativa:
+    expirar depois de meia hora de paginação é o esperado, não uma falha.
     """
     import time
+
+    params = {
+        "search_query": "", "return_fields": config.campos, "search_type": "PAGED",
+        "page_size": PAGE_SIZE, "page_number": page, "show_document_history": "true",
+        "sort_field": SORT_FIELD, "sort_direction": SORT_DIRECTION,
+    }
+    ultimo_erro = ""
+    renovacoes = 0
+    tentativa = 0
+    while tentativa < TENTATIVAS_POR_PAGINA:
+        try:
+            r = session.get(base_url, headers=headers, params=params, timeout=60)
+            if r.status_code == 200:
+                try:
+                    return _parse_pagina(r.content), False, "", session
+                except Exception as e:  # noqa: BLE001 — XML truncado: vale retentar
+                    ultimo_erro = f"XML inválido na página {page}: {e}"
+                    log_cb(f" [{ultimo_erro}] tentativa {tentativa + 1}/{TENTATIVAS_POR_PAGINA}...")
+            elif r.status_code == 400:
+                return [], True, "", session          # fim normal da paginação
+            elif r.status_code == 401 and renovacoes < 3:
+                renovacoes += 1
+                log_cb("Token expirado. Renovando...")
+                novo = _get_token(session, config, log_cb)
+                if novo:
+                    headers["Authorization"] = f"Bearer {novo}"
+                    continue                 # não consome tentativa
+                ultimo_erro = "não foi possível renovar o token"
+            else:
+                ultimo_erro = f"HTTP {r.status_code}"
+                log_cb(f" [Erro {r.status_code}] tentativa {tentativa + 1}/{TENTATIVAS_POR_PAGINA}...")
+        except Exception as e:  # noqa: BLE001 — rede/SSL/timeout
+            ultimo_erro = f"conexão: {e}"
+            log_cb(f" [Erro de conexão] {str(e)[:120]} — tentativa "
+                   f"{tentativa + 1}/{TENTATIVAS_POR_PAGINA}...")
+            if tentativa >= 1:
+                try:
+                    log_cb(" Reconectando (nova sessão e novo token)...")
+                    nova_sessao, novo_token = _estabelecer_sessao(config, log_cb)
+                    session.close()
+                    session = nova_sessao
+                    headers["Authorization"] = f"Bearer {novo_token}"
+                except Exception as e2:  # noqa: BLE001
+                    log_cb(f" Reconexão falhou: {str(e2)[:120]}")
+        tentativa += 1
+        if tentativa < TENTATIVAS_POR_PAGINA:
+            espera = ESPERAS_BACKOFF[min(tentativa - 1, len(ESPERAS_BACKOFF) - 1)]
+            log_cb(f" Aguardando {espera}s antes de tentar de novo...")
+            time.sleep(espera)
+    return None, False, ultimo_erro or "falha desconhecida", session
+
+
+def extrair_base(config: AconexConfig, *, log_cb=print, usar_checkpoint: bool = True,
+                 pasta_checkpoint=None, progress_cb=None,
+                 cancelado_cb=None) -> ResultadoExtracao:
+    """Extrai o histórico completo do projeto (paginação sobre todo o registro,
+    ~30 min em produção) e devolve um `ResultadoExtracao`.
+
+    Com `usar_checkpoint` (padrão), cada página baixada é persistida em disco:
+    se a conexão cair — ou o app for fechado — a próxima execução **retoma da
+    página seguinte** em vez de recomeçar do zero. O checkpoint só é apagado
+    depois que o chamador confirma o salvamento (`limpar_checkpoint`).
+
+    `cancelado_cb()` → True interrompe a extração no fim da página corrente,
+    preservando o checkpoint.
+    """
+    from .services.aconex_checkpoint import CheckpointExtracao
 
     try:
         import truststore  # injeta os certificados do Windows (inclui o do Zscaler
@@ -316,66 +422,88 @@ def extrair_base(config: AconexConfig, *, log_cb=print) -> pd.DataFrame:
         log_cb(f"(truststore indisponível: {e} — se o Zscaler/GlobalProtect inspecionar "
                f"o SSL, a conexão pode cair no modo sem verificação de certificado)")
 
+    ck = CheckpointExtracao(_chave_checkpoint(config), pasta_checkpoint) if usar_checkpoint else None
+    all_data: list[dict] = []
+    page = 1
+    retomada = False
+    if ck is not None:
+        all_data = ck.carregar()
+        if all_data:
+            retomada = True
+            page = ck.estado.proxima_pagina
+            log_cb(f"Retomando extração interrompida em {ck.estado.atualizado_em}: "
+                   f"{len(all_data)} registros já baixados — continuando da página {page}.")
+        else:
+            ck.limpar()   # meta órfão/corrompido não atrapalha a execução nova
+
     # Cascata de conexão robusta a VPN/Zscaler (item 3): tenta várias vias.
     session, token = _estabelecer_sessao(config, log_cb)
 
     base_url = f"{config.instance}/api/projects/{config.project_id}/register"
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/xml", "Accept-Encoding": "gzip, deflate"}
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/xml",
+               "Accept-Encoding": "gzip, deflate"}
 
-    all_data: list[dict] = []
-    page, total = 1, 0
+    total = len(all_data)
+    completa, motivo = False, ""
     log_cb(f"Iniciando extração do projeto {config.project_id}...")
-    while True:
-        params = {
-            "search_query": "", "return_fields": config.campos, "search_type": "PAGED",
-            "page_size": 500, "page_number": page, "show_document_history": "true",
-            "sort_field": "docno", "sort_direction": "ASC",
-        }
-        r, sucesso = None, False
-        for tentativa in range(3):
-            try:
-                r = session.get(base_url, headers=headers, params=params, timeout=60)
-                if r.status_code == 200:
-                    sucesso = True
-                    break
-                if r.status_code == 400:
-                    break
-                if r.status_code == 401:
-                    log_cb("Token expirado. Renovando...")
-                    token = _get_token(session, config, log_cb)
-                    if token:
-                        headers["Authorization"] = f"Bearer {token}"
-                    continue
-                log_cb(f" [Erro {r.status_code}] tentativa {tentativa + 1}...")
-                time.sleep(5)
-            except Exception as e:  # noqa: BLE001
-                log_cb(f" [Erro conexão] {e}")
-                time.sleep(5)
-        if not sucesso or (r is not None and r.status_code == 400):
-            log_cb(f"Fim da paginação ou erro na página {page}.")
-            break
-        try:
-            docs = _parse_pagina(r.content)
-        except Exception as e:  # noqa: BLE001
-            log_cb(f"Erro XML página {page}: {e}")
-            break
-        if not docs:
-            break
-        all_data.extend(docs)
-        total += len(docs)
-        log_cb(f"Página {page}: +{len(docs)} docs (total {total})")
-        if len(docs) < 500:
-            log_cb("Última página atingida.")
-            break
-        page += 1
+    try:
+        while True:
+            if cancelado_cb is not None and cancelado_cb():
+                motivo = "cancelado pelo usuário"
+                log_cb("Extração cancelada. O progresso ficou salvo para retomar depois.")
+                break
+            docs, fim, erro, session = _baixar_pagina(
+                session, config, base_url, headers, page, log_cb)
+            if erro:
+                motivo = f"falha na página {page} após {TENTATIVAS_POR_PAGINA} tentativas ({erro})"
+                log_cb(f"INTERROMPIDO: {motivo}.")
+                break
+            if fim or not docs:
+                completa = True
+                log_cb("Fim da paginação.")
+                break
+            all_data.extend(docs)
+            total += len(docs)
+            if ck is not None:
+                ck.registrar_pagina(page, docs)
+            log_cb(f"Página {page}: +{len(docs)} docs (total {total})")
+            if progress_cb:
+                progress_cb(min(0.05 + page * 0.02, 0.95))
+            if len(docs) < PAGE_SIZE:
+                completa = True
+                log_cb("Última página atingida.")
+                break
+            page += 1
+    finally:
+        if ck is not None:
+            ck.fechar()
 
     if not all_data:
         log_cb("Nenhum dado extraído.")
-        return pd.DataFrame()
+        return ResultadoExtracao(pd.DataFrame(), completa, page - 1, 0, motivo,
+                                 str(ck.path_meta) if (ck and not completa) else "", retomada)
 
     df = montar_dataframe(all_data)
-    log_cb(f"Extração concluída: {len(df)} linhas.")
-    return df
+    if completa:
+        log_cb(f"Extração concluída: {len(df)} linhas.")
+    else:
+        log_cb(f"Extração INCOMPLETA: {len(df)} linhas baixadas até a página {page - 1}. "
+               f"Rode de novo para continuar de onde parou.")
+    return ResultadoExtracao(df, completa, page - 1, total, motivo,
+                             str(ck.path_meta) if (ck and not completa) else "", retomada)
+
+
+def limpar_checkpoint(config: AconexConfig, pasta_checkpoint=None) -> None:
+    """Descarta o checkpoint da extração — chamar depois que a base foi SALVA."""
+    from .services.aconex_checkpoint import CheckpointExtracao
+    CheckpointExtracao(_chave_checkpoint(config), pasta_checkpoint).limpar()
+
+
+def checkpoint_pendente(config: AconexConfig, pasta_checkpoint=None):
+    """Estado do checkpoint desta consulta, ou None se não houver retomada."""
+    from .services.aconex_checkpoint import CheckpointExtracao
+    ck = CheckpointExtracao(_chave_checkpoint(config), pasta_checkpoint)
+    return ck.ler_meta() if ck.existe() else None
 
 
 def nome_arquivo_padrao() -> str:

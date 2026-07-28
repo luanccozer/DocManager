@@ -14,6 +14,7 @@ from openpyxl.utils import get_column_letter
 
 from ..core.constants import COL_REVISAO, COLS_STRIP_CARGA, MAPA_ANCORA_ITAIPU
 from ..core.hierarchy import LinhaPlano
+from ..core.normalize import celula_para_date
 from ..core.delays import (
     COL_ATRASO_CMI,
     COL_ATRASO_ITAIPU,
@@ -183,23 +184,47 @@ class MappingSheet:
             if cell.value is not None and str(cell.value).strip() == "":
                 cell.value = None
 
-    def set_reprogramada_etapa1(self, row: int, valor) -> bool:
-        """Escreve a REPROGRAMAÇÃO na coluna DATA REPROGRAMADA da ETAPA 1.
+    def get_data(self, chave: str, row: int):
+        """Valor da célula como `date` (ou None) — datetime nativo, texto ou
+        serial do Excel. Necessário para COMPARAR a data da planilha com a do
+        Controle (a comparação de 'mais recente' não funciona com string)."""
+        col = self._col(chave)
+        if not col:
+            return None
+        return celula_para_date(self.ws.cell(row=row, column=col).value)
+
+    def _col_reprogramada_etapa1(self):
+        """Coluna DATA REPROGRAMADA da ETAPA 1, ou None.
 
         §21.1: há 4 colunas 'DATA REPROGRAMADA' (não endereçáveis por nome). A da
         etapa 1 é, por posição, a imediatamente à direita de 'DATA PREVISTA
-        EMISSÃO ETAPA 1'. Só escreve se o cabeçalho vizinho de fato normalizar
-        para REPROGRAMADA — senão devolve False sem tocar em nada."""
+        EMISSÃO ETAPA 1' — e só vale se o cabeçalho vizinho de fato normalizar
+        para REPROGRAMADA."""
         from ..core.normalize import remover_acentos
         col_prev = self.headers.get(COLUNAS_MAPA["data_previsao_etapa_1"])
         if not col_prev:
-            return False
+            return None
         col_reprog = col_prev + 1
         hdr = self.ws.cell(row=self.row_header, column=col_reprog).value
         if hdr and "REPROGRAMADA" in remover_acentos(str(hdr)).upper():
-            self.ws.cell(row=row, column=col_reprog).value = valor
-            return True
-        return False
+            return col_reprog
+        return None
+
+    def get_reprogramada_etapa1(self, row: int):
+        """DATA REPROGRAMADA da etapa 1 como `date` (ou None)."""
+        col = self._col_reprogramada_etapa1()
+        if col is None:
+            return None
+        return celula_para_date(self.ws.cell(row=row, column=col).value)
+
+    def set_reprogramada_etapa1(self, row: int, valor) -> bool:
+        """Escreve a REPROGRAMAÇÃO na coluna DATA REPROGRAMADA da ETAPA 1.
+        Devolve False, sem tocar em nada, se a coluna não existir (§21.1)."""
+        col = self._col_reprogramada_etapa1()
+        if col is None:
+            return False
+        self.ws.cell(row=row, column=col).value = valor
+        return True
 
     @property
     def max_row(self) -> int:

@@ -16,6 +16,7 @@ from .app_context import AppContext
 from .components import NavItem
 from .views.aconex_view import AconexView
 from .views.config_view import ConfigView
+from .views.doclist_view import DocListView
 from .views.historico_view import HistoricoView
 from .views.home_view import HomeView
 from .views.mapa_view import MapaView
@@ -34,6 +35,7 @@ class ViewSpec:
 VIEWS = [
     ViewSpec("home", "Início", "🏠", HomeView),
     ViewSpec("mapa", "Mapa dos Planos", "🧭", MapaView),
+    ViewSpec("doclist", "Doc List Mapping", "📑", DocListView),
     ViewSpec("status", "Status Documentos", "🔎", StatusDocsView),
     ViewSpec("historico", "Histórico e Dashboard", "📊", HistoricoView),
     ViewSpec("relatorios", "Relatórios", "📋", ReportsView),

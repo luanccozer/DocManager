@@ -113,6 +113,15 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   opcionalmente, o **Controle de Documentos** (preenche datas previstas /
   reprogramação). O botão **⏳ Analisar Mudanças por Período (Delta)** abre a
   "Máquina do Tempo" comparando o status entre duas datas.
+- **📑 Doc List Mapping** — follow-up de uma lista de documentos, com dois níveis
+  (nível 1 = agrupamento por escopo, nível 2 = documentos) e uma única coluna
+  `PREDECESSOR`. Do **Controle de Documentos** vêm a `FASE DE PROJETO` e as datas
+  de planejamento, consolidadas na coluna `DATA-ALVO EMISSÃO` (reprogramada >
+  prevista) que o dashboard lê. O botão **🗓️ Analisar Período** lista o que está
+  previsto para emitir (atalhos: vencidos, próximos 7/30/90 dias, mês que vem) e
+  exporta em Excel, com uma aba dos documentos ainda sem planejamento. Há também
+  **📄 Criar planilha modelo**, que gera o arquivo com o cabeçalho oficial.
+  Detalhes em [`docs/doc_list_mapping.md`](docs/doc_list_mapping.md).
 - **🔎 Status Documentos** — status real de documentos. Escolha a origem na aba:
   *Via Arquivo Excel* (arquivo + colunas), *Via Lista Rápida* (colar códigos) ou
   *Todos Aconex* (todos os vigentes). Botões no rodapé: **Gerar Status Atual**
@@ -122,8 +131,11 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   (1 linha por revisão + colunas de atraso Itaipu/CMI). Na aba *Dashboard*, sobe
   o painel web executivo (evolução do atraso, First Time Right, gargalos...).
 - **📋 Relatórios** — Relatório de Avanço e Auditoria de Integração.
-- **☁️ Extração Aconex** — baixa a base completa do Aconex via API (precisa do
-  `.env`). Operação longa (~30 min em produção).
+- **📥 Extração Aconex** — baixa a base completa do Aconex via API (precisa do
+  `.env`). Operação longa (~30 min em produção). **Se a conexão cair, o progresso
+  não se perde**: cada página baixada fica guardada e a próxima execução retoma
+  de onde parou (o app avisa no log). Uma extração interrompida é sinalizada como
+  **parcial** — você escolhe se quer o Excel do que já veio.
 - **⚙️ Configurações** — liga/desliga a *Regra da Aprovação Intermediária* (VIP).
 
 ---
@@ -134,8 +146,9 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
 ui/            interface (CustomTkinter) — uma view por módulo
   ↓ importa só de
 *_backend.py   backend público de cada módulo (na raiz do pacote):
-               mapa_backend · status_backend · historico_backend ·
-               relatorios_backend · controle_backend · aconex_backend
+               mapa_backend · doclist_backend · status_backend ·
+               historico_backend · relatorios_backend · controle_backend ·
+               aconex_backend
   ↓ apoiado em
 common.py      funções compartilhadas (carga da base, índice de identidade,
                linha da verdade, motores de status, KPIs) — o "cérebro" comum

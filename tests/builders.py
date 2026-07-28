@@ -60,11 +60,15 @@ def base(*builders: HistoricoBuilder) -> pd.DataFrame:
     return df.astype(str).fillna("")
 
 
-def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True):
+def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True,
+                           incluir_fase=False, cabecalhos=None):
     """Escreve um Controle de Documentos sintético (cabeçalho na linha 4).
 
-    `linhas`: list[dict] com chaves itaipu, cmi, titulo, prevista, reprog.
+    `linhas`: list[dict] com chaves itaipu, cmi, titulo, prevista, reprog, fase.
     Códigos podem ser float (ex.: 12345.0) para exercitar o '.0' fantasma.
+    `cabecalhos`: sobrescreve os textos do cabeçalho (dict por chave: itaipu,
+    cmi, prevista, reprog, fase) — para exercitar cabeçalhos quebrados em duas
+    linhas, com espaços a mais, etc.
     """
     from openpyxl import Workbook
 
@@ -74,19 +78,23 @@ def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True):
         CTRL_COL_ITAIPU,
     )
 
+    cab = {"itaipu": CTRL_COL_ITAIPU, "cmi": CTRL_COL_CMI, "titulo": "DESCRIÇÃO",
+           "prevista": CTRL_COL_DATA_PREVISTA, "reprog": "REPROGRAMAÇÃO",
+           "fase": "FASE DE PROJETO"}
+    cab.update(cabecalhos or {})
+
     wb = Workbook()
     ws = wb.active
     ws.append(["Controle de Documentos"])
     ws.append([])
     ws.append([])
-    headers = [CTRL_COL_ITAIPU, CTRL_COL_CMI, "DESCRIÇÃO", CTRL_COL_DATA_PREVISTA]
+    chaves = ["itaipu", "cmi", "titulo", "prevista"]
     if incluir_reprogramacao:
-        headers.append("REPROGRAMAÇÃO")
-    ws.append(headers)
+        chaves.append("reprog")
+    if incluir_fase:
+        chaves.append("fase")
+    ws.append([cab[k] for k in chaves])
     for lin in linhas:
-        row = [lin.get("itaipu", ""), lin.get("cmi", ""), lin.get("titulo", ""), lin.get("prevista", "")]
-        if incluir_reprogramacao:
-            row.append(lin.get("reprog", ""))
-        ws.append(row)
+        ws.append([lin.get(k, "") for k in chaves])
     wb.save(path)
     return path

@@ -9,7 +9,7 @@ progresso/log/retry (a UI pluga os seus; a CLI usa print).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 import openpyxl
@@ -31,6 +31,46 @@ class ResultadoMapa:
     ok: bool
     mensagem: str
     linhas_processadas: int = 0
+
+
+@dataclass
+class DiagnosticoControle:
+    """Placar do casamento Mapa ↔ Controle de Documentos.
+
+    Existe porque a falha antiga era SILENCIOSA: sem data, o mapeamento saía
+    igualzinho a um mapeamento sem Controle. Agora o log diz quantos casaram,
+    por qual via, e nomeia os que ficaram de fora."""
+    previstas: int = 0
+    previstas_atualizadas: int = 0
+    reprogramadas: int = 0
+    por_via: dict = field(default_factory=dict)
+    sem_match: list = field(default_factory=list)
+
+    LIMITE_AMOSTRA = 15
+
+    def registrar(self, via: str, codigo: str) -> None:
+        if via:
+            self.por_via[via] = self.por_via.get(via, 0) + 1
+        else:
+            self.sem_match.append(codigo)
+
+    @property
+    def casados(self) -> int:
+        return sum(self.por_via.values())
+
+    def linhas_log(self) -> list[str]:
+        vias = ", ".join(f"{k}: {v}" for k, v in sorted(self.por_via.items())) or "nenhum"
+        msgs = [f"Controle ↔ Mapa: {self.casados} documentos casaram ({vias}); "
+                f"{self.previstas} datas previstas ({self.previstas_atualizadas} atualizadas "
+                f"por serem mais recentes) e {self.reprogramadas} reprogramações escritas."]
+        if self.sem_match:
+            amostra = ", ".join(self.sem_match[:self.LIMITE_AMOSTRA])
+            resto = "" if len(self.sem_match) <= self.LIMITE_AMOSTRA else \
+                f" (+{len(self.sem_match) - self.LIMITE_AMOSTRA} outros)"
+            msgs.append(f"{len(self.sem_match)} documentos SEM correspondência no Controle: "
+                        f"{amostra}{resto}")
+            msgs.append("Se algum deles existe no Controle, confira se a ABA selecionada é a certa.")
+        return msgs
 
 
 def _fmt_data(valor) -> str:
@@ -85,6 +125,7 @@ def atualizar_mapeamento(
 
     total = ms.max_row - ms.start_row + 1
     processadas = 0
+    diag = DiagnosticoControle()
     for i, row in enumerate(range(ms.start_row, ms.max_row + 1)):
         if progress_cb and total > 0 and i % 10 == 0:
             progress_cb(i / total)
@@ -97,18 +138,31 @@ def atualizar_mapeamento(
 
         # Datas do Controle (§13, §24): PREVISTA na célula (só se vazia),
         # REPROGRAMAÇÃO na coluna própria; atraso calculado por REPROGRAMAÇÃO>PREVISTA.
+        #
+        # A busca roda MESMO com o documento ausente do Aconex (§24.12): antes
+        # havia um `and not df_tracking.empty` aqui, então justamente o documento
+        # NÃO EMITIDO — o que mais precisa da data planejada — nunca a recebia,
+        # embora o usuário o encontrasse no Controle com um Ctrl+F.
         ms.matar_zumbi("data_previsao_etapa_1", row)
         data_ref = None
-        if controle is not None and not df_tracking.empty:
+        if controle is not None:
+            codigos = obter_codigos_historicos(df_tracking) if not df_tracking.empty else []
             datas = resolver_datas_controle(
-                ms.get_val("data_previsao_etapa_1", row) or None,
-                obter_codigos_historicos(df_tracking), c_itaipu, c_cmi, controle)
+                ms.get_data("data_previsao_etapa_1", row),
+                codigos, c_itaipu, c_cmi, controle,
+                valor_celula_reprogramada=ms.get_reprogramada_etapa1(row))
             if datas.prevista_para_celula is not None:
                 ms.set_val("data_previsao_etapa_1", row, datas.prevista_para_celula)
+                diag.previstas += 1
+                diag.previstas_atualizadas += int(datas.prevista_atualizada)
+            # Só escreve no VAZIO: a coluna aceita input manual (§24.13).
             if datas.reprogramada is not None:
-                ms.set_reprogramada_etapa1(row, datas.reprogramada)
+                if ms.set_reprogramada_etapa1(row, datas.reprogramada):
+                    diag.reprogramadas += 1
+            diag.registrar(datas.via, c_itaipu or c_cmi)
             data_ref = datas.data_ref
-        # Atraso usa a data_ref do Controle; sem Controle, cai na data já na célula.
+        # Atraso usa a data_ref (já com o que ficou nas células); sem Controle,
+        # cai na data que está na planilha.
         data_prevista = data_ref if data_ref is not None else (ms.get_val("data_previsao_etapa_1", row) or None)
 
         nivel = ms.get_val("nivel", row)
@@ -116,6 +170,10 @@ def atualizar_mapeamento(
         resultado = processar_documento(
             df_tracking, nivel=nivel, tag_etapa=tag_etapa, data_prevista=data_prevista, hoje=hoje)
         _escrever_resultado(ms, row, resultado)
+
+    if controle is not None:
+        for linha_log in diag.linhas_log():
+            log_cb(linha_log)
 
     # Hierarquia (posicional) — relê os códigos já atualizados.
     log_cb("Calculando predecessores e planos de execução...")

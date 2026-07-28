@@ -85,23 +85,60 @@ class AconexView(BaseView):
     def _tarefa(self, run: RunBar):
         from dotenv import load_dotenv
         load_dotenv()
-        from ...aconex_backend import extrair_base, nome_arquivo_padrao, salvar_excel
+        from ...aconex_backend import (
+            checkpoint_pendente,
+            extrair_base,
+            limpar_checkpoint,
+            nome_arquivo_padrao,
+            salvar_excel,
+        )
         try:
             config = self._montar_config()
         except (KeyError, ValueError) as e:
             self.log.log(f"ERRO: {e}")
             return
-        run.set_progress(0.1)
+
+        pendente = checkpoint_pendente(config)
+        if pendente is not None:
+            self.log.log(f"Há uma extração interrompida em {pendente.atualizado_em} com "
+                         f"{pendente.total} registros — será retomada da página "
+                         f"{pendente.proxima_pagina}.")
+        run.set_progress(0.05)
         self.log.log("Extração iniciada (pode levar vários minutos)...")
-        df = extrair_base(config, log_cb=self.log.log)
-        if df.empty:
+        r = extrair_base(config, log_cb=self.log.log, progress_cb=run.set_progress)
+
+        if r.df.empty:
             self.log.log("Nenhum dado retornado.")
+            if not r.completa:
+                self.after(0, lambda: messagebox.showwarning(
+                    "Extração Aconex", f"A extração não foi concluída ({r.motivo}).\n\n"
+                    "Rode de novo para continuar de onde parou."))
             return
+
+        if not r.completa:
+            self.log.log(f"ATENÇÃO: base PARCIAL ({r.motivo}).")
+            salvar = messagebox.askyesno(
+                "Extração incompleta",
+                f"A extração parou antes do fim ({r.motivo}).\n\n"
+                f"{len(r.df)} linhas foram baixadas e ficaram salvas para retomada — "
+                f"basta rodar de novo que ela continua da página {r.paginas + 1}.\n\n"
+                "Quer salvar agora um Excel com o que já veio (base PARCIAL)?")
+            if not salvar:
+                self.log.log("Excel parcial não gerado. O progresso segue guardado para retomar.")
+                return
+
         saida = pedir_salvar(self.ctx.config, "saida", nome_arquivo_padrao())
         if not saida:
-            self.log.log("Salvamento cancelado (dados perdidos da memória).")
+            self.log.log("Salvamento cancelado. O progresso da extração continua guardado.")
             return
-        salvar_excel(df, saida)
+        salvar_excel(r.df, saida)
         run.set_progress(1.0)
-        self.log.log(f"Concluído: {len(df)} linhas salvas.")
-        self.after(0, lambda: messagebox.showinfo("Extração Aconex", f"{len(df)} linhas extraídas."))
+        if r.completa:
+            # Só descarta o checkpoint depois que o Excel está em disco.
+            limpar_checkpoint(config)
+            self.log.log(f"Concluído: {len(r.df)} linhas salvas.")
+            self.after(0, lambda: messagebox.showinfo(
+                "Extração Aconex", f"{len(r.df)} linhas extraídas."))
+        else:
+            self.log.log(f"Excel PARCIAL salvo com {len(r.df)} linhas. "
+                         f"Rode a extração de novo para completar.")

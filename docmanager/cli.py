@@ -9,7 +9,13 @@ import sys
 
 import pandas as pd
 
-from .aconex_backend import AconexConfig, extrair_base, nome_arquivo_padrao, salvar_excel
+from .aconex_backend import (
+    AconexConfig,
+    extrair_base,
+    limpar_checkpoint,
+    nome_arquivo_padrao,
+    salvar_excel,
+)
 from .services.controle_docs import ler_controle
 from .services.excel_io import exportar_historico
 from .services.historico_consolidado import gerar_historico
@@ -31,13 +37,19 @@ def _cmd_extrair(args) -> int:
     except Exception:
         pass
     config = AconexConfig.para_usuario(args.usuario, secret=args.secret, proxy=args.proxy)
-    df = extrair_base(config, log_cb=print)
-    if df.empty:
+    r = extrair_base(config, log_cb=print, usar_checkpoint=not args.sem_retomada)
+    if r.df.empty:
         print("Nenhum dado extraído.")
         return 1
     out = args.out or nome_arquivo_padrao()
-    salvar_excel(df, out)
-    print(f"Base salva em: {out}  ({len(df)} linhas)")
+    salvar_excel(r.df, out)
+    print(f"Base salva em: {out}  ({len(r.df)} linhas)")
+    if not r.completa:
+        # Sai com erro: uma base parcial não pode passar por completa num script.
+        print(f"ATENÇÃO: extração INCOMPLETA ({r.motivo}). Rode de novo para "
+              f"continuar da página {r.paginas + 1}.")
+        return 2
+    limpar_checkpoint(config)
     return 0
 
 
@@ -59,6 +71,8 @@ def main(argv=None) -> int:
     e.add_argument("--secret", help="Client Secret (senão usa SECRET_<NOME> do .env).")
     e.add_argument("--proxy", help="Proxy http(s). Vazio ('') força conexão direta.")
     e.add_argument("--out", help="Excel de saída (padrão: Aconex_Historico_<timestamp>.xlsx).")
+    e.add_argument("--sem-retomada", action="store_true", dest="sem_retomada",
+                   help="Não usa checkpoint: sempre começa da página 1.")
     e.set_defaults(func=_cmd_extrair)
 
     m = sub.add_parser("mapa", help="Atualiza a planilha de Mapeamento de Planos.")

@@ -17,9 +17,10 @@ from .consolidation import (
     calcula_status_consolidado,
     calcular_emitido_nao_emitido,
 )
-from .identity import obter_codigos_historicos
 from .kpis import analisar_kpis_documento, calcular_atrasos_acumulados
+from .normalize import celula_para_date as _como_date
 from .normalize import remover_acentos
+from .planejamento import reconciliar_datas
 from .status_engine import calcular_status_real
 from .truth_line import resolver_linha_da_verdade
 
@@ -86,29 +87,63 @@ def resolver_data_prevista(valor_celula, codigos_historicos, cod_itaipu_atual,
 class DatasControle:
     """Resultado da resolução das datas do Controle para um documento do Mapa.
 
-    - `prevista_para_celula`: DATA PREVISTA a escrever na célula ETAPA 1 — só
-      quando a célula está vazia (nunca sobrescreve input existente).
-    - `reprogramada`: REPROGRAMAÇÃO a escrever na coluna DATA REPROGRAMADA.
-    - `data_ref`: REPROGRAMAÇÃO > PREVISTA — usada para o cálculo de atraso.
+    - `prevista_para_celula`: DATA PREVISTA a escrever na célula ETAPA 1 —
+      `None` significa "não mexer".
+    - `reprogramada`: REPROGRAMAÇÃO a escrever — `None` significa "não mexer".
+    - `data_ref`: REPROGRAMAÇÃO > PREVISTA **já considerando o que ficará nas
+      células**, não só o que veio do Controle. É a data que o atraso usa.
+    - `via`: como o documento foi localizado no Controle ('exato' | 'frouxo' |
+      'contido' | '' quando não achou). Só para diagnóstico/log.
+    - `prevista_atualizada`: a célula já tinha data e o Controle trouxe uma mais
+      recente (para o log distinguir preenchimento de atualização).
     """
     prevista_para_celula: date | None = None
     reprogramada: date | None = None
     data_ref: date | None = None
+    via: str = ""
+    prevista_atualizada: bool = False
+
+    @property
+    def achou(self) -> bool:
+        return bool(self.via)
 
 
 def resolver_datas_controle(valor_celula_prevista, codigos_historicos, cod_itaipu_atual,
-                            cod_cmi_atual, controle) -> DatasControle:
-    """Separa PREVISTA (célula, só se vazia) de REPROGRAMAÇÃO (coluna própria) e
-    entrega a `data_ref` para o atraso. Regra do usuário (§24)."""
-    if controle is None:
-        return DatasControle()
-    linha = controle.resolver_para_codigos(codigos_historicos, cod_itaipu_atual, cod_cmi_atual)
-    if linha is None:
-        return DatasControle()
-    celula_vazia = not (valor_celula_prevista and str(valor_celula_prevista).strip())
-    prevista = linha.data_prevista if (celula_vazia and linha.data_prevista is not None) else None
-    return DatasControle(prevista_para_celula=prevista, reprogramada=linha.data_reprogramada,
-                         data_ref=linha.data_ref)
+                            cod_cmi_atual, controle, *,
+                            valor_celula_reprogramada: date | None = None) -> DatasControle:
+    """Resolve PREVISTA e REPROGRAMAÇÃO da etapa 1 e entrega a `data_ref` do atraso.
+
+    Regras (unificadas com o Doc List Mapping a pedido do usuário, §24.13 —
+    "a lógica dele é melhor"):
+
+    - **DATA PREVISTA** — vence a data **mais recente** entre a planilha e o
+      Controle. Antes o Mapa só escrevia na célula vazia, então uma reprogramação
+      de calendário registrada no Controle nunca chegava ao mapeamento.
+    - **DATA REPROGRAMADA** — só preenche o **vazio**: a coluna aceita input
+      manual, e antes o Mapa a sobrescrevia a cada rodada, apagando o que a
+      equipe tinha digitado.
+    - **`data_ref`** — REPROGRAMAÇÃO > PREVISTA sobre os valores FINAIS (os que
+      ficam nas células). Antes vinha só do Controle, então o atraso ignorava uma
+      data mais recente que estivesse na planilha.
+
+    A busca no Controle é a cascata de `ControleDocs.resolver` (exato → frouxo →
+    'contém'), que inclui o equivalente ao Ctrl+F manual (§24.12).
+    """
+    prevista_atual = _como_date(valor_celula_prevista)
+    reprogramada_atual = _como_date(valor_celula_reprogramada)
+    linha = None
+    via = ""
+    if controle is not None:
+        m = controle.resolver(codigos_historicos, cod_itaipu_atual, cod_cmi_atual)
+        linha, via = m.linha, m.via
+
+    d = reconciliar_datas(
+        prevista_planilha=prevista_atual, reprogramada_planilha=reprogramada_atual,
+        prevista_controle=linha.data_prevista if linha else None,
+        reprogramada_controle=linha.data_reprogramada if linha else None)
+    return DatasControle(prevista_para_celula=d.prevista, reprogramada=d.reprogramada,
+                         data_ref=d.data_ref, via=via,
+                         prevista_atualizada=d.prevista_atualizada)
 
 
 def processar_documento(df_tracking: pd.DataFrame, *, nivel: str, tag_etapa: str = "",

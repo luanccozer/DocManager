@@ -71,3 +71,39 @@ def remover_acentos(texto) -> str:
         return ""
     nfkd = unicodedata.normalize("NFKD", str(texto))
     return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+# Serial de data do Excel: 20000 ≈ 1954, 60000 ≈ 2064. Fora dessa janela o
+# número não é data (é código, quantidade, etc.).
+_SERIAL_MIN, _SERIAL_MAX = 20000, 60000
+
+
+def celula_para_date(valor):
+    """Normaliza QUALQUER forma de data de célula para `datetime.date` (ou None):
+    `datetime`/`date` nativos, texto ('13/10/2025', ISO, …) e serial numérico.
+
+    Existe porque o openpyxl devolve a mesma coluna ora como `datetime`, ora
+    como texto, ora como número — e comparar "qual data é mais recente" exige
+    um `date` dos dois lados.
+    """
+    from datetime import date, datetime
+
+    import pandas as pd
+
+    if valor is None:
+        return None
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    if isinstance(valor, bool):
+        return None
+    if isinstance(valor, (int, float)):
+        if _SERIAL_MIN <= float(valor) <= _SERIAL_MAX:
+            return (pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(valor))).date()
+        return None
+    s = str(valor).strip()
+    if not s:
+        return None
+    x = pd.to_datetime(s, dayfirst=True, errors="coerce")
+    return None if pd.isna(x) else x.date()
