@@ -28,6 +28,7 @@ from .constants import (
     PARA_ANALISE_UPPER,
     STATUS_ANULACAO_UPPER,
     STATUS_APROVACAO_UPPER,
+    STATUS_CANCELADO,
     STATUS_EM_INTEGRACAO_UPPER,
     STATUS_INFORMATIVO_UPPER,
     STATUS_REPROVACAO_UPPER,
@@ -90,7 +91,11 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
     if status_atual_str in status_aprovacao:
         return linha_atual[COL_STATUS]
     if status_atual_str in status_anulacao:
-        return linha_atual[COL_STATUS]
+        # 'Anulado', 'VOID', 'Issued for Annulment' e 'Cancelado' são o MESMO
+        # desfecho com rótulos diferentes no Aconex: o status real sai sempre
+        # como 'Cancelado' (decisão do usuário, 2026-07-28). Antes devolvia o
+        # texto cru, e o dashboard precisava conhecer os quatro sinônimos.
+        return STATUS_CANCELADO
     if status_atual_str in status_reprovacao:
         # Revisão-letra (0A, 0B...) retorna reprovado direto. Revisão NUMÉRICA
         # seca ('0', '1') é o marco definitivo da família: uma reprovação nela é

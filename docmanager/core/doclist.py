@@ -4,18 +4,21 @@ O Doc List Mapping nasceu do Mapa dos Planos: a equipe gostou do follow-up
 semanal de uma documentação já definida e passou a usar a planilha de
 mapeamento para acompanhar OUTRO tipo de documentação, forçando regras que não
 se aplicavam. Este módulo formaliza aquela adaptação — mesma espinha dorsal
-(status real → consolidado → hierarquia → resumo), com quatro diferenças:
+(status real → consolidado → hierarquia → resumo), com três diferenças:
 
 1. **Dois níveis apenas.** Nível 1 deixou de ser documento: é um AGRUPAMENTO,
    um por escopo das Unidades Geradoras. Nível 2 são os documentos.
 2. **Uma coluna de hierarquia.** `PLANO DE EXECUÇÃO` e `PREDECESSOR` viravam
    sempre o mesmo valor com só dois níveis — restou `PREDECESSOR`.
-3. **Consolidado com três sabores de aprovação** (`APROVADO`, `APROVADO COM
-   COMENTÁRIOS`, `PARA ASSINATURA`), em vez do balde único do Mapa.
-4. **Planejamento dirigido pelo Controle de Documentos**: `DATA PREVISTA EMISSÃO`
+3. **Planejamento dirigido pelo Controle de Documentos**: `DATA PREVISTA EMISSÃO`
    e `DATA REPROGRAMADA` vêm de lá, e a coluna `DATA-ALVO EMISSÃO` (ex-`TROCAR`)
    consolida a data que vale para o dashboard — REPROGRAMADA quando houver,
    senão PREVISTA. `FASE DE PROJETO` é **input manual** (§27.3).
+
+O **STATUS CONSOLIDADO é o mesmo do Mapa** (`calcula_status_consolidado`): os
+três status de aprovação caem todos em `APROVADO`. Chegou a separá-los (§27),
+mas o usuário reverteu em 2026-07-28 — discretizar aqui só replicaria a coluna
+STATUS REAL, e quem quiser o detalhe no dashboard troca de coluna.
 
 Tudo aqui é função pura; o I/O da planilha vive em `services/doclist_io.py` e a
 orquestração em `services/doclist_update.py`.
@@ -25,15 +28,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from .consolidation import calcula_status_consolidado
 from .constants import (
     CONS_APROVADO,
-    CONS_APROVADO_COM_COMENTARIOS,
     CONS_CANCELADO,
     CONS_EM_PROCESSO,
     CONS_NAO_APROVADO,
     CONS_NAO_EMITIDO,
-    CONS_PARA_ASSINATURA,
 )
 from .planejamento import reconciliar_datas
 
@@ -87,25 +87,6 @@ COLUNAS_CALCULADAS = (
     "status_real", "status_emissao", "status_consolidado", "com_itaipu",
     "predecessor", "resumo_quantidades",
 )
-
-
-# ---------------------------------------------------------------------------
-# Status consolidado (três sabores de aprovação)
-# ---------------------------------------------------------------------------
-def calcula_status_consolidado_doclist(status_real, status_emissao, emitido_nao_emitido) -> str:
-    """Consolidado do Doc List: separa `Aprovado com Comentários` e `Para
-    Assinatura` do `APROVADO` seco (decisão do usuário, §27).
-
-    O restante — Não Aprovado, Em Processo, Cancelado, Não Emitido — segue
-    exatamente a regra do Mapa dos Planos (`calcula_status_consolidado`), para
-    que os dois módulos não divirjam onde não precisam.
-    """
-    sr = str(status_real).strip() if status_real else ""
-    if sr == "Aprovado com Comentários":
-        return CONS_APROVADO_COM_COMENTARIOS
-    if sr == "Para Assinatura":
-        return CONS_PARA_ASSINATURA
-    return calcula_status_consolidado(status_real, status_emissao, emitido_nao_emitido)
 
 
 # ---------------------------------------------------------------------------
@@ -181,8 +162,6 @@ def niveis_fora_do_padrao(linhas: list[LinhaDocList]) -> list[int]:
 # Rótulo exibido → status consolidado correspondente. A ordem é a do texto.
 _BUCKETS_RESUMO: tuple[tuple[str, str], ...] = (
     ("Aprovados", CONS_APROVADO),
-    ("Aprovados c/ Comentários", CONS_APROVADO_COM_COMENTARIOS),
-    ("Para Assinatura", CONS_PARA_ASSINATURA),
     ("Em Processo", CONS_EM_PROCESSO),
     ("Não Aprovados", CONS_NAO_APROVADO),
     ("Não Emitidos", CONS_NAO_EMITIDO),

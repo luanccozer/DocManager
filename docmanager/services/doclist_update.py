@@ -1,9 +1,10 @@
 """Orquestração da atualização do **Doc List Mapping** (KB §27).
 
 Mesma espinha do Mapa dos Planos (`mapping_update`), com as regras próprias do
-módulo: dois níveis, uma coluna de hierarquia, consolidado com três sabores de
-aprovação e as colunas de planejamento (PREVISTA / REPROGRAMADA / DATA-ALVO)
-dirigidas pelo Controle de Documentos. FASE DE PROJETO é input manual (§27.3).
+módulo: dois níveis, uma coluna de hierarquia e as colunas de planejamento
+(PREVISTA / REPROGRAMADA / DATA-ALVO) dirigidas pelo Controle de Documentos.
+FASE DE PROJETO é input manual (§27.3); o STATUS CONSOLIDADO é o mesmo do Mapa
+(§27.4).
 
 Ordem: carga da base → loop por linha (grupo ou documento) → hierarquia →
 resumo de quantidades → salvar.
@@ -17,7 +18,6 @@ import openpyxl
 
 from ..core.doclist import (
     NIVEL_GRUPO,
-    calcula_status_consolidado_doclist,
     calcular_predecessores,
     calcular_resumo_quantidades,
     niveis_fora_do_padrao,
@@ -129,10 +129,9 @@ def _escrever_documento(ds: DocListSheet, row: int, r) -> None:
     ds.set_val("status_real", row, r.status_real)
     ds.set_val("emitido_nao_emitido", row, r.emitido_nao_emitido)
     ds.set_val("com_itaipu", row, r.com_itaipu)
-    # Consolidado do Doc List: três sabores de aprovação (§27).
-    ds.set_val("status_consolidado", row,
-               calcula_status_consolidado_doclist(r.status_real, r.status_emissao,
-                                                  r.emitido_nao_emitido))
+    # Consolidado IGUAL ao do Mapa: os três status de aprovação caem em APROVADO
+    # (§27.4). `processar_documento` já o calculou assim.
+    ds.set_val("status_consolidado", row, r.status_consolidado)
 
 
 def atualizar_doclist(

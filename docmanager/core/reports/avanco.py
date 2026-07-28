@@ -15,8 +15,9 @@ from ...core.normalize import remover_acentos
 
 _COLS_OBRIGATORIAS = ["No. do Documento", "Revisão", "Status", "Tipo do Documento", "Current",
                       "Data de Alteração", "Título", "Status da Revisão", "Tracking ID", "Versão"]
-_STATUS_VALIDOS = ["Anulado", "Aprovado", "Aprovado com Comentários", "Cancelado", "Em Processo",
-                   "Informativo", "Não Aprovado", "Para Análise", "Para Assinatura", "Para Informação"]
+_STATUS_VALIDOS = ["Anulado", "Aprovado", "Aprovado com Comentários", "Cancelado", "VOID",
+                   "Em Processo", "Informativo", "Não Aprovado", "Para Análise",
+                   "Para Assinatura", "Para Informação"]
 _DOCS_LIXO = ["ESCRITÓRIO CMI", "FORNECEDOR ZEI-GE ITP", "NEE-CF-U1_U18A-A_D-EL06125-M3-TEL"]
 _TIPOS_EXCLUIR = ["MODELO", "DOCUMENTO DE REFERENCIA", "CONTRACTOR DOCUMENTS", "INSPECAO", "DISPOSICAO DE CAMPO"]
 

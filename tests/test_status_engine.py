@@ -14,6 +14,35 @@ def _real(builder, rev):
 
 
 # --------------------------------------------------------------------------
+# Anulação: sinônimos do Aconex → um rótulo só (KB §8.1, divergência §23)
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("status_bruto", [
+    "Cancelado", "Anulado", "VOID", "Void", "void", "Issued for Annulment",
+])
+def test_anulacao_vira_sempre_cancelado(status_bruto):
+    """Os quatro rótulos são o MESMO desfecho; o status real unifica em
+    'Cancelado' (decisão do usuário 2026-07-28). 'VOID' é novo na lista."""
+    b = HistoricoBuilder("T", "IT", "CMI").evento("0A", 1, status_bruto, "01/03/2024", current=True)
+    assert _real(b, "0A") == "Cancelado"
+
+
+def test_void_em_revisao_numerica_tambem_cancela():
+    b = HistoricoBuilder("T", "IT", "CMI").evento("0", 1, "VOID", "01/03/2024", current=True)
+    assert _real(b, "0") == "Cancelado"
+
+
+def test_anulacao_consolida_como_cancelado():
+    from docmanager.core.consolidation import calcula_status_consolidado
+    assert calcula_status_consolidado("Cancelado", "VOID", "EMITIDO") == "CANCELADO"
+
+
+def test_void_nao_e_confundido_com_outro_status():
+    """Só o VOID exato anula — 'Avoided'/'Voided' não entram na lista."""
+    b = HistoricoBuilder("T", "IT", "CMI").evento("0A", 1, "Avoided", "01/03/2024", current=True)
+    assert _real(b, "0A") != "Cancelado"
+
+
+# --------------------------------------------------------------------------
 # Cenários explícitos (KB §8 / §22.7)
 # --------------------------------------------------------------------------
 def test_aprovado_direto():

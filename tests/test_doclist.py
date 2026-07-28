@@ -6,10 +6,10 @@ import openpyxl
 import pytest
 from builders import HistoricoBuilder, base, escrever_controle_xlsx
 
+from docmanager.core.consolidation import calcula_status_consolidado
 from docmanager.core.doclist import (
     COLUNAS_DOCLIST,
     LinhaDocList,
-    calcula_status_consolidado_doclist,
     calcular_predecessores,
     calcular_resumo_quantidades,
     resolver_datas_doclist,
@@ -28,31 +28,22 @@ HOJE = date(2026, 7, 27)
 
 
 # ---------------------------------------------------------------------------
-# Status consolidado — três sabores de aprovação
+# Status consolidado — IGUAL ao do Mapa (§27.4)
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("status_real,status_emissao,esperado", [
     ("Aprovado", "Aprovado", "APROVADO"),
-    ("Aprovado com Comentários", "Aprovado com Comentários", "APROVADO COM COMENTÁRIOS"),
-    ("Para Assinatura", "Para Assinatura", "PARA ASSINATURA"),
+    # Os três status de aprovação caem no MESMO balde: discretizar aqui só
+    # replicaria a coluna STATUS REAL (decisão do usuário, 2026-07-28).
+    ("Aprovado com Comentários", "Aprovado com Comentários", "APROVADO"),
+    ("Para Assinatura", "Para Assinatura", "APROVADO"),
     ("Informativo", "Informativo", "APROVADO"),
     ("Não Aprovado", "Não Aprovado", "NÃO APROVADO"),
     ("Em Processo", "Em Processo", "EM PROCESSO"),
+    ("Cancelado", "VOID", "CANCELADO"),
     ("NÃO EMITIDO", "", "NÃO EMITIDO"),
 ])
-def test_consolidado_doclist_separa_aprovacoes(status_real, status_emissao, esperado):
-    assert calcula_status_consolidado_doclist(status_real, status_emissao, "EMITIDO") == esperado
-
-
-def test_consolidado_doclist_diverge_do_mapa_so_nas_aprovacoes():
-    """O Mapa funde tudo em APROVADO; o Doc List separa. O resto é idêntico."""
-    from docmanager.core.consolidation import calcula_status_consolidado
-
-    assert calcula_status_consolidado("Aprovado com Comentários", "x", "EMITIDO") == "APROVADO"
-    assert calcula_status_consolidado_doclist("Aprovado com Comentários", "x", "EMITIDO") \
-        == "APROVADO COM COMENTÁRIOS"
-    for sr, se in (("Não Aprovado", "Não Aprovado"), ("Em Processo", "Em Processo")):
-        assert calcula_status_consolidado_doclist(sr, se, "EMITIDO") \
-            == calcula_status_consolidado(sr, se, "EMITIDO")
+def test_consolidado_do_doclist(status_real, status_emissao, esperado):
+    assert calcula_status_consolidado(status_real, status_emissao, "EMITIDO") == esperado
 
 
 # ---------------------------------------------------------------------------
@@ -62,8 +53,8 @@ def _linhas_hierarquia():
     return [
         LinhaDocList(row=2, cod_itaipu="SDSC UG FABRIC", nivel="1"),
         LinhaDocList(row=3, cod_itaipu="DOC-A", nivel="2", status_consolidado="APROVADO"),
-        LinhaDocList(row=4, cod_itaipu="DOC-B", nivel="2",
-                     status_consolidado="APROVADO COM COMENTÁRIOS"),
+        # 'Aprovado com Comentários' consolida como APROVADO (§27.4).
+        LinhaDocList(row=4, cod_itaipu="DOC-B", nivel="2", status_consolidado="APROVADO"),
         LinhaDocList(row=5, cod_itaipu="SDSC UG MONTAG", nivel="1"),
         LinhaDocList(row=6, cod_itaipu="DOC-C", nivel="2", status_consolidado="NÃO EMITIDO"),
     ]
@@ -78,13 +69,24 @@ def test_predecessor_nivel1_aponta_para_si_e_nivel2_para_o_grupo():
     assert pred[6] == "SDSC UG MONTAG"     # troca de grupo
 
 
-def test_resumo_quantidades_separa_aprovados_com_comentarios():
+def test_resumo_quantidades_conta_por_grupo():
+    """Os três status de aprovação entram num balde só, 'Aprovados' (§27.4)."""
     linhas = _linhas_hierarquia()
     resumo_txt = calcular_resumo_quantidades(linhas, calcular_predecessores(linhas))
-    assert resumo_txt[2] == ("Total: 2\nAprovados: 1\nAprovados c/ Comentários: 1\n"
-                             "Para Assinatura: 0\nEm Processo: 0\nNão Aprovados: 0\n"
-                             "Não Emitidos: 0")
+    assert resumo_txt[2] == ("Total: 2\nAprovados: 2\nEm Processo: 0\n"
+                             "Não Aprovados: 0\nNão Emitidos: 0")
     assert "Não Emitidos: 1" in resumo_txt[5]
+
+
+def test_resumo_quantidades_mostra_cancelados_so_quando_existem():
+    linhas = [LinhaDocList(row=2, cod_itaipu="G", nivel="1"),
+              LinhaDocList(row=3, cod_itaipu="D1", nivel="2", status_consolidado="APROVADO")]
+    assert "Cancelados" not in calcular_resumo_quantidades(
+        linhas, calcular_predecessores(linhas))[2]
+    linhas.append(LinhaDocList(row=4, cod_itaipu="D2", nivel="2",
+                               status_consolidado="CANCELADO"))
+    texto = calcular_resumo_quantidades(linhas, calcular_predecessores(linhas))[2]
+    assert texto.startswith("Total: 2") and "Cancelados: 1" in texto
 
 
 def test_resumo_quantidades_fecha_o_total_com_bucket_desconhecido():
@@ -237,13 +239,14 @@ def test_ciclo_completo_doclist(tmp_path):
     assert val(2, "STATUS CONSOLIDADO") == "NÃO EMITIDO"
     assert val(2, "PREDECESSOR") == "SDSC UG FABRIC"
     assert val(2, "RESUMO QUANTIDADES").startswith("Total: 3")
-    assert "Aprovados: 1" in val(2, "RESUMO QUANTIDADES")
-    assert "Aprovados c/ Comentários: 1" in val(2, "RESUMO QUANTIDADES")
+    assert "Aprovados: 2" in val(2, "RESUMO QUANTIDADES")   # Aprovado + c/ Comentários
     assert "Não Emitidos: 1" in val(2, "RESUMO QUANTIDADES")
 
-    # Documentos: consolidado de 3 sabores + predecessor do grupo.
+    # Consolidado: um balde só para aprovação; o detalhe fica em STATUS REAL.
+    assert val(3, "STATUS REAL") == "Aprovado"
     assert val(3, "STATUS CONSOLIDADO") == "APROVADO"
-    assert val(4, "STATUS CONSOLIDADO") == "APROVADO COM COMENTÁRIOS"
+    assert val(4, "STATUS REAL") == "Aprovado com Comentários"
+    assert val(4, "STATUS CONSOLIDADO") == "APROVADO"
     assert val(5, "STATUS CONSOLIDADO") == "NÃO EMITIDO"
     assert val(5, "PREDECESSOR") == "SDSC UG FABRIC"
 

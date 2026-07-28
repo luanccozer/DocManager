@@ -93,22 +93,25 @@ permite o dashboard agrupar por período.
 
 | STATUS REAL | STATUS CONSOLIDADO |
 |---|---|
-| `Aprovado`, `Informativo`, `Para Aprovação` | `APROVADO` |
-| `Aprovado com Comentários` | `APROVADO COM COMENTÁRIOS` |
-| `Para Assinatura` | `PARA ASSINATURA` |
+| `Aprovado`, `Aprovado com Comentários`, `Para Assinatura`, `Informativo`, `Para Aprovação` | `APROVADO` |
 | `Não Aprovado` | `NÃO APROVADO` (ou `EM PROCESSO`, se já reemitiu) |
 | `Em Processo` | `EM PROCESSO` |
-| `Cancelado`, `Anulado` | `CANCELADO` |
+| `Cancelado` | `CANCELADO` |
 | documento sem histórico | `NÃO EMITIDO` |
 
-Diferente do Mapa dos Planos, que funde as três aprovações em `APROVADO`. O
-`RESUMO QUANTIDADES` acompanha a separação:
+É o **mesmo consolidado do Mapa dos Planos**: os três status de aprovação caem
+num balde só. O consolidado serve para **agregar** — quem precisa do detalhe usa
+a coluna `STATUS REAL`, que distingue `Aprovado` de `Aprovado com Comentários` e
+`Para Assinatura`. No dashboard, é só trocar de coluna.
+
+> **Anulação**: o Aconex grava `Anulado`, `VOID`, `Issued for Annulment` ou
+> `Cancelado` para a mesma coisa. O `STATUS REAL` unifica tudo em **`Cancelado`**.
+
+O `RESUMO QUANTIDADES` do grupo acompanha:
 
 ```
 Total: 45
-Aprovados: 20
-Aprovados c/ Comentários: 5
-Para Assinatura: 2
+Aprovados: 27
 Em Processo: 1
 Não Aprovados: 7
 Não Emitidos: 10

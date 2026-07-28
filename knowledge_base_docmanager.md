@@ -231,9 +231,11 @@ Retorna o conjunto de **todos** os códigos (Itaipu + CMI) que o documento já t
 APROVAÇÃO    = [APROVADO, APROVADO COM COMENTÁRIOS, PARA ASSINATURA]
 REPROVAÇÃO   = [NÃO APROVADO]
 INFORMATIVO  = [INFORMATIVO, PARA INFORMAÇÃO]
-ANULAÇÃO     = [CANCELADO, ANULADO, ISSUED FOR ANNULMENT]
+ANULAÇÃO     = [CANCELADO, ANULADO, ISSUED FOR ANNULMENT, VOID]  → sai como "Cancelado"
 FANTASMAS    = lista de integração (§5) + "PARA ANÁLISE" se data ≥ 19/08/2024
 ```
+
+**Anulação unificada (2026-07-28, pedido do usuário)**: `VOID` (rótulo do Aconex em inglês) entrou na lista, e o motor deixou de devolver o texto cru — os quatro rótulos são o mesmo desfecho e o **status real sai sempre como `Cancelado`** (`constants.STATUS_CANCELADO`). Antes, um documento anulado aparecia como "Anulado", "VOID" ou "Cancelado" conforme o que o Aconex tivesse gravado, e o dashboard precisava conhecer os sinônimos. `VOID` também entrou nos filtros de linha que comparam o status BRUTO (`HIST_STATUS_VALIDOS` do histórico e `_STATUS_VALIDOS` do Relatório de Avanço) — sem isso as linhas VOID sumiriam dos datasets. Divergência sancionada vs legado (§23, item 6).
 
 ### 8.2 Exceção de tipologia: Planilhas de Comissionamento
 
@@ -685,6 +687,7 @@ Refatoração backend/frontend iniciada em 2026-07. Código antigo preservado em
 3. **Regra morta removida** (§21.5): `'Análise 1ª Emissão'` no consolidado (provado inalcançável por diferencial cartesiano). Bucket `ERRO` mantido como sentinela.
 4. **Ordenação de revisões do histórico** = CANÔNICA do ciclo de vida (`normalize.normalizar_revisao`, ljust-`z`), família por família (§3): `0AA<0AB<0A<0B<0<1A<…`. ~~Antes unificada na sort key de 3 níveis~~ — isso era um **ERRO** (jogava as aprovações secas `0/1/2` para depois das letras de famílias posteriores, desalinhando família e cadeia de atraso CMI). `sort_key_revisao` fica só para reproduzir o legado no harness. Builder wide ÚNICO (`core.wide.build_wide_table`) alimenta Excel e dashboard; Excel renomeia `Data Envio`→`Data de Envio` (layout legado + colunas novas ao fim).
 5. **Controle de Documentos** lido com `dtype=str`/`dayfirst` (corrige códigos `'1234.0'` e datas invertidas); **REPROGRAMAÇÃO vence DATA PREVISTA**. Impacta a injeção da Data Prevista Etapa 1 do mapeamento (Fase 5).
+6. **Anulação unificada em `Cancelado`** (§8.1, 2026-07-28): `VOID` entrou na lista de anulação e o status real deixou de ecoar o rótulo cru do Aconex. O legado devolve "Anulado"/"VOID" conforme a base; o novo devolve sempre `Cancelado`. O harness de regressão só compara cenários cujo status bruto já é "Cancelado" — para os demais rótulos a divergência é intencional.
 
 ### Mapa de módulos novos (de-para)
 - `core/constants.py` ← listas de status espalhadas · `core/normalize.py` ← normalizar_revisao/sort keys/normalizar_codigo · `core/identity.py` ← localiza_doc_historico (AconexIndex O(1)) + índice reverso · `core/truth_line.py` ← 4 duplicações da linha da verdade · `core/status_engine.py` ← calcular_status_real · `core/status_model_bim.py` ← modelo BIM · `core/consolidation.py` ← consolidado/estrito/emitido/parado_com · `core/wide.py` + `core/delays.py` + `services/controle_docs.py` + `services/historico_consolidado.py` + `services/excel_io.py` ← histórico consolidado turbinado · `cli.py` ← headless.
@@ -947,7 +950,7 @@ Diferenças em relação ao Mapa dos Planos:
 
 - **Dois níveis.** Nível 1 deixou de ser documento: é um **agrupamento**, um por escopo das Unidades Geradoras. Não é procurado no Aconex nem no Controle; recebe o bloco `NÃO EMITIDO`/`CMI` e o RESUMO QUANTIDADES.
 - **Uma coluna de hierarquia.** Com só dois níveis, `PLANO DE EXECUÇÃO` e `PREDECESSOR` davam sempre o mesmo valor — restou `PREDECESSOR`. Nível 1 → o próprio código (decisão do usuário; é o que faz o resumo fechar); nível 2 → o código do grupo acima. Nível fora de {1,2} é tratado como documento e avisado no log.
-- **Consolidado com três sabores de aprovação** (decisão do usuário): `Aprovado com Comentários` → `APROVADO COM COMENTÁRIOS`; `Para Assinatura` → `PARA ASSINATURA`; o resto segue `calcula_status_consolidado` do Mapa. O RESUMO QUANTIDADES ganhou as linhas correspondentes e **sempre fecha o total** (bucket inesperado cai em "Outros").
+- ~~**Consolidado com três sabores de aprovação**~~ → **REVERTIDO em §27.4**: o consolidado é o mesmo do Mapa. O RESUMO QUANTIDADES **sempre fecha o total** (bucket inesperado cai em "Outros"; `Cancelados` só aparece quando existe).
 - **Sem TAG ETAPA, KPIs e atrasos** — colunas que não existem neste layout são simplesmente ignoradas na escrita.
 
 ### 27.2 Planejamento dirigido pelo Controle e a coluna DATA-ALVO
@@ -976,7 +979,15 @@ As duas regras de data são as mesmas do Mapa dos Planos desde §24.13 (`core/pl
 
 **(d) Gerador de planilha modelo REMOVIDO.** A planilha já existe e está pronta; `criar_modelo` e o botão saíram (código morto não fica).
 
-Testes: `tests/test_doclist.py` (22) e `tests/test_controle_docs.py` (25).
+Testes: `tests/test_doclist.py` e `tests/test_controle_docs.py`.
+
+### 27.4 ↩️ Consolidado do Doc List VOLTA ao balde único (2026-07-28, usuário mudou de ideia)
+
+O §27 tinha separado `APROVADO` / `APROVADO COM COMENTÁRIOS` / `PARA ASSINATURA` no STATUS CONSOLIDADO. **Revertido**: os três voltam a cair em `APROVADO`, exatamente como no Mapa dos Planos.
+
+**Razão do usuário**: discretizar o consolidado o transformaria numa *réplica* da coluna STATUS REAL, que já carrega o detalhe. "Se eu quiser ver no dashboard algo mais discretizado, só mudar de coluna." O consolidado existe para AGREGAR; quem quer granularidade usa STATUS REAL.
+
+`calcula_status_consolidado_doclist` foi **removida** (virou indireção vazia sobre `calcula_status_consolidado`) e `doclist_update` passou a usar o consolidado que `processar_documento` já calcula. As constantes `CONS_APROVADO_COM_COMENTARIOS`/`CONS_PARA_ASSINATURA` saíram. O RESUMO QUANTIDADES voltou a `Total / Aprovados / Em Processo / Não Aprovados / Não Emitidos` (+ `Cancelados` quando houver), como no exemplo original do usuário.
 
 ---
 

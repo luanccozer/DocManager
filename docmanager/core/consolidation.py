@@ -26,7 +26,9 @@ from .constants import (
 )
 
 _APROVADOS_CONS = ("Aprovado com Comentários", "Aprovado", "Para Assinatura", "Informativo", "Para Aprovação")
-_CANCELAMENTO_UPPER = ("ANULADO", "CANCELADO", "ISSUED FOR ANNULMENT")
+# O motor já entrega 'Cancelado' para toda anulação; os sinônimos ficam por
+# segurança, para o consolidado calculado a partir de um status lido de planilha.
+_CANCELAMENTO_UPPER = ("ANULADO", "CANCELADO", "ISSUED FOR ANNULMENT", "VOID")
 _PARA_ANALISE_UPPER = ("PARA ANÁLISE", "PARA ANALISE")
 
 

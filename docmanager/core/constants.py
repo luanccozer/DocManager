@@ -34,7 +34,13 @@ SLA_CMI_REEMISSAO = 15      # retrabalho/reemissão após veredito
 STATUS_APROVACAO_UPPER = ("APROVADO", "APROVADO COM COMENTÁRIOS", "PARA ASSINATURA")
 STATUS_REPROVACAO_UPPER = ("NÃO APROVADO",)
 STATUS_INFORMATIVO_UPPER = ("INFORMATIVO", "PARA INFORMAÇÃO")
-STATUS_ANULACAO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT")
+# Anulação: o Aconex usa vários rótulos para a MESMA coisa ('VOID' é o do
+# sistema em inglês). Todos são sinônimos e o motor os unifica em
+# `STATUS_CANCELADO` no status real (decisão do usuário, 2026-07-28).
+STATUS_ANULACAO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT", "VOID")
+# Rótulo CANÔNICO do status real de um documento anulado — um só, para o
+# dashboard não ter que conhecer os sinônimos do Aconex.
+STATUS_CANCELADO = "Cancelado"
 
 # Fantasmas de integração/internos — case ORIGINAL (legado: data_manager L23-26).
 # O consolidado legado faz `status in STATUS_EM_INTEGRACAO` sem normalizar.
@@ -59,13 +65,15 @@ KPI_STATUS_SUCESSO_UPPER = (
     "APTO PARA FIRMA",
 )
 KPI_STATUS_FALHA_UPPER = ("NÃO APROVADO",)
-KPI_STATUS_CANCELADO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT")
+KPI_STATUS_CANCELADO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT", "VOID")
 
 # ---------------------------------------------------------------------------
 # Dataset do histórico consolidado / dashboard (legado: data_manager L941-948)
 # ---------------------------------------------------------------------------
+# Filtro de linhas do dataset (compara o Status BRUTO do Aconex) — por isso
+# lista os sinônimos de anulação em vez do rótulo canônico.
 HIST_STATUS_VALIDOS = (
-    "Anulado", "Aprovado", "Aprovado com Comentários", "Cancelado",
+    "Anulado", "Aprovado", "Aprovado com Comentários", "Cancelado", "VOID",
     "Em Processo", "Informativo", "Não Aprovado", "Para Análise",
     "Para Aprovação", "Para Assinatura", "Para Informação",
 )
@@ -135,10 +143,6 @@ CTRL_COL_REPROGRAMACAO_HINT = "REPROGRAMA"
 # ---------------------------------------------------------------------------
 CONS_APROVADO = "APROVADO"
 CONS_APROVACAO_INTERMEDIARIA = "APROVAÇÃO INTERMEDIÁRIA"
-# Doc List Mapping (§27): o consolidado separa os três sabores de aprovação, em
-# vez de fundir tudo em APROVADO como faz o Mapa dos Planos.
-CONS_APROVADO_COM_COMENTARIOS = "APROVADO COM COMENTÁRIOS"
-CONS_PARA_ASSINATURA = "PARA ASSINATURA"
 CONS_NAO_APROVADO = "NÃO APROVADO"
 CONS_EM_PROCESSO = "EM PROCESSO"
 CONS_CANCELADO = "CANCELADO"

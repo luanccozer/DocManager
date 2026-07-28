@@ -23,7 +23,6 @@ from .core.doclist import (
     NIVEL_GRUPO,
     DatasDocList,
     LinhaDocList,
-    calcula_status_consolidado_doclist,
     calcular_predecessores,
     calcular_resumo_quantidades,
     resolver_datas_doclist,
@@ -54,7 +53,7 @@ from .services.doclist_update import ResultadoDocList, atualizar_doclist
 __all__ = [
     "atualizar_doclist", "ResultadoDocList",
     "COLUNAS_DOCLIST", "ANCORA_DOCLIST", "NIVEL_GRUPO", "NIVEL_DOCUMENTO",
-    "LinhaDocList", "DatasDocList", "calcula_status_consolidado_doclist",
+    "LinhaDocList", "DatasDocList",
     "calcular_predecessores", "calcular_resumo_quantidades", "resolver_datas_doclist",
     "DocListSheet", "ler_linhas_doclist", "exportar_analise_periodo",
     "analisar_periodo", "listar_sem_data", "janelas_padrao", "Janela", "ItemPeriodo",
