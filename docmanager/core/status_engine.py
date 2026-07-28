@@ -5,10 +5,14 @@ histórico completo do Tracking ID (já tratado de Terminated pelo chamador —
 ver truth_line) e a revisão vigente, e devolve o status que o documento
 realmente tem, ignorando ruídos de integração.
 
-Única alteração vs legado: o literal '2024-08-19' vira `is_regime_novo`
-(ponto único da regra de corte, §21.3) — sem mudança de comportamento, pois o
-legado já comparava com `>=`. A exceção §8.2 (Para Aprovação em planilhas de
-comissionamento) permanece SEMPRE ativa, independente do toggle VIP.
+Alterações vs legado:
+  - o literal '2024-08-19' vira `is_regime_novo` (ponto único da regra de corte,
+    §21.3) — sem mudança de comportamento, pois o legado já comparava com `>=`;
+  - a lista NOMINAL de `core/excecoes.py` (§21.9) libera a reprovação em revisão
+    numérica para os documentos publicados com a revisão errada.
+
+A exceção §8.2 (Para Aprovação em planilhas de comissionamento) permanece
+SEMPRE ativa, independente do toggle VIP.
 """
 from __future__ import annotations
 
@@ -29,6 +33,7 @@ from .constants import (
     STATUS_REPROVACAO_UPPER,
     is_regime_novo,
 )
+from .excecoes import reprovacao_numerica_vale
 
 
 def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
@@ -87,7 +92,12 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
     if status_atual_str in status_anulacao:
         return linha_atual[COL_STATUS]
     if status_atual_str in status_reprovacao:
-        if not str(revisao_current).isdigit():  # A, B, C... retorna reprovado direto
+        # Revisão-letra (0A, 0B...) retorna reprovado direto. Revisão NUMÉRICA
+        # seca ('0', '1') é o marco definitivo da família: uma reprovação nela é
+        # contraditória e segue para a batalha, onde é tratada como ruído.
+        # A exceção nominal (§21.9) cobre o documento emitido direto em revisão
+        # numérica por engano de publicação — sem ela, ele viraria NÃO EMITIDO.
+        if not str(revisao_current).isdigit() or reprovacao_numerica_vale(df_tracking):
             return linha_atual[COL_STATUS]
     if status_atual_str in status_informativo:
         return linha_atual[COL_STATUS]

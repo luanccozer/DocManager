@@ -1,11 +1,9 @@
 """I/O da planilha **Doc List Mapping** (KB §27.1).
 
-Três responsabilidades:
+Duas responsabilidades:
   - `DocListSheet` — abre a planilha, localiza o cabeçalho e lê/escreve por
     chave lógica, tratando datas como DATA NATIVA do Excel (e não texto), que é
     o que o dashboard precisa para agrupar por período;
-  - `criar_modelo` — gera uma planilha em branco com o cabeçalho oficial, para
-    quem for começar do zero em vez de adaptar o mapeamento antigo;
   - `exportar_analise_periodo` — o Excel do relatório "próximos a emitir".
 """
 from __future__ import annotations
@@ -201,42 +199,6 @@ _FONT_TITULO = Font(size=13, bold=True, name="Segoe UI", color="2C3E50")
 _BORDA_FINA = Side(style="thin", color="D5DBDB")
 _BORDER = Border(left=_BORDA_FINA, right=_BORDA_FINA, top=_BORDA_FINA, bottom=_BORDA_FINA)
 
-_LARGURAS_DOCLIST = {
-    "GRUPO": 14, "SISTEMA": 18, "FASE DE PROJETO": 18, "Nº CMI": 26,
-    "N° ITAIPU": 28, "DESCRIÇÃO DO DOCUMENTO": 70, "DATA PREVISTA EMISSÃO": 16,
-    "DATA REPROGRAMADA": 16, "DATA-ALVO EMISSÃO": 16, "EMITIDO / NÃO EMITIDO": 16,
-    "DATA ÚLTIMA EMISSÃO": 16, "ÚLTIMA REV. EMITIDA": 13, "STATUS REAL": 22,
-    "STATUS": 22, "RESPONSIBLE (COE/VENDOR)": 18, "NÍVEL": 8,
-    "STATUS CONSOLIDADO": 22, "COM ITAIPU": 12, "PREDECESSOR": 26,
-    "OBSERVAÇÕES": 40, "RESUMO QUANTIDADES": 26,
-}
-
-
-def criar_modelo(caminho, *, sheet_name="Doc List Mapping") -> tuple[bool, str]:
-    """Gera uma planilha em branco com o cabeçalho oficial do Doc List Mapping."""
-    import openpyxl
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = sheet_name
-    titulos = list(COLUNAS_DOCLIST.values())
-    ws.append(titulos)
-    ws.row_dimensions[1].height = 34
-    for c, nome in enumerate(titulos, 1):
-        cell = ws.cell(1, c)
-        cell.fill = _FILL_HEADER
-        cell.font = _FONT_HEADER
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        cell.border = _BORDER
-        ws.column_dimensions[get_column_letter(c)].width = _LARGURAS_DOCLIST.get(nome, 18)
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(titulos))}1"
-    try:
-        wb.save(caminho)
-        return True, f"Modelo criado: {caminho}"
-    except PermissionError:
-        return False, "O arquivo parece estar aberto no Excel. Feche-o e tente novamente."
-    except Exception as e:  # noqa: BLE001
-        return False, f"Não foi possível criar o modelo: {e}"
 
 
 _COLS_RELATORIO = [

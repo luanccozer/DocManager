@@ -20,9 +20,11 @@ _STATUS_APROVADOS = ["Aprovado", "Aprovado com Comentários", "Para Assinatura"]
 
 class DeltaDialog(ctk.CTkToplevel):
     def __init__(self, parent, *, path_map, sheet_map, path_hist, sheet_hist,
-                 cols_config, estrito=False):
+                 cols_config, estrito=False, titulo=None):
         super().__init__(parent)
-        self.title("Análise de Mudanças por Período (Delta)")
+        # `titulo`: o diálogo serve ao Mapa dos Planos e ao Doc List Mapping —
+        # a planilha de origem muda, o motor é o mesmo.
+        self.title(titulo or "Análise de Mudanças por Período (Delta)")
         self.geometry("1180x620")
         self.configure(fg_color=t.FUNDO)
         self.path_map, self.sheet_map = path_map, sheet_map

@@ -21,7 +21,7 @@ from docmanager.core.doclist_periodo import (
     resumo,
 )
 from docmanager.services.controle_docs import ler_controle
-from docmanager.services.doclist_io import DocListSheet, criar_modelo, ler_linhas_doclist
+from docmanager.services.doclist_io import DocListSheet, ler_linhas_doclist
 from docmanager.services.doclist_update import atualizar_doclist
 
 HOJE = date(2026, 7, 27)
@@ -108,57 +108,54 @@ class _ControleFake:
         return MatchControle(self._linha, self._via)
 
 
-def _row_controle(prevista=None, reprog=None, fase=""):
+def _row_controle(prevista=None, reprog=None, fase="", titulo="t"):
     from docmanager.services.controle_docs import ControleRow
-    return ControleRow(cod_itaipu="IT", cod_cmi="CMI", titulo="t",
+    return ControleRow(cod_itaipu="IT", cod_cmi="CMI", titulo=titulo,
                        data_prevista=prevista, data_reprogramada=reprog, fase=fase)
+
+
+def _resolver(prevista_atual=None, reprogramada_atual=None, **kw_row):
+    return resolver_datas_doclist(
+        prevista_atual=prevista_atual, reprogramada_atual=reprogramada_atual,
+        codigos=[], cod_itaipu_atual="IT", cod_cmi_atual="",
+        controle=_ControleFake(_row_controle(**kw_row)))
 
 
 def test_prevista_vence_a_mais_recente():
     """Divergência entre planilha e Controle → a data MAIS RECENTE ganha."""
-    ctrl = _ControleFake(_row_controle(prevista=date(2026, 9, 1)))
-    d = resolver_datas_doclist(prevista_atual=date(2026, 3, 1), reprogramada_atual=None,
-                               fase_atual="", codigos=[], cod_itaipu_atual="IT",
-                               cod_cmi_atual="", controle=ctrl)
+    d = _resolver(prevista_atual=date(2026, 3, 1), prevista=date(2026, 9, 1))
     assert d.prevista == date(2026, 9, 1) and d.prevista_atualizada
     assert d.data_alvo == date(2026, 9, 1)
 
 
 def test_prevista_da_planilha_mais_recente_e_preservada():
-    ctrl = _ControleFake(_row_controle(prevista=date(2026, 1, 1)))
-    d = resolver_datas_doclist(prevista_atual=date(2026, 9, 1), reprogramada_atual=None,
-                               fase_atual="", codigos=[], cod_itaipu_atual="IT",
-                               cod_cmi_atual="", controle=ctrl)
+    d = _resolver(prevista_atual=date(2026, 9, 1), prevista=date(2026, 1, 1))
     assert d.prevista is None            # nada a escrever
     assert d.data_alvo == date(2026, 9, 1)
 
 
 def test_reprogramada_manual_nunca_e_sobrescrita():
-    ctrl = _ControleFake(_row_controle(prevista=date(2026, 1, 1), reprog=date(2026, 5, 5)))
-    d = resolver_datas_doclist(prevista_atual=None, reprogramada_atual=date(2026, 8, 8),
-                               fase_atual="", codigos=[], cod_itaipu_atual="IT",
-                               cod_cmi_atual="", controle=ctrl)
+    d = _resolver(prevista_atual=None, reprogramada_atual=date(2026, 8, 8),
+                  prevista=date(2026, 1, 1), reprog=date(2026, 5, 5))
     assert d.reprogramada is None                 # input manual manda
     assert d.data_alvo == date(2026, 8, 8)        # e é ela que vale
 
 
 def test_data_alvo_prefere_reprogramada():
-    ctrl = _ControleFake(_row_controle(prevista=date(2026, 1, 1), reprog=date(2026, 5, 5)))
-    d = resolver_datas_doclist(prevista_atual=None, reprogramada_atual=None, fase_atual="",
-                               codigos=[], cod_itaipu_atual="IT", cod_cmi_atual="", controle=ctrl)
+    d = _resolver(prevista=date(2026, 1, 1), reprog=date(2026, 5, 5))
     assert d.reprogramada == date(2026, 5, 5)
     assert d.data_alvo == date(2026, 5, 5)
 
 
-def test_fase_vem_do_controle_e_preserva_quando_controle_vazio():
-    d = resolver_datas_doclist(prevista_atual=None, reprogramada_atual=None, fase_atual="",
-                               codigos=[], cod_itaipu_atual="IT", cod_cmi_atual="",
-                               controle=_ControleFake(_row_controle(fase="FABRICAÇÃO")))
-    assert d.fase == "FABRICAÇÃO"
-    d2 = resolver_datas_doclist(prevista_atual=None, reprogramada_atual=None,
-                                fase_atual="MONTAGEM", codigos=[], cod_itaipu_atual="IT",
-                                cod_cmi_atual="", controle=_ControleFake(_row_controle(fase="")))
-    assert d2.fase is None
+def test_fase_do_controle_e_ignorada():
+    """§27.3: FASE DE PROJETO virou input manual — o Controle não a fornece mais."""
+    d = _resolver(fase="FABRICAÇÃO")
+    assert not hasattr(d, "fase")
+
+
+def test_titulo_do_controle_vem_junto_para_fallback():
+    d = _resolver(titulo="LISTA DE DOCUMENTOS")
+    assert d.titulo_controle == "LISTA DE DOCUMENTOS"
 
 
 # ---------------------------------------------------------------------------
@@ -184,14 +181,6 @@ def _escrever_doclist(path, linhas, *, titulo_alvo="DATA-ALVO EMISSÃO"):
             ws.cell(i, col["DATA REPROGRAMADA"], reprog)
     wb.save(path)
     return path
-
-
-def test_criar_modelo_gera_cabecalho_oficial(tmp_path):
-    destino = tmp_path / "modelo.xlsx"
-    ok, msg = criar_modelo(destino)
-    assert ok, msg
-    ws = openpyxl.load_workbook(destino).active
-    assert [c.value for c in ws[1]] == list(COLUNAS_DOCLIST.values())
 
 
 def test_cabecalho_legado_trocar_e_reconhecido_e_renomeado(tmp_path):
@@ -262,8 +251,11 @@ def test_ciclo_completo_doclist(tmp_path):
     assert val(3, "DATA ÚLTIMA EMISSÃO").date() == date(2026, 3, 20)
     assert val(3, "ÚLTIMA REV. EMITIDA") == "0A"
 
-    # Planejamento: fase, datas nativas e a data-alvo (reprogramada > prevista).
-    assert val(3, "FASE DE PROJETO") == "FABRICAÇÃO"
+    # FASE DE PROJETO é input manual (§27.3): o Controle tem 'FABRICAÇÃO', a
+    # planilha não — e continua não tendo.
+    assert val(3, "FASE DE PROJETO") is None
+
+    # Planejamento: datas nativas e a data-alvo (reprogramada > prevista).
     assert val(3, "DATA PREVISTA EMISSÃO").date() == date(2026, 2, 1)
     assert val(3, "DATA-ALVO EMISSÃO").date() == date(2026, 2, 1)
     assert val(4, "DATA REPROGRAMADA").date() == date(2026, 9, 15)
@@ -271,6 +263,40 @@ def test_ciclo_completo_doclist(tmp_path):
     # Documento fora do Aconex TAMBÉM recebe a data do Controle (§27/§24.12).
     assert val(5, "DATA PREVISTA EMISSÃO").date() == date(2026, 8, 5)
     assert val(5, "DATA-ALVO EMISSÃO").date() == date(2026, 8, 5)
+
+
+def test_descricao_segue_prioridade_aconex_controle_planilha(tmp_path):
+    """§27.3: prioridade Aconex > Controle > planilha. O título do Controle
+    SOBRESCREVE a descrição digitada à mão (que costuma ser genérica); só quem
+    está no Aconex mantém a descrição de lá."""
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "TITULO DO ACONEX")
+             .evento("0A", 1, "Em Processo", "01/03/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+
+    path_ctrl = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "#IT-1", "cmi": "CMI-1", "titulo": "TITULO DO CONTROLE", "prevista": "01-02-2026"},
+        {"itaipu": "#IT-2", "cmi": "CMI-2", "titulo": "DOC PREVISTO SEM EMISSAO", "prevista": "05-08-2026"},
+        {"itaipu": "#IT-3", "cmi": "CMI-3", "titulo": "TITULO DO CONTROLE", "prevista": "05-08-2026"},
+    ])
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx", [
+        ("UNIT", "SDSC", "", "GRUPO-1", "AGRUPAMENTO", "1", None, None),
+        ("UNIT", "SDSC", "CMI-1", "#IT-1", "", "2", None, None),   # no Aconex, sem descrição
+        ("UNIT", "SDSC", "CMI-2", "#IT-2", "", "2", None, None),   # fora do Aconex, sem descrição
+        ("UNIT", "SDSC", "CMI-3", "#IT-3", "DESCRICAO JA ESCRITA", "2", None, None),
+    ])
+    controle = ler_controle(path_ctrl, 0, log_cb=lambda _m: None)
+    logs = []
+    assert atualizar_doclist(path_base, path_dl, controle=controle, hoje=HOJE,
+                             log_cb=logs.append).ok
+
+    ws = openpyxl.load_workbook(path_dl).active
+    col = {str(c.value): c.column for c in ws[1]}
+    desc = lambda row: ws.cell(row, col["DESCRIÇÃO DO DOCUMENTO"]).value  # noqa: E731
+    assert desc(3) == "TITULO DO ACONEX"          # está no Aconex → Aconex manda
+    assert desc(4) == "DOC PREVISTO SEM EMISSAO"  # fora do Aconex, vazia → Controle
+    assert desc(5) == "TITULO DO CONTROLE"        # fora do Aconex → Controle SOBRESCREVE
+    assert any("2 descrições vindas do título do Controle" in m for m in logs)
 
 
 def test_analise_por_periodo(tmp_path):

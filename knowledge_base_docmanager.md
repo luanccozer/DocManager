@@ -609,6 +609,16 @@ PREDECESSOR/PLANO DE EXECUÇÃO dependem da **ordem física das linhas** (§11.1
 - `SaveRetryDialog`/`salvar_com_retry` recursivo indireto via callback — funcional, mas simplificável.
 - Larguras/formatações de Excel repetidas em 5+ lugares com dicionários quase iguais → extrair um `ExcelStyler`.
 
+### 21.9 ⏳ PENDENTE — exceções nominais por documento (`core/excecoes.py`, 2026-07-28)
+
+Lista de documentos com desvio no motor porque o **dado de origem está errado no Aconex**. É remendo nomeado, não regra de domínio: cada entrada tem data e motivo, e some quando a origem for corrigida.
+
+**Entrada atual — `#ITA0=C01CCA10&EDE020`** (`DOCS_REPROVACAO_EM_REVISAO_NUMERICA`). O documento foi emitido **direto na revisão `0`**, sem passar pelas revisões-letra, e voltou `Não Aprovado`. Pela regra normal (§8.4/§8.7), revisão numérica seca é o marco DEFINITIVO da família — reprovação nela é contraditória e o motor a trata como ruído; sem histórico fora da revisão vigente, o veredito cai em `NÃO EMITIDO` e o documento **some das análises**. A regra está certa para 99,9% dos casos e não deve mudar.
+
+Hipótese (decisão do usuário ao aceitar o remendo): erro de quem publicou — deveria ter sido `0A`, não `0`. Enquanto isso, o desvio em `status_engine` (etapa 3, retornos imediatos) libera a reprovação **apenas para este documento**, casando por qualquer código histórico (Itaipu ou CMI, §6). Efeito: `STATUS REAL = Não Aprovado`, `EMITIDO`, consolidado `NÃO APROVADO`.
+
+**A resolver**: confirmar com a Itaipu/CMI se a revisão pode ser corrigida na origem; corrigida lá, apagar a entrada de `core/excecoes.py` e os testes correspondentes. **Se um segundo documento aparecer com o mesmo sintoma, é a regra do motor que precisa ser rediscutida** — a lista não deve crescer (há teste travando o tamanho máximo). Testes: `tests/test_excecoes.py` (8).
+
 ---
 
 ## 22. Diretrizes para a Refatoração Backend/Frontend
@@ -944,18 +954,29 @@ Diferenças em relação ao Mapa dos Planos:
 
 | Coluna | Origem | Regra |
 |---|---|---|
-| `FASE DE PROJETO` | `FASE DE PROJETO` do Controle | escreve quando o Controle tem valor; senão preserva |
 | `DATA PREVISTA EMISSÃO` | `DATA PREVISTA DE EMISSÃO ACONEX` | divergência → vence a **data mais recente** |
 | `DATA REPROGRAMADA` | `REPROGRAMAÇÃO` do Controle **ou** input manual | **nunca sobrescreve** valor existente |
 | `DATA-ALVO EMISSÃO` | derivada | `REPROGRAMADA > PREVISTA`, sempre recalculada |
 
-As duas regras de data são as mesmas do Mapa dos Planos desde §24.13 (`core/planejamento.py`); nasceram aqui e foram adotadas lá.
+As duas regras de data são as mesmas do Mapa dos Planos desde §24.13 (`core/planejamento.py`); nasceram aqui e foram adotadas lá. `FASE DE PROJETO` saiu desta tabela em §27.3.
 
 `DATA-ALVO EMISSÃO` ocupa o lugar da antiga coluna **`TROCAR`** (renomeada automaticamente na primeira atualização, junto com `RESPONSÁVEL`→`RESPONSIBLE (COE/VENDOR)` e `OBSERVAÇÃO`→`OBSERVAÇÕES`). É ela que prepara a leitura por período no dashboard: gravada como **data nativa** do Excel, não texto — assim como `DATA ÚLTIMA EMISSÃO` neste módulo (o Mapa escreve texto).
 
 **Análise por Período** (`core/doclist_periodo.py` + `ui/views/periodo_dialog.py`): janela sobre a DATA-ALVO com atalhos (vencidos, próximos 7/30/90 dias, restante do mês, mês que vem, este ano) ou intervalo manual; árvore por Mês/Grupo/Sistema/Fase; cada item traz a **origem** da data (Prevista ou Reprogramada) e os dias até o alvo. Agrupamentos (nível 1) e já emitidos ficam de fora por padrão. O Excel sai com quadro por mês, o detalhe e uma aba **"Sem Planejamento"** — os documentos sem nenhuma data, que a análise por período não enxerga.
 
-**Módulos**: `core/doclist.py`, `core/doclist_periodo.py`, `services/doclist_io.py` (inclui `criar_modelo` — planilha em branco com o cabeçalho oficial), `services/doclist_update.py`, `doclist_backend.py`, `ui/views/doclist_view.py`, `ui/views/periodo_dialog.py`. Detalhes de uso em `docs/doc_list_mapping.md`. Testes: `tests/test_doclist.py` (22).
+**Módulos**: `core/doclist.py`, `core/doclist_periodo.py`, `services/doclist_io.py`, `services/doclist_update.py`, `doclist_backend.py`, `ui/views/doclist_view.py`, `ui/views/periodo_dialog.py`. Detalhes de uso em `docs/doc_list_mapping.md`.
+
+### 27.3 ✅ Ajustes após o primeiro uso (2026-07-28, pedido do usuário)
+
+**(a) Descrição: cadeia de prioridade Aconex > Controle > planilha.** O documento previsto e ainda NÃO EMITIDO não existe na base do Aconex, então a coluna `DESCRIÇÃO DO DOCUMENTO` ficava só com o código — inútil para reconhecer o que está previsto. Agora, quando `df_tracking` está vazio e o documento é achado no Controle, a célula recebe a `DESCRIÇÃO` de lá (`ControleRow.titulo`, que já era lido). **Sobrescreve** o que estiver escrito: a descrição digitada à mão costuma ser genérica e a do Controle a complementa (decisão do usuário, 2026-07-28 — a primeira versão preservava a célula preenchida). Documento presente no Aconex continua tendo a descrição de lá. Vale para o **Doc List e para o Mapa dos Planos** (pedido explícito), via o novo campo `titulo_controle` em `DatasDocList`/`DatasControle`. O log conta quantas descrições vieram do Controle.
+
+**(b) FASE DE PROJETO virou input manual.** Cancelado o preenchimento a partir da coluna homônima do Controle — a equipe decidiu manter a fase à mão. `resolver_datas_doclist` perdeu o parâmetro `fase_atual` e o campo `fase`; `doclist_update` não escreve mais a coluna. ⚠️ `ControleRow.fase` **continua sendo lido** — o Histórico Consolidado depende dele (§24.11).
+
+**(c) Delta por Período no Doc List.** Além da Análise por Período (que olha para FRENTE, pelo planejamento), o módulo ganhou o Delta (olha para TRÁS, pelo histórico do Aconex). Reaproveita `calcular_mudancas_periodo` e a `DeltaDialog` do Mapa sem adaptação de motor: as colunas de que ele precisa (`GRUPO`, `SISTEMA`, `NÍVEL`, `DESCRIÇÃO DO DOCUMENTO`, `PREDECESSOR`, `N° ITAIPU`) têm os mesmos nomes nos dois layouts, e `row_header` sai do `DocListSheet`. `estrito=False` fixo — a regra das planilhas VIP é de níveis 3/4, que não existem aqui. `DeltaDialog` ganhou um parâmetro `titulo` opcional para identificar a planilha de origem.
+
+**(d) Gerador de planilha modelo REMOVIDO.** A planilha já existe e está pronta; `criar_modelo` e o botão saíram (código morto não fica).
+
+Testes: `tests/test_doclist.py` (22) e `tests/test_controle_docs.py` (25).
 
 ---
 

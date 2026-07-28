@@ -15,6 +15,8 @@ o Controle **apenas para as DUAS datas de input manual** que o Aconex não tem:
 |---|---|
 | `DATA PREVISTA DE EMISSÃO ACONEX` | data planejada de 1ª emissão |
 | `REPROGRAMAÇÃO` | nova data planejada quando a prevista escorregou |
+| `DESCRIÇÃO` | título dos documentos que não estão no Aconex (2ª na prioridade) |
+| `FASE DE PROJETO` | só o Histórico Consolidado (§24.11) |
 
 **Regra de precedência (`data_ref`)**: `REPROGRAMAÇÃO` quando preenchida, senão
 `DATA PREVISTA DE EMISSÃO ACONEX`. É essa `data_ref` que alimenta o cálculo de
@@ -129,10 +131,19 @@ que códigos numéricos virem `1234.0`.
   - a busca roda **também para documentos ausentes do Aconex** — são justamente
     os não emitidos que mais precisam da data planejada (§24.12).
 
+  Os dois também usam a `DESCRIÇÃO` do Controle como segunda fonte do título:
+  quando o documento não está no Aconex (o caso do previsto e ainda não emitido)
+  mas é achado no Controle, a descrição de lá é gravada — **sobrescrevendo** a
+  célula, porque descrição escrita à mão costuma ser genérica. Prioridade:
+  Aconex > Controle > planilha.
+
   No Mapa a `DATA REPROGRAMADA` é endereçada **por posição** (§21.1: há 4 colunas
   com esse nome; a da etapa 1 é a vizinha à direita da `DATA PREVISTA EMISSÃO
-  ETAPA 1`). O Doc List acrescenta a `FASE DE PROJETO` e a coluna derivada
-  `DATA-ALVO EMISSÃO` — ver `docs/doc_list_mapping.md`.
+  ETAPA 1`). O Doc List acrescenta a coluna derivada `DATA-ALVO EMISSÃO` — ver
+  `docs/doc_list_mapping.md`.
+- **`FASE DE PROJETO`**: lida do Controle e usada **apenas pelo Histórico
+  Consolidado** (§24.11). No Doc List a coluna existe, mas é input manual —
+  decisão da equipe (§27.3).
 - **Histórico Consolidado** (`services/historico_consolidado.py`): a `data_ref`
   por Tracking preenche a coluna interna `Data Prevista (Controle)`, que é o
   nascedouro do cálculo do **Atraso CMI** e das **linhas sintéticas** (documentos

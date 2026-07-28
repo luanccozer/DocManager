@@ -115,12 +115,13 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   "Máquina do Tempo" comparando o status entre duas datas.
 - **📑 Doc List Mapping** — follow-up de uma lista de documentos, com dois níveis
   (nível 1 = agrupamento por escopo, nível 2 = documentos) e uma única coluna
-  `PREDECESSOR`. Do **Controle de Documentos** vêm a `FASE DE PROJETO` e as datas
-  de planejamento, consolidadas na coluna `DATA-ALVO EMISSÃO` (reprogramada >
-  prevista) que o dashboard lê. O botão **🗓️ Analisar Período** lista o que está
-  previsto para emitir (atalhos: vencidos, próximos 7/30/90 dias, mês que vem) e
-  exporta em Excel, com uma aba dos documentos ainda sem planejamento. Há também
-  **📄 Criar planilha modelo**, que gera o arquivo com o cabeçalho oficial.
+  `PREDECESSOR`. Do **Controle de Documentos** vêm as datas de planejamento,
+  consolidadas na coluna `DATA-ALVO EMISSÃO` (reprogramada > prevista) que o
+  dashboard lê, e a descrição dos documentos que o Aconex ainda não conhece.
+  Duas análises que se complementam: **🗓️ Analisar Período** lista o que está
+  previsto para emitir (atalhos: vencidos, próximos 7/30/90 dias, mês que vem),
+  e **⏳ Analisar Mudanças por Período (Delta)** mostra o que aconteceu entre
+  duas datas. Ambas exportam Excel.
   Detalhes em [`docs/doc_list_mapping.md`](docs/doc_list_mapping.md).
 - **🔎 Status Documentos** — status real de documentos. Escolha a origem na aba:
   *Via Arquivo Excel* (arquivo + colunas), *Via Lista Rápida* (colar códigos) ou

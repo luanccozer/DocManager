@@ -272,7 +272,7 @@ def test_mapa_e_doclist_concordam_nas_datas():
         m = resolver_datas_controle(prev_cel, [], "#IT-1", "", ctrl,
                                     valor_celula_reprogramada=reprog_cel)
         d = resolver_datas_doclist(prevista_atual=prev_cel, reprogramada_atual=reprog_cel,
-                                   fase_atual="", codigos=[], cod_itaipu_atual="#IT-1",
+                                   codigos=[], cod_itaipu_atual="#IT-1",
                                    cod_cmi_atual="", controle=ctrl)
         assert (m.prevista_para_celula, m.reprogramada, m.data_ref) == \
                (d.prevista, d.reprogramada, d.data_alvo), (prev_cel, reprog_cel, prev_ctrl, reprog_ctrl)
@@ -308,6 +308,44 @@ def test_mapa_end_to_end_respeita_input_manual(tmp_path):
     reprog = ws2.cell(3, _COLS_MAPA.index("DATA REPROGRAMADA") + 1).value
     assert str(prevista).startswith("2026-06-30")   # Controle é mais recente → atualiza
     assert str(reprog).startswith("2026-12-25")     # input manual preservado
+
+
+def test_mapa_descricao_segue_prioridade_aconex_controle_planilha(tmp_path):
+    """§27.3: prioridade Aconex > Controle > planilha, igual ao Doc List."""
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "TITULO DO ACONEX")
+             .evento("0A", 1, "Em Processo", "01/09/2025", current=True))
+    base_path = tmp_path / "base.xlsx"
+    b.to_excel(base_path, index=False)
+
+    mapa_path = tmp_path / "mapa.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for c, nome in enumerate(_COLS_MAPA, 1):
+        ws.cell(1, c, nome)
+    # (cmi, itaipu, descricao ja na planilha)
+    for i, (cmi, it, desc) in enumerate(
+            [("CMI-1", "#IT-1", ""), ("CMI-2", "#IT-2", ""),
+             ("CMI-3", "#IT-3", "DESCRICAO JA ESCRITA")], start=3):
+        ws.cell(i, 1, "SALAS"), ws.cell(i, 2, cmi), ws.cell(i, 3, it)
+        ws.cell(i, 4, desc), ws.cell(i, 5, "4")
+    wb.save(mapa_path)
+
+    ctrl_path = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "#IT-1", "cmi": "CMI-1", "titulo": "TITULO DO CONTROLE", "prevista": "01-09-2025"},
+        {"itaipu": "#IT-2", "cmi": "CMI-2", "titulo": "DOC PREVISTO SEM EMISSAO", "prevista": "05-08-2026"},
+        {"itaipu": "#IT-3", "cmi": "CMI-3", "titulo": "TITULO DO CONTROLE", "prevista": "05-08-2026"},
+    ])
+    controle = ler_controle(ctrl_path, 0, log_cb=lambda _m: None)
+    logs = []
+    assert atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle,
+                                hoje=HOJE, log_cb=logs.append).ok
+
+    ws2 = openpyxl.load_workbook(mapa_path).active
+    col = _COLS_MAPA.index("DESCRIÇÃO DO DOCUMENTO") + 1
+    assert ws2.cell(3, col).value == "TITULO DO ACONEX"          # Aconex manda
+    assert ws2.cell(4, col).value == "DOC PREVISTO SEM EMISSAO"  # vazia → Controle
+    assert ws2.cell(5, col).value == "TITULO DO CONTROLE"        # Controle SOBRESCREVE
+    assert any("2 descrições vindas do título do Controle" in m for m in logs)
 
 
 def test_controle_sem_nenhuma_data_avisa(tmp_path):

@@ -96,12 +96,16 @@ class DatasControle:
       'contido' | '' quando não achou). Só para diagnóstico/log.
     - `prevista_atualizada`: a célula já tinha data e o Controle trouxe uma mais
       recente (para o log distinguir preenchimento de atualização).
+    - `titulo_controle`: DESCRIÇÃO do Controle. Serve de **fallback** para a
+      descrição do documento quando o Aconex não o conhece (§27.3) — sem isso o
+      não emitido fica só com o código na planilha.
     """
     prevista_para_celula: date | None = None
     reprogramada: date | None = None
     data_ref: date | None = None
     via: str = ""
     prevista_atualizada: bool = False
+    titulo_controle: str = ""
 
     @property
     def achou(self) -> bool:
@@ -143,7 +147,8 @@ def resolver_datas_controle(valor_celula_prevista, codigos_historicos, cod_itaip
         reprogramada_controle=linha.data_reprogramada if linha else None)
     return DatasControle(prevista_para_celula=d.prevista, reprogramada=d.reprogramada,
                          data_ref=d.data_ref, via=via,
-                         prevista_atualizada=d.prevista_atualizada)
+                         prevista_atualizada=d.prevista_atualizada,
+                         titulo_controle=str(linha.titulo).strip() if linha else "")
 
 
 def processar_documento(df_tracking: pd.DataFrame, *, nivel: str, tag_etapa: str = "",

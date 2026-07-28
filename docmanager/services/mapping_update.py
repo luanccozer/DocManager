@@ -43,6 +43,7 @@ class DiagnosticoControle:
     previstas: int = 0
     previstas_atualizadas: int = 0
     reprogramadas: int = 0
+    titulos: int = 0
     por_via: dict = field(default_factory=dict)
     sem_match: list = field(default_factory=list)
 
@@ -63,6 +64,9 @@ class DiagnosticoControle:
         msgs = [f"Controle ↔ Mapa: {self.casados} documentos casaram ({vias}); "
                 f"{self.previstas} datas previstas ({self.previstas_atualizadas} atualizadas "
                 f"por serem mais recentes) e {self.reprogramadas} reprogramações escritas."]
+        if self.titulos:
+            msgs.append(f"{self.titulos} descrições vindas do título do Controle "
+                        f"(documentos que o Aconex ainda não conhece).")
         if self.sem_match:
             amostra = ", ".join(self.sem_match[:self.LIMITE_AMOSTRA])
             resto = "" if len(self.sem_match) <= self.LIMITE_AMOSTRA else \
@@ -144,7 +148,7 @@ def atualizar_mapeamento(
         # NÃO EMITIDO — o que mais precisa da data planejada — nunca a recebia,
         # embora o usuário o encontrasse no Controle com um Ctrl+F.
         ms.matar_zumbi("data_previsao_etapa_1", row)
-        data_ref = None
+        data_ref, datas = None, None
         if controle is not None:
             codigos = obter_codigos_historicos(df_tracking) if not df_tracking.empty else []
             datas = resolver_datas_controle(
@@ -170,6 +174,15 @@ def atualizar_mapeamento(
         resultado = processar_documento(
             df_tracking, nivel=nivel, tag_etapa=tag_etapa, data_prevista=data_prevista, hoje=hoje)
         _escrever_resultado(ms, row, resultado)
+
+        # Descrição — cadeia de prioridade Aconex > Controle > planilha (§27.3).
+        # Quem está no Aconex já teve a descrição escrita acima. Para o resto,
+        # o título do Controle SOBRESCREVE o que estiver na célula: descrição
+        # digitada à mão costuma ser genérica, e a do Controle é a boa.
+        if df_tracking.empty and datas is not None and datas.titulo_controle \
+                and ms.get_val("descricao", row) != datas.titulo_controle:
+            ms.set_val("descricao", row, datas.titulo_controle)
+            diag.titulos += 1
 
     if controle is not None:
         for linha_log in diag.linhas_log():

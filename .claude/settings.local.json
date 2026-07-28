@@ -21,7 +21,10 @@
       "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager/Scripts/python.exe -m pytest tests/test_doclist.py -q)",
       "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/core/doclist.py docmanager/core/doclist_periodo.py docmanager/services/doclist_io.py docmanager/services/doclist_update.py docmanager/services/aconex_checkpoint.py docmanager/services/controle_docs.py docmanager/doclist_backend.py docmanager/ui/views/doclist_view.py docmanager/ui/views/periodo_dialog.py docmanager/aconex_backend.py docmanager/cli.py tests/test_doclist.py tests/test_controle_docs.py tests/test_aconex_checkpoint.py --output-format=concise)",
       "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager/Scripts/python.exe -m pytest tests/)",
-      "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager-compat/Scripts/python.exe -m pytest tests/)"
+      "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager-compat/Scripts/python.exe -m pytest tests/)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager/Scripts/python.exe -)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/ tests/ --output-format=concise)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/venvs/docmanager/Scripts/python.exe -m pytest tests/test_excecoes.py tests/test_doclist.py tests/test_controle_docs.py -q)"
     ]
   }
 }

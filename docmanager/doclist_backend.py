@@ -1,8 +1,13 @@
 """Backend do módulo **Doc List Mapping**.
 
-Porta única para a UI: atualização da planilha (status, hierarquia de dois
-níveis, planejamento vindo do Controle) e a Análise por Período — "quais
-documentos estão previstos para emitir nos próximos tempos".
+Porta única para a UI. Três frentes:
+  - atualização da planilha (status, hierarquia de dois níveis, planejamento);
+  - **Análise por Período** — o que está previsto para emitir (olha para FRENTE,
+    pelas datas de planejamento);
+  - **Delta por Período** — o que aconteceu entre duas datas (olha para TRÁS,
+    pelo histórico do Aconex). Reaproveita o motor do Mapa dos Planos: as
+    colunas que ele precisa (GRUPO, SISTEMA, NÍVEL, DESCRIÇÃO, PREDECESSOR,
+    N° ITAIPU) têm os mesmos nomes nos dois layouts.
 
 Regras e motivação em `docmanager/core/doclist.py` e na KB §27. O que é comum
 ao Mapa dos Planos continua em [common]/[mapa_backend]; aqui fica só o que é
@@ -37,12 +42,11 @@ from .core.doclist_periodo import (
 )
 
 # I/O da planilha + exportações.
-from .services.doclist_io import (
-    DocListSheet,
-    criar_modelo,
-    exportar_analise_periodo,
-    ler_linhas_doclist,
-)
+from .services.doclist_io import DocListSheet, exportar_analise_periodo, ler_linhas_doclist
+
+# Delta ("Máquina do Tempo"): o mesmo motor do Mapa, sobre a planilha do Doc List.
+from .core.snapshots import calcular_mudancas_periodo
+from .services.excel_io import exportar_delta_arvore
 
 # Orquestração da atualização.
 from .services.doclist_update import ResultadoDocList, atualizar_doclist
@@ -52,7 +56,8 @@ __all__ = [
     "COLUNAS_DOCLIST", "ANCORA_DOCLIST", "NIVEL_GRUPO", "NIVEL_DOCUMENTO",
     "LinhaDocList", "DatasDocList", "calcula_status_consolidado_doclist",
     "calcular_predecessores", "calcular_resumo_quantidades", "resolver_datas_doclist",
-    "DocListSheet", "ler_linhas_doclist", "criar_modelo", "exportar_analise_periodo",
+    "DocListSheet", "ler_linhas_doclist", "exportar_analise_periodo",
     "analisar_periodo", "listar_sem_data", "janelas_padrao", "Janela", "ItemPeriodo",
     "agrupar_por", "agrupar_por_mes", "resumo",
+    "calcular_mudancas_periodo", "exportar_delta_arvore",
 ]

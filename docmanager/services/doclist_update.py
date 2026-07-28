@@ -2,8 +2,8 @@
 
 Mesma espinha do Mapa dos Planos (`mapping_update`), com as regras próprias do
 módulo: dois níveis, uma coluna de hierarquia, consolidado com três sabores de
-aprovação e as colunas de planejamento (FASE / PREVISTA / REPROGRAMADA /
-DATA-ALVO) dirigidas pelo Controle de Documentos.
+aprovação e as colunas de planejamento (PREVISTA / REPROGRAMADA / DATA-ALVO)
+dirigidas pelo Controle de Documentos. FASE DE PROJETO é input manual (§27.3).
 
 Ordem: carga da base → loop por linha (grupo ou documento) → hierarquia →
 resumo de quantidades → salvar.
@@ -41,11 +41,11 @@ class ResultadoDocList:
 @dataclass
 class DiagnosticoDocList:
     """Placar do casamento Doc List ↔ Controle, para o log não ser mudo."""
-    fases: int = 0
     previstas: int = 0
     previstas_atualizadas: int = 0
     reprogramadas: int = 0
     alvos: int = 0
+    titulos: int = 0
     por_via: dict = field(default_factory=dict)
     sem_match: list = field(default_factory=list)
 
@@ -65,10 +65,13 @@ class DiagnosticoDocList:
         vias = ", ".join(f"{k}: {v}" for k, v in sorted(self.por_via.items())) or "nenhum"
         msgs = [
             f"Controle ↔ Doc List: {self.casados} documentos casaram ({vias}).",
-            f"Planejamento gravado: {self.fases} fases, {self.previstas} datas previstas "
+            f"Planejamento gravado: {self.previstas} datas previstas "
             f"({self.previstas_atualizadas} atualizadas por serem mais recentes), "
             f"{self.reprogramadas} reprogramações, {self.alvos} datas-alvo.",
         ]
+        if self.titulos:
+            msgs.append(f"{self.titulos} descrições vindas do título do Controle "
+                        f"(documentos que o Aconex ainda não conhece).")
         if self.sem_match:
             amostra = ", ".join(self.sem_match[:self.LIMITE_AMOSTRA])
             resto = "" if len(self.sem_match) <= self.LIMITE_AMOSTRA else \
@@ -183,11 +186,8 @@ def atualizar_doclist(
         datas = resolver_datas_doclist(
             prevista_atual=ds.get_data("data_prevista", row),
             reprogramada_atual=ds.get_data("data_reprogramada", row),
-            fase_atual=ds.get_val("fase_projeto", row),
             codigos=obter_codigos_historicos(df_tracking) if not df_tracking.empty else [],
             cod_itaipu_atual=c_itaipu, cod_cmi_atual=c_cmi, controle=controle)
-        if datas.fase is not None and ds.set_val("fase_projeto", row, datas.fase):
-            diag.fases += 1
         if datas.prevista is not None and ds.set_data("data_prevista", row, datas.prevista):
             diag.previstas += 1
             diag.previstas_atualizadas += int(datas.prevista_atualizada)
@@ -203,6 +203,15 @@ def atualizar_doclist(
             df_tracking, nivel=ds.get_val("nivel", row), tag_etapa="",
             data_prevista=datas.data_alvo, hoje=hoje)
         _escrever_documento(ds, row, resultado)
+
+        # Descrição — cadeia de prioridade Aconex > Controle > planilha (§27.3).
+        # Quem está no Aconex já teve a descrição escrita acima. Para o resto,
+        # o título do Controle SOBRESCREVE o que estiver na célula: descrição
+        # digitada à mão costuma ser genérica, e a do Controle é a boa.
+        if df_tracking.empty and datas.titulo_controle \
+                and ds.get_val("descricao", row) != datas.titulo_controle:
+            ds.set_val("descricao", row, datas.titulo_controle)
+            diag.titulos += 1
 
     if controle is not None:
         for linha_log in diag.linhas_log():

@@ -23,8 +23,7 @@ RESUMO QUANTIDADES
 
 ⚠️ Atenção aos codepoints: `N° ITAIPU` usa **U+00B0** (sinal de grau) e
 `Nº CMI` usa **U+00BA** (ordinal) — trocar um pelo outro faz a localização do
-cabeçalho falhar. O botão **"Criar planilha modelo"** gera o arquivo com os
-caracteres certos.
+cabeçalho falhar. Se precisar recriar a coluna, copie o texto daqui.
 
 O cabeçalho é localizado dinamicamente nas 10 primeiras linhas (âncora
 `N° ITAIPU`), e os nomes são comparados sem acento, em maiúsculas e com espaços
@@ -57,16 +56,26 @@ reconhecidos e **renomeados automaticamente** na primeira atualização:
 
 | Calculado (sobrescrito a cada atualização) | Input manual (nunca sobrescrito) |
 |---|---|
-| `DATA-ALVO EMISSÃO`, `EMITIDO / NÃO EMITIDO`, `DATA ÚLTIMA EMISSÃO`, `ÚLTIMA REV. EMITIDA`, `STATUS REAL`, `STATUS`, `STATUS CONSOLIDADO`, `COM ITAIPU`, `PREDECESSOR`, `RESUMO QUANTIDADES` | `GRUPO`, `SISTEMA`, `NÍVEL`, `RESPONSIBLE (COE/VENDOR)`, `OBSERVAÇÕES`, `DATA REPROGRAMADA` |
+| `DATA-ALVO EMISSÃO`, `EMITIDO / NÃO EMITIDO`, `DATA ÚLTIMA EMISSÃO`, `ÚLTIMA REV. EMITIDA`, `STATUS REAL`, `STATUS`, `STATUS CONSOLIDADO`, `COM ITAIPU`, `PREDECESSOR`, `RESUMO QUANTIDADES` | `GRUPO`, `SISTEMA`, `NÍVEL`, **`FASE DE PROJETO`**, `RESPONSIBLE (COE/VENDOR)`, `OBSERVAÇÕES`, `DATA REPROGRAMADA` |
 
 `Nº CMI`, `N° ITAIPU` e `DESCRIÇÃO DO DOCUMENTO` são atualizados quando o
 Aconex traz um valor novo (o código do documento muda ao longo da vida).
+
+### Descrição: Aconex → Controle → planilha
+
+A prioridade da `DESCRIÇÃO DO DOCUMENTO`, nessa ordem:
+
+1. **Aconex**, quando o documento existe na base;
+2. **Controle de Documentos** — se o documento não está no Aconex (o caso do
+   previsto e ainda não emitido) mas é encontrado no Controle, a `DESCRIÇÃO` de
+   lá é gravada, **sobrescrevendo** o que estiver na célula. É proposital:
+   descrição digitada à mão costuma ser genérica, e a do Controle complementa;
+3. o que já está na planilha, quando não há nenhuma das duas fontes.
 
 ## Datas de planejamento
 
 | Coluna | De onde vem | Regra |
 |---|---|---|
-| `FASE DE PROJETO` | `FASE DE PROJETO` do Controle | escreve quando o Controle tem valor; senão preserva o que está lá |
 | `DATA PREVISTA EMISSÃO` | `DATA PREVISTA DE EMISSÃO ACONEX` | havendo divergência, vence a **data mais recente** |
 | `DATA REPROGRAMADA` | `REPROGRAMAÇÃO` do Controle **ou** digitada por você | **nunca sobrescreve** o que já está preenchido |
 | `DATA-ALVO EMISSÃO` | derivada | `REPROGRAMADA` quando existe, senão `PREVISTA` |
@@ -77,8 +86,8 @@ Aconex traz um valor novo (o código do documento muda ao longo da vida).
 Todas gravadas como **data nativa** do Excel (`dd/mm/aaaa`), não texto — é o que
 permite o dashboard agrupar por período.
 
-> Sem o Controle de Documentos o módulo roda normalmente: apenas a fase e as
-> datas não são atualizadas.
+> Sem o Controle de Documentos o módulo roda normalmente: apenas as datas de
+> planejamento e o resgate da descrição não acontecem.
 
 ## Status consolidado
 
@@ -107,10 +116,19 @@ Não Emitidos: 10
 
 (`Cancelados` e `Outros` só aparecem quando existem — o total sempre fecha.)
 
-## Análise por Período
+## As duas análises por período
 
-Botão **"Analisar Período"** na tela do módulo. Responde *quais documentos estão
-previstos para emitir nos próximos tempos*, usando a `DATA-ALVO EMISSÃO`.
+O módulo tem duas, e elas olham para lados opostos:
+
+| Botão | Olha para | Fonte | Responde |
+|---|---|---|---|
+| 🗓️ **Analisar Período** | frente | `DATA-ALVO EMISSÃO` da planilha | o que está **previsto para emitir** |
+| ⏳ **Analisar Mudanças por Período (Delta)** | trás | histórico do Aconex | o que **aconteceu** entre duas datas |
+
+### 🗓️ Analisar Período (previstos)
+
+Responde *quais documentos estão previstos para emitir nos próximos tempos*,
+usando a `DATA-ALVO EMISSÃO`.
 
 - **Atalhos**: vencidos, próximos 7/30/90 dias, restante deste mês, mês que vem,
   este ano — ou um intervalo manual (qualquer ponta pode ficar vazia).
@@ -125,6 +143,17 @@ previstos para emitir nos próximos tempos*, usando a `DATA-ALVO EMISSÃO`.
 
 Duplo-clique num documento copia o código para a área de transferência.
 
+### ⏳ Delta por Período (o que aconteceu)
+
+A "Máquina do Tempo" do Mapa dos Planos, aplicada a esta planilha: compara o
+status de cada documento entre duas datas e mostra quem mudou, em árvore
+Grupo/Nível/Documento. Precisa da **Base Aconex** selecionada (é de lá que vem o
+histórico). Visão *Efetiva* (só mudança de status real) ou *Bruta* (também nova
+revisão/data), filtro para ocultar quem já estava aprovado, e exportação Excel.
+
+Documento repetido dentro do mesmo grupo conta **uma vez**; documento presente em
+mais de um grupo aparece em vermelho.
+
 ## Contrato de código
 
 `docmanager/doclist_backend.py` é a porta única:
@@ -134,5 +163,6 @@ Duplo-clique num documento copia o código para a área de transferência.
 - `ler_linhas_doclist(caminho, sheet) -> list[LinhaDocList]`
 - `analisar_periodo(linhas, *, inicio, fim, hoje, incluir_emitidos)`,
   `listar_sem_data(linhas)`, `janelas_padrao(hoje)`, `resumo(itens)`,
-  `agrupar_por(itens, chave)`
-- `criar_modelo(caminho)`, `exportar_analise_periodo(...)`
+  `agrupar_por(itens, chave)`, `exportar_analise_periodo(...)`
+- `calcular_mudancas_periodo(...)`, `exportar_delta_arvore(...)` — o Delta,
+  reaproveitados do Mapa dos Planos

@@ -12,10 +12,10 @@ se aplicavam. Este módulo formaliza aquela adaptação — mesma espinha dorsal
    sempre o mesmo valor com só dois níveis — restou `PREDECESSOR`.
 3. **Consolidado com três sabores de aprovação** (`APROVADO`, `APROVADO COM
    COMENTÁRIOS`, `PARA ASSINATURA`), em vez do balde único do Mapa.
-4. **Planejamento dirigido pelo Controle de Documentos**: `FASE DE PROJETO`,
-   `DATA PREVISTA EMISSÃO` e `DATA REPROGRAMADA` vêm de lá, e a coluna
-   `DATA-ALVO EMISSÃO` (ex-`TROCAR`) consolida a data que vale para o
-   dashboard — REPROGRAMADA quando houver, senão PREVISTA.
+4. **Planejamento dirigido pelo Controle de Documentos**: `DATA PREVISTA EMISSÃO`
+   e `DATA REPROGRAMADA` vêm de lá, e a coluna `DATA-ALVO EMISSÃO` (ex-`TROCAR`)
+   consolida a data que vale para o dashboard — REPROGRAMADA quando houver,
+   senão PREVISTA. `FASE DE PROJETO` é **input manual** (§27.3).
 
 Tudo aqui é função pura; o I/O da planilha vive em `services/doclist_io.py` e a
 orquestração em `services/doclist_update.py`.
@@ -239,45 +239,42 @@ def calcular_resumo_quantidades(linhas: list[LinhaDocList],
 class DatasDocList:
     """O que gravar nas colunas de planejamento de uma linha.
 
-    `None` em `prevista`/`reprogramada`/`fase` significa "não mexer na célula".
+    `None` em `prevista`/`reprogramada` significa "não mexer na célula".
     `data_alvo` é sempre recalculada a partir do que ficará nas células.
     """
     prevista: date | None = None
     reprogramada: date | None = None
-    fase: str | None = None
     data_alvo: date | None = None
     via: str = ""            # como o doc foi achado no Controle (diagnóstico)
     prevista_atualizada: bool = False   # o Controle trouxe data MAIS RECENTE
+    titulo_controle: str = ""           # DESCRIÇÃO do Controle (fallback do Aconex)
 
 
 def resolver_datas_doclist(*, prevista_atual: date | None, reprogramada_atual: date | None,
-                           fase_atual: str, codigos, cod_itaipu_atual: str,
-                           cod_cmi_atual: str, controle) -> DatasDocList:
+                           codigos, cod_itaipu_atual: str, cod_cmi_atual: str,
+                           controle) -> DatasDocList:
     """Aplica as regras de planejamento do Doc List (§27).
 
-    - **FASE DE PROJETO** — vem do Controle; se o Controle não tiver valor,
-      preserva o que estiver na planilha.
     - **DATA PREVISTA EMISSÃO** — vem do Controle; havendo divergência com a
-      planilha, vence a data MAIS RECENTE (decisão do usuário). Diferente do
-      Mapa dos Planos, onde a célula preenchida é intocável.
+      planilha, vence a data MAIS RECENTE.
     - **DATA REPROGRAMADA** — vem do Controle, mas NUNCA sobrescreve: a coluna
       também aceita input manual, que tem a palavra final.
     - **DATA-ALVO EMISSÃO** — sempre recalculada: reprogramada > prevista.
+
+    A regra é a mesma do Mapa dos Planos (`core/planejamento.py`, §24.13).
+    **FASE DE PROJETO não entra aqui**: é input manual (§27.3).
     """
     linha = None
     via = ""
-    fase_escrever: str | None = None
     if controle is not None:
         m = controle.resolver(codigos, cod_itaipu_atual, cod_cmi_atual)
         linha, via = m.linha, m.via
-        if linha is not None and linha.fase \
-                and str(linha.fase).strip() != str(fase_atual or "").strip():
-            fase_escrever = str(linha.fase).strip()
 
     d = reconciliar_datas(
         prevista_planilha=prevista_atual, reprogramada_planilha=reprogramada_atual,
         prevista_controle=linha.data_prevista if linha else None,
         reprogramada_controle=linha.data_reprogramada if linha else None)
     return DatasDocList(prevista=d.prevista, reprogramada=d.reprogramada,
-                        fase=fase_escrever, data_alvo=d.data_ref, via=via,
-                        prevista_atualizada=d.prevista_atualizada)
+                        data_alvo=d.data_ref, via=via,
+                        prevista_atualizada=d.prevista_atualizada,
+                        titulo_controle=str(linha.titulo).strip() if linha else "")
