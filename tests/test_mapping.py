@@ -4,7 +4,14 @@ from datetime import date
 import openpyxl
 from builders import HistoricoBuilder, base
 
-from docmanager.core.mapping import filtrar_historico_por_titulo, processar_documento
+from docmanager.core.hierarchy import (
+    LinhaPlano,
+    aplicar_regra_estrita,
+    calcular_hierarquia,
+    calcular_resumo_quantidades,
+    identificar_planos_comissionamento,
+)
+from docmanager.core.mapping import processar_documento
 from docmanager.services.excel_io import MappingSheet
 from docmanager.services.mapping_update import atualizar_mapeamento
 
@@ -142,3 +149,62 @@ def test_atualizar_mapeamento_headless(tmp_path):
     assert ms.get_val("predecessor", linhas["#PLANO1"].row) == "#PLANO1"
     # a planilha nível 3 está em processo
     assert ms.get_val("com_itaipu", linhas["#PLAN-COM"].row) == "ITAIPU"
+
+
+# --------------------------------------------------------------------------
+# Regra estrita nos PLANOS de (des)comissionamento (nível 2 → planilhas nível 3)
+# --------------------------------------------------------------------------
+def _linhas_comiss():
+    """Plano de comissionamento (nível 2) com 2 planilhas nível 3: uma com
+    aprovação parcial, outra aprovada seca."""
+    return [
+        LinhaPlano(row=1, cod_itaipu="#PLANO1", nivel="1", descricao="PLANO DE EXECUÇÃO"),
+        LinhaPlano(row=2, cod_itaipu="#PLANO-COM", nivel="2", descricao="PLANO DE COMISSIONAMENTO Z",
+                   status_real="Aprovado", status_consolidado="APROVADO"),
+        LinhaPlano(row=3, cod_itaipu="#PLAN-1", nivel="3", descricao="PLANILHA DE COMISSIONAMENTO A",
+                   status_real="Aprovado com Comentários", status_consolidado="APROVADO"),
+        LinhaPlano(row=4, cod_itaipu="#PLAN-2", nivel="3", descricao="PLANILHA DE COMISSIONAMENTO B",
+                   status_real="Aprovado", status_consolidado="APROVADO"),
+    ]
+
+
+def test_identifica_plano_comissionamento_so_nivel_2():
+    linhas = _linhas_comiss() + [
+        LinhaPlano(row=5, cod_itaipu="#PLANO-DESCOM", nivel="2", descricao="PLANO DE DESCOMISSIONAMENTO W"),
+        LinhaPlano(row=6, cod_itaipu="#OUTRO2", nivel="2", descricao="PLANO DE MONTAGEM"),  # não é (des)comiss
+    ]
+    planos = identificar_planos_comissionamento(linhas)
+    assert planos == {"#PLANO-COM", "#PLANO-DESCOM"}   # nível 2 (des)comiss; #OUTRO2 fora
+
+
+def test_regra_estrita_rebaixa_planilha_nivel_3_sob_plano_comissionamento():
+    linhas = _linhas_comiss()
+    hier = calcular_hierarquia(linhas)
+    planos = identificar_planos_comissionamento(linhas)
+    novos = aplicar_regra_estrita(linhas, hier, vips=set(), planos_comiss=planos)
+    assert novos[3] == "APROVAÇÃO INTERMEDIÁRIA"   # aprovação parcial rebaixada
+    assert novos[4] == "APROVADO"                  # aprovado seco continua APROVADO
+
+
+def test_resumo_do_plano_comissionamento_conta_intermediaria():
+    linhas = _linhas_comiss()
+    hier = calcular_hierarquia(linhas)
+    planos = identificar_planos_comissionamento(linhas)
+    # Aplica o rebaixamento (como o orquestrador faz) antes do resumo.
+    for row_r, cons in aplicar_regra_estrita(linhas, hier, set(), planos).items():
+        linhas[row_r - 1].status_consolidado = cons
+    resumo = calcular_resumo_quantidades(linhas, hier, estrito=True, planos_comiss=planos)
+    texto = resumo[2]   # o plano de comissionamento (nível 2)
+    assert "Aprovação Intermediária: 1" in texto
+    assert "Aprovados: 1" in texto
+    assert "Total: 2" in texto
+
+
+def test_resumo_plano_comissionamento_sem_toggle_mantem_plano_aprovado():
+    """Com o toggle DESLIGADO, o plano nível 2 APROVADO volta ao atalho 'Plano
+    Aprovado' — nenhuma mudança de comportamento."""
+    linhas = _linhas_comiss()
+    hier = calcular_hierarquia(linhas)
+    planos = identificar_planos_comissionamento(linhas)
+    resumo = calcular_resumo_quantidades(linhas, hier, estrito=False, planos_comiss=planos)
+    assert resumo[2] == "Plano Aprovado"

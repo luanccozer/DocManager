@@ -22,15 +22,15 @@ from .constants import (
     COL_TRACKING,
     NAO_EMITIDO,
 )
+from .consolidation import calcula_status_consolidado_estrito
+from .status_engine import calcular_status_real
+from .truth_line import limpar_terminated_por_limiar
 
 # Metadados da base que servem de classificação flexível no Delta por documento.
 METADADOS_AGRUPAVEIS = [
     "Especialidade", "Subespecialidade", "Tipo do Documento DCC",
     "Subtipo DCC", "Tipo do Documento", "Disciplina (Modelo)",
 ]
-from .consolidation import calcula_status_consolidado_estrito
-from .status_engine import calcular_status_real
-from .truth_line import limpar_terminated_por_limiar
 
 
 def obter_snapshot_status(df_historico_doc: pd.DataFrame, data_corte):
@@ -92,23 +92,34 @@ def calcular_mudancas_periodo(path_mapping, sheet_map, path_aconex, sheet_aconex
     if col_doc not in df_map.columns:
         return False, f"Coluna '{col_doc}' não encontrada.", 0
 
-    # Pente-fino no Delta: só quando o toggle está ligado.
+    # Pente-fino no Delta: só quando o toggle está ligado. Mesma regra do Mapa
+    # (core/hierarchy.py): planilhas VIP (nível 3) restringem seus documentos de
+    # nível 4; planos de (des)comissionamento (nível 2) restringem suas planilhas
+    # de nível 3 (pedido do usuário).
     docs_restritos = set()
     if estrito:
         planilhas_vip = set()
+        planos_comiss = set()
         for _, row in df_map.iterrows():
-            if str(row.get(col_nivel, "")).strip() == "3" and "PLANILHA" in str(row.get(col_titulo, "")).upper():
-                cod = str(row.get(col_doc, "")).strip().upper()
-                if cod:
-                    planilhas_vip.add(cod)
-        if planilhas_vip:
+            cod = str(row.get(col_doc, "")).strip().upper()
+            if not cod:
+                continue
+            nivel = str(row.get(col_nivel, "")).strip()
+            desc = str(row.get(col_titulo, "")).upper()
+            if nivel == "3" and "PLANILHA" in desc:
+                planilhas_vip.add(cod)
+            elif nivel == "2" and any(t in desc for t in
+                                      ("PLANO DE COMISSIONAMENTO", "PLANO DE DESCOMISSIONAMENTO")):
+                planos_comiss.add(cod)
+        if planilhas_vip or planos_comiss:
             for _, row in df_map.iterrows():
-                if str(row.get(col_nivel, "")).strip() == "4":
-                    pred = str(row.get(col_pred, "")).strip().upper()
-                    if pred in planilhas_vip:
-                        cod = str(row.get(col_doc, "")).strip().upper()
-                        if cod:
-                            docs_restritos.add(cod)
+                cod = str(row.get(col_doc, "")).strip().upper()
+                if not cod:
+                    continue
+                nivel = str(row.get(col_nivel, "")).strip()
+                pred = str(row.get(col_pred, "")).strip().upper()
+                if (nivel == "4" and pred in planilhas_vip) or (nivel == "3" and pred in planos_comiss):
+                    docs_restritos.add(cod)
 
     arvore, total = {}, 0
     for _, row in df_map.iterrows():

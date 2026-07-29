@@ -19,6 +19,7 @@ from ..core.hierarchy import (
     calcular_hierarquia,
     calcular_resumo_quantidades,
     identificar_planilhas_vip,
+    identificar_planos_comissionamento,
 )
 from ..core.identity import AconexIndex, obter_codigos_historicos
 from ..core.mapping import processar_documento, resolver_datas_controle
@@ -197,18 +198,23 @@ def atualizar_mapeamento(
         ms.set_val("predecessor", ln.row, pred)
         ms.set_val("plano_de_execucao", ln.row, plano)
 
-    # Pente-fino VIP (só com o toggle ligado).
+    # Pente-fino VIP (só com o toggle ligado): planilhas VIP (nível 3) rebaixam
+    # seus documentos de nível 4; planos de (des)comissionamento (nível 2)
+    # rebaixam suas planilhas de nível 3 (pedido do usuário).
     if regra_estrita_vip:
-        log_cb("Aplicando regra estrita das planilhas VIP...")
+        log_cb("Aplicando regra estrita (planilhas VIP e planos de comissionamento)...")
         linhas = ms.ler_linhas()  # relê com predecessores
         vips = identificar_planilhas_vip(linhas)
-        for row_r, novo_cons in aplicar_regra_estrita(linhas, hierarquia, vips).items():
+        planos_comiss = identificar_planos_comissionamento(linhas)
+        for row_r, novo_cons in aplicar_regra_estrita(linhas, hierarquia, vips, planos_comiss).items():
             ms.set_val("status_consolidado", row_r, novo_cons)
 
     # Resumo de quantidades.
     log_cb("Calculando resumo de quantidades...")
     linhas = ms.ler_linhas()
-    for row_r, texto in calcular_resumo_quantidades(linhas, hierarquia, estrito=regra_estrita_vip).items():
+    planos_comiss = identificar_planos_comissionamento(linhas)
+    for row_r, texto in calcular_resumo_quantidades(
+            linhas, hierarquia, estrito=regra_estrita_vip, planos_comiss=planos_comiss).items():
         ms.set_val("resumo_quantidades", row_r, texto)
 
     # Salvar (com retry opcional em PermissionError).
