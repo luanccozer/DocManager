@@ -71,7 +71,6 @@ def main():
     print(f"  mails na página: {len(mails)}")
     if mails:
         m = mails[0]
-        mail_id = m.attrib.get("MailId") or m.attrib.get("mailId") or dict(m.attrib)
         print(f"  1º mail attrs: {dict(m.attrib)}")
         for c in m:
             print(f"    <{_local(c.tag)}> = {(c.text or '')[:80]!r}"
