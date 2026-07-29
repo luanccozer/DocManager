@@ -33,7 +33,10 @@
       "Bash(PYTHONIOENCODING=utf-8 timeout 200 /c/venvs/docmanager/Scripts/python.exe -c ' *)",
       "Bash(/c/venvs/docmanager/Scripts/python.exe -m py_compile docmanager/ui/views/aconex_view.py docmanager/aconex_backend.py)",
       "Bash(/c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/aconex_backend.py docmanager/ui/views/aconex_view.py)",
-      "Bash(/c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/aconex_backend.py docmanager/ui/views/aconex_view.py docmanager/core/hierarchy.py docmanager/services/mapping_update.py docmanager/core/snapshots.py tests/test_aconex_backend.py tests/test_mapping.py)"
+      "Bash(/c/venvs/docmanager/Scripts/python.exe -m ruff check docmanager/aconex_backend.py docmanager/ui/views/aconex_view.py docmanager/core/hierarchy.py docmanager/services/mapping_update.py docmanager/core/snapshots.py tests/test_aconex_backend.py tests/test_mapping.py)",
+      "Bash(PYTHONIOENCODING=utf-8 timeout 110 /c/venvs/docmanager/Scripts/python.exe -u -c ' *)",
+      "Bash(/c/venvs/docmanager/Scripts/python.exe -m ruff check tools/probe_mail_aconex.py)",
+      "Bash(PYTHONIOENCODING=utf-8 timeout 90 /c/venvs/docmanager/Scripts/python.exe -u -c ' *)"
     ]
   }
 }
