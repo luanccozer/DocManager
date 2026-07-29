@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from tkinter import messagebox
+import os
+from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
@@ -18,8 +19,9 @@ class AconexView(BaseView):
         load_dotenv()
         from ...aconex_backend import OUTRO_USUARIO, usuarios_disponiveis
         self._OUTRO = OUTRO_USUARIO
+        self._pasta_download: str | None = None
 
-        card = Card(body, "Credenciais")
+        card = Card(body, "Credenciais (valem para as duas abas)")
         card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
 
         # Usuários = os que TÊM secret no .env (dinâmico) + a opção manual.
@@ -54,9 +56,83 @@ class AconexView(BaseView):
         self._dica = ctk.CTkLabel(card, text="", font=t.corpo(11), text_color=t.TEXTO_FRACO, anchor="w")
         self._dica.grid(row=card._linha, column=0, sticky="w", padx=16, pady=(0, 12))
 
-        self.run = RunBar(body, "Iniciar Extração", self._tarefa, self.log)
-        self.run.grid(row=1, column=0, sticky="ew", pady=(4, 8))
+        # Duas guias dentro do módulo: extração completa e download por lista.
+        self.tabs = ctk.CTkTabview(body, fg_color=t.CARD, segmented_button_selected_color=t.ACENTO,
+                                   segmented_button_selected_hover_color=t.ACENTO_HOVER)
+        self.tabs.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        self._montar_aba_extracao(self.tabs.add("📦 Extração Completa"))
+        self._montar_aba_download(self.tabs.add("⬇️ Baixar por Lista"))
         self._on_user(self.opt_user.get())   # define visibilidade/dica iniciais
+
+    def _montar_aba_extracao(self, aba):
+        aba.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(aba, text="Baixa o histórico COMPLETO do projeto (todas as revisões, com Tracking "
+                     "ID) para um Excel. Pode levar vários minutos; retoma de onde parou se cair.",
+                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
+            row=0, column=0, sticky="w", padx=6, pady=(8, 2))
+        self.run = RunBar(aba, "Iniciar Extração", self._tarefa, self.log)
+        self.run.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+
+    def _montar_aba_download(self, aba):
+        aba.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(aba, text="Cole os códigos Itaipu (um por linha). Baixa a VERSÃO ATUAL (current) "
+                     "de cada documento como arquivo, na pasta escolhida.",
+                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
+            row=0, column=0, sticky="w", padx=6, pady=(8, 2))
+        self.txt_codigos = ctk.CTkTextbox(aba, height=140, font=t.mono(11), fg_color="#0B1119")
+        self.txt_codigos.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
+
+        linha = ctk.CTkFrame(aba, fg_color="transparent")
+        linha.grid(row=2, column=0, sticky="ew", padx=6, pady=(0, 6))
+        linha.grid_columnconfigure(1, weight=1)
+        ctk.CTkButton(linha, text="Escolher pasta", width=130, font=t.corpo(12),
+                      fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
+                      command=self._escolher_pasta).grid(row=0, column=0, sticky="w")
+        self.lbl_pasta = ctk.CTkLabel(linha, text="Nenhuma pasta escolhida", anchor="w",
+                                      font=t.corpo(11), text_color=t.TEXTO_FRACO)
+        self.lbl_pasta.grid(row=0, column=1, sticky="ew", padx=10)
+
+        RunBar(aba, "Baixar Documentos", self._tarefa_download, self.log).grid(
+            row=3, column=0, sticky="ew", padx=6, pady=(0, 8))
+
+    def _escolher_pasta(self):
+        inicial = self.ctx.config.ultimo_dir("download") if self.ctx.config else None
+        pasta = filedialog.askdirectory(title="Pasta para salvar os documentos", initialdir=inicial)
+        if not pasta:
+            return
+        self._pasta_download = pasta
+        self.lbl_pasta.configure(text=pasta, text_color=t.TEXTO)
+        if self.ctx.config:
+            # lembrar_dir guarda o DIRNAME do caminho; passa um filho para
+            # memorizar a própria pasta escolhida.
+            self.ctx.config.lembrar_dir("download", os.path.join(pasta, "_"))
+
+    def _tarefa_download(self, run: RunBar):
+        from dotenv import load_dotenv
+        load_dotenv()
+        from ...aconex_backend import baixar_documentos
+        try:
+            config = self._montar_config()
+        except (KeyError, ValueError) as e:
+            self.log.log(f"ERRO: {e}")
+            return
+        codigos = [c.strip() for c in self.txt_codigos.get("1.0", "end").splitlines() if c.strip()]
+        if not codigos:
+            self.log.log("Cole ao menos um código na aba 'Baixar por Lista'.")
+            return
+        if not self._pasta_download:
+            self.log.log("Escolha a pasta de destino.")
+            return
+        run.set_progress(0.05)
+        res = baixar_documentos(config, codigos, self._pasta_download,
+                                log_cb=self.log.log, progress_cb=run.set_progress)
+        run.set_progress(1.0)
+        resumo = (f"{res.baixados}/{res.total} documento(s) baixado(s) em:\n{res.pasta}")
+        if res.nao_encontrados:
+            resumo += f"\n\n{len(res.nao_encontrados)} não encontrado(s)."
+        if res.sem_arquivo or res.erros:
+            resumo += f"\n{len(res.sem_arquivo)} sem arquivo, {len(res.erros)} com erro."
+        self.after(0, lambda: messagebox.showinfo("Download Aconex", resumo))
 
     def _on_user(self, escolha: str):
         """Mostra os campos manuais só na opção 'Outro'; ajusta a dica."""

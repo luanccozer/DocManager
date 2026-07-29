@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 import urllib.request
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -528,3 +529,150 @@ def salvar_excel(df: pd.DataFrame, caminho) -> None:
             ws.write(0, i, col, fmt_hdr)
         ws.freeze_panes(1, 0)
         ws.autofilter(0, 0, len(df), len(df.columns) - 1)
+
+
+# ==========================================================================
+# Download de arquivos por lista de códigos (versão CURRENT) — KB Feature
+# ==========================================================================
+# Comprovado ao vivo (2026-07-29): a busca EXATA por código usa search_query com
+# o código ENTRE ASPAS ('"<codigo>"'); o arquivo da versão vigente sai de
+# GET /register/{DocumentId}/markedup (application/octet-stream, ex.: %PDF).
+DOWNLOAD_TIMEOUT = 180
+_RESERVADOS_ARQ = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+
+def _tag_local(tag: str) -> str:
+    return tag.split("}")[-1] if "}" in tag else tag
+
+
+def _nome_seguro(nome: str) -> str:
+    """Nome de arquivo válido no Windows (troca os reservados por '_')."""
+    limpo = _RESERVADOS_ARQ.sub("_", str(nome)).strip().strip(".")
+    return limpo or "documento"
+
+
+def _caminho_unico(caminho: str) -> str:
+    """Evita sobrescrever: se já existir, acrescenta ' (2)', ' (3)'…"""
+    if not os.path.exists(caminho):
+        return caminho
+    raiz, ext = os.path.splitext(caminho)
+    i = 2
+    while os.path.exists(f"{raiz} ({i}){ext}"):
+        i += 1
+    return f"{raiz} ({i}){ext}"
+
+
+@dataclass
+class ResultadoDownload:
+    """Desfecho do download por lista."""
+    total: int = 0
+    baixados: int = 0
+    pasta: str = ""
+    nao_encontrados: list = field(default_factory=list)
+    sem_arquivo: list = field(default_factory=list)
+    erros: list = field(default_factory=list)   # (codigo, motivo)
+
+
+def _buscar_doc_atual(session, base_url, headers, codigo: str):
+    """(DocumentId, filename, revisão) da versão vigente do código, ou None.
+
+    Busca EXATA: `search_query='"<codigo>"'` (as aspas fazem o casamento exato —
+    sem elas o register devolve 0). Sem `show_document_history`, o register já
+    devolve só a versão corrente."""
+    params = {"search_query": f'"{codigo}"',
+              "return_fields": "docno,current,filename,revision,versionnumber",
+              "search_type": "PAGED", "page_size": 25, "page_number": 1}
+    r = session.get(base_url, headers=headers, params=params, timeout=60)
+    if r.status_code != 200:
+        return None
+    root = ET.fromstring(r.content)
+    melhor = None
+    for d in root.iter():
+        if _tag_local(d.tag) != "Document":
+            continue
+        did = d.attrib.get("DocumentId") or d.attrib.get("documentId")
+        if not did:
+            continue
+        campos = {_tag_local(c.tag): (c.text or "") for c in d}
+        item = (did, campos.get("Filename", "").strip(), campos.get("Revision", "").strip())
+        if str(campos.get("Current", "")).lower() == "true":
+            return item
+        if melhor is None:
+            melhor = item
+    return melhor
+
+
+def baixar_documentos(config: AconexConfig, codigos, pasta_destino, *,
+                      log_cb=print, progress_cb=None, cancelado_cb=None) -> ResultadoDownload:
+    """Baixa a versão VIGENTE (current) de cada código numa pasta (pedido do
+    usuário). Para cada código: busca exata → DocumentId → GET .../markedup →
+    grava com o nome de arquivo do Aconex (sem sobrescrever)."""
+    try:
+        import truststore
+        truststore.inject_into_ssl()
+    except Exception as e:  # noqa: BLE001
+        log_cb(f"(truststore indisponível: {e})")
+
+    lista = [str(c).strip() for c in codigos if str(c).strip()]
+    res = ResultadoDownload(total=len(lista), pasta=str(pasta_destino))
+    if not lista:
+        log_cb("Nenhum código informado.")
+        return res
+    os.makedirs(pasta_destino, exist_ok=True)
+
+    session, token = _estabelecer_sessao(config, log_cb)
+    base_url = f"{config.instance}/api/projects/{config.project_id}/register"
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/xml"}
+    log_cb(f"Baixando {len(lista)} documento(s) para {pasta_destino}...")
+
+    for i, cod in enumerate(lista):
+        if cancelado_cb is not None and cancelado_cb():
+            log_cb("Download cancelado pelo usuário.")
+            break
+        if progress_cb and res.total:
+            progress_cb(min(0.05 + i / res.total * 0.9, 0.95))
+        try:
+            info = _buscar_doc_atual(session, base_url, headers, cod)
+        except Exception as e:  # noqa: BLE001
+            res.erros.append((cod, f"busca: {e}"))
+            log_cb(f"  ✗ {cod}: erro na busca ({e})")
+            continue
+        if info is None:
+            res.nao_encontrados.append(cod)
+            log_cb(f"  ✗ {cod}: não encontrado")
+            continue
+        did, filename, _rev = info
+        if not filename:
+            res.sem_arquivo.append(cod)
+            log_cb(f"  ✗ {cod}: documento sem arquivo")
+            continue
+        try:
+            r = session.get(f"{base_url}/{did}/markedup",
+                            headers={"Authorization": headers["Authorization"]},
+                            timeout=DOWNLOAD_TIMEOUT)
+            if r.status_code != 200 or not r.content:
+                res.erros.append((cod, f"download HTTP {r.status_code}"))
+                log_cb(f"  ✗ {cod}: download falhou (HTTP {r.status_code})")
+                continue
+            destino = _caminho_unico(os.path.join(pasta_destino, _nome_seguro(filename)))
+            with open(destino, "wb") as f:
+                f.write(r.content)
+            res.baixados += 1
+            log_cb(f"  ✓ {cod} → {os.path.basename(destino)}")
+        except Exception as e:  # noqa: BLE001
+            res.erros.append((cod, str(e)))
+            log_cb(f"  ✗ {cod}: erro ao baixar ({e})")
+
+    if progress_cb:
+        progress_cb(1.0)
+    log_cb(f"Concluído: {res.baixados}/{res.total} baixados em {pasta_destino}.")
+    if res.nao_encontrados:
+        log_cb(f"  {len(res.nao_encontrados)} não encontrado(s): "
+               + ", ".join(res.nao_encontrados[:20])
+               + (" …" if len(res.nao_encontrados) > 20 else ""))
+    if res.sem_arquivo:
+        log_cb(f"  {len(res.sem_arquivo)} sem arquivo: " + ", ".join(res.sem_arquivo[:20]))
+    if res.erros:
+        log_cb(f"  {len(res.erros)} com erro: "
+               + ", ".join(f"{c} ({m})" for c, m in res.erros[:10]))
+    return res

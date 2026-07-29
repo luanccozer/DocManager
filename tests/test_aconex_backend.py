@@ -9,6 +9,9 @@ import os
 
 from docmanager.aconex_backend import (
     AconexConfig,
+    _buscar_doc_atual,
+    _caminho_unico,
+    _nome_seguro,
     _parse_pagina,
     classificar_fonte,
     montar_dataframe,
@@ -150,3 +153,55 @@ def test_montar_dataframe_sem_fonte_nao_cria_tramitacao():
     # Sem a coluna Fonte, não há o que classificar (não deve quebrar).
     df = montar_dataframe([{"DocumentNumber": "X", "Revision": "0A"}])
     assert "Tipo de Tramitação" not in df.columns
+
+
+# --------------------------------------------------------------------------
+# Download por lista (helpers puros; a API é exercitada só ao vivo)
+# --------------------------------------------------------------------------
+class _FakeResp:
+    def __init__(self, content, status=200):
+        self.content = content.encode("utf-8") if isinstance(content, str) else content
+        self.status_code = status
+
+
+class _FakeSession:
+    """session.get de mentira: devolve sempre a mesma resposta e grava os params."""
+    def __init__(self, content, status=200):
+        self._resp = _FakeResp(content, status)
+        self.calls = []
+
+    def get(self, url, headers=None, params=None, timeout=None):
+        self.calls.append((url, params))
+        return self._resp
+
+
+def test_nome_seguro_troca_reservados_e_mantem_codigo():
+    # '#', '=', '&', '-' são válidos no Windows → preservados.
+    assert _nome_seguro("#BA00=B04&ELD020-R0.pdf") == "#BA00=B04&ELD020-R0.pdf"
+    assert _nome_seguro('a/b:c*d?.pdf') == "a_b_c_d_.pdf"
+    assert _nome_seguro("   ") == "documento"
+
+
+def test_caminho_unico_nao_sobrescreve(tmp_path):
+    p = tmp_path / "doc.pdf"
+    assert _caminho_unico(str(p)) == str(p)            # não existe → mesmo caminho
+    p.write_bytes(b"x")
+    assert _caminho_unico(str(p)) == str(tmp_path / "doc (2).pdf")
+
+
+def test_buscar_doc_atual_pega_versao_current_e_busca_com_aspas():
+    xml = ('<RegisterSearch><SearchResults>'
+           '<Document DocumentId="111"><DocumentNumber>#IT-1</DocumentNumber>'
+           '<Current>false</Current><Filename>old.pdf</Filename></Document>'
+           '<Document DocumentId="222"><DocumentNumber>#IT-1</DocumentNumber>'
+           '<Current>true</Current><Filename>novo.pdf</Filename></Document>'
+           '</SearchResults></RegisterSearch>')
+    sess = _FakeSession(xml)
+    did, filename, _rev = _buscar_doc_atual(sess, "http://base", {}, "#IT-1")
+    assert did == "222" and filename == "novo.pdf"         # vence a versão current
+    assert sess.calls[0][1]["search_query"] == '"#IT-1"'   # casamento exato por aspas
+
+
+def test_buscar_doc_atual_nao_encontrado():
+    sess = _FakeSession("<RegisterSearch><SearchResults/></RegisterSearch>")
+    assert _buscar_doc_atual(sess, "http://base", {}, "#XYZ") is None
