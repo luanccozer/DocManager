@@ -256,10 +256,14 @@ uma coluna a habilitar — é objeto da **Mail API**.
   (com ASPAS) devolve **direto** o(s) transmittal(is) que anexaram aquele documento —
   ex.: `"#BA00=B04BMA10UC013-UC901&ELD020"` → **1 resultado**, `CMI-2305-WTR-005845`,
   em ~1s. Sem aspas dá timeout (busca ampla).
-- **Nuance CMI × ITAIPU:** o SENTBOX devolve o transmittal **CMI** que enviou o doc
-  (`CMI-…-WTR-…`); o "Transmitido em" que o usuário citou era `ITAIPU-WTR-023502` (o
-  transmittal de retorno da ITAIPU, provavelmente no `INBOX`). **A confirmar** qual
-  dos dois a equipe quer.
+- **Nuance CMI × ITAIPU (CRÍTICA):** o `SENTBOX` (busca direcionada ~1s) devolve o
+  transmittal **CMI** que ENVIOU o doc (`CMI-…-WTR-…`). Mas o "Transmitido em" que o
+  usuário citou (`ITAIPU-WTR-023502`) é o transmittal da **ITAIPU**, que fica no
+  `INBOX` — e a busca no `INBOX`, **mesmo direcionada com aspas, deu TIMEOUT (>50s)**.
+  Ou seja: só o transmittal **CMI é barato**; o **ITAIPU (o do relatório web) NÃO é
+  obtível de forma rápida** por esta via — precisaria de outra abordagem (paginação
+  com filtro de data, ou verificar se o web usa outro campo). **Decisão/necessidade a
+  confirmar com o usuário:** serve o transmittal CMI, ou tem de ser o da ITAIPU?
 
 ### 7.2 Veredito de TEMPO (a pergunta central do usuário)
 
