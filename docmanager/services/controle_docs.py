@@ -52,6 +52,12 @@ class ControleRow:
     data_reprogramada: date | None
     fase: str = ""          # FASE DE PROJETO (§24.11) — vai ao histórico/Doc List
     emitido: str = ""       # EMITIDO / NÃO EMITIDO — para o log de divergência
+    # Metadados do Controle para preencher a linha NÃO EMITIDO do Histórico (o doc
+    # não está no Aconex, então esses campos vêm do Controle — pedido do usuário):
+    especialidade: str = ""      # EQUIPAMENTO / SISTEMA                → Especialidade
+    subespecialidade: str = ""   # REFERÊNCIA DA ESPECIFICAÇÃO TÉCNICA  → Subespecialidade
+    tipo_documento: str = ""     # TIPO DE DOCUMENTO                    → Tipo do Documento DCC
+    subtipo: str = ""            # SUBTIPO                              → Subtipo DCC
 
     @property
     def data_ref(self) -> date | None:
@@ -439,6 +445,12 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
     col_desc = _col(df, "DESCRIÇÃO", "TÍTULO")
     col_fase = _col(df, "FASE DE PROJETO", "FASE DEL PROYECTO", "FASE DE PROYECTO")
     col_emit = _col(df, "EMITIDO / NÃO EMITIDO", "EMITIDO / NAO EMITIDO", "EMITIDO")
+    # Metadados p/ preencher a linha NÃO EMITIDO do Histórico (mapeamento do usuário).
+    col_equip = _col(df, "EQUIPAMENTO / SISTEMA", "EQUIPAMENTO/SISTEMA", "EQUIPAMENTO")
+    col_esptec = _col(df, "REFERÊNCIA DA ESPECIFICAÇÃO TÉCNICA",
+                      "REFERENCIA DA ESPECIFICACAO TECNICA", "ESPECIFICACAO TECNICA")
+    col_tipodoc = _col(df, "TIPO DE DOCUMENTO")
+    col_subtipo = _col(df, "SUBTIPO")
     if col_prev is None:
         log(f"Aviso: aba '{aba}' sem coluna '{CTRL_COL_DATA_PREVISTA}'. "
             f"Cabeçalhos lidos: {', '.join(str(c) for c in list(df.columns)[:25])}")
@@ -462,6 +474,10 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
             data_reprogramada=reprog[i],
             fase=str(df.iloc[i][col_fase]).strip() if col_fase else "",
             emitido=str(df.iloc[i][col_emit]).strip() if col_emit else "",
+            especialidade=str(df.iloc[i][col_equip]).strip() if col_equip else "",
+            subespecialidade=str(df.iloc[i][col_esptec]).strip() if col_esptec else "",
+            tipo_documento=str(df.iloc[i][col_tipodoc]).strip() if col_tipodoc else "",
+            subtipo=str(df.iloc[i][col_subtipo]).strip() if col_subtipo else "",
         ))
     if col_prev is not None or col_reprog is not None:
         achadas = [n for n, c in (("DATA PREVISTA", col_prev), ("REPROGRAMAÇÃO", col_reprog)) if c]

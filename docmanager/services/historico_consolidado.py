@@ -125,6 +125,12 @@ def _linha_nao_emitido(r, base_cmi_0a: str) -> dict:
         COL_TITULO: r.titulo,
         COL_REVISAO: "",
         COL_STATUS_ENVIO: NAO_EMITIDO,
+        # Metadados do Controle preenchem o vazio do Aconex (pedido do usuário).
+        # Nomes idênticos aos do wide (core/wide.py::_COLS_META) p/ casar as colunas.
+        "Especialidade": r.especialidade,
+        "Subespecialidade": r.subespecialidade,
+        "Tipo do Documento DCC": r.tipo_documento,
+        "Subtipo DCC": r.subtipo,
     }
     _anexar_controle(d, r, base_cmi_0a)
     return d

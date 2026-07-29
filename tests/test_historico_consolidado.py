@@ -16,12 +16,15 @@ from docmanager.services.historico_consolidado import gerar_historico
 
 def _ctrl(*docs) -> ControleDocs:
     """ControleDocs a partir de dicts: itaipu, cmi, [titulo], [fase], [prevista],
-    [reprog], [emitido]. Fase default só para não ficar vazia nos testes."""
+    [reprog], [emitido], [especialidade], [subespecialidade], [tipo_documento],
+    [subtipo]. Fase default só para não ficar vazia nos testes."""
     rows = [ControleRow(
         cod_itaipu=d.get("itaipu", ""), cod_cmi=d.get("cmi", ""),
         titulo=d.get("titulo", ""),
         data_prevista=d.get("prevista"), data_reprogramada=d.get("reprog"),
         fase=d.get("fase", "PROJETO FABRICAÇÃO"), emitido=d.get("emitido", ""),
+        especialidade=d.get("especialidade", ""), subespecialidade=d.get("subespecialidade", ""),
+        tipo_documento=d.get("tipo_documento", ""), subtipo=d.get("subtipo", ""),
     ) for d in docs]
     return ControleDocs(rows)
 
@@ -58,6 +61,28 @@ def test_controle_le_fase_e_emitido(tmp_path):
     b = ctrl.linha_por_codigo("#IT-B")
     assert a.fase == "PROJETO FABRICAÇÃO" and a.esta_emitido is True
     assert b.fase == "EXECUÇÃO" and b.esta_emitido is False
+
+
+def test_controle_le_metadados_para_nao_emitido(tmp_path):
+    """Lê EQUIPAMENTO / SISTEMA, REFERÊNCIA DA ESPECIFICAÇÃO TÉCNICA, TIPO DE
+    DOCUMENTO e SUBTIPO (metadados que preenchem a linha NÃO EMITIDO)."""
+    from openpyxl import Workbook
+    p = tmp_path / "ctrl_meta.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["ITAIPU - CONTROLE"])
+    ws.append([])
+    ws.append([])
+    ws.append(["ITEM", "NÚMERO INTERNO", "CODIFICAÇÃO ITAIPÚ (ACONEX)", "DESCRIÇÃO",
+               "EQUIPAMENTO / SISTEMA", "REFERÊNCIA DA ESPECIFICAÇÃO TÉCNICA",
+               "TIPO DE DOCUMENTO", "SUBTIPO", "DATA PREVISTA DE EMISSÃO ACONEX"])
+    ws.append([1, "CMI-A", "#IT-A", "DOC A", "TURBINA", "ET-900", "DESENHO", "MONTAGEM", "30-11-2025"])
+    wb.save(p)
+    r = ler_controle(p).linha_por_codigo("#IT-A")
+    assert r.especialidade == "TURBINA"
+    assert r.subespecialidade == "ET-900"
+    assert r.tipo_documento == "DESENHO"
+    assert r.subtipo == "MONTAGEM"
 
 
 def test_controle_normaliza_codigo_float(tmp_path):
@@ -202,6 +227,24 @@ def test_nao_emitido_tracking_em_branco_e_atraso_corrente():
     assert str(s["Tracking ID"]) == ""                                  # em branco
     assert pd.Timestamp(s[COL_DATA_PREVISTA_CTRL]) == pd.Timestamp("2024-06-01")
     assert s[COL_ATRASO_CMI] == 213                                     # 01/06 → 31/12
+
+
+def test_nao_emitido_recebe_metadados_do_controle():
+    """A linha NÃO EMITIDO herda Especialidade/Subespecialidade/Tipo DCC/Subtipo DCC
+    do Controle (o doc não está no Aconex para trazê-los) — pedido do usuário."""
+    b = base(HistoricoBuilder("T1", "IT-1", "CMI-1").evento("0A", 1, "Em Processo", "01/09/2024", current=True))
+    wide = gerar_historico(
+        b, _ctrl({"itaipu": "IT-1", "cmi": "CMI-1"},
+                 {"itaipu": "IT-99", "cmi": "CMI-99", "titulo": "FANTASMA",
+                  "prevista": date(2024, 6, 1), "especialidade": "MECÂNICA",
+                  "subespecialidade": "ET-123", "tipo_documento": "DESENHO",
+                  "subtipo": "MONTAGEM"}),
+        DelayPolicy(hoje=date(2024, 12, 31)))
+    ne = wide[wide["No. do Documento"] == "IT-99"].iloc[0]
+    assert ne["Especialidade"] == "MECÂNICA"
+    assert ne["Subespecialidade"] == "ET-123"
+    assert ne["Tipo do Documento DCC"] == "DESENHO"
+    assert ne["Subtipo DCC"] == "MONTAGEM"
 
 
 def test_emitido_no_controle_sem_tracking_vai_para_o_log():
