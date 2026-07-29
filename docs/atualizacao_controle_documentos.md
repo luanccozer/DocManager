@@ -241,13 +241,44 @@ uma coluna a habilitar — é objeto da **Mail API**.
   - Detalhe pendente: `mail_box=sent` retornou **400 `INVALID_PARAMETER_VALUE`** — o
     token de caixa é outro (ex.: `SENT_BOX`/`sentbox`, a confirmar no guia da Mail API).
 
-**Portanto, obter o "Transmitido em" é um SUB-PROJETO (Mail API), não um ajuste de campo:**
-1. listar transmittals do projeto (Mail API, caixa enviada, paginado);
-2. para cada transmittal, obter os documentos+revisões anexados;
-3. cruzar `(docno, revisão) → nº do transmittal` e juntar à base extraída como a nova
-   coluna "Transmitido em".
+### 7.1 Contrato da Mail API — MAPEADO ao vivo (2026-07-29, `tools/probe_mail_aconex.py`)
 
-Só depois disso o `montar_dataframe` em `docmanager/aconex_backend.py` ganharia a
-coluna. **Decisão do usuário pendente:** investir nessa integração da Mail API agora,
-ou adiar junto com o módulo. A ferramenta de descoberta fica pronta para aprofundar o
-contrato (achar o `mail_box` certo e o shape doc→transmittal) quando ele quiser.
+- **Caixa:** `mail_box=SENTBOX` (enviados) e `INBOX` (recebidos) são válidos. O
+  `INBOX` deu **504 (timeout)** ao listar tudo — pesado.
+- **Volume:** `SENTBOX` tem **12.911 mails** (`TotalResults`). Cada mail traz, inline:
+  `MailNo` (o nº do transmittal, ex.: `CMI-2305-WTR-005845`), `CorrespondenceType`
+  (ex.: `Workflow Transmittal`), `SentDate`, `Subject`, `AttachedDocumentCount` —
+  **mas NÃO os docnos anexados**.
+- **Docnos anexados:** só no DETALHE `GET /mail/{MailId}` (HTTP 200), que lista
+  `DocumentNo` + `Revision` + `RegisteredDocumentAttachment` por anexo. → 1 chamada
+  por mail.
+- **Busca por documento (barata!):** `GET /mail?mail_box=SENTBOX&search_query='"<docno>"'`
+  (com ASPAS) devolve **direto** o(s) transmittal(is) que anexaram aquele documento —
+  ex.: `"#BA00=B04BMA10UC013-UC901&ELD020"` → **1 resultado**, `CMI-2305-WTR-005845`,
+  em ~1s. Sem aspas dá timeout (busca ampla).
+- **Nuance CMI × ITAIPU:** o SENTBOX devolve o transmittal **CMI** que enviou o doc
+  (`CMI-…-WTR-…`); o "Transmitido em" que o usuário citou era `ITAIPU-WTR-023502` (o
+  transmittal de retorno da ITAIPU, provavelmente no `INBOX`). **A confirmar** qual
+  dos dois a equipe quer.
+
+### 7.2 Veredito de TEMPO (a pergunta central do usuário)
+
+**Adicionar "Transmitido em" à extração INTEIRA aumenta MUITO o tempo — não é grátis:**
+- Hoje a extração leva ~30 min (80.688 linhas / ~161 páginas do register).
+- Para preencher o transmittal de todos os ~9.465 docs vigentes seria **1 busca de mail
+  por documento** (~1–2s cada) → **~2,6 a 5 horas** a mais; ou varrer os 12.911 mails +
+  1 detalhe cada → **~1–2 h** a mais (e o INBOX cheio dá 504). Qualquer caminho
+  **soma horas** à extração.
+- **Barato só por LISTA:** 1 busca por código (~1–2s). Uma lista de 50 códigos ≈ <2 min.
+
+**Estratégias possíveis (decisão do usuário):**
+1. **Sob demanda por lista** (recomendado) — nova ação "Transmitido em por lista",
+   igual ao download por lista: cola os códigos, recebe `código → transmittal`. Rápido,
+   proporcional à lista, **zero impacto na extração**.
+2. **Mapa cacheado incremental** — montar o mapa doc→transmittal UMA vez (~1 h),
+   salvar em disco, e nas próximas só buscar mails novos por `sentdate`. Cobre a base
+   inteira, mas a 1ª carga é lenta e adiciona complexidade.
+3. **Não fazer base-wide** — só quando precisar, via (1).
+
+Enquanto o usuário decide, NADA foi adicionado à extração (para não aumentar o tempo).
+Ferramentas de descoberta: `tools/descobrir_transmitido_em.py` e `tools/probe_mail_aconex.py`.
