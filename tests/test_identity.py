@@ -32,6 +32,18 @@ def test_cascata_ouro_prata_bronze():
     assert idx.localizar("XXXX", "YYYY").empty
 
 
+def test_cascata_preferir_itaipu_inverte_prata_bronze():
+    idx = AconexIndex(_base_multi())
+    # Itaipu e CMI apontam para documentos DIFERENTES (o CMI da lista está "errado").
+    # Padrão (par → CMI → Itaipu): vence o CMI → TID-B.
+    assert set(idx.localizar("IT-100", "CMI-200")["Tracking ID"]) == {"TID-B"}
+    # preferir_itaipu (par → Itaipu → CMI): vence o Itaipu → TID-A (o certo, para
+    # o Status Documentos: o CMI errado será sinalizado, não guia a busca).
+    assert set(idx.localizar("IT-100", "CMI-200", preferir_itaipu=True)["Tracking ID"]) == {"TID-A"}
+    # O par exato continua vencendo em ambos os modos.
+    assert set(idx.localizar("IT-100", "CMI-100", preferir_itaipu=True)["Tracking ID"]) == {"TID-A"}
+
+
 def test_desempate_por_data_mais_recente():
     # Mesmo código Itaipu em dois trackings distintos → vence a data mais nova.
     a = HistoricoBuilder("TID-OLD", "IT-DUP", "CMI-OLD").evento("0A", 1, "Em Processo", "01/01/2024", current=True)

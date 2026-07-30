@@ -134,6 +134,25 @@ def test_status_pares_cmi_nao_confere_sem_cmi_no_sistema():
     assert d["Código CMI"] == "CMI-FANTASMA"         # sem correto, mantém o buscado
 
 
+def test_status_pares_itaipu_manda_quando_cmi_aponta_outro_doc():
+    """Cenário do usuário: Itaipu certo, CMI (número interno) errado apontando
+    para OUTRO documento. Com a prioridade Itaipu → CMI, acha o doc CERTO pelo
+    Itaipu e sinaliza o CMI errado — em vez de ir ao documento errado pelo CMI."""
+    b = base(
+        HistoricoBuilder("TX", "IT-XX01", "CMI-XX01", "DOC ALVO")
+        .evento("0A", 1, "Aprovado", "01/03/2024", current=True),
+        HistoricoBuilder("TY", "IT-YY02", "CMI-YY02", "OUTRO DOC")
+        .evento("0A", 1, "Em Processo", "01/03/2024", current=True),
+    )
+    linhas, _, _ = analisar_status_pares(b, [("IT-XX01", "CMI-YY02")])
+    d = linhas[0]
+    assert d["Título"] == "DOC ALVO"                 # achou o doc do Itaipu, não o do CMI
+    assert d["_itaipu_status"] == ""                 # Itaipu confere
+    assert d["_cmi_status"] == "nao_confere"         # CMI errado sinalizado
+    assert d["Código CMI"] == "CMI-XX01"             # célula mostra o CMI correto do alvo
+    assert d["_cmi_buscado"] == "CMI-YY02"           # o errado vai para o comentário
+
+
 def test_status_pares_export_azul_e_comentario(tmp_path):
     import openpyxl
 

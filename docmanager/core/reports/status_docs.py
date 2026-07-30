@@ -112,7 +112,10 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
                  "_itaipu_status": "", "_cmi_status": "",
                  "_itaipu_buscado": c_it, "_cmi_buscado": c_cmi,
                  "_itaipu_real": "", "_cmi_real": ""}
-        df_t = idx.localizar(c_it, c_cmi)
+        # Prioridade Itaipu → CMI (pedido do usuário): o Itaipu é a âncora e um
+        # número interno (CMI) errado na lista é sinalizado por cor/comentário,
+        # em vez de arrastar a busca para o documento errado.
+        df_t = idx.localizar(c_it, c_cmi, preferir_itaipu=True)
         if not df_t.empty:
             tl = resolver_linha_da_verdade(df_t)
             eh_modelo = _e_modelo(df_t)

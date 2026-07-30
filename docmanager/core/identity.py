@@ -76,12 +76,16 @@ class AconexIndex:
         return self._df.iloc[pos].copy()
 
     # ------------------------------------------------------------------
-    def localizar(self, codigo_itaipu, codigo_cmi) -> pd.DataFrame:
+    def localizar(self, codigo_itaipu, codigo_cmi, *, preferir_itaipu: bool = False) -> pd.DataFrame:
         """Cascata ouro/prata/bronze + desempate por data (legado L71-111).
 
         1. Ouro: match exato simultâneo Itaipu+CMI (ambos com len > 3).
-        2. Prata: só CMI (código mais estável).
-        3. Bronze: só Itaipu.
+        2/3. Prata → Bronze: só CMI (mais estável), depois só Itaipu — a ordem do
+           legado, usada por Histórico/Mapa/Doc List. Com `preferir_itaipu=True`
+           a ordem INVERTE para Itaipu → CMI: é o que o Status Documentos (leitura
+           via Excel) usa, porque o Itaipu é a âncora de local/sistema/tipo e um
+           CMI (número interno) errado na lista deve ser sinalizado por
+           cor/comentário, não guiar a busca ao documento errado (pedido do usuário).
         4. Múltiplos Tracking IDs → desempate pela Data de Alteração mais
            recente ENTRE AS LINHAS DO MATCH (NaT por último).
         5. Retorna o histórico COMPLETO do Tracking eleito.
@@ -92,10 +96,12 @@ class AconexIndex:
         pos: list = []
         if len(it) > 3 and len(cmi) > 3:
             pos = self._rows_par.get((it, cmi), [])
-        if not pos and len(cmi) > 3:
-            pos = self._rows_cmi.get(cmi, [])
-        if not pos and len(it) > 3:
-            pos = self._rows_doc.get(it, [])
+        # Passos 2 e 3, na ordem escolhida (CMI-primeiro é o padrão do legado).
+        secundarios = ((self._rows_doc, it), (self._rows_cmi, cmi)) if preferir_itaipu \
+            else ((self._rows_cmi, cmi), (self._rows_doc, it))
+        for tabela, chave in secundarios:
+            if not pos and len(chave) > 3:
+                pos = tabela.get(chave, [])
         if not pos:
             return pd.DataFrame()
 
