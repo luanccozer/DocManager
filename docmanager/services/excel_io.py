@@ -656,3 +656,90 @@ def exportar_historico(df_wide: pd.DataFrame, caminho_saida) -> tuple[bool, str]
         return True, f"Arquivo gerado com sucesso: {caminho_saida}"
     except Exception as e:  # noqa: BLE001 — reportado ao chamador
         return False, f"Erro ao salvar Excel: {e}"
+
+
+# ---------------------------------------------------------------------------
+# Fluxos em Andamento (KB §24.12) — "onde está e com quem"
+# ---------------------------------------------------------------------------
+_FILL_ATRASADO = PatternFill("solid", fgColor="FFC7CE")
+_FONT_ATRASADO = Font(color="9C0006", size=10, name="Segoe UI", bold=True)
+_FILL_HOJE = PatternFill("solid", fgColor="FFEB9C")
+_FONT_HOJE = Font(color="9C6500", size=10, name="Segoe UI", bold=True)
+_FONT_NO_PRAZO = Font(color="006100", size=10, name="Segoe UI")
+
+_LARG_FLUXOS = {
+    "Nº do Fluxo": 13, "Nome do Fluxo": 34, "No. do Documento": 28, "Revisão": 9,
+    "Título": 62, "Etapa": 24, "Status da Etapa": 15, "Atribuído a": 40,
+    "Organização Atribuída": 28, "Qtd. Atribuídos": 9, "Data de Recebimento": 16,
+    "Data de Vencimento": 16, "Dias em Aberto": 12, "Dias de Atraso": 12,
+    "Situação": 13, "Iniciador": 22, "Organização Iniciador": 26,
+    "Motivo da Emissão": 20, "Tracking ID": 21,
+    "Organizações (por atribuído)": 30,
+    "Responsável": 28, "Organização": 30, "Fluxos": 9, "Atrasados": 10,
+    "% Atrasados": 12, "Atraso Médio (dias)": 15, "Atraso Máx. (dias)": 15,
+    "Mais Antigo (dias em aberto)": 20,
+}
+_CENTRO_FLUXOS = {
+    "Revisão", "Status da Etapa", "Qtd. Atribuídos", "Data de Recebimento",
+    "Data de Vencimento", "Dias em Aberto", "Dias de Atraso", "Situação",
+    "Nº do Fluxo", "Fluxos", "Atrasados", "% Atrasados", "Atraso Médio (dias)",
+    "Atraso Máx. (dias)", "Mais Antigo (dias em aberto)",
+}
+
+
+def _estilizar_fluxos(ws, df: pd.DataFrame, *, colorir_situacao: bool) -> None:
+    """Cabeçalho executivo + zebra + semáforo de prazo (mesma paleta do projeto)."""
+    ws.freeze_panes = "A2"
+    ws.row_dimensions[1].height = 26
+    for c, h in enumerate(df.columns, 1):
+        cell = ws.cell(1, c, h)
+        cell.fill, cell.font, cell.border = _FILL_HEADER, _FONT_HEADER, _BORDER
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.column_dimensions[get_column_letter(c)].width = _LARG_FLUXOS.get(h, 18)
+
+    col_sit = list(df.columns).index("Situação") + 1 if "Situação" in df.columns else 0
+    col_atr = list(df.columns).index("Dias de Atraso") + 1 if "Dias de Atraso" in df.columns else 0
+    for r in range(2, len(df) + 2):
+        banda = _FILL_BANDA if r % 2 == 0 else None
+        for c, h in enumerate(df.columns, 1):
+            cell = ws.cell(r, c)
+            cell.font, cell.border = _FONT_DADO, _BORDER
+            cell.alignment = Alignment(wrap_text=True, vertical="center",
+                                       horizontal="center" if h in _CENTRO_FLUXOS else "left")
+            if banda is not None:
+                cell.fill = banda
+        if colorir_situacao and col_sit:
+            sit = str(ws.cell(r, col_sit).value or "")
+            if sit == "Atrasado":
+                for col in (col_sit, col_atr):
+                    if col:
+                        ws.cell(r, col).font = _FONT_ATRASADO
+                        ws.cell(r, col).fill = _FILL_ATRASADO
+            elif sit == "Vence hoje":
+                ws.cell(r, col_sit).font = _FONT_HOJE
+                ws.cell(r, col_sit).fill = _FILL_HOJE
+            elif sit == "No prazo":
+                ws.cell(r, col_sit).font = _FONT_NO_PRAZO
+    if len(df):
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(df.columns))}{len(df) + 1}"
+
+
+def exportar_fluxos_andamento(detalhe: pd.DataFrame, por_pessoa: pd.DataFrame,
+                              por_org: pd.DataFrame, caminho_saida) -> tuple[bool, str]:
+    """Excel de 3 abas: o detalhe "onde está" + os dois cortes de "com quem"."""
+    if detalhe is None or detalhe.empty:
+        return False, "Nenhum fluxo em andamento encontrado."
+    try:
+        with pd.ExcelWriter(caminho_saida, engine="openpyxl") as writer:
+            detalhe.to_excel(writer, index=False, sheet_name="Fluxos em Andamento")
+            _estilizar_fluxos(writer.sheets["Fluxos em Andamento"], detalhe,
+                              colorir_situacao=True)
+            for df_res, aba in ((por_pessoa, "Por Responsável"), (por_org, "Por Organização")):
+                if df_res is not None and not df_res.empty:
+                    df_res.to_excel(writer, index=False, sheet_name=aba)
+                    _estilizar_fluxos(writer.sheets[aba], df_res, colorir_situacao=False)
+        return True, f"Relatório gerado: {caminho_saida}"
+    except PermissionError:
+        return False, "O arquivo parece estar aberto no Excel. Feche-o e tente novamente."
+    except Exception as e:  # noqa: BLE001
+        return False, f"Erro ao salvar Excel: {e}"

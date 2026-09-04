@@ -150,3 +150,44 @@ CONS_NAO_EMITIDO = "NÃO EMITIDO"
 CONS_ERRO = "ERRO"  # sentinela intencional de combinação não mapeada (KB §21.4)
 
 NAO_EMITIDO = "NÃO EMITIDO"
+
+# ---------------------------------------------------------------------------
+# Fluxos de Trabalho — Workflows API (KB §24.12)
+# ---------------------------------------------------------------------------
+# ATENÇÃO: a API devolve estes valores LOCALIZADOS EM PORTUGUÊS, e vários com
+# espaço à direita ('Concluído '). O guia oficial documenta os rótulos em inglês
+# ('In Progress', 'Completed') — que NÃO aparecem na resposta. Comparar sempre
+# com estas constantes, após strip (feito na carga).
+WF_STATUS_ANDAMENTO = "Em Andamento"
+WF_STATUS_CONCLUIDO = "Concluído"
+WF_STATUS_ENCERRADO = "Encerrado"
+
+# Status da ETAPA. 'Atual' e 'Em Atraso' são as etapas EM ABERTO — é nelas que
+# mora a resposta "com quem o documento está agora".
+WF_ETAPA_ATUAL = "Atual"
+WF_ETAPA_ATRASADA = "Em Atraso"
+WF_ETAPAS_EM_ABERTO = (WF_ETAPA_ATUAL, WF_ETAPA_ATRASADA)
+WF_ETAPA_PREVISAO = "Previsão"
+WF_ETAPA_CONCLUIDA = "Concluído"
+WF_ETAPA_ENCERRADA = "Encerrado"
+
+# Colunas canônicas da base de fluxos (as de documento repetem os nomes da base
+# do register de propósito — é o que permite juntar sem tradução).
+WF_COL_NUMERO = "Nº do Fluxo"
+WF_COL_STATUS = "Status do Fluxo"
+WF_COL_ETAPA = "Etapa"
+WF_COL_ETAPA_STATUS = "Status da Etapa"
+WF_COL_ATRIBUIDO = "Atribuído a"
+WF_COL_ORG_ATRIBUIDA = "Organização Atribuída"
+WF_COL_RECEBIMENTO = "Data de Recebimento"
+WF_COL_VENCIMENTO = "Data de Vencimento"
+
+# Situação do prazo, no relatório de fluxos em andamento.
+WF_SIT_ATRASADO = "Atrasado"
+WF_SIT_VENCE_HOJE = "Vence hoje"
+WF_SIT_NO_PRAZO = "No prazo"
+WF_SIT_SEM_PRAZO = "Sem prazo"
+# Organização de CADA atribuído, pareada 1-a-1 com `Atribuído a` (com repetição).
+# `WF_COL_ORG_ATRIBUIDA` traz as DISTINTAS (leitura); esta traz o pareamento, sem
+# o qual um revisor de etapas mistas se fragmenta no resumo por responsável.
+WF_COL_ORG_PAREADA = "Organizações (por atribuído)"

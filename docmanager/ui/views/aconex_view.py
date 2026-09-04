@@ -56,11 +56,12 @@ class AconexView(BaseView):
         self._dica = ctk.CTkLabel(card, text="", font=t.corpo(11), text_color=t.TEXTO_FRACO, anchor="w")
         self._dica.grid(row=card._linha, column=0, sticky="w", padx=16, pady=(0, 12))
 
-        # Duas guias dentro do módulo: extração completa e download por lista.
+        # Guias do módulo: extração completa, fluxos de trabalho e download por lista.
         self.tabs = ctk.CTkTabview(body, fg_color=t.CARD, segmented_button_selected_color=t.ACENTO,
                                    segmented_button_selected_hover_color=t.ACENTO_HOVER)
         self.tabs.grid(row=1, column=0, sticky="ew", pady=(0, 8))
         self._montar_aba_extracao(self.tabs.add("📦 Extração Completa"))
+        self._montar_aba_fluxos(self.tabs.add("🔀 Fluxos de Trabalho"))
         self._montar_aba_download(self.tabs.add("⬇️ Baixar por Lista"))
         self._on_user(self.opt_user.get())   # define visibilidade/dica iniciais
 
@@ -72,6 +73,89 @@ class AconexView(BaseView):
             row=0, column=0, sticky="w", padx=6, pady=(8, 2))
         self.run = RunBar(aba, "Iniciar Extração", self._tarefa, self.log)
         self.run.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+
+    # Períodos da extração incremental: rótulo → dias (None = tudo).
+    PERIODOS_FLUXO = {
+        "Tudo (~20 min)": None,
+        "Últimos 7 dias": 7,
+        "Últimos 30 dias": 30,
+        "Últimos 12 meses": 365,
+    }
+
+    def _montar_aba_fluxos(self, aba):
+        aba.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(aba, text="Baixa os FLUXOS DE TRABALHO (a aba 'Fluxos de Trabalho' do Aconex): "
+                     "etapa, prazo e a quem cada documento está atribuído. Use um período curto para "
+                     "atualizar rápido — só o que mudou desde então é baixado.",
+                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
+            row=0, column=0, sticky="w", padx=6, pady=(8, 2))
+
+        linha = ctk.CTkFrame(aba, fg_color="transparent")
+        linha.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
+        ctk.CTkLabel(linha, text="Período", width=170, anchor="w", font=t.corpo(12),
+                     text_color=t.TEXTO).grid(row=0, column=0, sticky="w")
+        self.opt_periodo_fluxo = ctk.CTkOptionMenu(
+            linha, values=list(self.PERIODOS_FLUXO), font=t.corpo(12),
+            fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
+        self.opt_periodo_fluxo.set("Tudo (~20 min)")
+        self.opt_periodo_fluxo.grid(row=0, column=1, sticky="w")
+        linha.grid_columnconfigure(1, weight=1)
+
+        RunBar(aba, "Extrair Fluxos de Trabalho", self._tarefa_fluxos, self.log).grid(
+            row=2, column=0, sticky="ew", padx=6, pady=(0, 8))
+
+    def _tarefa_fluxos(self, run: RunBar):
+        from datetime import datetime, timedelta, timezone
+
+        from dotenv import load_dotenv
+        load_dotenv()
+        from ...workflows_backend import (
+            extrair_workflows,
+            limpar_checkpoint_wf,
+            nome_arquivo_padrao_wf,
+            salvar_excel_workflows,
+        )
+        try:
+            config = self._montar_config()
+        except (KeyError, ValueError) as e:
+            self.log.log(f"ERRO: {e}")
+            return
+
+        dias = self.PERIODOS_FLUXO.get(self.opt_periodo_fluxo.get())
+        updated_after = ""
+        if dias:
+            updated_after = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime(
+                "%Y-%m-%dT%H:%M:%SZ")
+            self.log.log(f"Extração incremental: fluxos alterados nos últimos {dias} dias.")
+        run.set_progress(0.05)
+        r = extrair_workflows(config, log_cb=self.log.log, updated_after=updated_after,
+                              progress_cb=run.set_progress)
+
+        if r.df.empty:
+            self.log.log("Nenhum fluxo retornado.")
+            return
+        if not r.completa:
+            self.log.log(f"ATENÇÃO: base PARCIAL ({r.motivo}).")
+            if not messagebox.askyesno(
+                    "Extração incompleta",
+                    f"A extração parou antes do fim ({r.motivo}).\n\n"
+                    f"{len(r.df)} linhas ficaram salvas para retomada — rode de novo que ela "
+                    f"continua da página {r.paginas + 1}.\n\n"
+                    "Quer salvar agora um Excel com o que já veio (base PARCIAL)?"):
+                self.log.log("Excel parcial não gerado. O progresso segue guardado para retomar.")
+                return
+
+        saida = pedir_salvar(self.ctx.config, "saida", nome_arquivo_padrao_wf())
+        if not saida:
+            self.log.log("Salvamento cancelado. O progresso da extração continua guardado.")
+            return
+        salvar_excel_workflows(r.df, saida)
+        run.set_progress(1.0)
+        if r.completa:
+            limpar_checkpoint_wf(config, updated_after=updated_after)
+            self.log.log(f"Concluído: {len(r.df)} fluxos salvos.")
+            self.after(0, lambda: messagebox.showinfo(
+                "Fluxos de Trabalho", f"{len(r.df)} linhas de fluxo salvas."))
 
     def _montar_aba_download(self, aba):
         aba.grid_columnconfigure(0, weight=1)
