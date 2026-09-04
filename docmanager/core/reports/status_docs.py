@@ -18,6 +18,7 @@ from ...core.constants import (
     COL_STATUS,
     COL_TIPO_DOC,
     COL_TITULO,
+    COL_TRACKING,
     NAO_EMITIDO,
 )
 from ...core.identity import AconexIndex, obter_codigos_historicos
@@ -33,21 +34,60 @@ def _e_modelo(df_tracking: pd.DataFrame) -> bool:
     return "MODEL" in str(df_tracking[COL_TIPO_DOC].iloc[0]).upper()
 
 
-def _classificar_codigo_busca(buscado: str, vigente: str, hist_norm: set) -> str:
+def _classificar_codigo_busca(buscado: str, vigente: str, hist_norm: set, *,
+                              conhecido: bool = True) -> str:
     """Compara o código BUSCADO com o do documento resolvido pelo Tracking ID:
-      - ''            → não foi buscado, ou confere com o vigente;
-      - 'atualizado'  → difere do vigente MAS é um código que o documento já
-                        teve → mudou no sistema (destaque azul);
-      - 'nao_confere' → difere e NUNCA pertenceu ao documento → o doc foi achado
-                        pelo OUTRO código e este não bate → provável erro de
-                        digitação na lista (destaque laranja).
+      - ''               → não foi buscado, ou confere com o vigente;
+      - 'atualizado'     → difere do vigente MAS é um código que o documento já
+                           teve → mudou no sistema (destaque azul);
+      - 'nao_confere'    → nunca pertenceu a este documento, mas EXISTE no
+                           Aconex (é de outro documento) → troca/erro de
+                           digitação na lista;
+      - 'nao_localizado' → não existe em documento NENHUM do Aconex → o doc
+                           provavelmente ainda não foi emitido/registrado com
+                           esse código; a lista não está necessariamente errada.
+
+    A distinção existe porque acusar "código informado errado" quando o código
+    simplesmente não está no Aconex mina a confiança no relatório (2026-09-04).
     """
     p = normalizar_codigo(buscado)
     if not p:
         return ""
     if p == normalizar_codigo(vigente):
         return ""
-    return "atualizado" if p in hist_norm else "nao_confere"
+    if p in hist_norm:
+        return "atualizado"
+    return "nao_confere" if conhecido else "nao_localizado"
+
+
+def _descrever_tracking(idx: AconexIndex, tracking_id: str) -> str:
+    """'<Itaipu> / <CMI> (rev X) — <Título>' do documento, pela linha da verdade."""
+    df_t = idx.historico(tracking_id)
+    if df_t.empty:
+        return str(tracking_id)
+    tl = resolver_linha_da_verdade(df_t)
+    linha = tl.linha_dinamica if tl.linha_dinamica is not None else df_t.iloc[-1]
+    it = str(linha.get(COL_DOC_ITAIPU, "")).strip()
+    cmi = str(linha.get(COL_DOC_CMI, "")).strip()
+    rev = str(linha.get("Revisão", "")).strip()
+    return f"{it} / {cmi} (rev {rev}) — {str(linha.get(COL_TITULO, '')).strip()}"
+
+
+_MAX_CANDIDATOS = 6
+
+
+def _texto_ambiguidade(idx: AconexIndex, res, codigo: str) -> str:
+    """Comentário do código compartilhado: quem foi escolhido e quem eram os outros."""
+    eleito = str(res.df[COL_TRACKING].iloc[0]) if not res.df.empty else ""
+    partes = [f"ATENÇÃO: o código '{codigo}' aparece em {len(res.candidatos)} documentos "
+              f"diferentes no Aconex. O DocManager escolheu o de alteração mais recente "
+              f"entre os que ainda usam esse código — confira se é o que você queria:"]
+    for tid in res.candidatos[:_MAX_CANDIDATOS]:
+        marca = ">> ESCOLHIDO" if str(tid) == eleito else "   outro    "
+        partes.append(f"{marca}: {_descrever_tracking(idx, tid)}")
+    if len(res.candidatos) > _MAX_CANDIDATOS:
+        partes.append(f"  (+{len(res.candidatos) - _MAX_CANDIDATOS} outros)")
+    return "\n".join(partes)
 
 
 def analisar_status_documentos(df_base: pd.DataFrame, codigos, *, tipo_codigo="itaipu") -> pd.DataFrame:
@@ -58,7 +98,10 @@ def analisar_status_documentos(df_base: pd.DataFrame, codigos, *, tipo_codigo="i
         cod = str(cod).strip()
         if not cod:
             continue
-        df_t = idx.localizar(cod, "") if tipo_codigo == "itaipu" else idx.localizar("", cod)
+        # `preferir_vigente`: quem USA o código hoje ganha de quem só o usou no
+        # passado — mesma política da leitura via Excel (ver `analisar_status_pares`).
+        par = (cod, "") if tipo_codigo == "itaipu" else ("", cod)
+        df_t = idx.localizar(*par, preferir_vigente=True)
         if df_t.empty:
             linhas.append({"Código": cod, "Título": "", "Revisão": "", "Status Real": NAO_EMITIDO,
                            "Emitido": NAO_EMITIDO, "É Modelo": "NÃO"})
@@ -96,6 +139,10 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
         comentário do 'nao_confere', avisando que estava errado).
       - `_itaipu_real`/`_cmi_real` — o código vigente do documento ('' se o doc
         não tem esse código); distingue "corrigido" de "doc não possui".
+      - `_via` ∈ {'', 'par', 'itaipu', 'cmi'} — qual código achou o documento.
+      - `_ambiguo` / `_ambiguo_info` — o código que achou o documento é
+        compartilhado por mais de um Tracking; a eleição foi por data e PRECISA
+        de conferência humana (texto laranja + comentário com os candidatos).
     A célula mostra o código VIGENTE (correto) sempre que ele existe.
     """
     idx = AconexIndex(df_base)
@@ -111,11 +158,22 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
                  "Data": "", "Status Aconex": "", "Status Real": NAO_EMITIDO,
                  "_itaipu_status": "", "_cmi_status": "",
                  "_itaipu_buscado": c_it, "_cmi_buscado": c_cmi,
-                 "_itaipu_real": "", "_cmi_real": ""}
+                 "_itaipu_real": "", "_cmi_real": "",
+                 "_via": "", "_ambiguo": False, "_ambiguo_info": ""}
         # Prioridade Itaipu → CMI (pedido do usuário): o Itaipu é a âncora e um
         # número interno (CMI) errado na lista é sinalizado por cor/comentário,
         # em vez de arrastar a busca para o documento errado.
-        df_t = idx.localizar(c_it, c_cmi, preferir_itaipu=True)
+        # `preferir_vigente`: um código compartilhado só casa, de início, com o
+        # documento que o usa HOJE — sem isso o desempate por data elege quem já
+        # abandonou o código (match fantasma; ver `AconexIndex.resolver`).
+        res = idx.resolver(c_it, c_cmi, preferir_itaipu=True, preferir_vigente=True)
+        df_t = res.df
+        dados["_via"] = res.via
+        if res.ambiguo:
+            dados["_ambiguo"] = True
+            dados["_ambiguo_info"] = _texto_ambiguidade(
+                idx, res, c_it if res.via == "itaipu" else c_cmi if res.via == "cmi"
+                else f"{c_it} + {c_cmi}")
         if not df_t.empty:
             tl = resolver_linha_da_verdade(df_t)
             eh_modelo = _e_modelo(df_t)
@@ -125,8 +183,10 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
             if linha is not None:
                 cur_it = str(linha.get(COL_DOC_ITAIPU, "")).strip()
                 cur_cmi = str(linha.get(COL_DOC_CMI, "")).strip()
-                dados["_itaipu_status"] = _classificar_codigo_busca(c_it, cur_it, hist_norm)
-                dados["_cmi_status"] = _classificar_codigo_busca(c_cmi, cur_cmi, hist_norm)
+                dados["_itaipu_status"] = _classificar_codigo_busca(
+                    c_it, cur_it, hist_norm, conhecido=idx.conhece_codigo(c_it))
+                dados["_cmi_status"] = _classificar_codigo_busca(
+                    c_cmi, cur_cmi, hist_norm, conhecido=idx.conhece_codigo(c_cmi))
                 dados["_itaipu_real"], dados["_cmi_real"] = cur_it, cur_cmi
                 # A célula mostra o código VIGENTE (correto) do documento sempre
                 # que ele existe — inclusive no 'nao_confere' (o correto vai para

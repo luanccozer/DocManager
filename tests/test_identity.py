@@ -44,6 +44,75 @@ def test_cascata_preferir_itaipu_inverte_prata_bronze():
     assert set(idx.localizar("IT-100", "CMI-100", preferir_itaipu=True)["Tracking ID"]) == {"TID-A"}
 
 
+def _base_codigo_reaproveitado():
+    """CMI-X é de A (que ainda o usa) mas B também o teve e mexeu DEPOIS.
+
+    Miniatura do caso real (2026-09-04): '08934100BUA20-FS00FE-02' pertencia ao
+    workstatement de B02BPA20, mas outro documento o carregou até 27/05/2025 e
+    depois foi renomeado — como continuou tramitando, ganhava o desempate por data.
+    """
+    a = (HistoricoBuilder("TID-DONO", "IT-A", "CMI-X", "DOC CERTO")
+         .evento("0A", 1, "Em Processo", "01/02/2024")
+         .evento("0B", 1, "Aprovado com Comentários", "14/08/2024", current=True))
+    b = (HistoricoBuilder("TID-EX", "IT-B-VELHO", "CMI-X", "DOC QUE ABANDONOU O CMI-X")
+         .evento("0A", 1, "Em Processo", "27/05/2025")
+         .evento("1A", 1, "Para Assinatura", "12/12/2025",
+                 doc="IT-B-NOVO", cmi="CMI-Y", current=True))
+    return base(a, b)
+
+
+def test_preferir_vigente_evita_match_fantasma():
+    idx = AconexIndex(_base_codigo_reaproveitado())
+    # Padrão: vence a data mais recente ENTRE AS LINHAS DO MATCH — e a mais
+    # recente com CMI-X é a de quem já abandonou o código (match fantasma).
+    assert set(idx.localizar("", "CMI-X")["Tracking ID"]) == {"TID-EX"}
+    # preferir_vigente: só casa, de início, com quem USA o CMI-X hoje.
+    assert set(idx.localizar("", "CMI-X", preferir_vigente=True)["Tracking ID"]) == {"TID-DONO"}
+
+
+def test_preferir_vigente_cai_no_historico_quando_ninguem_usa_o_codigo():
+    """O 'código atualizado (azul)' sobrevive: buscar pelo código ANTIGO de um
+    documento renomeado continua achando o documento (último recurso da cascata)."""
+    idx = AconexIndex(_base_codigo_reaproveitado())
+    for cod in ("IT-B-VELHO",):
+        assert set(idx.localizar(cod, "", preferir_vigente=True)["Tracking ID"]) == {"TID-EX"}
+
+
+def test_resolver_expoe_via_vigencia_e_candidatos():
+    idx = AconexIndex(_base_codigo_reaproveitado())
+    r = idx.resolver("", "CMI-X", preferir_vigente=True)
+    assert (r.via, r.vigente, r.ambiguo) == ("cmi", True, False)
+    assert r.candidatos == ("TID-DONO",)
+    # Achado pelo código antigo → via itaipu, mas NÃO vigente.
+    r = idx.resolver("IT-B-VELHO", "", preferir_vigente=True)
+    assert (r.via, r.vigente) == ("itaipu", False)
+    # Nada encontrado.
+    r = idx.resolver("XXXX", "YYYY", preferir_vigente=True)
+    assert r.df.empty and r.via == "" and not r.ambiguo
+
+
+def test_resolver_marca_ambiguidade_de_codigo_compartilhado():
+    # Dois documentos VIVOS com o mesmo CMI: a eleição é por data e é um chute.
+    b = base(
+        HistoricoBuilder("TID-1", "IT-1", "CMI-DUP", "DOC 1")
+        .evento("0B", 1, "Aprovado", "14/08/2024", current=True),
+        HistoricoBuilder("TID-2", "IT-2", "CMI-DUP", "DOC 2")
+        .evento("0A", 1, "Em Processo", "19/12/2023", current=True),
+    )
+    r = AconexIndex(b).resolver("", "CMI-DUP", preferir_vigente=True)
+    assert r.ambiguo and set(r.candidatos) == {"TID-1", "TID-2"}
+    assert set(r.df["Tracking ID"]) == {"TID-1"}      # o mais recente vence
+
+
+def test_conhece_codigo_distingue_inexistente_de_alheio():
+    idx = AconexIndex(_base_codigo_reaproveitado())
+    assert idx.conhece_codigo("CMI-X")            # vigente
+    assert idx.conhece_codigo("cmi-y")            # normaliza (upper)
+    assert idx.conhece_codigo("IT-B-VELHO")       # histórico também conta
+    assert not idx.conhece_codigo("CMI-NUNCA-VISTO")
+    assert not idx.conhece_codigo("")
+
+
 def test_desempate_por_data_mais_recente():
     # Mesmo código Itaipu em dois trackings distintos → vence a data mais nova.
     a = HistoricoBuilder("TID-OLD", "IT-DUP", "CMI-OLD").evento("0A", 1, "Em Processo", "01/01/2024", current=True)

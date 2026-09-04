@@ -202,14 +202,24 @@ class StatusDocsView(BaseView):
         linhas, contador, tem_modelos = analisar_status_pares(base, pares)
         for st, n in contador.most_common():
             self.log.log(f"  {st}: {n}")
-        n_atualizados = sum(1 for d in linhas
-                            if "atualizado" in (d.get("_itaipu_status"), d.get("_cmi_status")))
-        n_nao_confere = sum(1 for d in linhas
-                            if "nao_confere" in (d.get("_itaipu_status"), d.get("_cmi_status")))
+        def _conta(estado):
+            return sum(1 for d in linhas
+                       if estado in (d.get("_itaipu_status"), d.get("_cmi_status")))
+
+        n_atualizados = _conta("atualizado")
+        n_nao_confere = _conta("nao_confere")
+        n_nao_localizado = _conta("nao_localizado")
+        n_ambiguos = sum(1 for d in linhas if d.get("_ambiguo"))
         if n_atualizados:
             self.log.log(f"  {n_atualizados} com código atualizado no Aconex vs. a busca (texto azul).")
         if n_nao_confere:
-            self.log.log(f"  {n_nao_confere} com código informado errado — corrigido; ver comentário na célula.")
+            self.log.log(f"  {n_nao_confere} com código de OUTRO documento — corrigido; ver comentário na célula.")
+        if n_nao_localizado:
+            self.log.log(f"  {n_nao_localizado} com código não localizado no Aconex "
+                         f"(possível documento não emitido) — ver comentário na célula.")
+        if n_ambiguos:
+            self.log.log(f"  {n_ambiguos} com código compartilhado por mais de um documento "
+                         f"(texto laranja) — CONFIRA o comentário na célula.")
         run.set_progress(0.9)
         nome = f"Status_Docs_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
         saida = pedir_salvar(self.ctx.config, "saida", nome)

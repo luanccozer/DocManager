@@ -258,6 +258,10 @@ _FONT_DADO = Font(size=10, name="Segoe UI")
 # preencher a célula, mantendo a zebra). O 'não confere' NÃO recebe cor — só um
 # comentário na célula (decisão do usuário 2026-07-15).
 _FONT_COD_ALTERADO = Font(color="0070C0", size=10, name="Segoe UI")
+# Status Docs: código COMPARTILHADO por mais de um documento no Aconex — a
+# eleição foi por data e precisa de conferência humana. Laranja (é aviso, não
+# erro) + comentário com os candidatos (2026-09-04).
+_FONT_COD_AMBIGUO = Font(color="C55A11", size=10, bold=True, name="Segoe UI")
 # Delta: documento presente em mais de um grupo de classificação → linha em
 # vermelho (decisão do usuário 2026-07-19).
 _FONT_DADO_REPETIDO = Font(color="C00000", size=10, name="Segoe UI")
@@ -455,6 +459,26 @@ def _cor_status(status: str) -> str:
     return "808080"              # cinza
 
 
+def _nota_codigo_status(status: str, buscado: str, real: str) -> str:
+    """Comentário do código que não bate com o documento encontrado.
+
+    Separa "é de outro documento" (troca/digitação) de "não existe no Aconex"
+    (documento provavelmente não emitido) — acusar erro no segundo caso mina a
+    confiança no relatório (2026-09-04).
+    """
+    if status == "nao_localizado":
+        base = (f"O código informado ('{buscado}') NÃO foi localizado em nenhum documento "
+                f"do Aconex — pode ser documento ainda não emitido/registrado, ou código "
+                f"fora do padrão do sistema. A lista não está necessariamente errada.")
+    else:
+        base = (f"O código informado ('{buscado}') pertence a OUTRO documento no Aconex — "
+                f"provável troca ou erro de digitação na lista.")
+    if real:
+        return base + "\nNa célula está o código real do documento encontrado (via Tracking ID)."
+    return base + ("\nO documento encontrado (pelo outro código, via Tracking ID) não possui "
+                   "código desse tipo.")
+
+
 def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
                                tem_modelos=False) -> tuple[bool, str]:
     """Excel de Status de Documentos com o gráfico de barras (porta do legado).
@@ -493,8 +517,10 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
 
     # Legenda dos destaques, nos cabeçalhos de código (tooltip ao passar o mouse).
     _legenda = ("Texto AZUL = código atualizado no Aconex em relação ao buscado "
-                "(mudou no sistema).\nCélula com comentário = o código que você "
-                "informou estava errado; aqui está o código real do documento.")
+                "(mudou no sistema).\nTexto LARANJA = código compartilhado por mais "
+                "de um documento no Aconex — CONFIRA o comentário: a escolha foi "
+                "pelo mais recente.\nCélula com comentário = o código informado não "
+                "confere com o documento encontrado; aqui está o código real dele.")
     ws.cell(1, 1).comment = Comment(_legenda, "DocManager")
     ws.cell(1, 2).comment = Comment(_legenda, "DocManager")
 
@@ -522,23 +548,27 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
         elif s in ("Não Aprovado", "NÃO EMITIDO") or s.startswith("Não Aprovado -"):
             cell.font = Font(color="9C0006", name="Segoe UI", size=10)
             cell.fill = PatternFill("solid", fgColor="FFC7CE")
-        # Destaque do código: azul = mudou no sistema. 'nao_confere' = sem cor,
-        # só um comentário avisando qual código informado estava errado (a célula
-        # já mostra o código correto do documento, quando existe).
+        # Destaque do código: laranja = código compartilhado por vários
+        # documentos (aviso mais forte, tem precedência); azul = mudou no
+        # sistema. 'nao_confere'/'nao_localizado' = sem cor, só comentário (a
+        # célula já mostra o código correto do documento, quando existe).
+        via = d.get("_via", "")
+        ambiguas = {1, 2} if via == "par" else {1} if via == "itaipu" else {2} if via == "cmi" else set()
         for col, chave, busc, real in ((1, "_itaipu_status", "_itaipu_buscado", "_itaipu_real"),
                                        (2, "_cmi_status", "_cmi_buscado", "_cmi_real")):
+            cell = ws.cell(r, col)
             st = d.get(chave)
-            if st == "atualizado":
-                ws.cell(r, col).font = _FONT_COD_ALTERADO
-            elif st == "nao_confere":
-                buscado = d.get(busc, "")
-                if d.get(real):
-                    texto = (f"O código informado ('{buscado}') estava errado. "
-                             f"Na célula está o código real do documento (via Tracking ID).")
-                else:
-                    texto = (f"O código informado ('{buscado}') não confere — o documento "
-                             f"não possui esse código (achado pelo outro código, via Tracking ID).")
-                ws.cell(r, col).comment = Comment(texto, "DocManager")
+            ambiguo = bool(d.get("_ambiguo")) and col in ambiguas
+            notas = [d.get("_ambiguo_info", "")] if ambiguo else []
+            if ambiguo:
+                cell.font = _FONT_COD_AMBIGUO
+            elif st == "atualizado":
+                cell.font = _FONT_COD_ALTERADO
+            if st in ("nao_confere", "nao_localizado"):
+                notas.append(_nota_codigo_status(st, d.get(busc, ""), d.get(real, "")))
+            notas = [n for n in notas if n]
+            if notas:
+                cell.comment = Comment("\n\n".join(notas), "DocManager")
     ws.auto_filter.ref = f"A1:G{len(linhas) + 1}"
 
     # Tabela auxiliar + gráfico

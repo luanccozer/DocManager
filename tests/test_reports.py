@@ -115,12 +115,13 @@ def test_status_pares_codigo_vigente_nao_marca():
     assert linhas[0]["_itaipu_status"] == ""
 
 
-def test_status_pares_cmi_nao_confere_mostra_o_correto():
-    # Itaipu certo acha o doc; CMI colado é erro (nunca pertenceu) → nao_confere.
+def test_status_pares_cmi_inexistente_no_aconex_mostra_o_correto():
+    # Itaipu certo acha o doc; o CMI colado não existe em documento NENHUM →
+    # 'nao_localizado' (não é erro provado: pode ser doc ainda não emitido).
     linhas, _, _ = analisar_status_pares(_base_codigo_errado(), [("IT-3003", "CMI-ERRADO-XYZ")])
     d = linhas[0]
     assert d["_itaipu_status"] == ""                 # Itaipu confere
-    assert d["_cmi_status"] == "nao_confere"
+    assert d["_cmi_status"] == "nao_localizado"
     assert d["Código CMI"] == "CMI-3003"             # célula mostra o CORRETO
     assert d["_cmi_buscado"] == "CMI-ERRADO-XYZ"     # o errado vai para o comentário
 
@@ -129,7 +130,7 @@ def test_status_pares_cmi_nao_confere_sem_cmi_no_sistema():
     # Doc achado por Itaipu, mas não tem CMI no sistema; CMI colado é espúrio.
     linhas, _, _ = analisar_status_pares(_base_codigo_errado(), [("IT-4004", "CMI-FANTASMA")])
     d = linhas[0]
-    assert d["_cmi_status"] == "nao_confere"
+    assert d["_cmi_status"] == "nao_localizado"
     assert d["_cmi_real"] == ""                      # sem código real → comentário "não possui"
     assert d["Código CMI"] == "CMI-FANTASMA"         # sem correto, mantém o buscado
 
@@ -151,6 +152,87 @@ def test_status_pares_itaipu_manda_quando_cmi_aponta_outro_doc():
     assert d["_cmi_status"] == "nao_confere"         # CMI errado sinalizado
     assert d["Código CMI"] == "CMI-XX01"             # célula mostra o CMI correto do alvo
     assert d["_cmi_buscado"] == "CMI-YY02"           # o errado vai para o comentário
+
+
+def _base_cmi_reaproveitado():
+    """Miniatura do caso real: CMI-X é do DOC CERTO, mas outro documento o teve
+    e mexeu depois — pelo desempate por data, ele roubava o match."""
+    return base(
+        HistoricoBuilder("TID-DONO", "IT-CERTO", "CMI-X", "WORKSTATEMENT CERTO")
+        .evento("0B", 1, "Aprovado com Comentários", "14/08/2024", current=True),
+        HistoricoBuilder("TID-EX", "IT-EX-VELHO", "CMI-X", "WORKSTATEMENT DE OUTRO SISTEMA")
+        .evento("0A", 1, "Em Processo", "27/05/2025")
+        .evento("1A", 1, "Para Assinatura", "12/12/2025",
+                doc="IT-EX-NOVO", cmi="CMI-Y", current=True),
+    )
+
+
+def test_status_pares_ignora_documento_que_abandonou_o_codigo():
+    """Caso do usuário (2026-09-04): Itaipu da lista não existe no Aconex e o CMI
+    é compartilhado. O documento certo é o que AINDA usa o CMI — não o que o
+    abandonou e continuou tramitando (match fantasma)."""
+    linhas, _, _ = analisar_status_pares(_base_cmi_reaproveitado(), [("IT-QUE-NAO-EXISTE", "CMI-X")])
+    d = linhas[0]
+    assert d["Título"] == "WORKSTATEMENT CERTO"
+    assert d["Código CMI"] == "CMI-X"                # confere com o buscado
+    assert d["_cmi_status"] == ""
+    assert d["Código Itaipu"] == "IT-CERTO"          # célula traz o Itaipu real do doc
+    # E o Itaipu buscado NÃO é acusado de errado: ele não existe no Aconex.
+    assert d["_itaipu_status"] == "nao_localizado"
+    assert d["_itaipu_buscado"] == "IT-QUE-NAO-EXISTE"
+
+
+def test_status_pares_nao_confere_e_para_codigo_de_outro_doc():
+    """'nao_confere' fica reservado ao código que EXISTE e é de outro documento."""
+    linhas, _, _ = analisar_status_pares(_base_cmi_reaproveitado(), [("IT-CERTO", "CMI-Y")])
+    d = linhas[0]
+    assert d["Título"] == "WORKSTATEMENT CERTO"      # achou pelo Itaipu
+    assert d["_cmi_status"] == "nao_confere"         # CMI-Y é do OUTRO documento
+    assert d["Código CMI"] == "CMI-X"
+
+
+def test_status_pares_marca_codigo_compartilhado_como_ambiguo():
+    b = base(
+        HistoricoBuilder("TID-1", "IT-1", "CMI-DUP", "DOC UM")
+        .evento("0B", 1, "Aprovado", "14/08/2024", current=True),
+        HistoricoBuilder("TID-2", "IT-2", "CMI-DUP", "DOC DOIS")
+        .evento("0A", 1, "Em Processo", "19/12/2023", current=True),
+    )
+    linhas, _, _ = analisar_status_pares(b, [("", "CMI-DUP")])
+    d = linhas[0]
+    assert d["_via"] == "cmi" and d["_ambiguo"] is True
+    assert d["Título"] == "DOC UM"                   # o mais recente vence...
+    info = d["_ambiguo_info"]
+    assert "2 documentos" in info                    # ...mas os 2 vão no comentário
+    assert "DOC UM" in info and "DOC DOIS" in info
+    assert "ESCOLHIDO" in info
+
+
+def test_status_pares_sem_ambiguidade_nao_marca():
+    linhas, _, _ = analisar_status_pares(_base_cmi_reaproveitado(), [("IT-CERTO", "CMI-X")])
+    assert linhas[0]["_ambiguo"] is False
+    assert linhas[0]["_ambiguo_info"] == ""
+
+
+def test_status_pares_export_laranja_e_comentario_de_ambiguidade(tmp_path):
+    import openpyxl
+
+    from docmanager.services.excel_io import exportar_status_documentos
+    b = base(
+        HistoricoBuilder("TID-1", "IT-1", "CMI-DUP", "DOC UM")
+        .evento("0B", 1, "Aprovado", "14/08/2024", current=True),
+        HistoricoBuilder("TID-2", "IT-2", "CMI-DUP", "DOC DOIS")
+        .evento("0A", 1, "Em Processo", "19/12/2023", current=True),
+    )
+    linhas, contador, _ = analisar_status_pares(b, [("", "CMI-DUP")])
+    saida = tmp_path / "status_ambiguo.xlsx"
+    ok, _ = exportar_status_documentos(linhas, contador, str(saida))
+    assert ok
+    ws = openpyxl.load_workbook(saida)["Status Documentos"]
+    assert str(ws["B2"].font.color.rgb).endswith("C55A11")   # CMI em laranja
+    assert "DOC DOIS" in ws["B2"].comment.text              # candidatos no comentário
+    a2 = ws["A2"].font.color                                 # Itaipu não foi a via → sem cor
+    assert a2 is None or not str(a2.rgb).endswith("C55A11")
 
 
 def test_status_pares_export_azul_e_comentario(tmp_path):
