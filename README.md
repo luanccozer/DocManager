@@ -131,12 +131,19 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
 - **📊 Histórico e Dashboard** — na aba *Planilha*, gera o Histórico Consolidado
   (1 linha por revisão + colunas de atraso Itaipu/CMI). Na aba *Dashboard*, sobe
   o painel web executivo (evolução do atraso, First Time Right, gargalos...).
-- **📋 Relatórios** — Relatório de Avanço e Auditoria de Integração.
+- **📋 Relatórios** — Relatório de Avanço, Auditoria de Integração e **Fluxos em
+  Andamento** (onde cada documento está e com quem: etapa atual, responsável,
+  vencimento e dias de atraso). O de fluxos usa a **base de Fluxos**, que tem
+  seletor de arquivo próprio — não é a base de documentos.
+  Detalhes em [`docs/fluxos_de_trabalho.md`](docs/fluxos_de_trabalho.md).
 - **📥 Extração Aconex** — baixa a base completa do Aconex via API (precisa do
   `.env`). Operação longa (~30 min em produção). **Se a conexão cair, o progresso
   não se perde**: cada página baixada fica guardada e a próxima execução retoma
   de onde parou (o app avisa no log). Uma extração interrompida é sinalizada como
   **parcial** — você escolhe se quer o Excel do que já veio.
+  Na aba **🔀 Fluxos de Trabalho** baixa os workflows (etapa, prazo e a quem cada
+  documento está atribuído), com seletor de período: "tudo" leva ~20 min, mas
+  "últimos 30 dias" atualiza em ~1 min.
 - **⚙️ Configurações** — liga/desliga a *Regra da Aprovação Intermediária* (VIP).
 
 ---

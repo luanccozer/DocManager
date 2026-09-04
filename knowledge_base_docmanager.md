@@ -848,6 +848,8 @@ Fecha a lacuna registrada em §24.5/§24.9: *"o roteamento (etapa/organização 
 
 **Pareamento pessoa↔organização (defeito achado na validação em dados reais)**: `Assignees` traz N pessoas e o parse gera `Atribuído a` (nomes) + `Organização Atribuída` (DISTINTAS, para leitura). Agrupar o resumo pela lista de organizações da ETAPA fragmentava quem atua em etapas mistas — na base real, Bianca/David/Luciana apareciam 2× cada (19 responsáveis duplicados em 156). Por isso o parse emite também **`Organizações (por atribuído)`**, pareada 1-a-1 com os nomes, e o resumo usa ela. Resíduo legítimo: 58 nomes do diretório têm contas em organizações DIFERENTES (`BIANCA SANTOS` = 1 conta CMI + 2 GE), então esses aparecem separados por organização de propósito; homônimos na MESMA organização somam.
 
+**Guia prático de operação** (como extrair, como ler as 3 abas, contrato da API, baseline de 04/09/2026 e backlog de lapidação): [`docs/fluxos_de_trabalho.md`](docs/fluxos_de_trabalho.md).
+
 **Regra do relatório**: universo = `Status do Fluxo == 'Em Andamento'` **e** `Status da Etapa ∈ {'Atual','Em Atraso'}` — etapa concluída é passado e 'Previsão' ainda não começou; nenhuma das duas responde "com quem está". O resumo por PESSOA **explode** a lista de atribuídos de propósito (a pergunta é "o que está na mão de fulano"), então a soma passa do total de etapas; o resumo por ORGANIZAÇÃO não explode. 15 testes em `test_fluxos.py`. Verde nos 2 venvs; ruff limpo.
 
 ### 24.11 ✅ Histórico Consolidado REFORMULADO — dirigido pelo Controle (2026-07-15, spec do usuário)
