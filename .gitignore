@@ -25,3 +25,7 @@ saidas_teste/
 
 # Dados reais (base Aconex, mapeamento real) — nunca versionar
 dados_reais/
+
+# Dashboard e planilha reais do Doc List Mapping — nunca versionar
+Doc List Mapping.xlsx
+*.pbix
