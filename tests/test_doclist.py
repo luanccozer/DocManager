@@ -3,15 +3,24 @@ planejamento vindo do Controle e a Análise por Período."""
 from datetime import date
 
 import openpyxl
+import pandas as pd
 import pytest
 from builders import HistoricoBuilder, base, escrever_controle_xlsx
 
 from docmanager.core.consolidation import calcula_status_consolidado
 from docmanager.core.doclist import (
     COLUNAS_DOCLIST,
+    SIT_CANCELADO,
+    SIT_EMITIDO_COM_ATRASO,
+    SIT_EMITIDO_NO_PRAZO,
+    SIT_PENDENTE_NO_PRAZO,
+    SIT_PENDENTE_VENCIDO,
+    SIT_SEM_PLANEJAMENTO,
     LinhaDocList,
+    calcular_dias_desvio_emissao,
     calcular_predecessores,
     calcular_resumo_quantidades,
+    classificar_situacao_emissao,
     resolver_datas_doclist,
 )
 from docmanager.core.doclist_periodo import (
@@ -20,6 +29,7 @@ from docmanager.core.doclist_periodo import (
     listar_sem_data,
     resumo,
 )
+from docmanager.core.kpis import data_primeira_emissao
 from docmanager.services.controle_docs import ler_controle
 from docmanager.services.doclist_io import DocListSheet, ler_linhas_doclist
 from docmanager.services.doclist_update import atualizar_doclist
@@ -337,3 +347,210 @@ def test_janelas_padrao_cobrem_hoje():
     assert not janelas["Vencidos (não emitidos)"].contem(HOJE)
     assert janelas["Mês que vem"].inicio == date(2026, 8, 1)
     assert janelas["Mês que vem"].fim == date(2026, 8, 31)
+
+
+# ---------------------------------------------------------------------------
+# Situação de emissão — aderência ao planejamento (§27.5)
+# ---------------------------------------------------------------------------
+ALVO = date(2026, 3, 10)
+
+
+def _hist(*eventos, terminated_em=()):
+    """Histórico de UM documento. eventos: (rev, versao, status, 'dd/mm/aaaa')."""
+    b = HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+    for i, (rev, versao, status, data) in enumerate(eventos):
+        b.evento(rev, versao, status, data,
+                 current=(i == len(eventos) - 1),
+                 terminated=(i in terminated_em))
+    return b.build()
+
+
+def test_primeira_emissao_e_o_em_processo_da_0a():
+    df = _hist(("0A", 1, "Em Processo", "05/03/2026"),
+               ("0A", 2, "Aprovado", "20/03/2026"))
+    assert data_primeira_emissao(df) == date(2026, 3, 5)
+
+
+def test_regua_e_a_primeira_emissao_nao_a_ultima():
+    """O teste que justifica a coluna: 0A no prazo, 0F meses depois.
+
+    Usar DATA ÚLTIMA EMISSÃO como régua acusaria 9 meses de atraso num
+    documento que nasceu adiantado — 0A→0F é ciclo normal de aprovação.
+    """
+    df = _hist(("0A", 1, "Em Processo", "05/03/2026"),
+               ("0A", 2, "Não Aprovado", "01/04/2026"),
+               ("0F", 1, "Em Processo", "10/12/2026"),
+               ("0F", 2, "Aprovado", "20/12/2026"))
+    assert data_primeira_emissao(df) == date(2026, 3, 5)
+    assert classificar_situacao_emissao(
+        data_primeira_emissao=data_primeira_emissao(df), data_alvo=ALVO,
+        status_consolidado="APROVADO", hoje=HOJE) == SIT_EMITIDO_NO_PRAZO
+
+
+def test_reenvio_da_mesma_revisao_manda_a_data_mais_recente():
+    """Decisão do usuário (2026-09-16): o reenvio corrigiu a entrega anterior."""
+    df = _hist(("0A", 1, "Em Processo", "05/03/2026"),
+               ("0A", 2, "Em Processo", "12/03/2026"))
+    assert data_primeira_emissao(df) == date(2026, 3, 12)
+
+
+def test_sem_0a_vale_a_emissao_mais_antiga_documento_sat():
+    """Documento SAT/legado: continua um doc antigo da Itaipu e já entra alto."""
+    df = _hist(("0C", 1, "Em Processo", "05/03/2026"),
+               ("0D", 1, "Em Processo", "20/05/2026"))
+    assert data_primeira_emissao(df) == date(2026, 3, 5)
+
+
+def test_0a_vence_mesmo_fora_de_ordem_cronologica():
+    df = _hist(("0B", 1, "Em Processo", "01/03/2026"),
+               ("0A", 1, "Em Processo", "05/03/2026"))
+    assert data_primeira_emissao(df) == date(2026, 3, 5)
+
+
+def test_ciclo_interno_0aa_nao_conta_como_emissao():
+    """Revisões de len > 2 são ciclo interno da CMI, não entrega à Itaipu."""
+    df = _hist(("0AA", 1, "Em Processo", "01/02/2026"),
+               ("0A", 1, "Em Processo", "05/03/2026"))
+    assert data_primeira_emissao(df) == date(2026, 3, 5)
+
+
+def test_revisao_sem_em_processo_e_ruido():
+    df = _hist(("0A", 1, "Aprovado", "05/03/2026"))
+    assert data_primeira_emissao(df) is None
+
+
+def test_0a_terminada_sem_renascimento_nao_conta():
+    df = _hist(("0A", 1, "Em Processo", "05/03/2026"), terminated_em=(0,))
+    assert data_primeira_emissao(df) is None
+
+
+def test_0a_terminada_que_renasceu_conta_a_versao_sobrevivente():
+    df = _hist(("0A", 1, "Em Processo", "05/03/2026"),
+               ("0A", 2, "Em Processo", "18/03/2026"), terminated_em=(0,))
+    assert data_primeira_emissao(df) == date(2026, 3, 18)
+
+
+def test_documento_sem_historico_nao_tem_primeira_emissao():
+    assert data_primeira_emissao(pd.DataFrame()) is None
+
+
+@pytest.mark.parametrize("emissao,alvo,consolidado,esperado", [
+    (date(2026, 3, 5), ALVO, "APROVADO", SIT_EMITIDO_NO_PRAZO),
+    (ALVO, ALVO, "APROVADO", SIT_EMITIDO_NO_PRAZO),          # no dia = no prazo
+    (date(2026, 3, 11), ALVO, "APROVADO", SIT_EMITIDO_COM_ATRASO),
+    (None, date(2026, 12, 1), "NÃO EMITIDO", SIT_PENDENTE_NO_PRAZO),
+    (None, HOJE, "NÃO EMITIDO", SIT_PENDENTE_NO_PRAZO),      # vence hoje, ainda dá
+    (None, ALVO, "NÃO EMITIDO", SIT_PENDENTE_VENCIDO),
+    (None, None, "NÃO EMITIDO", SIT_SEM_PLANEJAMENTO),
+    (date(2026, 3, 5), None, "APROVADO", SIT_SEM_PLANEJAMENTO),
+    # CANCELADO é terminal e vence tudo — sai do gráfico por filtro do visual.
+    (date(2026, 3, 5), ALVO, "CANCELADO", SIT_CANCELADO),
+    (None, None, "CANCELADO", SIT_CANCELADO),
+])
+def test_classificar_situacao_emissao(emissao, alvo, consolidado, esperado):
+    assert classificar_situacao_emissao(
+        data_primeira_emissao=emissao, data_alvo=alvo,
+        status_consolidado=consolidado, hoje=HOJE) == esperado
+
+
+@pytest.mark.parametrize("emissao,alvo,esperado", [
+    (date(2026, 3, 5), ALVO, -5),     # adiantado
+    (ALVO, ALVO, 0),
+    (date(2026, 3, 20), ALVO, 10),    # atrasado
+    (None, ALVO, None),
+    (date(2026, 3, 5), None, None),
+])
+def test_dias_desvio_emissao(emissao, alvo, esperado):
+    assert calcular_dias_desvio_emissao(emissao, alvo) == esperado
+
+
+def test_ciclo_completo_grava_situacao_emissao(tmp_path):
+    """Planilha real: as três colunas saem preenchidas e com o TIPO certo."""
+    b = base(
+        # Nasceu 01/03 para um alvo de 01/02 → atrasado, apesar de aprovado.
+        HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC ATRASADO")
+        .evento("0A", 1, "Em Processo", "01/03/2026")
+        .evento("0A", 2, "Aprovado", "20/03/2026", current=True),
+        # Nasceu 10/01 para um alvo de 01/02 → no prazo, mesmo com 0B depois.
+        HistoricoBuilder("T2", "#IT-2", "CMI-2", "DOC NO PRAZO")
+        .evento("0A", 1, "Em Processo", "10/01/2026")
+        .evento("0A", 2, "Não Aprovado", "15/02/2026")
+        .evento("0B", 1, "Em Processo", "01/06/2026", current=True),
+    )
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+
+    path_ctrl = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "01-02-2026"},
+        {"itaipu": "#IT-2", "cmi": "CMI-2", "prevista": "01-02-2026"},
+        {"itaipu": "#IT-3", "cmi": "CMI-3", "prevista": "05-08-2026"},   # futuro
+        {"itaipu": "#IT-4", "cmi": "CMI-4", "prevista": "05-01-2026"},   # vencido
+    ])
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx", [
+        ("UNIT", "SDSC - UG", "", "GRUPO-1", "AGRUPAMENTO", "1", None, None),
+        ("UNIT", "SDSC - UG", "CMI-1", "#IT-1", "DOC ATRASADO", "2", None, None),
+        ("UNIT", "SDSC - UG", "CMI-2", "#IT-2", "DOC NO PRAZO", "2", None, None),
+        ("UNIT", "SDSC - UG", "CMI-3", "#IT-3", "DOC PENDENTE", "2", None, None),
+        ("UNIT", "SDSC - UG", "CMI-4", "#IT-4", "DOC VENCIDO", "2", None, None),
+    ])
+
+    controle = ler_controle(path_ctrl, 0, log_cb=lambda _m: None)
+    r = atualizar_doclist(path_base, path_dl, controle=controle, hoje=HOJE,
+                          log_cb=lambda _m: None)
+    assert r.ok, r.mensagem
+
+    ws = openpyxl.load_workbook(path_dl).active
+    col = {str(c.value): c.column for c in ws[1]}
+
+    def val(row, titulo):
+        return ws.cell(row, col[titulo]).value
+
+    assert val(3, "SITUAÇÃO EMISSÃO") == SIT_EMITIDO_COM_ATRASO
+    assert val(4, "SITUAÇÃO EMISSÃO") == SIT_EMITIDO_NO_PRAZO
+    assert val(5, "SITUAÇÃO EMISSÃO") == SIT_PENDENTE_NO_PRAZO
+    assert val(6, "SITUAÇÃO EMISSÃO") == SIT_PENDENTE_VENCIDO
+
+    # DATA 1ª EMISSÃO é data NATIVA (o dashboard precisa agrupar por período).
+    assert val(3, "DATA 1ª EMISSÃO").date() == date(2026, 3, 1)
+    assert val(4, "DATA 1ª EMISSÃO").date() == date(2026, 1, 10)
+    assert val(5, "DATA 1ª EMISSÃO") is None
+
+    # DIAS DESVIO é NÚMERO, não texto — negativo = adiantado.
+    assert val(3, "DIAS DESVIO EMISSÃO") == 28      # 01/03 vs 01/02
+    assert val(4, "DIAS DESVIO EMISSÃO") == -22     # 10/01 vs 01/02
+    assert val(5, "DIAS DESVIO EMISSÃO") is None
+
+    # Agrupamento (nível 1) não é documento: bloco vazio, não polui a legenda.
+    assert val(2, "SITUAÇÃO EMISSÃO") is None
+    assert val(2, "DATA 1ª EMISSÃO") is None
+
+
+def test_planilha_sem_as_colunas_novas_continua_rodando(tmp_path):
+    """Retrocompatibilidade: quem não criou as colunas só recebe um aviso."""
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/03/2026")
+             .evento("0A", 2, "Aprovado", "20/03/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+
+    # Cabeçalho SEM as três colunas novas.
+    novas = {"DATA 1ª EMISSÃO", "SITUAÇÃO EMISSÃO", "DIAS DESVIO EMISSÃO"}
+    titulos = [t for t in COLUNAS_DOCLIST.values() if t not in novas]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(titulos)
+    col = {t: i + 1 for i, t in enumerate(titulos)}
+    ws.cell(2, col["N° ITAIPU"], "#IT-1")
+    ws.cell(2, col["Nº CMI"], "CMI-1")
+    ws.cell(2, col["NÍVEL"], "2")
+    path_dl = tmp_path / "dl_antiga.xlsx"
+    wb.save(path_dl)
+
+    logs = []
+    r = atualizar_doclist(path_base, path_dl, hoje=HOJE, log_cb=logs.append)
+    assert r.ok, r.mensagem
+    assert any("SITUAÇÃO EMISSÃO" in m for m in logs if "não encontradas" in m)
+
+    ws = openpyxl.load_workbook(path_dl).active
+    col = {str(c.value): c.column for c in ws[1]}
+    assert ws.cell(2, col["STATUS CONSOLIDADO"]).value == "APROVADO"

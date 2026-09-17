@@ -18,8 +18,10 @@ import openpyxl
 
 from ..core.doclist import (
     NIVEL_GRUPO,
+    calcular_dias_desvio_emissao,
     calcular_predecessores,
     calcular_resumo_quantidades,
+    classificar_situacao_emissao,
     niveis_fora_do_padrao,
     resolver_datas_doclist,
 )
@@ -112,8 +114,27 @@ def _escrever_grupo(ds: DocListSheet, row: int) -> None:
     ds.set_val("status_real", row, NAO_EMITIDO)
     ds.set_val("status_consolidado", row, CONS_NAO_EMITIDO)
     ds.set_val("com_itaipu", row, "CMI")
-    for chave in ("revisao", "data_ultimo_status", "status_emissao"):
+    # Agrupamento não tem DATA-ALVO nem emissão: o bloco de aderência fica
+    # VAZIO de propósito, para não inventar um balde e poluir a legenda do
+    # dashboard com linhas que não são documento.
+    for chave in ("revisao", "data_ultimo_status", "status_emissao",
+                  "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao"):
         ds.set_val(chave, row, None)
+
+
+def _escrever_situacao_emissao(ds: DocListSheet, row: int, r, data_alvo, hoje: date) -> None:
+    """Grava o bloco de aderência ao planejamento (KB §27.5).
+
+    `DATA 1ª EMISSÃO` vai como data NATIVA — o dashboard precisa dela agrupável,
+    igual à DATA-ALVO. `DIAS DESVIO EMISSÃO` vai como número (negativo =
+    adiantado), não como texto, para o Power BI conseguir somar/mediar.
+    """
+    ds.set_data("data_primeira_emissao", row, r.data_primeira_emissao)
+    ds.set_val("situacao_emissao", row, classificar_situacao_emissao(
+        data_primeira_emissao=r.data_primeira_emissao, data_alvo=data_alvo,
+        status_consolidado=r.status_consolidado, hoje=hoje))
+    ds.set_val("dias_desvio_emissao", row,
+               calcular_dias_desvio_emissao(r.data_primeira_emissao, data_alvo))
 
 
 def _escrever_documento(ds: DocListSheet, row: int, r) -> None:
@@ -158,6 +179,7 @@ def atualizar_doclist(
                f"{', '.join(ds.colunas_ausentes)}")
 
     log_cb(f"Processando linhas {ds.start_row} a {ds.max_row}...")
+    hoje_ref = hoje or date.today()   # régua do PENDENTE NO PRAZO / VENCIDO
     total = max(ds.max_row - ds.start_row + 1, 1)
     processadas = grupos = 0
     diag = DiagnosticoDocList()
@@ -202,6 +224,7 @@ def atualizar_doclist(
             df_tracking, nivel=ds.get_val("nivel", row), tag_etapa="",
             data_prevista=datas.data_alvo, hoje=hoje)
         _escrever_documento(ds, row, resultado)
+        _escrever_situacao_emissao(ds, row, resultado, datas.data_alvo, hoje_ref)
 
         # Descrição — cadeia de prioridade Aconex > Controle > planilha (§27.3).
         # Quem está no Aconex já teve a descrição escrita acima. Para o resto,

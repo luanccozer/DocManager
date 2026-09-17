@@ -1,9 +1,12 @@
 # Situação de Emissão — do Doc List Mapping ao dashboard Power BI
 
-> **Status: proposta mapeada, nada implementado.** Este documento existe para que
-> uma próxima sessão possa clonar o repositório e codar direto, sem refazer o
-> levantamento. Levantamento feito em 2026-09-16 sobre
+> **Status: lado Python IMPLEMENTADO em 2026-09-16.** As três colunas são
+> calculadas e gravadas pelo app, e já existem na planilha real. **Falta só o
+> passo manual no Power BI** — §10. Levantamento e implementação feitos sobre
 > `Doc List Mapping.xlsx` e `Dashboard - Doc List Mapping.pbix`.
+>
+> As três decisões que estavam pendentes foram respondidas pelo usuário e estão
+> registradas em [§11](#11-decisões-do-usuário-respondidas).
 
 ## Índice
 
@@ -14,10 +17,10 @@
 5. [O gap: o gráfico não sabe o que foi executado](#5-o-gap-o-gráfico-não-sabe-o-que-foi-executado)
 6. [Por que as colunas existentes não resolvem](#6-por-que-as-colunas-existentes-não-resolvem)
 7. [A informação já é calculada e descartada](#7-a-informação-já-é-calculada-e-descartada)
-8. [Proposta: 2 (ou 3) colunas novas](#8-proposta-2-ou-3-colunas-novas)
-9. [Plano de implementação, arquivo a arquivo](#9-plano-de-implementação-arquivo-a-arquivo)
+8. [As três colunas novas](#8-as-três-colunas-novas)
+9. [O que foi implementado, arquivo a arquivo](#9-o-que-foi-implementado-arquivo-a-arquivo)
 10. [O que fazer no Power BI depois](#10-o-que-fazer-no-power-bi-depois)
-11. [Decisões pendentes do usuário](#11-decisões-pendentes-do-usuário)
+11. [Decisões do usuário (respondidas)](#11-decisões-do-usuário-respondidas)
 
 ---
 
@@ -27,9 +30,12 @@
 do cliente. **Nunca versionar.** Já estão bloqueados no `.gitignore`:
 
 ```
-Doc List Mapping.xlsx
+Doc List Mapping*.xlsx
 *.pbix
 ```
+
+O glob cobre também os **backups** (`Doc List Mapping.backup-AAAAMMDD-HHMMSS.xlsx`)
+que `tools/criar_colunas_situacao_emissao.py` grava ao lado do original.
 
 Verificado em 2026-09-16: nenhum dos dois jamais entrou no histórico
 (`git log --all` sobre eles retorna vazio). Este documento descreve
@@ -73,16 +79,20 @@ interessa à Situação de Emissão.
 | UI | `docmanager/ui/views/doclist_view.py` | tela |
 | Testes | `tests/test_doclist.py`, `tests/test_mapping.py` | |
 
-### Cabeçalho da planilha (21 colunas)
+### Cabeçalho da planilha (24 colunas)
 
 ```
 GRUPO · SISTEMA · FASE DE PROJETO · Nº CMI · N° ITAIPU ·
 DESCRIÇÃO DO DOCUMENTO · DATA PREVISTA EMISSÃO · DATA REPROGRAMADA ·
 DATA-ALVO EMISSÃO · EMITIDO / NÃO EMITIDO · DATA ÚLTIMA EMISSÃO ·
-ÚLTIMA REV. EMITIDA · STATUS REAL · STATUS · RESPONSIBLE (COE/VENDOR) ·
+ÚLTIMA REV. EMITIDA · DATA 1ª EMISSÃO · SITUAÇÃO EMISSÃO ·
+DIAS DESVIO EMISSÃO · STATUS REAL · STATUS · RESPONSIBLE (COE/VENDOR) ·
 NÍVEL · STATUS CONSOLIDADO · COM ITAIPU · PREDECESSOR · OBSERVAÇÕES ·
 RESUMO QUANTIDADES
 ```
+
+Na planilha real as três novas foram **anexadas no fim** (colunas X, Y, Z), não
+inseridas no meio — ver §9.8. A posição é irrelevante para o código.
 
 ⚠️ **Codepoints**: `N° ITAIPU` usa **U+00B0** (grau), `Nº CMI` usa **U+00BA**
 (ordinal). Trocar um pelo outro quebra a localização do cabeçalho — `N° ITAIPU`
@@ -128,8 +138,9 @@ tocado.
 revisao, data_ultimo_status, status_emissao,
 cod_itaipu_atual, cod_cmi_atual, descricao_atual,
 status_real, emitido_nao_emitido, status_consolidado, com_itaipu,
-kpis: dict,      # <-- calculado e DESCARTADO pelo Doc List
-atrasos: dict,   # <-- calculado e DESCARTADO pelo Doc List
+kpis: dict,      # calculado; o Doc List não usa
+atrasos: dict,   # calculado; o Doc List não usa
+data_primeira_emissao: date | None,   # <-- a régua de aderência (§7)
 ```
 
 ### `DocListSheet` ([`services/doclist_io.py:43`](../docmanager/services/doclist_io.py#L43))
@@ -248,7 +259,7 @@ em que a CMI entregou o documento pela primeira vez — é isso que se compara c
 
 ---
 
-## 7. A informação já é calculada e descartada
+## 7. A régua: a informação já existia no histórico
 
 Em [`core/kpis.py:130`](../docmanager/core/kpis.py#L130), dentro de
 `calcular_atrasos_acumulados`, existe o bloco **"Momento A: nascedouro"**:
@@ -275,10 +286,10 @@ fez toda a higiene necessária:
 E o evento que marca a emissão é a linha com `Status == "Em Processo"` daquela
 revisão — a submissão para a Itaipu.
 
-**Conclusão:** `processar_documento` já devolve `kpis` e `atrasos` no
-`ResultadoDocumento`, mas `_escrever_documento` grava só as 10 colunas
-calculadas e **joga os dois dicionários fora**. A informação já existe a cada
-atualização; falta só expô-la.
+**Era só expor.** O histórico já chegava limpo ao ponto de cálculo; o Doc List
+simplesmente não gravava nada disso. `core/kpis.data_primeira_emissao` formaliza
+a conta numa função pura e reutilizável, e o Doc List passou a gravá-la — ver
+§9.1 para por que o "Momento A" ficou como estava.
 
 > ⚠️ Nota sobre DAX: **não dá para calcular isso no Power BI.** A regra de
 > nascedouro depende do histórico do Aconex (limiar de Terminated, extermínio de
@@ -287,17 +298,20 @@ atualização; falta só expô-la.
 
 ---
 
-## 8. Proposta: 2 (ou 3) colunas novas
+## 8. As três colunas novas
 
-### Coluna A — `DATA 1ª EMISSÃO`
+Implementadas. Todas em `COLUNAS_CALCULADAS`: são reescritas a cada atualização.
 
-Tipo: **data nativa** (`set_data`, `dd/mm/aaaa`).
-Valor: data do evento `Em Processo` da revisão nascedoura.
-Vazia quando o documento é `NÃO EMITIDO`.
+| Coluna | Tipo | Conteúdo |
+|---|---|---|
+| `DATA 1ª EMISSÃO` | data **nativa** (`dd/mm/aaaa`) | quando a CMI entregou o documento pela primeira vez; vazia se nunca emitido |
+| `SITUAÇÃO EMISSÃO` | texto, categoria única | o balde — é a Legenda do gráfico |
+| `DIAS DESVIO EMISSÃO` | **número** inteiro | `1ª emissão − data-alvo`; negativo = adiantado |
 
-### Coluna B — `SITUAÇÃO EMISSÃO`
+`DIAS DESVIO` vai como número e não como texto de propósito: assim o Power BI
+consegue somar e tirar média (desvio médio por escopo, por fase, por responsável).
 
-Tipo: texto, **categoria única** (é o que o Power BI vai colorir).
+### Os baldes
 
 | Balde | Regra |
 |---|---|
@@ -306,135 +320,120 @@ Tipo: texto, **categoria única** (é o que o Power BI vai colorir).
 | `PENDENTE NO PRAZO` | sem 1ª emissão **e** `hoje` ≤ `DATA-ALVO EMISSÃO` |
 | `PENDENTE VENCIDO` | sem 1ª emissão **e** `hoje` > `DATA-ALVO EMISSÃO` |
 | `SEM PLANEJAMENTO` | sem `DATA-ALVO EMISSÃO` |
-| `CANCELADO` | `STATUS CONSOLIDADO == CANCELADO` *(decisão pendente — ver §11)* |
+| `CANCELADO` | `STATUS CONSOLIDADO == CANCELADO` — **precede tudo**; sai do gráfico por filtro do visual |
 
 `SEM PLANEJAMENTO` é o mesmo furo que a aba "Sem Planejamento" da Análise de
 Período já denuncia — trazê-lo para o dashboard dá visibilidade ao que hoje só
 aparece no Excel exportado.
 
-### Coluna C (opcional) — `DIAS DESVIO EMISSÃO`
-
-Tipo: inteiro. `(DATA 1ª EMISSÃO - DATA-ALVO EMISSÃO).days`.
-Negativo = adiantado, positivo = atrasado, vazio quando não emitido.
-Serve para tooltip e para medidas de desvio médio.
+Linhas de **nível 1** (agrupamento) ficam com as três células **vazias**: não são
+documento e não devem poluir a legenda.
 
 ---
 
-## 9. Plano de implementação, arquivo a arquivo
+## 9. O que foi implementado, arquivo a arquivo
 
-### 9.1 `docmanager/core/kpis.py`
+### 9.1 `core/kpis.py` — a régua
 
-Extrair o cálculo do nascedouro para uma função pura reutilizável — hoje ele
-está embutido dentro de `calcular_atrasos_acumulados` e só produz um número de
-dias.
+`data_primeira_emissao(df_tracking) -> date | None`, mais o helper
+`_rev_nascedoura`. Reaproveita `_preparar_historico` (ciclos internos
+exterminados, limiar de *Terminated* aplicado, ordenação por data) e filtra os
+eventos `Em Processo`.
 
-```python
-def data_primeira_emissao(df_tracking: pd.DataFrame) -> date | None:
-    """Data em que a revisão nascedoura foi emitida ('Em Processo').
+> **O "Momento A" de `calcular_atrasos_acumulados` foi deixado INTACTO.** Ele
+> responde uma pergunta parecida, mas a revisão nascedoura lá é sempre a primeira
+> cronológica — nunca prefere `0A`. Mexer nele mudaria o `atraso_acumulado_cmi`,
+> que já está validado em dados reais, sem ninguém ter pedido. A divergência é
+> deliberada e está anotada na docstring.
 
-    Usa a mesma higiene de _preparar_historico (ciclos internos exterminados,
-    limiar de Terminated aplicado, ordenado por data). None quando o documento
-    nunca foi emitido.
-    """
-```
+### 9.2 `core/doclist.py` — as colunas e o balde
 
-Refatorar o "Momento A" para consumir essa função — **uma regra, um lugar**.
-Cuidado: hoje o Momento A usa `.max()`; ver decisão §11.1 antes de mudar.
+- 3 chaves novas em `COLUNAS_DOCLIST` e em `COLUNAS_CALCULADAS`;
+- constantes `SIT_*` e a tupla `SITUACOES_EMISSAO`;
+- `classificar_situacao_emissao(...)` e `calcular_dias_desvio_emissao(...)`, puras.
 
-### 9.2 `docmanager/core/doclist.py`
+### 9.3 `core/mapping.py` — só transporta
 
-Acrescentar as chaves em `COLUNAS_DOCLIST` (linha 45), **na posição desejada da
-planilha** — sugestão: logo depois de `ÚLTIMA REV. EMITIDA`:
+`ResultadoDocumento` ganhou **apenas** `data_primeira_emissao`, preenchido em
+`processar_documento`.
 
-```python
-"data_primeira_emissao": "DATA 1ª EMISSÃO",
-"situacao_emissao": "SITUAÇÃO EMISSÃO",
-"dias_desvio_emissao": "DIAS DESVIO EMISSÃO",   # opcional
-```
+> **Por que o balde não é calculado aqui**: `mapping.py` é o pipeline genérico do
+> Mapa dos Planos. A regra dos baldes é do Doc List, então ela mora em
+> `core/doclist.py` e é aplicada pelo serviço do Doc List. O genérico não pode
+> depender do específico.
 
-E incluir as mesmas chaves em `COLUNAS_CALCULADAS` (linha 85) — são calculadas,
-sobrescritas a cada atualização.
+### 9.4 `services/doclist_update.py` — grava
 
-Adicionar a função pura de classificação (aqui, não no service):
+`_escrever_situacao_emissao(ds, row, r, data_alvo, hoje)`, chamada logo após
+`_escrever_documento`. É o serviço que tem `data_alvo` e `hoje` em mãos.
+`_escrever_grupo` limpa as três células no nível 1.
 
-```python
-def classificar_situacao_emissao(
-    *, data_primeira_emissao: date | None,
-    data_alvo: date | None,
-    status_consolidado: str,
-    hoje: date,
-) -> str:
-```
+### 9.5 Retrocompatibilidade
 
-### 9.3 `docmanager/core/mapping.py`
+Nada a fazer: `set_val`/`set_data` devolvem `False` para coluna inexistente e
+`atualizar_doclist` só loga o aviso (§3). Coberto por teste.
 
-Adicionar os campos ao `ResultadoDocumento` (linha 29) e preenchê-los em
-`processar_documento` (linha 154). `processar_documento` **já recebe
-`data_prevista` e `hoje`** — mas atenção: o parâmetro chama-se `data_prevista` e
-o que interessa aqui é a **DATA-ALVO** (reprogramada quando houver, senão
-prevista). Conferir o que `doclist_update` está passando antes de assumir.
+### 9.6 `tests/test_doclist.py`
 
-### 9.4 `docmanager/services/doclist_update.py`
+14 testes novos (50 no arquivo, **697 na suíte, todos verdes**). Os que importam:
 
-Em `_escrever_documento` (linha 119), gravar:
+- `test_regua_e_a_primeira_emissao_nao_a_ultima` — 0A no prazo, 0F meses depois:
+  **é o teste que justifica a coluna existir**;
+- `test_reenvio_da_mesma_revisao_manda_a_data_mais_recente` — a decisão §11.1;
+- `test_sem_0a_vale_a_emissao_mais_antiga_documento_sat` — a decisão §11.2;
+- `test_0a_vence_mesmo_fora_de_ordem_cronologica`;
+- `test_ciclo_interno_0aa_nao_conta_como_emissao`;
+- `test_0a_terminada_sem_renascimento_nao_conta` e o caso do renascimento;
+- `test_revisao_sem_em_processo_e_ruido`;
+- `test_ciclo_completo_grava_situacao_emissao` — planilha real ponta a ponta,
+  conferindo inclusive **os tipos** (data nativa, número) e o nível 1 vazio;
+- `test_planilha_sem_as_colunas_novas_continua_rodando`.
 
-```python
-ds.set_data("data_primeira_emissao", row, r.data_primeira_emissao)
-ds.set_val("situacao_emissao", row, r.situacao_emissao)
-ds.set_val("dias_desvio_emissao", row, r.dias_desvio_emissao)
-```
+### 9.7 `docs/doc_list_mapping.md`
 
-Em `_escrever_grupo` (linha 103), decidir o que o **Nível 1** recebe. Coerente
-com o resto do módulo: `SITUAÇÃO EMISSÃO` vazio ou um marcador próprio — o
-agrupamento não é documento e não deve poluir a contagem do gráfico. (Na
-prática o gráfico só conta linhas com `DATA-ALVO`, e grupos não têm.)
+Cabeçalho 21 → 24 colunas, tabela Calculado × Input manual, e uma seção
+"Situação de emissão" com as regras.
 
-### 9.5 `docmanager/services/excel_io.py`
+### 9.8 A planilha — `tools/criar_colunas_situacao_emissao.py`
 
-Contém um mapa espelho de cabeçalhos (`"data_ultimo_status": "DATA ÚLTIMA
-EMISSÃO", "revisao": "ÚLTIMA REV. EMITIDA"` por volta da linha 124). Verificar
-se precisa acompanhar.
+Script idempotente que cria as colunas já formatadas. **Já foi rodado na planilha
+real** (aba `Unidade Geradora`): colunas **X, Y, Z**, autofiltro estendido de
+`B3:V1182` para `B3:Z1182`, backup gravado ao lado.
 
-### 9.6 `docs/doc_list_mapping.md`
+Decisões do script, que valem para qualquer manutenção futura:
 
-Atualizar: o cabeçalho passa de 21 para 23/24 colunas, e a tabela
-"Calculado × Input manual" ganha as linhas novas.
+- **Anexa no fim, nunca insere no meio.** `ws.insert_cols()` do openpyxl move os
+  valores mas **não** move larguras de coluna, ranges de formatação condicional
+  nem o autofiltro — numa planilha real isso vira dano visível. Como o app acha
+  coluna pelo texto do cabeçalho, a posição não importa para o código.
+- Copia o estilo da **mesma linha** de uma coluna-modelo vizinha, então herda de
+  graça qualquer zebra/borda que a planilha use.
+- Faz backup datado antes de gravar (coberto pelo glob do `.gitignore`).
 
-### 9.7 `tests/test_doclist.py`
-
-Casos mínimos a cobrir:
-
-- doc emitido antes do alvo → `EMITIDO NO PRAZO`
-- doc emitido depois do alvo → `EMITIDO COM ATRASO`
-- doc com várias revisões (0A…0F) onde a **última** é posterior ao alvo mas a
-  **primeira** não → tem de dar `EMITIDO NO PRAZO` *(este é o teste que prova o
-  ponto todo)*
-- doc não emitido, alvo no futuro → `PENDENTE NO PRAZO`
-- doc não emitido, alvo no passado → `PENDENTE VENCIDO`
-- doc sem `DATA-ALVO` → `SEM PLANEJAMENTO`
-- doc cujo 0A foi *Terminated* sem renascimento → não conta como emitido
-- doc com ciclo interno `0AA` antes do `0A` → o `0AA` é ignorado
-- planilha **sem** as colunas novas → roda normalmente, só loga aviso
-
-### 9.8 Planilha
-
-As colunas precisam ser criadas manualmente na aba (ou via script). Enquanto não
-existirem, o app roda e apenas avisa — ver §3, retrocompatibilidade.
+> ⚠️ **Mover, agrupar, ocultar e reordenar as colunas é seguro. Renomear não** —
+> o vínculo com o código é o texto do cabeçalho.
 
 ---
 
 ## 10. O que fazer no Power BI depois
 
-**Não implementado. Passos manuais no Power BI Desktop:**
+**Único passo que falta — manual, no Power BI Desktop.** Nada aqui foi
+automatizado: mexer no `.pbix` por fora é frágil e o arquivo é do usuário.
+
+> **Pré-requisito**: rodar a atualização do Doc List pelo app uma vez. O script
+> criou as colunas **vazias**; quem as preenche é a atualização normal, que
+> precisa da Base Aconex (+ Controle).
 
 1. Atualizar a fonte (a planilha agora tem as colunas novas).
 2. Abrir o visual **DOCUMENTOS PARA EMISSÃO** (`619e9572eb5195c710bb`).
 3. Eixo X **inalterado** — `DATA-ALVO EMISSÃO` → Dia. *A barra continua no dia
    previsto.*
-4. Arrastar `SITUAÇÃO EMISSÃO` para **Legenda** → vira coluna empilhada; a barra
+4. **Filtro de nível de visual**: `SITUAÇÃO EMISSÃO` ≠ `CANCELADO` (decisão
+   §11.3). Documento cancelado não deve inflar a barra do dia.
+5. Arrastar `SITUAÇÃO EMISSÃO` para **Legenda** → vira coluna empilhada; a barra
    se reparte por cor.
-5. Ligar a legenda (hoje `legend.show = false`).
-6. Definir cores por categoria. Sugestão alinhada à paleta já presente no
+6. Ligar a legenda (hoje `legend.show = false`).
+7. Definir cores por categoria. Sugestão alinhada à paleta já presente no
    arquivo:
 
    | Balde | Cor |
@@ -445,9 +444,9 @@ existirem, o app roda e apenas avisa — ver §3, retrocompatibilidade.
    | `PENDENTE VENCIDO` | vermelho escuro |
    | `SEM PLANEJAMENTO` | cinza |
 
-7. **Limpar os seletores órfãos** de `Riscos` / `Planilha riscos` no `dataPoint`
+8. **Limpar os seletores órfãos** de `Riscos` / `Planilha riscos` no `dataPoint`
    desse visual (§4).
-8. Tooltip: adicionar `DATA 1ª EMISSÃO` e `DIAS DESVIO EMISSÃO`.
+9. Tooltip: adicionar `DATA 1ª EMISSÃO` e `DIAS DESVIO EMISSÃO`.
 
 **Ganho:** a mesma barra deixa de ser carga prevista e vira **aderência ao
 plano** — "do que estava previsto para o dia 3, quanto saiu, quanto saiu
@@ -462,27 +461,39 @@ hierarchy.
 
 ---
 
-## 11. Decisões pendentes do usuário
+## 11. Decisões do usuário (respondidas)
 
-Responder antes de codar — mudam o resultado.
+Respondidas em 2026-09-16; já implementadas e cobertas por teste.
 
-### 11.1 `.max()` ou `.min()` na data de emissão?
+### 11.1 `.max()`, não `.min()`
 
-O código hoje usa `df_nasc["Data_Obj"].max()`. Se a mesma revisão 0A foi
-reenviada, a data "anda" para frente. Para *data da primeira emissão*, `.min()`
-é mais fiel ao conceito. **Atenção:** mudar isso altera também o
-`atraso_acumulado_cmi` já em produção — pode ser necessário manter `.max()` no
-Momento A e usar `.min()` só na coluna nova.
+> *"É pra ser a data da emissão da 0A de fato; se por ventura existir um documento
+> 2x reemitido, prevalece a segunda data (mais recente), pq foi pra corrigir algum
+> erro da primeira."*
 
-### 11.2 Nascedoura ≠ literalmente `0A`
+Dentro da revisão nascedoura vale a emissão **mais recente**. Efeito colateral
+bom: é o mesmo `.max()` que o Momento A já usava, então nada mudou em produção.
 
-O código pega a primeira revisão cronológica, seja ela qual for (documento que
-entrou direto em `0B`, herdado de outro contrato, etc.). Manter assim (mais
-robusto) ou exigir literalmente `0A`?
+### 11.2 `0A` preferida, com fallback para documentos SAT
 
-### 11.3 `CANCELADO`
+> *"Mantém a 0A (…) fico com medo dos documentos com formatos SAT, onde geralmente
+> eles são continuação de documentos já existentes de Itaipu (legado) e daí já
+> começam em revisões mais altas; nesse caso seria interessante termos a primeira
+> emissão pra Itaipu (ou seja, desconsiderar os lixos já descartados)."*
 
-Balde próprio na `SITUAÇÃO EMISSÃO`, ou fica fora do gráfico?
+Implementado como as duas metades da frase: **`0A` quando existe; senão, a
+emissão mais antiga do histórico limpo**. O "lixo já descartado" some sozinho —
+`_preparar_historico` extermina ciclos internos (`0AA`) e aplica o limiar de
+*Terminated* antes de qualquer coisa.
+
+Isso é **diferente** do que o código fazia antes (primeira revisão cronológica,
+sem preferir `0A`) — daí a divergência deliberada com o Momento A descrita em §9.1.
+
+### 11.3 `CANCELADO` fora do gráfico
+
+Balde próprio, com **precedência sobre todos os outros**: cancelado é terminal,
+não interessa mais se nasceu no prazo. O valor é gravado na coluna para o dado
+não mentir, e o gráfico o exclui por **filtro do visual** (§10, passo 4).
 
 ---
 

@@ -10,16 +10,23 @@ Follow-up semanal de uma documentação já definida: você mantém a planilha, 
 o módulo, e ele atualiza status, hierarquia, resumo por escopo e as datas de
 planejamento a partir da base do Aconex e do Controle de Documentos.
 
-## Cabeçalho oficial (21 colunas)
+## Cabeçalho oficial (24 colunas)
 
 ```
 GRUPO · SISTEMA · FASE DE PROJETO · Nº CMI · N° ITAIPU ·
 DESCRIÇÃO DO DOCUMENTO · DATA PREVISTA EMISSÃO · DATA REPROGRAMADA ·
 DATA-ALVO EMISSÃO · EMITIDO / NÃO EMITIDO · DATA ÚLTIMA EMISSÃO ·
-ÚLTIMA REV. EMITIDA · STATUS REAL · STATUS · RESPONSIBLE (COE/VENDOR) ·
+ÚLTIMA REV. EMITIDA · DATA 1ª EMISSÃO · SITUAÇÃO EMISSÃO ·
+DIAS DESVIO EMISSÃO · STATUS REAL · STATUS · RESPONSIBLE (COE/VENDOR) ·
 NÍVEL · STATUS CONSOLIDADO · COM ITAIPU · PREDECESSOR · OBSERVAÇÕES ·
 RESUMO QUANTIDADES
 ```
+
+> **A ordem não importa.** As colunas são localizadas pelo TEXTO do cabeçalho,
+> então mover, agrupar ou ocultar não afeta nada — só **renomear** quebra.
+> Planilha sem as três colunas de emissão continua rodando: o log avisa quais
+> faltam e elas são ignoradas. Para criá-las já formatadas:
+> `python tools/criar_colunas_situacao_emissao.py "Doc List Mapping.xlsx" --aba "Unidade Geradora"`
 
 ⚠️ Atenção aos codepoints: `N° ITAIPU` usa **U+00B0** (sinal de grau) e
 `Nº CMI` usa **U+00BA** (ordinal) — trocar um pelo outro faz a localização do
@@ -56,7 +63,7 @@ reconhecidos e **renomeados automaticamente** na primeira atualização:
 
 | Calculado (sobrescrito a cada atualização) | Input manual (nunca sobrescrito) |
 |---|---|
-| `DATA-ALVO EMISSÃO`, `EMITIDO / NÃO EMITIDO`, `DATA ÚLTIMA EMISSÃO`, `ÚLTIMA REV. EMITIDA`, `STATUS REAL`, `STATUS`, `STATUS CONSOLIDADO`, `COM ITAIPU`, `PREDECESSOR`, `RESUMO QUANTIDADES` | `GRUPO`, `SISTEMA`, `NÍVEL`, **`FASE DE PROJETO`**, `RESPONSIBLE (COE/VENDOR)`, `OBSERVAÇÕES`, `DATA REPROGRAMADA` |
+| `DATA-ALVO EMISSÃO`, `EMITIDO / NÃO EMITIDO`, `DATA ÚLTIMA EMISSÃO`, `ÚLTIMA REV. EMITIDA`, `DATA 1ª EMISSÃO`, `SITUAÇÃO EMISSÃO`, `DIAS DESVIO EMISSÃO`, `STATUS REAL`, `STATUS`, `STATUS CONSOLIDADO`, `COM ITAIPU`, `PREDECESSOR`, `RESUMO QUANTIDADES` | `GRUPO`, `SISTEMA`, `NÍVEL`, **`FASE DE PROJETO`**, `RESPONSIBLE (COE/VENDOR)`, `OBSERVAÇÕES`, `DATA REPROGRAMADA` |
 
 `Nº CMI`, `N° ITAIPU` e `DESCRIÇÃO DO DOCUMENTO` são atualizados quando o
 Aconex traz um valor novo (o código do documento muda ao longo da vida).
@@ -88,6 +95,55 @@ permite o dashboard agrupar por período.
 
 > Sem o Controle de Documentos o módulo roda normalmente: apenas as datas de
 > planejamento e o resgate da descrição não acontecem.
+
+## Situação de emissão (aderência ao planejamento)
+
+Responde o que o `STATUS CONSOLIDADO` não responde: **o documento saiu na data
+que estava planejada?**
+
+A régua é a `DATA 1ª EMISSÃO` — **nunca** a `DATA ÚLTIMA EMISSÃO`. Evoluir de
+`0A` até `0F` é ciclo normal de aprovação; comparar a última revisão com a
+data-alvo acusaria meses de atraso num documento que nasceu adiantado.
+
+| Coluna | O que é |
+|---|---|
+| `DATA 1ª EMISSÃO` | data nativa; quando a CMI entregou o documento pela primeira vez |
+| `SITUAÇÃO EMISSÃO` | o balde (categoria única — é a Legenda do gráfico do dashboard) |
+| `DIAS DESVIO EMISSÃO` | número; `1ª emissão − data-alvo`. **Negativo = adiantado** |
+
+### Como a `DATA 1ª EMISSÃO` é achada
+
+O evento de emissão é a linha `Em Processo` do Aconex — a submissão à Itaipu.
+Sobre o histórico já limpo (ciclos internos tipo `0AA` exterminados, revisões
+mortas por *Terminated* removidas):
+
+1. **A revisão nascedoura é a `0A`**, quando ela existe.
+2. **Sem `0A`, vale a emissão mais antiga.** É o caso dos documentos **SAT**,
+   que continuam documentos legados da Itaipu e já entram em revisões altas — ali
+   o que interessa é a primeira entrega *para a Itaipu*, sem o lixo já descartado.
+3. **Dentro da revisão nascedoura vale a emissão mais recente**: reenvio da mesma
+   revisão corrigiu a entrega anterior, então é ele que marca a entrega válida.
+
+Revisão que nunca teve `Em Processo` é ruído e não conta.
+
+### Os baldes
+
+| `SITUAÇÃO EMISSÃO` | Quando |
+|---|---|
+| `EMITIDO NO PRAZO` | 1ª emissão ≤ data-alvo |
+| `EMITIDO COM ATRASO` | 1ª emissão > data-alvo |
+| `PENDENTE NO PRAZO` | ainda não emitido, hoje ≤ data-alvo |
+| `PENDENTE VENCIDO` | ainda não emitido, hoje > data-alvo |
+| `SEM PLANEJAMENTO` | sem data-alvo — o mesmo furo da aba "Sem Planejamento" |
+| `CANCELADO` | terminal; **fica fora do gráfico** por filtro do visual |
+
+Agrupamentos (nível 1) ficam com as três células **vazias**: não são documento e
+não devem poluir a legenda.
+
+> No Power BI: `SITUAÇÃO EMISSÃO` vai na **Legenda** do gráfico
+> "DOCUMENTOS PARA EMISSÃO". O eixo continua sendo a `DATA-ALVO EMISSÃO`, então
+> a barra **permanece no dia planejado** e só se reparte por cor. Detalhes e
+> paleta em [`situacao_emissao_dashboard.md`](situacao_emissao_dashboard.md).
 
 ## Status consolidado
 

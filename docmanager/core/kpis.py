@@ -46,6 +46,67 @@ def _preparar_historico(df_tracking: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# Revisão que marca o nascimento do documento no ciclo da Itaipu.
+REV_NASCEDOURA_PADRAO = "0A"
+
+
+def _rev_nascedoura(emissoes: pd.DataFrame) -> str:
+    """Revisão que conta como nascimento, entre as que foram DE FATO emitidas.
+
+    `0A` quando ela existe; senão, a da emissão mais antiga (documento SAT /
+    legado, que já entra em revisão alta).
+    """
+    revs = emissoes[COL_REVISAO].astype(str).str.strip()
+    if (revs == REV_NASCEDOURA_PADRAO).any():
+        return REV_NASCEDOURA_PADRAO
+    return revs.loc[emissoes["Data_Obj"].idxmin()]
+
+
+def data_primeira_emissao(df_tracking: pd.DataFrame) -> date | None:
+    """Data em que o documento foi emitido pela PRIMEIRA vez (KB §27.5).
+
+    É a régua de aderência ao planejamento: comparada com a `DATA-ALVO EMISSÃO`,
+    diz se o documento nasceu no prazo. **Não confundir com `DATA ÚLTIMA
+    EMISSÃO`**, que é a revisão vigente — 0A→0F é ciclo normal de aprovação, e
+    usar a última revisão como régua produziria um mar de falsos atrasos.
+
+    Regras (decididas pelo usuário em 2026-09-16):
+
+    - **A revisão nascedoura é a `0A`** quando ela existe no histórico limpo.
+    - **Sem `0A`, vale a emissão mais antiga** — é o caso dos documentos SAT,
+      continuação de documentos legados da Itaipu, que já entram em revisões
+      altas. O que interessa ali é a primeira entrega PARA A ITAIPU, e o
+      histórico já chega aqui sem o lixo descartado (ciclos internos e revisões
+      mortas por Terminated).
+    - **Dentro da revisão nascedoura vale a emissão MAIS RECENTE** (`.max()`):
+      reenvio da mesma revisão corrigiu a entrega anterior, então é ele que
+      marca a entrega válida.
+
+    O evento de emissão é a linha com `Status == 'Em Processo'` — a submissão à
+    Itaipu. Revisão que nunca teve 'Em Processo' é ruído e não conta (mesma
+    leitura do Momento B em `calcular_atrasos_acumulados`).
+
+    Devolve `None` quando o documento nunca foi emitido.
+
+    > O "Momento A" de `calcular_atrasos_acumulados` responde a uma pergunta
+    > parecida, mas **não** é a mesma conta: lá a revisão nascedoura é sempre a
+    > primeira cronológica (nunca prefere `0A`). Mantido como está de propósito —
+    > aquele número já está validado em dados reais e mexer nele mudaria o
+    > `atraso_acumulado_cmi` em produção.
+    """
+    if df_tracking.empty:   # antes de _preparar_historico: sem colunas ele quebra
+        return None
+    df = _preparar_historico(df_tracking)
+    if df.empty:
+        return None
+    emissoes = df[df["Status_Upper"] == "EM PROCESSO"]
+    if emissoes.empty:
+        return None
+    rev = _rev_nascedoura(emissoes)
+    datas = emissoes.loc[emissoes[COL_REVISAO].astype(str).str.strip() == rev, "Data_Obj"]
+    return None if datas.empty else datas.max().date()
+
+
 def analisar_kpis_documento(df_tracking: pd.DataFrame, status_real, revisao_atual,
                             data_prevista, *, hoje: date | None = None) -> dict:
     hj = _hoje(hoje)

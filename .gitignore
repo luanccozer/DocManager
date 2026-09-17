@@ -26,6 +26,8 @@ saidas_teste/
 # Dados reais (base Aconex, mapeamento real) — nunca versionar
 dados_reais/
 
-# Dashboard e planilha reais do Doc List Mapping — nunca versionar
-Doc List Mapping.xlsx
+# Dashboard e planilha reais do Doc List Mapping — nunca versionar.
+# O glob cobre tambem os backups (Doc List Mapping.backup-AAAAMMDD-HHMMSS.xlsx)
+# que tools/criar_colunas_situacao_emissao.py grava ao lado do original.
+Doc List Mapping*.xlsx
 *.pbix

@@ -55,6 +55,9 @@ COLUNAS_DOCLIST: dict[str, str] = {
     "emitido_nao_emitido": "EMITIDO / NÃO EMITIDO",
     "data_ultimo_status": "DATA ÚLTIMA EMISSÃO",
     "revisao": "ÚLTIMA REV. EMITIDA",
+    "data_primeira_emissao": "DATA 1ª EMISSÃO",
+    "situacao_emissao": "SITUAÇÃO EMISSÃO",
+    "dias_desvio_emissao": "DIAS DESVIO EMISSÃO",
     "status_real": "STATUS REAL",
     "status_emissao": "STATUS",
     "responsavel": "RESPONSIBLE (COE/VENDOR)",
@@ -84,6 +87,7 @@ NIVEL_DOCUMENTO = "2"
 # input manual e nunca são tocadas).
 COLUNAS_CALCULADAS = (
     "data_alvo", "emitido_nao_emitido", "data_ultimo_status", "revisao",
+    "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao",
     "status_real", "status_emissao", "status_consolidado", "com_itaipu",
     "predecessor", "resumo_quantidades",
 )
@@ -124,6 +128,68 @@ class LinhaDocList:
     @property
     def esta_emitido(self) -> bool:
         return str(self.emitido_nao_emitido).strip().upper() not in ("", CONS_NAO_EMITIDO)
+
+
+# ---------------------------------------------------------------------------
+# Situação de emissão — aderência ao planejamento (KB §27.5)
+# ---------------------------------------------------------------------------
+# Categoria ÚNICA por documento, feita para ser a Legenda do gráfico
+# "DOCUMENTOS PARA EMISSÃO" do dashboard: a barra continua no dia previsto
+# (DATA-ALVO EMISSÃO) e se reparte por cor entre estes baldes.
+SIT_EMITIDO_NO_PRAZO = "EMITIDO NO PRAZO"
+SIT_EMITIDO_COM_ATRASO = "EMITIDO COM ATRASO"
+SIT_PENDENTE_NO_PRAZO = "PENDENTE NO PRAZO"
+SIT_PENDENTE_VENCIDO = "PENDENTE VENCIDO"
+SIT_SEM_PLANEJAMENTO = "SEM PLANEJAMENTO"
+SIT_CANCELADO = "CANCELADO"
+
+SITUACOES_EMISSAO = (
+    SIT_EMITIDO_NO_PRAZO, SIT_EMITIDO_COM_ATRASO,
+    SIT_PENDENTE_NO_PRAZO, SIT_PENDENTE_VENCIDO,
+    SIT_SEM_PLANEJAMENTO, SIT_CANCELADO,
+)
+
+
+def classificar_situacao_emissao(*, data_primeira_emissao: date | None,
+                                 data_alvo: date | None,
+                                 status_consolidado: str,
+                                 hoje: date) -> str:
+    """Balde de aderência do documento ao que foi planejado.
+
+    A régua é a **data da primeira emissão** (`core/kpis.data_primeira_emissao`),
+    nunca a DATA ÚLTIMA EMISSÃO — evoluir de 0A até 0F é ciclo normal e não é
+    atraso.
+
+    Ordem de precedência:
+
+    1. `CANCELADO` — terminal, não interessa mais se nasceu no prazo. Fica de
+       fora do gráfico por filtro do visual (decisão do usuário, 2026-09-16);
+       o valor é gravado assim mesmo para a coluna não mentir.
+    2. `SEM PLANEJAMENTO` — sem DATA-ALVO não há o que cobrar. É o mesmo furo
+       que a aba "Sem Planejamento" da Análise de Período já denuncia.
+    3. Emitido → comparou a 1ª emissão com o alvo.
+    4. Não emitido → comparou HOJE com o alvo.
+    """
+    if str(status_consolidado).strip().upper() == CONS_CANCELADO:
+        return SIT_CANCELADO
+    if data_alvo is None:
+        return SIT_SEM_PLANEJAMENTO
+    if data_primeira_emissao is not None:
+        return (SIT_EMITIDO_NO_PRAZO if data_primeira_emissao <= data_alvo
+                else SIT_EMITIDO_COM_ATRASO)
+    return SIT_PENDENTE_NO_PRAZO if hoje <= data_alvo else SIT_PENDENTE_VENCIDO
+
+
+def calcular_dias_desvio_emissao(data_primeira_emissao: date | None,
+                                 data_alvo: date | None) -> int | None:
+    """Dias entre a 1ª emissão e o alvo. Negativo = adiantado.
+
+    `None` quando falta uma das pontas — só tem sentido para documento emitido
+    e planejado.
+    """
+    if data_primeira_emissao is None or data_alvo is None:
+        return None
+    return (data_primeira_emissao - data_alvo).days
 
 
 # ---------------------------------------------------------------------------

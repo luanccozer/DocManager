@@ -17,7 +17,11 @@ from .consolidation import (
     calcula_status_consolidado,
     calcular_emitido_nao_emitido,
 )
-from .kpis import analisar_kpis_documento, calcular_atrasos_acumulados
+from .kpis import (
+    analisar_kpis_documento,
+    calcular_atrasos_acumulados,
+    data_primeira_emissao,
+)
 from .normalize import celula_para_date as _como_date
 from .normalize import remover_acentos
 from .planejamento import reconciliar_datas
@@ -41,6 +45,10 @@ class ResultadoDocumento:
     com_itaipu: str = "CMI"
     kpis: dict = field(default_factory=dict)
     atrasos: dict = field(default_factory=dict)
+    # Régua de aderência ao planejamento (KB §27.5): a PRIMEIRA emissão, não a
+    # última. Quem transforma isso em balde é o Doc List
+    # (`core/doclist.classificar_situacao_emissao`) — a regra é dele, não do Mapa.
+    data_primeira_emissao: date | None = None
 
 
 def filtrar_historico_por_titulo(df_historico: pd.DataFrame, texto_filtro) -> pd.DataFrame:
@@ -191,6 +199,7 @@ def processar_documento(df_tracking: pd.DataFrame, *, nivel: str, tag_etapa: str
     atrasos = calcular_atrasos_acumulados(df_tracking, status_real, data_prevista, hoje=hoje)
 
     return ResultadoDocumento(
+        data_primeira_emissao=data_primeira_emissao(df_tracking),
         revisao=rev_visual, data_ultimo_status=data_visual, status_emissao=status_visual,
         cod_itaipu_atual=str(linha_estatica.get("No. do Documento")) if linha_estatica is not None else None,
         cod_cmi_atual=str(linha_estatica.get("Controle do Emissor")) if linha_estatica is not None else None,
