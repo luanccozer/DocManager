@@ -2,7 +2,7 @@
 
 > **Status: lado Python IMPLEMENTADO em 2026-09-16.** As três colunas são
 > calculadas e gravadas pelo app, e já existem na planilha real. **Falta só o
-> passo manual no Power BI** — §10. Levantamento e implementação feitos sobre
+> roteiro do Power BI** — §10, com um .pbix pré-editado de atalho. Levantamento e implementação feitos sobre
 > `Doc List Mapping.xlsx` e `Dashboard - Doc List Mapping.pbix`.
 >
 > As três decisões que estavam pendentes foram respondidas pelo usuário e estão
@@ -16,10 +16,10 @@
 4. [Anatomia do dashboard (PBIX)](#4-anatomia-do-dashboard-pbix)
 5. [O gap: o gráfico não sabe o que foi executado](#5-o-gap-o-gráfico-não-sabe-o-que-foi-executado)
 6. [Por que as colunas existentes não resolvem](#6-por-que-as-colunas-existentes-não-resolvem)
-7. [A informação já é calculada e descartada](#7-a-informação-já-é-calculada-e-descartada)
+7. [A régua: a informação já existia no histórico](#7-a-régua-a-informação-já-existia-no-histórico)
 8. [As três colunas novas](#8-as-três-colunas-novas)
 9. [O que foi implementado, arquivo a arquivo](#9-o-que-foi-implementado-arquivo-a-arquivo)
-10. [O que fazer no Power BI depois](#10-o-que-fazer-no-power-bi-depois)
+10. [O que fazer no Power BI](#10-o-que-fazer-no-power-bi)
 11. [Decisões do usuário (respondidas)](#11-decisões-do-usuário-respondidas)
 
 ---
@@ -415,38 +415,91 @@ Decisões do script, que valem para qualquer manutenção futura:
 
 ---
 
-## 10. O que fazer no Power BI depois
+## 10. O que fazer no Power BI
 
-**Único passo que falta — manual, no Power BI Desktop.** Nada aqui foi
-automatizado: mexer no `.pbix` por fora é frágil e o arquivo é do usuário.
+A **ordem importa**: a coluna precisa existir no modelo antes de o visual
+conseguir usá-la.
 
-> **Pré-requisito**: rodar a atualização do Doc List pelo app uma vez. O script
-> criou as colunas **vazias**; quem as preenche é a atualização normal, que
-> precisa da Base Aconex (+ Controle).
+### Passo 0 — encher as colunas (obrigatório, antes de tudo)
 
-1. Atualizar a fonte (a planilha agora tem as colunas novas).
-2. Abrir o visual **DOCUMENTOS PARA EMISSÃO** (`619e9572eb5195c710bb`).
-3. Eixo X **inalterado** — `DATA-ALVO EMISSÃO` → Dia. *A barra continua no dia
-   previsto.*
-4. **Filtro de nível de visual**: `SITUAÇÃO EMISSÃO` ≠ `CANCELADO` (decisão
-   §11.3). Documento cancelado não deve inflar a barra do dia.
-5. Arrastar `SITUAÇÃO EMISSÃO` para **Legenda** → vira coluna empilhada; a barra
-   se reparte por cor.
-6. Ligar a legenda (hoje `legend.show = false`).
-7. Definir cores por categoria. Sugestão alinhada à paleta já presente no
-   arquivo:
+`tools/criar_colunas_situacao_emissao.py` criou as colunas **vazias**. Quem as
+preenche é a atualização normal do Doc List pelo app, que precisa da Base Aconex
+(+ Controle de Documentos). **Rode isso primeiro**, senão o gráfico sai todo
+cinza de `(Em branco)`.
 
-   | Balde | Cor |
-   |---|---|
-   | `EMITIDO NO PRAZO` | verde `#038B25` |
-   | `EMITIDO COM ATRASO` | vermelho |
-   | `PENDENTE NO PRAZO` | amarelo `#EEBA00` |
-   | `PENDENTE VENCIDO` | vermelho escuro |
-   | `SEM PLANEJAMENTO` | cinza |
+Confira na planilha que `SITUAÇÃO EMISSÃO` tem valores antes de abrir o Power BI.
 
-8. **Limpar os seletores órfãos** de `Riscos` / `Planilha riscos` no `dataPoint`
-   desse visual (§4).
-9. Tooltip: adicionar `DATA 1ª EMISSÃO` e `DIAS DESVIO EMISSÃO`.
+### Passo 1 — Atualizar
+
+Abrir o `.pbix` → **Página Inicial › Atualizar**. É isso que traz as três colunas
+novas da planilha para o modelo.
+
+> Se as colunas **não aparecerem** no painel de Campos depois do Atualizar, a
+> consulta do Power Query tem uma lista fixa de colunas. Nesse caso:
+> **Transformar dados**, selecionar a etapa *Origem*/*Navegação*, e conferir se
+> alguma etapa posterior (`Colunas Removidas`, `Outras Colunas Removidas`) está
+> barrando as novas — basta editar essa etapa.
+
+### Passo 2 — o gráfico
+
+No visual **DOCUMENTOS PARA EMISSÃO** (canto inferior direito):
+
+| Campo | Onde vai |
+|---|---|
+| `DATA-ALVO EMISSÃO` → Dia | **Eixo X** — *não mexer*, é o que mantém a barra no dia previsto |
+| `Contagem de N° ITAIPU` | **Eixo Y** — não mexer |
+| **`SITUAÇÃO EMISSÃO`** | **Legenda** ← *a única adição* |
+| `DATA 1ª EMISSÃO`, `DIAS DESVIO EMISSÃO` | **Dicas de ferramenta** (opcional) |
+
+Ao soltar na Legenda o gráfico vira **coluna empilhada**: a barra do dia 3
+continua no dia 3, mas se reparte por cor.
+
+### Passo 3 — filtro do CANCELADO
+
+Com o visual selecionado, no painel **Filtros** › *Filtros neste visual*,
+arrastar `SITUAÇÃO EMISSÃO` e desmarcar **CANCELADO** (decisão §11.3).
+Cancelado é terminal e não deve inflar a barra do dia.
+
+### Passo 4 — formatação
+
+- **Legenda**: ligar (vem desligada), posição inferior-centro.
+- **Cores dos dados**, uma por balde:
+
+  | Balde | Cor |
+  |---|---|
+  | `EMITIDO NO PRAZO` | `#038B25` verde |
+  | `EMITIDO COM ATRASO` | `#C00000` vermelho |
+  | `PENDENTE NO PRAZO` | `#EEBA00` amarelo |
+  | `PENDENTE VENCIDO` | `#7B1416` vermelho escuro |
+  | `SEM PLANEJAMENTO` | `#A6A6A6` cinza |
+
+  O verde e o amarelo são os que o relatório já usa em outros visuais.
+
+### Atalho: o `.pbix` pré-editado
+
+Existe um `Dashboard - Doc List Mapping (situacao emissao).pbix` com os
+**passos 2 e 4 já aplicados** por edição direta do JSON (o `.pbix` é formato
+PBIR: um `visual.json` por visual). Nele:
+
+- `SITUAÇÃO EMISSÃO` já está na Legenda (role `Series`);
+- legenda ligada;
+- as 5 cores + `CANCELADO` em cinza escuro;
+- `DATA 1ª EMISSÃO` e `DIAS DESVIO EMISSÃO` no tooltip;
+- os **53 seletores órfãos** de `Riscos`/`Planilha riscos` no `dataPoint`
+  removidos (§4).
+
+Só o `visual.json` desse visual mudou — `DataModel` e os outros 33 arquivos do
+pacote estão byte a byte idênticos ao original.
+
+**Ainda assim ele precisa dos passos 0, 1 e 3.** O `DataModel` é um binário
+compilado que não dá para editar por fora: enquanto o Atualizar não rodar, o
+modelo não conhece as colunas e o visual pode aparecer com erro de campo — some
+depois do Atualizar. E o filtro do CANCELADO ficou de fora porque o schema do
+`filterConfig` não é público e eu não tinha como validar o que escrevesse.
+
+> Se o arquivo pré-editado der qualquer problema, **jogue-o fora e siga os passos
+> 2 e 4 na mão** — são cinco minutos de clique e o resultado é idêntico. O
+> original não foi tocado.
 
 **Ganho:** a mesma barra deixa de ser carga prevista e vira **aderência ao
 plano** — "do que estava previsto para o dia 3, quanto saiu, quanto saiu
