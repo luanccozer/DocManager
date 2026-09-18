@@ -24,9 +24,21 @@ relatórios.
    > **"somente para mim"**.
 3. Abra o **DocManager** pelo atalho.
 
-> O Windows pode mostrar um aviso do **SmartScreen** ("aplicativo não
-> reconhecido") porque o instalador ainda não é assinado digitalmente. Clique em
-> *Mais informações → Executar assim mesmo*.
+> ### ⚠️ "O Windows protegeu o computador"
+>
+> Esse aviso **vai** aparecer, e não é vírus: o SmartScreen reclama de todo
+> programa recém-compilado que ainda não tem assinatura digital.
+>
+> O detalhe que trava todo mundo é que o botão para continuar **começa
+> escondido**. A janela só mostra *Não executar*; clique primeiro em
+> **"Mais informações"** (link pequeno e cinza, logo abaixo do texto) e aí
+> aparece o **"Executar assim mesmo"**.
+>
+> Alternativa: botão direito no `.exe` → **Propriedades** → marcar
+> **"Desbloquear"** no rodapé da aba *Geral* → *Aplicar*. Depois é só abrir.
+>
+> Para eliminar o aviso de vez seria preciso comprar um certificado de
+> assinatura de código — ver [`BUILD.md`](BUILD.md), seção *Assinatura digital*.
 
 ### Primeiro uso: cadastrar as suas credenciais do Aconex
 

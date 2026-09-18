@@ -46,6 +46,18 @@ Baixe o `DocManager_Itaipu_Setup_*.exe` abaixo e execute. O instalador pergunta
 se quer instalar **para todos os usuários** (precisa de administrador) ou
 **somente para você** (não precisa — e aí as atualizações são silenciosas).
 
+> ### ⚠️ "O Windows protegeu o computador"
+>
+> Vai aparecer. **Não é vírus**: o SmartScreen avisa isso para todo programa
+> recém-compilado que ainda não é assinado digitalmente.
+>
+> Para continuar: clique em **"Mais informações"** — um link pequeno e cinza,
+> logo abaixo do texto — e só então aparece o botão **"Executar assim mesmo"**.
+> Antes desse clique a janela só oferece *Não executar*.
+>
+> Alternativa: botão direito no arquivo → **Propriedades** → marcar
+> **"Desbloquear"** lá embaixo → *Aplicar*, e abrir normalmente.
+
 Quem já tem o DocManager instalado **não precisa baixar nada**: o app avisa
 sozinho e se atualiza com um clique.
 
