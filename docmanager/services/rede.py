@@ -55,7 +55,8 @@ def injetar_certificados_windows(log_cb: Log = _nada) -> bool:
         return False
 
 
-def estrategias(proxy: str | None = None) -> list[tuple[str, dict | None, bool]]:
+def estrategias(proxy: str | None = None, url: str = "",
+                log_cb: Log = _nada) -> list[tuple[str, dict | None, bool]]:
     """Rotas a tentar, na ordem. Cada item: (nome, proxies|None, trust_env).
 
     `proxies=None` → deixa o `requests` decidir pelo ambiente;
@@ -65,6 +66,15 @@ def estrategias(proxy: str | None = None) -> list[tuple[str, dict | None, bool]]
     if proxy:
         return [("proxy informado", {"http": proxy, "https": proxy}, False)]
     rotas: list[tuple[str, dict | None, bool]] = []
+    # Primeiro o proxy do PAC, resolvido pelo Windows — ver a seção no fim
+    # deste módulo. Sem PAC devolve [] e a ordem antiga fica intacta.
+    vistos: set[str] = set()
+    for endereco in (proxies_do_windows_para(url, log_cb) if url else []):
+        if endereco in vistos:
+            continue
+        vistos.add(endereco)
+        alvo = endereco if "://" in endereco else f"http://{endereco}"
+        rotas.append((f"proxy do Windows ({endereco})", {"http": alvo, "https": alvo}, False))
     try:
         sistema = urllib.request.getproxies()
     except Exception:  # noqa: BLE001
@@ -97,7 +107,7 @@ def abrir(url: str, *, headers: dict | None = None, timeout: int = 30,
     import requests
 
     injetar_certificados_windows(log_cb)
-    rotas = estrategias(proxy)
+    rotas = estrategias(proxy, url, log_cb)
     problemas: list[str] = []
     houve_ssl = False
 
@@ -266,3 +276,216 @@ def diagnostico(host: str, porta: int = 443) -> list[str]:
     except Exception as e:  # noqa: BLE001
         linhas.append(f"Conexão TCP direta a {host}:{porta}: {type(e).__name__} — {e}")
     return linhas
+
+# ─────────────────── proxy resolvido PELO WINDOWS (arquivo PAC) ──────────────
+#
+# Caso real que motivou este bloco (máquina da CMI, 18/09/2026):
+#
+#     ProxyEnable   = 0
+#     AutoConfigURL = http://127.0.0.1:9999/4049_gpproxy.pac
+#
+# Não há proxy estático — só um arquivo PAC, servido pelo próprio agente do
+# GlobalProtect. E o `urllib.request.getproxies()` lê SOMENTE `ProxyEnable` e
+# `ProxyServer`: com ProxyEnable=0 ele responde "sem proxy", o app vai direto, e
+# a VPN descarta os pacotes em silêncio — 21 segundos de timeout, sem pista.
+#
+# Um PAC é um programa JavaScript (`FindProxyForURL(url, host)`) e a resposta
+# MUDA POR DESTINO — e, num PAC de VPN, muda também conforme o túnel esteja de
+# pé (proxy local no 127.0.0.1) ou não (gateway do Zscaler). Interpretar isso em
+# Python exigiria embutir um motor de JavaScript. A saída limpa é perguntar ao
+# WINDOWS, que já faz isso o dia inteiro para o navegador: `WinHttpGetProxyForUrl`
+# baixa o PAC, executa a função e responde qual proxy usar para AQUELA url.
+
+_WINHTTP_ACCESS_TYPE_NO_PROXY = 1
+_AUTOPROXY_AUTO_DETECT = 0x00000001
+_AUTOPROXY_CONFIG_URL = 0x00000002
+_AUTO_DETECT_DHCP = 0x00000001
+_AUTO_DETECT_DNS_A = 0x00000002
+
+# Códigos do WinHTTP que distinguem "esta rede não usa proxy" de "a consulta
+# falhou" — sem isso, as duas situações viram o mesmo silêncio.
+_ERROS_WINHTTP = {
+    12002: "a consulta ao PAC expirou",
+    12015: "o proxy exige autenticação",
+    12166: "o arquivo PAC deu erro ao executar",
+    12167: "não foi possível baixar o arquivo PAC",
+    12180: "a rede não publica WPAD",
+}
+
+# (proxies, momento) por URL. O WPAD sozinho custa segundos quando não há PAC
+# nenhum, e a extração faz várias chamadas; mas o cache é CURTO de propósito:
+# ligar ou desligar a VPN muda a resposta do PAC, e um valor descoberto na
+# abertura do app valeria a sessão inteira — errado.
+_VALIDADE_CACHE_S = 60.0
+_cache_proxy: dict[str, tuple[list[str], float]] = {}
+
+
+def esquecer_proxy_descoberto() -> None:
+    """Descarta o cache — use ao trocar de rede ou ligar/desligar a VPN."""
+    _cache_proxy.clear()
+
+
+def normalizar_proxies(bruto: str) -> list[str]:
+    """Resposta do WinHTTP/PAC → lista de 'host:porta'. Pura, testada.
+
+    O WinHTTP costuma devolver a lista já sem o verbo, mas o formato do PAC
+    permite `PROXY host:porta; DIRECT` e `SOCKS host:porta`. Aceitar as duas
+    formas custa nada e evita o erro bobo de tratar a palavra "PROXY" como se
+    fosse um endereço — e de tentar conectar num proxy chamado "DIRECT".
+    """
+    saida: list[str] = []
+    for pedaco in str(bruto or "").replace(",", ";").split(";"):
+        limpo = pedaco.strip()
+        if not limpo or limpo.upper().startswith("DIRECT"):
+            continue
+        partes = limpo.split()
+        if len(partes) > 1 and partes[0].upper() in ("PROXY", "SOCKS", "HTTP", "HTTPS"):
+            limpo = partes[1]
+        if limpo and limpo not in saida:
+            saida.append(limpo)
+    return saida
+
+
+def _ler_e_liberar(ponteiro) -> str:
+    """Lê uma string devolvida pelo WinHTTP e libera a memória (GlobalFree).
+
+    Os campos saem como `c_void_p`, e não `LPWSTR`, justamente para isto: com
+    LPWSTR o ctypes converteria para `str` e o endereço original se perderia —
+    um vazamento a cada consulta.
+    """
+    import ctypes
+
+    if not ponteiro:
+        return ""
+    try:
+        return ctypes.wstring_at(ponteiro)
+    finally:
+        ctypes.windll.kernel32.GlobalFree(ctypes.c_void_p(ponteiro))
+
+
+def proxies_do_windows_para(url: str, log_cb: Log = _nada) -> list[str]:
+    """Os proxies que o NAVEGADOR usaria para `url`. [] = direto ou indisponível.
+
+    Nunca levanta exceção: se o WinHTTP não colaborar, quem chama simplesmente
+    segue com as rotas de sempre. Esta via só ACRESCENTA uma tentativa — não
+    substitui nem rebaixa nenhuma das que já funcionavam.
+    """
+    if os.name != "nt":
+        return []
+
+    agora = __import__("time").monotonic()
+    if (achado := _cache_proxy.get(url)) and agora - achado[1] < _VALIDADE_CACHE_S:
+        return list(achado[0])
+
+    import ctypes
+    from ctypes import wintypes
+
+    class _ConfigIE(ctypes.Structure):
+        _fields_ = [("fAutoDetect", wintypes.BOOL),
+                    ("lpszAutoConfigUrl", ctypes.c_void_p),
+                    ("lpszProxy", ctypes.c_void_p),
+                    ("lpszProxyBypass", ctypes.c_void_p)]
+
+    class _Opcoes(ctypes.Structure):
+        _fields_ = [("dwFlags", wintypes.DWORD),
+                    ("dwAutoDetectFlags", wintypes.DWORD),
+                    ("lpszAutoConfigUrl", wintypes.LPCWSTR),
+                    ("lpvReserved", ctypes.c_void_p),
+                    ("dwReserved", wintypes.DWORD),
+                    ("fAutoLogonIfChallenged", wintypes.BOOL)]
+
+    class _InfoProxy(ctypes.Structure):
+        _fields_ = [("dwAccessType", wintypes.DWORD),
+                    ("lpszProxy", ctypes.c_void_p),
+                    ("lpszProxyBypass", ctypes.c_void_p)]
+
+    try:
+        # use_last_error: sem isto o `get_last_error()` não vale nada — qualquer
+        # chamada entre a falha e a leitura já sobrescreveu o código.
+        winhttp = ctypes.WinDLL("winhttp", use_last_error=True)
+    except Exception as e:  # noqa: BLE001
+        log_cb(f"  (WinHTTP indisponível: {e})")
+        return []
+
+    # argtypes/restype em TUDO. HINTERNET é ponteiro: sem `restype`, o ctypes
+    # assume `c_int` e TRUNCA o handle para 32 bits num Python de 64. O handle
+    # sai diferente de zero — parece válido — e toda chamada seguinte falha em
+    # silêncio. É o bug que faz um app relatar "só conexão direta" numa rede que
+    # publica PAC.
+    winhttp.WinHttpOpen.restype = ctypes.c_void_p
+    winhttp.WinHttpOpen.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.LPCWSTR,
+                                    wintypes.LPCWSTR, wintypes.DWORD]
+    winhttp.WinHttpCloseHandle.restype = wintypes.BOOL
+    winhttp.WinHttpCloseHandle.argtypes = [ctypes.c_void_p]
+    winhttp.WinHttpGetIEProxyConfigForCurrentUser.restype = wintypes.BOOL
+    winhttp.WinHttpGetIEProxyConfigForCurrentUser.argtypes = [ctypes.POINTER(_ConfigIE)]
+    winhttp.WinHttpGetProxyForUrl.restype = wintypes.BOOL
+    winhttp.WinHttpGetProxyForUrl.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR,
+                                              ctypes.POINTER(_Opcoes),
+                                              ctypes.POINTER(_InfoProxy)]
+
+    def _guardar(lista: list[str]) -> list[str]:
+        _cache_proxy[url] = (list(lista), agora)
+        return lista
+
+    sessao = winhttp.WinHttpOpen("DocManagerItaipu", _WINHTTP_ACCESS_TYPE_NO_PROXY,
+                                 None, None, 0)
+    if not sessao:
+        log_cb("  (WinHttpOpen falhou — seguindo sem o proxy do Windows)")
+        return _guardar([])
+
+    try:
+        opcoes = _Opcoes()
+        opcoes.fAutoLogonIfChallenged = True   # proxy corporativo pede credencial
+        config = _ConfigIE()
+        pac_url = ""
+
+        # A configuração do USUÁRIO (a mesma do navegador) — não a do serviço,
+        # que é o que o `netsh winhttp show proxy` mostra e costuma estar vazia.
+        if winhttp.WinHttpGetIEProxyConfigForCurrentUser(ctypes.byref(config)):
+            pac_url = _ler_e_liberar(config.lpszAutoConfigUrl)
+            estatico = _ler_e_liberar(config.lpszProxy)
+            _ler_e_liberar(config.lpszProxyBypass)
+            if pac_url:
+                opcoes.dwFlags = _AUTOPROXY_CONFIG_URL
+                opcoes.lpszAutoConfigUrl = pac_url
+                origem = f"PAC ({pac_url})"
+            elif config.fAutoDetect:
+                opcoes.dwFlags = _AUTOPROXY_AUTO_DETECT
+                opcoes.dwAutoDetectFlags = _AUTO_DETECT_DHCP | _AUTO_DETECT_DNS_A
+                origem = "autodetecção (WPAD)"
+            elif estatico:
+                lista = normalizar_proxies(estatico)
+                log_cb(f"  Windows: proxy estático {', '.join(lista)}")
+                return _guardar(lista)
+            else:
+                log_cb("  Windows: nenhum proxy configurado para o usuário.")
+                return _guardar([])
+        else:
+            opcoes.dwFlags = _AUTOPROXY_AUTO_DETECT
+            opcoes.dwAutoDetectFlags = _AUTO_DETECT_DHCP | _AUTO_DETECT_DNS_A
+            origem = "autodetecção (WPAD)"
+
+        info = _InfoProxy()
+        if not winhttp.WinHttpGetProxyForUrl(sessao, url, ctypes.byref(opcoes),
+                                             ctypes.byref(info)):
+            codigo = ctypes.get_last_error()
+            motivo = _ERROS_WINHTTP.get(codigo, f"erro {codigo}")
+            log_cb(f"  Windows não resolveu o proxy por {origem}: {motivo}.")
+            return _guardar([])
+
+        lista = normalizar_proxies(_ler_e_liberar(info.lpszProxy))
+        _ler_e_liberar(info.lpszProxyBypass)
+        if lista:
+            log_cb(f"  Windows resolveu, via {origem}: {', '.join(lista)}")
+        else:
+            log_cb(f"  Windows respondeu CONEXÃO DIRETA via {origem}.")
+        return _guardar(lista)
+    except Exception as e:  # noqa: BLE001 — nunca impedir as rotas antigas
+        log_cb(f"  (falha ao consultar o proxy do Windows: {e})")
+        return []
+    finally:
+        try:
+            winhttp.WinHttpCloseHandle(sessao)
+        except Exception:  # noqa: BLE001
+            pass
