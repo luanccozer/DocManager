@@ -61,15 +61,11 @@ def _perfil_do_env(sufixo: str) -> dict | None:
     return {"client_id": cid, "user_id": uid, "env": f"SECRET_{sufixo}"} if cid and uid else None
 
 
-def perfis_disponiveis() -> dict[str, dict]:
-    """{nome exibido → perfil} de todos os usuários utilizáveis (item 2).
+def _perfis_do_env() -> dict[str, dict]:
+    """Usuários que ainda vêm do `.env` (formato legado, anterior à v3.1.0).
 
-    A lista CRESCE SOZINHA conforme os secrets do .env, sem tocar no código:
-      • usuários conhecidos (USUARIOS): basta ter o SECRET_<NOME> — os IDs já
-        estão aqui;
-      • usuários novos: SECRET_<NOME> + CLIENTID_<NOME> + USERID_<NOME> no .env.
-    Quem não tem secret some da lista. A opção `OUTRO_USUARIO` (entrada manual)
-    cobre quem não está no .env."""
+    Continua funcionando para quem já tinha um .env montado, mas o caminho
+    normal hoje é o cadastro pela interface (`services.credenciais`)."""
     perfis: dict[str, dict] = {
         nome: dict(u) for nome, u in USUARIOS.items() if os.getenv(u["env"], "").strip()
     }
@@ -84,9 +80,78 @@ def perfis_disponiveis() -> dict[str, dict]:
     return perfis
 
 
+def _perfis_do_cofre() -> dict[str, dict]:
+    """Usuários cadastrados pela interface (Documentos\\DocManager_Itaipu)."""
+    from .services.credenciais import cofre
+
+    perfis: dict[str, dict] = {}
+    try:
+        c = cofre()
+        for nome in c.listar():
+            cred = c.obter(nome)
+            if cred and cred.completa():
+                perfis[nome] = {"client_id": cred.client_id, "user_id": cred.user_id,
+                                "env": "", "fonte": "cofre"}
+    except Exception:  # noqa: BLE001 — cofre ilegível não pode esconder o .env
+        pass
+    return perfis
+
+
+def perfis_disponiveis() -> dict[str, dict]:
+    """{nome exibido → perfil} de todos os usuários utilizáveis.
+
+    Duas fontes, nesta ordem de precedência:
+      1. **Cofre do app** — cadastrado na própria interface (Extração →
+         "Cadastrar usuário"), com o secret cifrado pela DPAPI do Windows. É o
+         caminho normal desde a v3.1.0, em que o app passou a ser distribuído
+         por instalador e ninguém mais recebe um `.env` pronto;
+      2. **`.env`** — formato legado: SECRET_<NOME> para os usuários conhecidos
+         (os IDs já estão em `USUARIOS`) ou SECRET_ + CLIENTID_ + USERID_ para um
+         usuário novo. Quem já tinha um .env é migrado para o cofre no primeiro
+         uso (`migrar_env_para_cofre`).
+
+    Quem não tem credencial completa some da lista; a opção `OUTRO_USUARIO`
+    (entrada manual, válida só para aquela execução) cobre o resto."""
+    perfis = _perfis_do_env()
+    perfis.update(_perfis_do_cofre())   # o cadastro no app vence o .env antigo
+    return perfis
+
+
 def usuarios_disponiveis() -> list[str]:
     """Nomes para o seletor da extração (ver `perfis_disponiveis`)."""
     return list(perfis_disponiveis())
+
+
+def migrar_env_para_cofre(log_cb=None) -> list[str]:
+    """Importa para o cofre os usuários que ainda só existem no `.env`.
+
+    Chamada uma vez na abertura do app: quem vem da v3.0.0 (com .env na máquina)
+    não precisa recadastrar nada — os dados aparecem já cadastrados na Extração.
+    Devolve os nomes importados (lista vazia quando não há nada a fazer)."""
+    from .services.credenciais import cofre
+
+    try:
+        importados = cofre().importar_do_env(USUARIOS)
+    except Exception as e:  # noqa: BLE001 — migração nunca pode impedir a abertura
+        if log_cb:
+            log_cb(f"(não foi possível importar as credenciais do .env: {e})")
+        return []
+    if importados and log_cb:
+        log_cb(f"Credenciais do .env importadas para o app: {', '.join(importados)}.")
+    return importados
+
+def _secret_de(nome: str, perfil: dict) -> str:
+    """Client Secret do usuário: primeiro o cofre do app, depois o `.env`."""
+    from .services.credenciais import cofre
+
+    try:
+        cred = cofre().obter(nome)
+        if cred and cred.secret:
+            return cred.secret
+    except Exception:  # noqa: BLE001
+        pass
+    return os.getenv(perfil.get("env") or "", "").strip()
+
 
 MAPA_COLUNAS = {
     "ControlDelEmisor_singleLineText": "Controle do Emissor",
@@ -136,11 +201,13 @@ class AconexConfig:
         # (acionável) em vez de "usuário desconhecido".
         u = perfis_disponiveis().get(nome) or USUARIOS.get(nome)
         if u is None:
-            raise KeyError(f"Usuário '{nome}' desconhecido. Disponíveis no .env: "
+            raise KeyError(f"Usuário '{nome}' desconhecido. Cadastrados: "
                            f"{usuarios_disponiveis() or '(nenhum)'}")
-        seg = secret if secret is not None else os.getenv(u["env"], "")
+        seg = secret if secret is not None else _secret_de(nome, u)
         if not seg:
-            raise ValueError(f"Secret vazio. Defina {u['env']} no .env ou use a opção "
+            onde = (f"Defina {u['env']} no .env" if u.get("env")
+                    else "Cadastre o Client Secret dele na tela de Extração")
+            raise ValueError(f"Secret vazio para '{nome}'. {onde} ou use a opção "
                              f"'{OUTRO_USUARIO}'.")
         return cls(client_id=u["client_id"], client_secret=seg, user_id=u["user_id"], proxy=proxy)
 

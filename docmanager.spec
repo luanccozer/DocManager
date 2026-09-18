@@ -6,8 +6,10 @@ Rode dentro do venv com PyInstaller instalado:
 
     pyinstaller docmanager.spec --noconfirm
 
-Depois: coloque o `.env` (com VERSAO e SECRET_<USUÁRIO>) AO LADO do .exe
-(dist/DocManager/.env). O .env NUNCA é embutido no executável.
+A versão do build vem de `docmanager/_build_info.py` (o CI a escreve a partir da
+tag). Credenciais do Aconex NÃO entram aqui: desde a v3.1.0 elas são cadastradas
+dentro do app e guardadas em Documentos\\DocManager_Itaipu — nenhum segredo é
+empacotado no executável.
 """
 from PyInstaller.utils.hooks import collect_all
 
@@ -23,6 +25,9 @@ for _pkg in ("dash", "dash_bootstrap_components", "plotly",
 
 # Assets do app (logo/ícone) embutidos.
 _datas += [("assets", "assets")]
+# CHANGELOG na raiz do bundle: é dele que a Home tira "O que há de novo"
+# (services/novidades.py) — sem isto a seção some no executável.
+_datas += [("CHANGELOG.md", ".")]
 
 # Reforço de imports que costumam escapar da análise estática.
 _hidden += [

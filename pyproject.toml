@@ -15,6 +15,16 @@ filterwarnings = [
 [tool.ruff]
 line-length = 120
 target-version = "py310"
+# `legacy/` e o app ANTIGO, guardado so para os testes diferenciais compararem
+# o comportamento novo com o dele. Nao e mantido nem sera corrigido — lintar
+# aquilo so gera ruido que ninguem vai tratar.
+exclude = ["legacy"]
 
 [tool.ruff.lint]
+# Conjunto EXPLICITO de proposito. Sem `select`, valem os padroes da versao do
+# ruff instalada — e o `requirements-dev.txt` nao fixa versao, entao uma
+# atualizacao do ruff passaria a reprovar, do nada, codigo que ninguem tocou
+# (a CI quebraria num commit inocente). Fixando aqui, mudar de regra vira uma
+# decisao explicita.
+select = ["E4", "E7", "E9", "F"]
 ignore = ["E501"]

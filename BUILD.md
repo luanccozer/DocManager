@@ -1,12 +1,192 @@
-# Gerar o executável (Windows / rede corporativa)
+# Publicar uma versão nova
 
-Objetivo: entregar o DocManager para quem **não tem Python instalado**.
+Desde a **v3.1.0** o DocManager é gerado e publicado pelo **GitHub Actions**: o
+Windows da GitHub compila o executável, monta o instalador e cria o Release.
+Ninguém precisa mais empacotar nada à mão, nem enviar ZIP por e-mail, nem copiar
+`.env` para máquina nenhuma.
 
 ---
 
-## Por que ONEDIR (pasta) e não ONEFILE (arquivo único)
+## O procedimento inteiro (2 passos)
 
-O build é **onedir** de propósito. Em ambiente corporativo (GE/Zscaler/GlobalProtect) é a escolha certa:
+### 1. Escrever o que mudou
+
+Abra o **`CHANGELOG.md`** e acrescente o bloco da versão **no topo**:
+
+```markdown
+## 3.1.1 — 2026-09-25
+
+- O que mudou, em uma frase que o usuário entenda.
+- Outra coisa que mudou.
+```
+
+Esse texto é a **fonte única**: vira a descrição do Release no GitHub **e** a
+seção "O que há de novo" da tela inicial do app. Commite normalmente.
+
+### 2. Criar a tag
+
+```bat
+git tag v3.1.1
+git push origin v3.1.1
+```
+
+Pronto. Em ~10 minutos o Release está publicado e **todo mundo que já tem o app
+instalado é avisado sozinho** na próxima vez que abrir.
+
+> A tag **manda na versão**: `v3.1.1` → o executável se identifica como `3.1.1`.
+> Não existe versão escrita à mão em lugar nenhum.
+
+Acompanhe em **Actions → Release**. Se algo falhar, o workflow para antes de
+publicar — nunca sai um Release pela metade.
+
+### Build de teste (sem criar tag)
+
+Em **Actions → Release → Run workflow**, informe uma versão como `3.1.1-rc.1`.
+Sai publicado como **pré-lançamento**, e o app **não** oferece pré-lançamentos
+como atualização (só o `latest`).
+
+---
+
+## O que o workflow faz
+
+| Passo | Por quê |
+|---|---|
+| `ruff` + `pytest` | Portão: 2 minutos de teste antes de 10 de empacotamento. Versão quebrada publicada é muito mais cara de desfazer. |
+| `tools/preparar_build.py` | Carimba a versão da tag em `_build_info.py` e embute o token de atualização em `_update_auth.py`. |
+| `pyinstaller docmanager.spec` | Gera `dist\DocManager\` (onedir — ver abaixo). |
+| `ISCC installer\docmanager.iss` | Monta o `DocManager_Itaipu_Setup_<versão>.exe`. |
+| SHA256 + `latest.json` | O app confere o hash do instalador **antes** de executá-lo. |
+| `gh release create` | Publica o Release com o instalador, o manifesto e as notas do CHANGELOG. |
+
+O `.github/workflows/ci.yml` roda lint + testes em **todo commit** (em Linux,
+mais rápido). O de Release só dispara em tag.
+
+---
+
+## Rotação do token de atualização
+
+O repositório é **privado**, então o app precisa de um token para ler os
+Releases. Ele é injetado no build a partir do segredo **`UPDATE_TOKEN`** e
+**nunca** entra no Git (`docmanager/_update_auth.py` está no `.gitignore`).
+
+> ⚠️ **Um token embutido num `.exe` é extraível** por quem tiver o arquivo. A
+> ofuscação do `_ofuscacao.py` só impede que ele apareça num `strings` — não é
+> segurança. Por isso ele **tem** que ser um PAT *fine-grained*, **somente
+> leitura**, **restrito a este repositório**: no pior caso, alguém consegue ler
+> o código que essa pessoa já recebeu — nada mais. Nunca use um token clássico
+> nem um com permissão de escrita.
+
+**Como criar/trocar:**
+
+1. GitHub → *Settings* (da sua conta) → *Developer settings* → *Personal access
+   tokens* → **Fine-grained tokens** → *Generate new token*.
+2. **Resource owner:** você. **Repository access:** *Only select repositories* →
+   `luanccozer/DocManager`.
+3. **Permissions → Repository permissions → Contents: Read-only.** Nada mais.
+4. Validade: um prazo que você consiga lembrar de renovar (ex.: 1 ano).
+5. Copie o token e cole em: repositório → *Settings* → *Secrets and variables* →
+   *Actions* → **`UPDATE_TOKEN`**.
+6. Publique uma versão nova. Só os builds feitos **depois** da troca usam o token
+   novo.
+
+**Se o token vencer antes de você publicar uma versão nova**, os apps instalados
+param de achar atualizações (o app continua funcionando normalmente, só deixa de
+avisar). Para destravar sem refazer o build, cada pessoa pode criar o arquivo:
+
+```
+Documentos\DocManager_Itaipu\update_token.txt
+```
+
+com o token novo dentro. O app prefere esse arquivo ao token embutido. É uma
+saída de emergência — o certo é publicar uma versão nova.
+
+---
+
+## Como a atualização funciona (e por que essa costuma quebrar)
+
+Ao abrir, o app consulta o último Release (no máximo uma vez a cada 6 horas),
+compara com a própria versão e, se houver novidade, mostra o aviso. Ao clicar em
+**Atualizar agora**: baixa o instalador, confere o SHA256, executa em modo
+silencioso e fecha o app para que os arquivos possam ser trocados.
+
+Quatro armadilhas foram tratadas explicitamente — são as que costumam fazer um
+auto-update "existir mas não funcionar":
+
+1. **Repositório privado + `browser_download_url`.** Em repo privado, aquela URL
+   só funciona para um navegador logado. Um download programático recebe uma
+   **página HTML de login com status 200**: o update "dá certo" e grava um HTML
+   de 4 KB renomeado para `.exe`, que não instala nada. O app usa o endpoint de
+   API do asset (`/releases/assets/{id}` com `Accept: application/octet-stream`)
+   e ainda recusa qualquer download menor que 1 MB.
+
+2. **Zscaler / GlobalProtect.** Sem os certificados do Windows, todo HTTPS falha
+   com `certificate verify failed` e o app **nunca avisa** que há versão nova —
+   silenciosamente. O `services/rede.py` injeta o `truststore` e tenta, em
+   ordem, proxy do sistema → variáveis de ambiente → conexão direta, com uma
+   última tentativa sem verificação de TLS **apenas** se todas as falhas forem
+   de certificado.
+
+3. **Versão vinda do `.env`.** O `.env` é do usuário e sobrevive à atualização:
+   o app novo continuaria se declarando na versão antiga e reofereceria a mesma
+   atualização para sempre. Agora a versão vem do **binário**
+   (`_build_info.py`), escrita pela tag.
+
+4. **Instalar por cima de si mesmo.** O Windows não deixa sobrescrever um `.exe`
+   em execução. O app cria um **mutex nomeado** (`NOME_MUTEX` em
+   `ui/main_app.py`) e o instalador o declara em `AppMutex` (`installer/docmanager.iss`):
+   é assim que o Inno descobre o app aberto e o fecha. **Os dois nomes têm que
+   ser iguais** — se alguém mudar um, a atualização passa a falhar com "arquivo
+   em uso".
+
+### Escopo da instalação e o UAC
+
+O instalador **pergunta** onde instalar:
+
+| Escolha | Onde | Atualização |
+|---|---|---|
+| **Para todos os usuários** (padrão) | `C:\Program Files\DocManager Itaipu` | Pede administrador (UAC) a cada atualização |
+| **Somente para mim** | `%LOCALAPPDATA%\Programs\DocManager Itaipu` | **Silenciosa, sem UAC** |
+
+Se a sua equipe não tem senha de administrador, oriente a escolher **"somente
+para mim"** — aí a atualização é um clique e nada mais.
+
+---
+
+## Build local (plano B)
+
+Só para testar o empacotamento antes da tag, ou se o GitHub Actions estiver fora:
+
+```bat
+build.bat 3.1.1
+```
+
+Gera `dist\DocManager\DocManager.exe`. Para o instalador:
+
+```bat
+iscc /DMyAppVersion=3.1.1 installer\docmanager.iss
+```
+
+> ⚠️ O build local sai **sem** o token, logo o executável gerado **não avisa de
+> versões novas**. Para distribuir de verdade, use a tag.
+
+<details>
+<summary>Prefere na mão? (equivalente ao build.bat)</summary>
+
+```powershell
+cd "CAMINHO\DO\PROJETO"
+$py = "$env:LOCALAPPDATA\DocManagerItaipu\venv\Scripts\python.exe"
+& $py -m pip install -r requirements.txt "pyinstaller>=6,<7"
+& $py tools\preparar_build.py 3.1.1 --origem local
+Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
+& $py -m PyInstaller docmanager.spec --noconfirm
+```
+</details>
+
+---
+
+## Decisões de empacotamento
+
+### Por que ONEDIR (pasta) e não ONEFILE (arquivo único)
 
 | | **onedir** (usado aqui) | onefile |
 |---|---|---|
@@ -16,129 +196,48 @@ O build é **onedir** de propósito. Em ambiente corporativo (GE/Zscaler/GlobalP
 | Atualizar | Troca só os arquivos alterados | Reenviar o exe inteiro |
 | Diagnóstico | Dá para ver os arquivos | Caixa-preta |
 
-> Onefile só compensa quando o requisito é “um único arquivo por e-mail”. Aqui, o instalador resolve isso melhor.
-
 **UPX está desligado** no `.spec` — compressão UPX é outro gatilho comum de antivírus.
 
----
-
-## A tela de carregamento (splash)
+### A tela de carregamento (splash)
 
 São **duas coisas diferentes**:
 
-1. **Splash nativo do PyInstaller** (`pyi_splash`) — é o que existia no legado: aparece **no duplo-clique**, enquanto o Python e as bibliotecas carregam. Configurado no `docmanager.spec` (objeto `Splash`) com **`assets/splash.png`**, e fechado por `pyi_splash.close()` em `ui/main_app.py` assim que o app fica pronto.
+1. **Splash nativo do PyInstaller** (`pyi_splash`) — aparece **no duplo-clique**,
+   enquanto o Python e as bibliotecas carregam. Configurado no `docmanager.spec`
+   (objeto `Splash`) com **`assets/splash.png`**, e fechado por
+   `pyi_splash.close()` em `ui/main_app.py` assim que o app fica pronto.
 2. **Splash do app** (`ui/splash.py`) — a janela com o logo, mostrada logo depois.
 
-No onedir **não há descompactação**, então a espera é curta — mas o splash nativo continua lá para o clique não parecer “sem resposta”.
+**Para mudar a imagem de carregamento**: edite e rode `tools/gerar_splash.py`,
+depois rebuilde.
 
-**Para mudar a imagem de carregamento**: edite e rode `tools/gerar_splash.py` (usa as cores do tema do app e escreve `assets/splash.png`), depois rebuilde. Como o bootloader **não anima**, o “está carregando” é comunicado pelo texto + a barra parcialmente preenchida.
-
-> ⚠️ **Não aponte o `Splash` para `assets/logo_final.png`** — apesar do nome, é um **placeholder** herdado do legado (a imagem tem “DM placeholder” escrito). O logo real do projeto é o `assets/logo_definitivo.ico`, usado na janela/ícone.
-
----
-
-## Passo a passo (no computador da empresa)
-
-### 0. Pré-requisitos
-
-- **Python 3.12+** instalado, marcando **“Add Python to PATH”** na instalação.
-- A pasta do projeto copiada para a máquina.
-
-Confira no PowerShell:
-```powershell
-py -0p        # deve listar ao menos uma versão 3.12+
-```
-
-### 1. Preparar o ambiente (só na 1ª vez)
-
-Duplo-clique em **`run.bat`**. Ele cria o ambiente virtual, instala tudo e abre o app — serve como teste de que está tudo certo antes de empacotar.
-
-> **Onde o venv é criado:** em `%LOCALAPPDATA%\DocManagerItaipu\venv`, **fora do OneDrive** de propósito. Um venv tem milhares de arquivos; dentro de uma pasta sincronizada, a instalação fica lenta e chega a travar.
-
-> **Rede corporativa (Zscaler) — já vem resolvido:** o `run.bat` e o `build.bat` já chamam o pip com os argumentos que passam pela inspeção SSL do Zscaler (sem eles o pip erra e trava):
-> ```
-> --isolated --index-url https://pypi.org/simple --trusted-host pypi.org --trusted-host files.pythonhosted.org
-> ```
-> Só mexa nisso se a empresa exigir um **mirror interno** — nesse caso crie `pip_corporativo.txt` na raiz do projeto com os seus argumentos numa única linha (ou defina a variável `DOCMANAGER_PIP_ARGS`), que ele substitui o padrão:
-> ```
-> --index-url https://SEU-MIRROR/simple --trusted-host SEU-MIRROR
-> ```
-
-### 2. Gerar a pasta do app
-
-Duplo-clique em **`build.bat`**. Ele instala o PyInstaller, limpa builds antigos e gera:
-
-```
-dist\DocManager\DocManager.exe      ← o executável (~30 MB)
-dist\DocManager\_internal\...       ← dependências (não mexer)
-```
-
-> ⚠️ **Leva ~2 minutos e NÃO pode ser interrompido.** O `.exe` só é copiado para o `dist` na **última etapa** (`COLLECT`). Se você fechar a janela antes, fica um `dist\DocManager\` só com o `_internal` **e sem o .exe** — que é exatamente o sintoma de build interrompido. Espere aparecer a mensagem **PRONTO**. O script confere isso e avisa se o `.exe` não foi gerado.
-
-<details>
-<summary>Prefere na mão? (equivalente ao build.bat)</summary>
-
-```powershell
-cd "CAMINHO\DO\PROJETO"
-$py = "$env:LOCALAPPDATA\DocManagerItaipu\venv\Scripts\python.exe"
-& $py -m pip install -r requirements.txt
-& $py -m pip install "pyinstaller>=6,<7"
-Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
-& $py -m PyInstaller docmanager.spec --noconfirm
-```
-</details>
-
-### 3. Colocar o `.env` (obrigatório)
-
-O `.env` **nunca** é embutido no executável (contém segredos) — precisa ser copiado à parte. O app procura nestes dois lugares, nesta ordem:
-
-| Onde | Observação |
-|---|---|
-| **Na mesma pasta do `DocManager.exe`** | testando o build → **`dist\DocManager\.env`** |
-| **`Documentos\DocManager_Itaipu\.env`** | **recomendado** no dia a dia: cada pessoa tem o seu e edita sem admin |
-
-> ❌ **Erro comum:** deixar em `dist\.env`. Tem que ser **`dist\DocManager\.env`** — *dentro* da pasta, junto do `.exe`.
-
-Use o `.env.example` como modelo (`VERSAO` e `SECRET_<NOME>`).
-
-### 4. Testar
-
-Abra `dist\DocManager\DocManager.exe`. Confira: splash → app abre, versão do `.env` no título/rodapé/Home, e a Extração Aconex lista o seu usuário.
-
-### 5. (Opcional) Gerar o instalador
-
-Instale o [Inno Setup 6](https://jrsoftware.org/isdl.php), abra `installer\docmanager.iss` e clique em **Compile** (ou `iscc installer\docmanager.iss`).
-
-Saída: `installer\Output\DocManager_Itaipu_Setup.exe` — instala em *Program Files*, cria atalhos e avisa sobre o `.env` no final.
-
----
-
-## Compartilhar com outras pessoas (onedir)
-
-**O que enviar:** zipe a pasta **`dist\DocManager\` inteira** (o `.exe` sozinho não funciona — ele precisa do `_internal\` ao lado).
-
-```powershell
-Compress-Archive -Path "dist\DocManager\*" -DestinationPath "DocManager_v3.0.0.zip" -Force
-```
-
-**Instruções para quem recebe:**
-
-1. Extrair o zip numa **pasta local** — ex.: `C:\DocManager`. **Não** rodar de dentro do OneDrive/rede: fica lento e o antivírus costuma bloquear.
-2. Criar o **`.env`** em `Documentos\DocManager_Itaipu\` com o secret dela (modelo no `.env.example`).
-3. Abrir o **`DocManager.exe`**.
-
-> **Não inclua o seu `.env` no zip** — o secret é pessoal e a `.gitignore` já o mantém fora do repositório. Cada pessoa usa o dela (ou a opção *“Outro (inserir manualmente)”* na tela de extração).
-
-Se preferir entregar um instalador em vez do zip, veja o passo 5.
+> ⚠️ **Não aponte o `Splash` para `assets/logo_final.png`** — apesar do nome, é
+> um **placeholder** herdado do legado. O logo real é o `assets/logo_definitivo.ico`.
 
 ---
 
 ## Problemas comuns
 
-**`ModuleNotFoundError` ao abrir o .exe** — falta um *hidden import*. Anote o módulo e acrescente na lista `_hidden` do `docmanager.spec`, depois rebuilde. (Já cobrimos dash, dbc, plotly, customtkinter, truststore, certifi, openpyxl, xlsxwriter, PIL.)
+**`ModuleNotFoundError` ao abrir o .exe** — falta um *hidden import*. Acrescente
+o módulo na lista `_hidden` do `docmanager.spec` e rebuilde. (Já cobrimos dash,
+dbc, plotly, customtkinter, truststore, certifi, openpyxl, xlsxwriter, PIL.)
 
-**Antivírus bloqueou** — é o onedir sem UPX, que já é o cenário mais amigável. Se persistir, peça ao TI para liberar a pasta ou **assinar digitalmente** o `DocManager.exe` (o ideal no corporativo).
+**A seção "O que há de novo" some no .exe** — o `CHANGELOG.md` precisa estar nos
+`datas` do `docmanager.spec` (`("CHANGELOG.md", ".")`). Já está.
 
-**Extração Aconex não funciona na máquina do outro** — não é o build: é rede (Zscaler/VPN). Veja o log do módulo, que testa as rotas de conexão automaticamente.
+**O app não avisa de versão nova** — nesta ordem: (1) o build tem token? As
+Configurações dizem *"este build não tem atualização automática"* quando não
+tem; (2) o `UPDATE_TOKEN` venceu? (3) rede: clique em **Procurar atualizações
+agora** nas Configurações — ao contrário da checagem automática, esse botão
+**mostra o erro**.
 
-**Abre e fecha na hora** — rode pelo `cmd` (`dist\DocManager\DocManager.exe`) para ver o erro, ou gere um build com `console=True` no `.spec` para depurar.
+**"Arquivo em uso" ao atualizar** — o `AppMutex` do `.iss` e o `NOME_MUTEX` do
+`ui/main_app.py` estão diferentes.
+
+**Antivírus bloqueou** — é onedir sem UPX, o cenário mais amigável. Se persistir,
+peça ao TI para liberar a pasta ou **assinar digitalmente** o `DocManager.exe`
+(o ideal no corporativo — e resolveria também o aviso do SmartScreen no
+instalador).
+
+**Abre e fecha na hora** — rode pelo `cmd` para ver o erro, ou gere um build com
+`console=True` no `.spec` para depurar.

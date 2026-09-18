@@ -1,0 +1,212 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Release do DocManager Itaipu — build + instalador + publicação
+#
+#  Como se lança uma versão nova (é só isto):
+#     1. acrescente o bloco da versão no CHANGELOG.md e faça commit;
+#     2. git tag v3.1.1 && git push origin v3.1.1
+#  O resto acontece aqui: o Windows da GitHub gera o .exe com o PyInstaller,
+#  monta o instalador com o Inno Setup, calcula o SHA256 e publica o Release.
+#  Os apps já instalados avisam sozinhos na próxima abertura.
+#
+#  Segredo necessário (Settings → Secrets and variables → Actions):
+#     UPDATE_TOKEN — PAT fine-grained, SOMENTE LEITURA (Contents: Read-only),
+#                    restrito a ESTE repositório. É ele que o app embute para
+#                    conseguir ler os Releases, já que o repositório é privado.
+#                    Sem o segredo o build sai sem atualização automática (e o
+#                    workflow avisa) — nada quebra.
+#  Ver BUILD.md, seção "Rotação do token".
+# ════════════════════════════════════════════════════════════════════════════
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: "Versão para um build de teste (ex.: 3.1.1-rc.1). Publica como pré-lançamento."
+        required: true
+        type: string
+
+permissions:
+  contents: write        # necessário para criar o Release e subir os assets
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # A versão é a TAG (v3.1.0 → 3.1.0). Num disparo manual, vem da entrada
+      # e o release sai marcado como pré-lançamento.
+      - name: Definir a versão
+        id: versao
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            versao="${{ inputs.versao }}"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            versao="${GITHUB_REF_NAME#v}"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          versao="${versao#v}"
+          echo "versao=$versao"   >> "$GITHUB_OUTPUT"
+          echo "tag=v$versao"     >> "$GITHUB_OUTPUT"
+          echo "Versão desta publicação: $versao"
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install "pyinstaller>=6,<7"
+
+      # Portão rápido: 2 minutos de teste antes de gastar 10 no empacotamento.
+      # Uma versão publicada quebrada é muito mais cara de desfazer.
+      - name: Lint e testes
+        run: |
+          ruff check .
+          pytest -q
+
+      - name: Carimbar versão e embutir o token
+        id: carimbo
+        shell: bash
+        env:
+          DOCMANAGER_UPDATE_TOKEN: ${{ secrets.UPDATE_TOKEN }}
+        run: |
+          python tools/preparar_build.py "${{ steps.versao.outputs.versao }}" \
+            --origem github-actions --commit "${{ github.sha }}"
+          # `secrets` não é um contexto válido em `if:` de passo — por isso a
+          # presença do token vira um output aqui.
+          if [ -z "$DOCMANAGER_UPDATE_TOKEN" ]; then
+            echo "tem_token=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tem_token=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Avisar se o token não está configurado
+        if: steps.carimbo.outputs.tem_token == 'false'
+        run: |
+          echo "::warning title=Sem UPDATE_TOKEN::O segredo UPDATE_TOKEN nao esta definido. Este build NAO tera atualizacao automatica - quem instalar precisara baixar as proximas versoes a mao. Veja a secao 'Rotacao do token' do BUILD.md."
+
+      - name: Gerar o executável (PyInstaller)
+        run: pyinstaller docmanager.spec --noconfirm
+
+      - name: Conferir que o .exe saiu
+        shell: bash
+        run: |
+          test -f dist/DocManager/DocManager.exe \
+            || { echo "::error::PyInstaller terminou sem gerar o DocManager.exe"; exit 1; }
+          ls -la dist/DocManager/DocManager.exe
+
+      # O Inno Setup já vem na imagem windows-latest; o fallback cobre a
+      # eventualidade de a imagem mudar (já aconteceu antes) sem quebrar o release.
+      - name: Garantir o Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            Write-Host "Inno Setup não encontrado na imagem — instalando via Chocolatey."
+            choco install innosetup --no-progress -y
+          }
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Montar o instalador
+        shell: pwsh
+        run: |
+          & "$env:ISCC" "/DMyAppVersion=${{ steps.versao.outputs.versao }}" installer\docmanager.iss
+          $origem = "installer/Output/DocManager_Itaipu_Setup.exe"
+          if (-not (Test-Path $origem)) { throw "O Inno Setup não gerou o instalador." }
+          # Nome com a versão: nos Downloads de quem baixa, "Setup.exe" sozinho
+          # não diz nada e os arquivos se sobrescrevem. Barras normais de
+          # propósito: o passo que publica o Release roda em bash.
+          $destino = "installer/Output/DocManager_Itaipu_Setup_${{ steps.versao.outputs.versao }}.exe"
+          Move-Item $origem $destino -Force
+          "INSTALADOR=$destino" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # latest.json vai como asset do próprio Release: é dele que o app tira o
+      # SHA256 para conferir o download antes de executar o instalador.
+      - name: Gerar o latest.json (manifesto com o SHA256)
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash $env:INSTALADOR -Algorithm SHA256).Hash.ToLower()
+          $tamanho = (Get-Item $env:INSTALADOR).Length
+          # -join: a saída de várias linhas do python vira um ARRAY no
+          # PowerShell, e o ConvertTo-Json gravaria uma lista onde o app espera
+          # texto. Juntar aqui mantém o manifesto com o tipo certo.
+          $notas = (python -c "import sys; sys.path.insert(0,'.'); from docmanager.services.novidades import bloco_de; t=open('CHANGELOG.md',encoding='utf-8').read(); b=bloco_de(t,'${{ steps.versao.outputs.versao }}'); print(b.markdown() if b else '')") -join "`n"
+          @{
+            versao       = "${{ steps.versao.outputs.versao }}"
+            tag          = "${{ steps.versao.outputs.tag }}"
+            arquivo      = [System.IO.Path]::GetFileName($env:INSTALADOR)
+            sha256       = $hash
+            tamanho      = $tamanho
+            publicado_em = (Get-Date -Format "yyyy-MM-dd")
+            notas        = $notas
+          } | ConvertTo-Json | Set-Content -Path latest.json -Encoding utf8
+          Get-Content latest.json
+          "SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Escrever as notas do Release
+        shell: bash
+        run: |
+          python - <<'PY' > notas_release.md
+          import sys
+          sys.path.insert(0, ".")
+          from docmanager.services.novidades import bloco_de
+
+          versao = "${{ steps.versao.outputs.versao }}"
+          texto = open("CHANGELOG.md", encoding="utf-8").read()
+          bloco = bloco_de(texto, versao)
+          print(f"## O que mudou na v{versao}\n")
+          print(bloco.markdown() if bloco else "_(esta versão não trouxe notas no CHANGELOG.md)_")
+          PY
+          cat >> notas_release.md <<'EOF'
+
+          ---
+
+          ### Como instalar
+
+          Baixe o `DocManager_Itaipu_Setup_*.exe` abaixo e execute. O instalador
+          pergunta se quer instalar **para todos os usuários** (precisa de
+          administrador) ou **somente para você** (não precisa).
+
+          Quem já tem o DocManager instalado **não precisa baixar nada**: o app
+          avisa sozinho e se atualiza com um clique.
+
+          **Primeiro uso:** abra o app, vá em *Extração Aconex* e clique em
+          **Cadastrar usuário** para informar as suas credenciais do Aconex. Os
+          demais módulos funcionam sem cadastro nenhum.
+          EOF
+          cat notas_release.md
+
+      - name: Publicar o Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.versao.outputs.tag }}" \
+            "$INSTALADOR#Instalador do DocManager Itaipu" \
+            "latest.json#Manifesto (versão + SHA256)" \
+            --title "DocManager Itaipu v${{ steps.versao.outputs.versao }}" \
+            --notes-file notas_release.md \
+            ${{ steps.versao.outputs.prerelease == 'true' && '--prerelease' || '' }}
+
+      # Guardado por 30 dias: se alguém precisar do build sem passar pelo
+      # instalador (teste rápido, diagnóstico), está aqui.
+      - name: Guardar os artefatos do build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DocManager-${{ steps.versao.outputs.versao }}
+          path: |
+            installer/Output/*.exe
+            latest.json
+          retention-days: 30

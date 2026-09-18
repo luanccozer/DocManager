@@ -29,7 +29,9 @@ def calcular_kpis_revisoes(df_wide: pd.DataFrame) -> dict:
             if not achou_fin and st in _APROV_FINAL:
                 kpi_fin.append(i + 1)
                 achou_fin = True
-    media = lambda xs: round(sum(xs) / len(xs), 1) if xs else 0
+    def media(xs):
+        return round(sum(xs) / len(xs), 1) if xs else 0
+
     return {"ciclo_aprovacao": media(kpi_ap), "ciclo_completo": media(kpi_fin)}
 
 

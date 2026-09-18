@@ -10,6 +10,7 @@ from typing import Callable
 import customtkinter as ctk
 
 from .. import __version__
+from ..services import updater
 from ..services.config import ConfigManager, resource_path
 from . import theme as t
 from .app_context import AppContext
@@ -66,6 +67,8 @@ class MainApp(ctk.CTk):
 
         self.ctx = AppContext(config=ConfigManager(), versao=__version__)
         self.ctx.navegar = self.selecionar   # Home usa para abrir módulos ao clicar
+        self.ctx.abrir_atualizacao = self.abrir_atualizacao
+        self.ctx.verificar_atualizacao = self.verificar_atualizacao
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
@@ -74,6 +77,10 @@ class MainApp(ctk.CTk):
         self._botoes: dict[str, NavItem] = {}
         self._montar_botoes()
         self.selecionar(VIEWS[0].key)
+
+        # Checagem automática: em thread, e só depois de a janela estar montada —
+        # nada disso pode atrasar a abertura do app.
+        self.after(1200, lambda: self.verificar_atualizacao(False))
 
     def _montar_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=240, corner_radius=0, fg_color=t.SIDEBAR)
@@ -113,9 +120,76 @@ class MainApp(ctk.CTk):
             item.grid(row=i, column=0, sticky="ew", padx=12, pady=2)
             self._botoes[spec.key] = item
 
-        rodape = ctk.CTkLabel(self.sidebar, text=f"v{__version__}", font=t.corpo(10),
-                              text_color=t.TEXTO_FRACO)
-        rodape.grid(row=100, column=0, sticky="w", padx=24, pady=16)
+        # Rodapé: a versão instalada. Quando sai uma nova, este mesmo rótulo
+        # vira o aviso — é o canto da tela onde a pessoa já olha para conferir
+        # em que versão está, então é onde a novidade faz mais sentido.
+        self._rodape = ctk.CTkLabel(self.sidebar, text=f"v{__version__}", font=t.corpo(10),
+                                    text_color=t.TEXTO_FRACO, cursor="hand2")
+        self._rodape.grid(row=100, column=0, sticky="w", padx=24, pady=16)
+        self._rodape.bind("<Button-1>", lambda _e: self.abrir_atualizacao())
+        self.ctx.ao_achar_atualizacao(
+            lambda info: self.after(0, lambda: self._marcar_rodape(info)))
+
+    def _marcar_rodape(self, info):
+        try:
+            self._rodape.configure(text=f"✨ v{info.versao} disponível",
+                                   text_color=t.OK)
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ------------------------------------------------------------------ update
+    def verificar_atualizacao(self, manual: bool = False):
+        """Procura uma versão nova. `manual=True` (botão nas Configurações)
+        ignora o intervalo e a versão pulada, e mostra o erro na tela."""
+        if manual:
+            self._verificar_agora()
+            return
+        updater.verificar_em_segundo_plano(
+            self.ctx.config, __version__,
+            lambda info: self.after(0, lambda: self.ctx.anunciar_atualizacao(info)))
+
+    def _verificar_agora(self):
+        """Checagem pedida pela pessoa: roda em thread mas fala o resultado."""
+        import threading
+        from tkinter import messagebox
+
+        def _trabalho():
+            try:
+                info = updater.checar(__version__)
+            except Exception as e:  # noqa: BLE001 — aqui o erro É a resposta
+                self.after(0, lambda erro=e: messagebox.showwarning(
+                    "Não foi possível verificar",
+                    f"{erro}\n\nVocê pode continuar usando o DocManager normalmente."))
+                return
+            updater.registrar_verificacao(self.ctx.config)
+            if info is None:
+                self.after(0, lambda: messagebox.showinfo(
+                    "Tudo em dia", f"Você já está na versão mais recente (v{__version__})."))
+                return
+            self.after(0, lambda: (self.ctx.anunciar_atualizacao(info),
+                                   self.abrir_atualizacao()))
+
+        threading.Thread(target=_trabalho, daemon=True).start()
+
+    def abrir_atualizacao(self):
+        """Abre a janela da atualização já encontrada (ou procura uma, se não houver)."""
+        info = self.ctx.atualizacao
+        if info is None:
+            self.verificar_atualizacao(True)
+            return
+        from .views.update_dialog import AtualizacaoDialog
+        AtualizacaoDialog(self, info, __version__,
+                          fechar_app=self._fechar_para_instalar,
+                          ao_pular=lambda v: updater.ignorar_versao(self.ctx.config, v))
+
+    def _fechar_para_instalar(self):
+        """Sai de cena para o instalador poder sobrescrever os arquivos — o
+        Windows não deixa regravar um .exe que está rodando."""
+        try:
+            self.quit()
+            self.destroy()
+        except Exception:  # noqa: BLE001
+            pass
 
     def selecionar(self, key: str):
         for k, item in self._botoes.items():
@@ -149,7 +223,36 @@ class MainApp(ctk.CTk):
             pass
 
 
+# Nome do mutex do app. TEM QUE SER IGUAL ao `AppMutex` do installer/docmanager.iss:
+# é por ele que o Inno Setup descobre que o DocManager está aberto e o fecha
+# antes de sobrescrever os arquivos (a opção /CLOSEAPPLICATIONS da atualização).
+NOME_MUTEX = "DocManagerItaipu_AppMutex"
+_handle_mutex = None
+
+
+def _registrar_mutex():
+    """Cria o mutex nomeado do Windows. Sem ele o instalador não enxerga o app
+    aberto e a atualização falha com 'arquivo em uso'."""
+    global _handle_mutex
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        _handle_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, NOME_MUTEX)
+    except Exception:  # noqa: BLE001 — sem mutex o app abre igual
+        pass
+
+
 def main():
+    _registrar_mutex()
+    # Quem vem da v3.0.0 tem as credenciais num .env: importa uma vez para o
+    # cofre do app, para a lista da Extração não aparecer vazia depois de atualizar.
+    try:
+        from ..aconex_backend import migrar_env_para_cofre
+        migrar_env_para_cofre()
+    except Exception:  # noqa: BLE001 — migração nunca impede a abertura
+        pass
+
     app = MainApp()
     app.withdraw()   # oculta enquanto a splash aparece
     # Fecha o splash NATIVO do PyInstaller (pyi_splash) — cobriu a carga desde o

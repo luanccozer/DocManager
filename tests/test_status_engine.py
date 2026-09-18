@@ -1,5 +1,4 @@
 """Cenários da §22.7 + diferencial vs legado do motor de status real."""
-import pandas as pd
 import pytest
 from builders import HistoricoBuilder
 

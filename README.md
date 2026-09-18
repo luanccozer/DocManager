@@ -8,29 +8,94 @@ relatórios.
 
 ---
 
-## Como usar no notebook da empresa
+## Instalar (para quem vai USAR o app)
 
-### 1. Baixar o projeto
+**Não precisa de Python, nem de Git, nem de baixar o projeto.**
 
-**Opção A — ZIP (mais simples):**
-1. Acesse `https://github.com/luanccozer/DocManager`.
-2. Botão verde **Code → Download ZIP**.
-3. Extraia a pasta em um local **fora do OneDrive** (ex.: `C:\Apps\DocManager`)
-   para evitar lentidão de sincronização.
+1. Abra a página de [**Releases**](https://github.com/luanccozer/DocManager/releases)
+   e baixe o `DocManager_Itaipu_Setup_<versão>.exe` mais recente.
+2. Execute. O instalador pergunta onde instalar:
+   - **Para todos os usuários** — vai para `C:\Program Files`, **precisa de senha
+     de administrador** (na instalação e a cada atualização);
+   - **Somente para mim** — vai para a sua pasta de usuário, **não precisa de
+     administrador** e as atualizações são silenciosas.
 
-**Opção B — Git (recebe atualizações com `git pull`):**
+   > Se você não tem senha de administrador na máquina da empresa, escolha
+   > **"somente para mim"**.
+3. Abra o **DocManager** pelo atalho.
+
+> O Windows pode mostrar um aviso do **SmartScreen** ("aplicativo não
+> reconhecido") porque o instalador ainda não é assinado digitalmente. Clique em
+> *Mais informações → Executar assim mesmo*.
+
+### Primeiro uso: cadastrar as suas credenciais do Aconex
+
+Só a **Extração Aconex** precisa disso. Os demais módulos (Mapa, Doc List,
+Status, Histórico, Relatórios) funcionam sem cadastro nenhum — basta ter os
+arquivos Excel.
+
+1. No app, abra **📥 Extração Aconex**.
+2. Clique em **Cadastrar usuário**.
+3. Informe os três dados que o administrador do Aconex forneceu para você:
+
+   | Campo | O que é |
+   |---|---|
+   | **Client ID (APP ID)** | Identifica o aplicativo OAuth registrado no seu nome. Tem a cara de `SCP_SEU_NOME_ACONEX_client_APPID`. Não é segredo. |
+   | **User ID** | O número da sua conta no Aconex (só dígitos, ex.: `1208560183`). Não é segredo. |
+   | **Client Secret** | A senha do aplicativo. **Esta é a parte sigilosa.** |
+
+4. Salve. Pronto — é **uma vez só**.
+
+O Client Secret fica guardado **nesta máquina**, cifrado pelo Windows (DPAPI) na
+sua conta de usuário, em `Documentos\DocManager_Itaipu\credenciais.json`. Ele
+não vai para o GitHub, não fica na pasta do programa e **continua valendo depois
+de cada atualização**. Copiar esse arquivo para outra máquina não funciona — a
+cifragem é atrelada à sua conta do Windows; na máquina nova, cadastre de novo.
+
+Para trocar o secret, ver quem está cadastrado ou remover alguém:
+**⚙️ Configurações → Credenciais do Aconex**.
+
+> **Se você já usava o DocManager com um arquivo `.env`:** não precisa fazer
+> nada. Na primeira abertura depois de atualizar, o app **importa sozinho** as
+> credenciais do `.env` para o cadastro interno. Depois disso o `.env` pode ser
+> apagado.
+
+### Atualizações
+
+**Automáticas.** Ao abrir, o app verifica em segundo plano se saiu versão nova
+(no máximo uma vez a cada 6 horas). Quando há, aparece:
+
+- uma faixa na tela inicial com o que mudou, e
+- o aviso `✨ v3.x.x disponível` no rodapé da barra lateral.
+
+Clique e depois em **Atualizar agora**: o app baixa o instalador, confere a
+integridade do arquivo (SHA256), fecha sozinho e reabre já atualizado. Quem
+instalou em *Program Files* verá o pedido de administrador do Windows.
+
+A verificação funciona **atrás do Zscaler e da VPN** — ela usa os certificados
+do Windows e testa as rotas de rede em cascata (proxy do sistema, variáveis de
+ambiente, conexão direta).
+
+Em **⚙️ Configurações → Atualizações** dá para desligar o aviso automático ou
+forçar uma verificação na hora com **Procurar atualizações agora** (esse botão,
+ao contrário da checagem automática, **mostra o erro** se algo falhar — é por
+onde começar a diagnosticar).
+
+---
+
+## Rodar a partir do código (desenvolvimento)
+
+Quem vai **mexer no código** (e não só usar) roda direto do repositório:
+
 ```bat
 git clone https://github.com/luanccozer/DocManager.git
 ```
 
-### 2. Rodar
+Depois, duplo-clique em **`run.bat`**. Na primeira vez ele cria o ambiente
+virtual, instala as dependências e abre o app; nas próximas, só abre.
 
-Dê **duplo-clique em `run.bat`** (ou rode `run.bat` no terminal). Na primeira vez
-ele cria o ambiente virtual `.venv`, instala as dependências e abre o app. Nas
-próximas vezes, só abre — em segundos.
-
-> Precisa do **Python 3.12+** instalado (marque *"Add Python to PATH"* no
-> instalador). Se não usar o `run.bat`, dá para rodar manualmente:
+> Precisa do **Python 3.12+** instalado (marque *"Add Python to PATH"*). Sem o
+> `run.bat`:
 > ```bat
 > py -3 -m venv .venv
 > .venv\Scripts\activate
@@ -38,7 +103,10 @@ próximas vezes, só abre — em segundos.
 > python -m docmanager
 > ```
 
-#### Rede corporativa (Zscaler) — já vem resolvido
+Para publicar uma versão nova, veja o [**BUILD.md**](BUILD.md) — é escrever o
+`CHANGELOG.md` e criar a tag; o GitHub faz o resto.
+
+### Rede corporativa (Zscaler) — já vem resolvido
 
 Atrás do Zscaler o `pip` erra e trava por causa da inspeção de SSL. O `run.bat` e
 o `build.bat` **já chamam o pip com os argumentos que resolvem isso**, sem você
@@ -66,40 +134,19 @@ linha (ou defina a variável de ambiente `DOCMANAGER_PIP_ARGS`):
 
 > `pip_corporativo.txt` fica fora do Git (é específico da sua rede).
 
-### 3. Configurar o segredo do Aconex (só para o módulo de Extração)
+### Onde ficam os seus dados
 
-O segredo da API **não** vai no GitHub (fica fora do repositório por segurança).
-Para usar a **Extração Aconex**:
-1. Copie `.env.example` para um arquivo chamado `.env` na raiz do projeto.
-2. Preencha o seu segredo:
-   ```
-   SECRET_LUAN=coloque_aqui_o_client_secret
-   ```
-O `.env` fica só na sua máquina. Os demais módulos (Mapa, Status, Histórico,
-Relatórios) funcionam sem o `.env` — bastam os arquivos Excel.
+Tudo em **`Documentos\DocManager_Itaipu\`**, fora da pasta do programa de
+propósito — assim a atualização, que reescreve a pasta de instalação, nunca
+encosta neles:
 
-### 4. Atualizar para uma versão nova
+| Arquivo | O que guarda |
+|---|---|
+| `config.json` | Preferências (regra VIP, base do atraso, últimas pastas usadas) |
+| `credenciais.json` | Credenciais do Aconex, com o secret cifrado pelo Windows |
+| `update_token.txt` | *(opcional)* token de atualização, só para rotação de emergência |
 
-**Preferível — Git:** se o Git funcionar na sua rede, é só `git pull` dentro da
-pasta. Não recria nada.
-
-**Sem Git (baixar o ZIP e substituir) — funciona sim, com um cuidado:** o código
-não guarda estado dentro da pasta; suas configurações ficam em
-`Documentos/DocManager_Itaipu/config.json` (fora da pasta) e persistem. Então:
-
-1. Baixe o novo ZIP e extraia.
-2. **Copie do seu projeto atual para o novo, antes de rodar:** o `.env`, o
-   `pip_corporativo.txt` e — se não quiser reinstalar as bibliotecas — a pasta
-   `.venv`.
-3. Rode o `run.bat`.
-
-> Reaproveitar o `.venv` só vale se as dependências não mudaram (o
-> `requirements.txt` continua igual). **Se o `requirements.txt` mudou**, apague a
-> `.venv` e deixe o `run.bat` recriá-la (aí sim precisa de rede/pip).
->
-> Alternativa mais simples: em vez de trocar a pasta inteira, substitua só a
-> pasta `docmanager/` e os arquivos da raiz (`run.bat`, `requirements.txt`,
-> `README.md`), mantendo `.venv`, `.env` e `pip_corporativo.txt` no lugar.
+Para desenvolvimento, `DOCMANAGER_DADOS_DIR` redireciona essa pasta inteira.
 
 ---
 
@@ -136,15 +183,17 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   vencimento e dias de atraso). O de fluxos usa a **base de Fluxos**, que tem
   seletor de arquivo próprio — não é a base de documentos.
   Detalhes em [`docs/fluxos_de_trabalho.md`](docs/fluxos_de_trabalho.md).
-- **📥 Extração Aconex** — baixa a base completa do Aconex via API (precisa do
-  `.env`). Operação longa (~30 min em produção). **Se a conexão cair, o progresso
+- **📥 Extração Aconex** — baixa a base completa do Aconex via API (precisa das
+  credenciais cadastradas — ver "Primeiro uso" acima). Operação longa (~30 min em produção). **Se a conexão cair, o progresso
   não se perde**: cada página baixada fica guardada e a próxima execução retoma
   de onde parou (o app avisa no log). Uma extração interrompida é sinalizada como
   **parcial** — você escolhe se quer o Excel do que já veio.
   Na aba **🔀 Fluxos de Trabalho** baixa os workflows (etapa, prazo e a quem cada
   documento está atribuído), com seletor de período: "tudo" leva ~20 min, mas
   "últimos 30 dias" atualiza em ~1 min.
-- **⚙️ Configurações** — liga/desliga a *Regra da Aprovação Intermediária* (VIP).
+- **⚙️ Configurações** — **Credenciais do Aconex** (cadastrar, editar, remover),
+  **Atualizações** do app, a *Regra da Aprovação Intermediária* (VIP) e a base do
+  atraso CMI na 0A.
 
 ---
 
