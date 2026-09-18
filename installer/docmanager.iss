@@ -1,22 +1,31 @@
 ; ============================================================
 ;  DocManager Itaipu - Instalador (Inno Setup 6+)
-;  Gera um instalador amigavel a partir de dist\DocManager\.
 ;
-;  Pre-requisito: rodar o build.bat ANTES (para existir dist\DocManager\).
-;  Compilar: abra este .iss no Inno Setup Compiler e clique em "Compile",
-;  ou linha de comando:  iscc installer\docmanager.iss
+;  Normalmente NAO e compilado a mao: o workflow
+;  .github/workflows/release.yml roda o build e o ISCC a cada tag v*.
+;
+;  Compilar localmente (precisa do dist\DocManager\ pronto pelo build.bat):
+;      iscc /DMyAppVersion=3.1.0 installer\docmanager.iss
 ;  Saida: installer\Output\DocManager_Itaipu_Setup.exe
 ; ============================================================
 
+; A versao vem do build (`iscc /DMyAppVersion=...`). O valor abaixo e so o
+; padrao de quem compila na mao sem passar nada.
+#ifndef MyAppVersion
+  #define MyAppVersion "3.1.0"
+#endif
+
 #define AppName "DocManager Itaipu"
-#define AppVersion "3.0.0"
 #define AppExe "DocManager.exe"
 
 [Setup]
 AppId={{7C3B2A10-DOCM-4ITA-IPU0-DOCMANAGER01}}
 AppName={#AppName}
-AppVersion={#AppVersion}
+AppVersion={#MyAppVersion}
+AppVerName={#AppName} {#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}
 AppPublisher=CMI - Engenharia
+AppUpdatesURL=https://github.com/luanccozer/DocManager/releases
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
@@ -25,23 +34,38 @@ OutputBaseFilename=DocManager_Itaipu_Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-; Program Files exige elevacao; a config/.env do usuario fica em Documents (sem admin).
-PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\assets\logo_definitivo.ico
 UninstallDisplayIcon={app}\{#AppExe}
+
+; --- Escopo da instalacao -----------------------------------------------
+; O padrao continua sendo "para todos" (Program Files, com admin), mas o
+; instalador PERGUNTA. Quem nao tem senha de administrador escolhe "somente
+; para mim" e vai para %LOCALAPPDATA%\Programs — e ai a atualizacao automatica
+; roda sem nenhum popup do UAC.
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog commandline
+
+; --- Atualizacao por cima da versao anterior ----------------------------
+; AppMutex e a peca que faz a atualizacao funcionar: o app cria este mutex
+; nomeado ao abrir (ui/main_app.py, NOME_MUTEX). Com ele o Inno DESCOBRE que o
+; DocManager esta rodando e o fecha antes de trocar os arquivos — sem isso a
+; instalacao falha com "arquivo em uso", que e o sintoma classico de
+; auto-update quebrado. Os dois nomes TEM que ser iguais.
+AppMutex=DocManagerItaipu_AppMutex
+CloseApplications=yes
+RestartApplications=yes
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Criar atalho na Area de Trabalho"; GroupDescription: "Atalhos:"
+Name: "desktopicon"; Description: "Criar atalho na Area de Trabalho"; GroupDescription: "Atalhos:"; Flags: checkedonce
 
 [Files]
 ; Toda a pasta onedir gerada pelo PyInstaller.
 Source: "..\dist\DocManager\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
-; Modelo do .env ao lado do exe (o real, com o secret, o usuario cria).
-Source: "..\.env.example"; DestDir: "{app}"; DestName: ".env.example"; Flags: ignoreversion
+Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
@@ -51,5 +75,11 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Abrir o {#AppName}"; Flags: nowait postinstall skipifsilent
 
+[UninstallDelete]
+; Restos do build antigo (pyc/cache) que nao constam no manifesto de instalacao.
+Type: filesandordirs; Name: "{app}\_internal\__pycache__"
+
 [Messages]
-brazilianportuguese.FinishedLabel=Instalacao concluida.%n%nATENCAO: para a Extracao Aconex funcionar, crie o arquivo .env com o seu SECRET.%nColoque-o em uma destas pastas:%n  - Documentos\DocManager_Itaipu\.env   (recomendado - nao precisa de admin)%n  - ou ao lado do {#AppExe} (precisa de admin).%nUse o .env.example como modelo.
+; As credenciais agora sao cadastradas DENTRO do app; nao existe mais .env para
+; a pessoa copiar. A mensagem final diz exatamente o que fazer na 1a abertura.
+brazilianportuguese.FinishedLabel=Instalacao concluida.%n%nPRIMEIRO USO: para a Extracao Aconex funcionar, abra o DocManager, va em "Extracao Aconex" e clique em CADASTRAR USUARIO. Informe o Client ID (APP ID), o User ID e o Client Secret que o administrador do Aconex forneceu para voce.%n%nE uma vez so: os dados ficam guardados nesta maquina, cifrados pelo Windows, e continuam valendo depois de cada atualizacao.%n%nOs demais modulos (Mapa, Doc List, Status, Historico, Relatorios) funcionam sem cadastro nenhum.

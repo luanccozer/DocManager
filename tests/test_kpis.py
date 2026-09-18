@@ -1,7 +1,6 @@
 """KPIs: diferencial vs legado (campos independentes de data) + atrasos com hoje fixo."""
 from datetime import date
 
-import pytest
 from builders import HistoricoBuilder
 
 from docmanager.core.kpis import analisar_kpis_documento, calcular_atrasos_acumulados

@@ -24,19 +24,33 @@ class AconexView(BaseView):
         card = Card(body, "Credenciais (valem para as duas abas)")
         card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
 
-        # Usuários = os que TÊM secret no .env (dinâmico) + a opção manual.
+        # A lista sai do CADASTRO feito no app (antes vinha do .env, que ninguém
+        # mais recebe: desde a v3.1.0 o app é instalado, não descompactado).
         disponiveis = usuarios_disponiveis()
-        valores = disponiveis + [OUTRO_USUARIO]
         linha = ctk.CTkFrame(card, fg_color="transparent")
         ctk.CTkLabel(linha, text="Usuário", width=170, anchor="w", font=t.corpo(12),
                      text_color=t.TEXTO).grid(row=0, column=0, sticky="w")
-        self.opt_user = ctk.CTkOptionMenu(linha, values=valores, command=self._on_user,
+        self.opt_user = ctk.CTkOptionMenu(linha, values=disponiveis + [OUTRO_USUARIO],
+                                          command=self._on_user,
                                           fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO,
                                           font=t.corpo(12))
         self.opt_user.set(disponiveis[0] if disponiveis else OUTRO_USUARIO)
-        self.opt_user.grid(row=0, column=1, sticky="w")
+        self.opt_user.grid(row=0, column=1, sticky="w", padx=(0, 8))
+        ctk.CTkButton(linha, text="Cadastrar usuário", width=150, font=t.corpo(12),
+                      fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
+                      command=self._cadastrar).grid(row=0, column=2, sticky="e")
+        ctk.CTkButton(linha, text="Editar", width=80, font=t.corpo(12),
+                      fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
+                      command=self._editar).grid(row=0, column=3, sticky="e", padx=(8, 0))
         linha.grid_columnconfigure(1, weight=1)
         card.add(linha)
+
+        # Chamada para quem ainda não cadastrou nada: sem ela a tela fica com um
+        # seletor vazio e nenhuma pista do que fazer.
+        self._aviso_cadastro = ctk.CTkLabel(
+            card, text="", font=t.corpo(12), text_color=t.TEXTO, justify="left",
+            wraplength=680, anchor="w")
+        card.add(self._aviso_cadastro, pady=(0, 4))
 
         # Entrada manual (visível só quando "Outro" é escolhido) — não é salva.
         self._manual = ctk.CTkFrame(card, fg_color="transparent")
@@ -63,7 +77,7 @@ class AconexView(BaseView):
         self._montar_aba_extracao(self.tabs.add("📦 Extração Completa"))
         self._montar_aba_fluxos(self.tabs.add("🔀 Fluxos de Trabalho"))
         self._montar_aba_download(self.tabs.add("⬇️ Baixar por Lista"))
-        self._on_user(self.opt_user.get())   # define visibilidade/dica iniciais
+        self._on_user(self.opt_user.get())   # visibilidade, dica e aviso iniciais
 
     def _montar_aba_extracao(self, aba):
         aba.grid_columnconfigure(0, weight=1)
@@ -105,6 +119,8 @@ class AconexView(BaseView):
             row=2, column=0, sticky="ew", padx=6, pady=(0, 8))
 
     def _tarefa_fluxos(self, run: RunBar):
+        if not self._garantir_credenciais():
+            return
         from datetime import datetime, timedelta, timezone
 
         from dotenv import load_dotenv
@@ -192,6 +208,8 @@ class AconexView(BaseView):
             self.ctx.config.lembrar_dir("download", os.path.join(pasta, "_"))
 
     def _tarefa_download(self, run: RunBar):
+        if not self._garantir_credenciais():
+            return
         from dotenv import load_dotenv
         load_dotenv()
         from ...aconex_backend import baixar_documentos
@@ -223,10 +241,72 @@ class AconexView(BaseView):
         if escolha == self._OUTRO:
             self._manual.grid()
             self._dica.configure(text="Entrada manual: informe os 3 dados do usuário do Aconex. "
-                                      "Valem só para esta extração (não são salvos).")
+                                      "Valem só para esta extração (NÃO são salvos) — use "
+                                      "'Cadastrar usuário' para guardar de vez.")
         else:
             self._manual.grid_remove()
-            self._dica.configure(text="O Client Secret é lido do arquivo .env (SECRET_<USUÁRIO>).")
+            self._dica.configure(text="O Client Secret fica guardado nesta máquina, cifrado pelo "
+                                      "Windows. Use 'Editar' para trocá-lo.")
+        self._atualizar_aviso()
+
+    def _atualizar_aviso(self):
+        """Texto de chamada quando ainda não há nenhum usuário cadastrado."""
+        from ...aconex_backend import usuarios_disponiveis
+
+        if usuarios_disponiveis():
+            self._aviso_cadastro.configure(text="")
+            self._aviso_cadastro.grid_remove()
+            return
+        self._aviso_cadastro.configure(
+            text="⚠️  Nenhum usuário cadastrado ainda. A Extração Aconex usa a API oficial, "
+                 "que exige uma credencial OAuth pessoal: clique em CADASTRAR USUÁRIO e "
+                 "informe o Client ID (APP ID), o User ID e o Client Secret que o "
+                 "administrador do Aconex forneceu para você. É uma vez só — fica "
+                 "guardado nesta máquina e sobrevive às atualizações do DocManager.")
+        self._aviso_cadastro.grid()
+
+    # --- cadastro das credenciais -------------------------------------------
+    def _recarregar_usuarios(self, selecionar: str | None = None):
+        from ...aconex_backend import usuarios_disponiveis
+
+        disponiveis = usuarios_disponiveis()
+        self.opt_user.configure(values=disponiveis + [self._OUTRO])
+        alvo = selecionar or self.opt_user.get()
+        if alvo not in disponiveis + [self._OUTRO]:
+            alvo = disponiveis[0] if disponiveis else self._OUTRO
+        self.opt_user.set(alvo)
+        self._on_user(alvo)
+
+    def _cadastrar(self, nome: str | None = None):
+        """Abre o cadastro. Só pode ser chamado na thread da interface."""
+        from .credenciais_dialog import cadastrar
+
+        salvo = cadastrar(self.winfo_toplevel(), nome)
+        if salvo:
+            self._recarregar_usuarios(salvo)
+            self.log.log(f"Credenciais de '{salvo}' salvas nesta máquina.")
+        return salvo
+
+    def _editar(self):
+        escolha = self.opt_user.get()
+        if escolha == self._OUTRO:
+            self._cadastrar()
+            return
+        self._cadastrar(escolha)
+
+    def _garantir_credenciais(self) -> bool:
+        """Checa, ANTES de gastar tempo, se há com o que autenticar.
+
+        Roda dentro da thread da tarefa, então o diálogo é agendado de volta na
+        thread da interface com `after` — abrir janela de outra thread trava o Tk.
+        """
+        from ...aconex_backend import usuarios_disponiveis
+
+        if usuarios_disponiveis() or self.opt_user.get() == self._OUTRO:
+            return True
+        self.log.log("Nenhum usuário do Aconex cadastrado — abrindo o cadastro.")
+        self.after(0, self._cadastrar)
+        return False
 
     def _montar_config(self):
         """Monta a AconexConfig conforme a escolha (conhecido ou manual)."""
@@ -243,6 +323,8 @@ class AconexView(BaseView):
         return AconexConfig.para_usuario(escolha, proxy=proxy)
 
     def _tarefa(self, run: RunBar):
+        if not self._garantir_credenciais():
+            return
         from dotenv import load_dotenv
         load_dotenv()
         from ...aconex_backend import (

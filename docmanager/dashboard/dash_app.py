@@ -75,7 +75,9 @@ def create_app(df_wide) -> dash.Dash:
         _card_kpi("Atraso médio Itaipu", f"{k.get('atraso_itaipu_medio', 0)} d", "quando atrasa"),
         _card_kpi("Atraso médio CMI", f"{k.get('atraso_cmi_medio', 0)} d", "reemissão"),
     ])
-    graf = lambda f: dcc.Graph(figure=f, style={"background": CARD, "borderRadius": "12px"})
+    def graf(f):
+        return dcc.Graph(figure=f, style={"background": CARD, "borderRadius": "12px"})
+
     app.layout = html.Div(style={"background": FUNDO, "minHeight": "100vh", "padding": "28px",
                                  "fontFamily": "Segoe UI"}, children=[
         html.H2("Dashboard do Histórico Consolidado", style={"color": TEXTO, "marginBottom": "4px"}),

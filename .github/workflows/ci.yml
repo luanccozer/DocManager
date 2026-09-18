@@ -1,0 +1,59 @@
+# Portão de qualidade de todo commit: lint + suíte de testes.
+#
+# Roda em Linux de propósito — é ~3x mais rápido e mais barato que o Windows, e
+# o núcleo testado (core/, services/) não tem nada de específico do sistema. O
+# que é só do Windows (DPAPI, mutex, instalador) é exercitado no workflow de
+# Release, que roda no windows-latest de verdade.
+name: CI
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Testes (pytest)
+        run: pytest -q
+
+      # Erro de digitação num .iss ou num CHANGELOG mal formatado só apareceria
+      # na hora de publicar, com a tag já criada. Aqui aparece no commit.
+      - name: Conferir o CHANGELOG da versão atual
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, ".")
+          from docmanager._build_info import VERSAO
+          from docmanager.services.novidades import analisar, bloco_de
+
+          texto = open("CHANGELOG.md", encoding="utf-8").read()
+          blocos = analisar(texto)
+          if not blocos:
+              sys.exit("CHANGELOG.md não tem nenhum bloco '## <versão>' reconhecível.")
+          if bloco_de(texto, VERSAO) is None:
+              print(f"::warning::_build_info.VERSAO é {VERSAO}, mas o CHANGELOG.md não "
+                    f"tem bloco para ela. O Release sairia sem notas — acrescente "
+                    f"'## {VERSAO} — <data>' antes de criar a tag.")
+          print(f"CHANGELOG ok: {len(blocos)} versões, a mais recente é a v{blocos[0].versao}.")
+          PY

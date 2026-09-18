@@ -20,9 +20,10 @@ def resource_path(rel: str) -> str:
 
 
 def _pasta_config() -> Path:
-    p = Path.home() / "Documents" / "DocManager_Itaipu"
-    p.mkdir(parents=True, exist_ok=True)
-    return p
+    """Mesma pasta do cofre de credenciais (respeita DOCMANAGER_DADOS_DIR)."""
+    from .credenciais import pasta_dados
+
+    return pasta_dados()
 
 
 @dataclass
@@ -31,6 +32,12 @@ class AppSettings:
     dash_port: int = 8050
     # Base do atraso CMI na 0A: "reprogramacao" (quando houver) ou "prevista".
     base_atraso_cmi_0a: str = "reprogramacao"
+    # --- atualização automática ---
+    verificar_atualizacoes: bool = True
+    # Versão que a pessoa mandou pular ("" = nenhuma). Não silencia as seguintes.
+    versao_ignorada: str = ""
+    # ISO da última consulta ao GitHub — evita bater no servidor a cada abertura.
+    ultima_verificacao: str = ""
 
 
 class ConfigManager:
@@ -82,6 +89,9 @@ class ConfigManager:
             regra_estrita_vip=bool(s.get("regra_estrita_vip", False)),
             dash_port=int(s.get("dash_port", 8050)),
             base_atraso_cmi_0a=str(s.get("base_atraso_cmi_0a", "reprogramacao")),
+            verificar_atualizacoes=bool(s.get("verificar_atualizacoes", True)),
+            versao_ignorada=str(s.get("versao_ignorada", "")),
+            ultima_verificacao=str(s.get("ultima_verificacao", "")),
         )
 
     def set_setting(self, chave: str, valor) -> None:

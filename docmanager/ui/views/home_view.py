@@ -2,6 +2,10 @@
 
 O app abre aqui. Não é um módulo de processamento (sem console de log): é um
 ponto de partida que mostra os blocos e, abaixo, as atualizações recentes.
+
+As novidades NÃO ficam mais escritas aqui: elas vêm do `CHANGELOG.md`, que é o
+mesmo texto publicado no Release do GitHub. Para anunciar algo, basta abrir um
+bloco novo lá — esta tela e a página do Release passam a mostrar a mesma coisa.
 """
 from __future__ import annotations
 
@@ -9,21 +13,8 @@ import os
 
 import customtkinter as ctk
 
+from ...services import novidades as novidades_svc
 from .. import theme as t
-
-# ──────────────────────────────────────────────────────────────────────────
-#  NOVIDADES — EDITE ESTA LISTA quando quiser anunciar mudanças aos usuários.
-#  Cada item é uma frase curta e genérica. Deixe a lista vazia ([]) para
-#  esconder a seção "O que há de novo". Nada mais precisa ser mexido.
-# ──────────────────────────────────────────────────────────────────────────
-NOVIDADES: list[str] = [
-    "Novo módulo Doc List Mapping: follow-up da lista de documentos com dois níveis e agrupamento por escopo.",
-    "Doc List Mapping traz a Análise por Período — quais documentos estão previstos para emitir nos próximos tempos.",
-    "Busca das datas previstas no Controle de Documentos corrigida e com diagnóstico no log.",
-    "Extração do Aconex retoma de onde parou quando a conexão cai.",
-    "Tela inicial (Home) com os módulos e as novidades.",
-    "Histórico com datas de previsão e reprogramação na revisão 0A.",
-]
 
 # (key da view, ícone, título, descrição) de cada bloco. A `key` casa com as
 # ViewSpec da MainApp: clicar no bloco navega para o módulo.
@@ -38,9 +29,10 @@ MODULOS = [
      "e o painel executivo com evolução do atraso, First Time Right e gargalos."),
     ("relatorios", "📋", "Relatórios", "Relatório de Avanço (prazos de devolução da Itaipu) e Auditoria de "
      "Integração (documentos presos em 0AA)."),
-    ("aconex", "📥", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex "
-     "(requer o segredo no arquivo .env)."),
-    ("config", "⚙️", "Configurações", "Regra da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
+    ("aconex", "📥", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex. "
+     "Na primeira vez, cadastre as suas credenciais do Aconex na própria tela."),
+    ("config", "⚙️", "Configurações", "Credenciais do Aconex, atualizações do app, Regra da Aprovação "
+     "Intermediária (VIP) e a base do atraso CMI na 0A."),
 ]
 
 
@@ -55,9 +47,15 @@ class HomeView(ctk.CTkFrame):
         body = ctk.CTkScrollableFrame(self, fg_color="transparent")
         body.grid(row=0, column=0, sticky="nsew", padx=28, pady=24)
         body.grid_columnconfigure(0, weight=1)
-        self._hero(body)         # row 0
-        self._modulos(body)      # row 1 — módulos PRIMEIRO
-        self._novidades(body)    # row 2 — novidades depois
+        self._body = body
+        self._hero(body)          # row 0
+        self._aviso_versao(body)  # row 1 — some quando não há atualização
+        self._modulos(body)       # row 2 — módulos
+        self._novidades(body)     # row 3 — novidades depois
+        # A checagem termina depois desta tela existir; o contexto avisa quando
+        # (e já avisa na hora se a resposta chegou antes de a Home ser criada).
+        self.ctx.ao_achar_atualizacao(
+            lambda info: self.after(0, lambda: self._mostrar_aviso(info)))
 
     def _hero(self, body):
         card = ctk.CTkFrame(body, fg_color=t.CARD, corner_radius=14,
@@ -78,9 +76,35 @@ class HomeView(ctk.CTkFrame):
                      font=t.corpo(13), text_color=t.TEXTO_FRACO,
                      justify="left", wraplength=760).pack(anchor="w", padx=24, pady=(0, 18))
 
+    def _aviso_versao(self, body):
+        """Faixa "há uma nova versão" — criada escondida e revelada pelo aviso."""
+        self._faixa = ctk.CTkFrame(body, fg_color=t.CARD, corner_radius=12,
+                                   border_width=1, border_color=t.ACENTO)
+        self._faixa.grid(row=1, column=0, sticky="ew", pady=(0, 16))
+        self._faixa.grid_remove()
+        self._faixa.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(self._faixa, text="✨", font=t.corpo(22)).grid(
+            row=0, column=0, padx=(20, 12), pady=16)
+        self._faixa_txt = ctk.CTkLabel(self._faixa, text="", font=t.corpo(13), anchor="w",
+                                       text_color=t.TEXTO, justify="left", wraplength=520)
+        self._faixa_txt.grid(row=0, column=1, sticky="w")
+        ctk.CTkButton(self._faixa, text="Ver e atualizar", width=140, font=t.corpo(12, "bold"),
+                      fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
+                      command=lambda: self.ctx.abrir_atualizacao and self.ctx.abrir_atualizacao()
+                      ).grid(row=0, column=2, padx=20)
+
+    def _mostrar_aviso(self, info):
+        try:
+            self._faixa_txt.configure(
+                text=f"A versão v{info.versao} já está disponível — você está na "
+                     f"v{self.ctx.versao}. Clique para ver o que mudou e atualizar.")
+            self._faixa.grid()
+        except Exception:  # noqa: BLE001 — a tela pode já ter sido destruída
+            pass
+
     def _modulos(self, body):
         card = ctk.CTkFrame(body, fg_color="transparent")
-        card.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        card.grid(row=2, column=0, sticky="ew", pady=(0, 8))
         card.grid_columnconfigure((0, 1), weight=1, uniform="mod")
         ctk.CTkLabel(card, text="🧭 Módulos", font=t.titulo(16), text_color=t.TEXTO).grid(
             row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
@@ -121,14 +145,19 @@ class HomeView(ctk.CTkFrame):
         bloco.bind("<Leave>", lambda _e: bloco.configure(border_color=t.CARD_BORDA))
 
     def _novidades(self, body):
-        if not NOVIDADES:
+        bloco = novidades_svc.ler(self.ctx.versao)
+        if bloco is None or not bloco.itens:
             return
         card = ctk.CTkFrame(body, fg_color=t.CARD, corner_radius=14,
                             border_width=1, border_color=t.CARD_BORDA)
-        card.grid(row=2, column=0, sticky="ew", pady=(12, 0))
-        ctk.CTkLabel(card, text="✨ O que há de novo", font=t.titulo(16),
-                     text_color=t.TEXTO).pack(anchor="w", padx=24, pady=(18, 8))
-        for it in NOVIDADES:
+        card.grid(row=3, column=0, sticky="ew", pady=(12, 0))
+        topo = ctk.CTkFrame(card, fg_color="transparent")
+        topo.pack(fill="x", padx=24, pady=(18, 8))
+        ctk.CTkLabel(topo, text="✨ O que há de novo", font=t.titulo(16),
+                     text_color=t.TEXTO).pack(side="left")
+        ctk.CTkLabel(topo, text=f"   {bloco.titulo()}", font=t.corpo(12),
+                     text_color=t.TEXTO_FRACO).pack(side="left", pady=(4, 0))
+        for it in bloco.itens:
             ctk.CTkLabel(card, text=f"•  {it}", font=t.corpo(13), text_color=t.TEXTO_FRACO,
                          justify="left", wraplength=760).pack(anchor="w", padx=(30, 24), pady=2)
         ctk.CTkLabel(card, text="", font=t.corpo(6)).pack(pady=(0, 10))

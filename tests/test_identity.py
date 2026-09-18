@@ -1,3 +1,4 @@
+import pytest
 import pandas as pd
 from builders import HistoricoBuilder, base
 
@@ -155,9 +156,6 @@ def _localiza_legado(df, it, cmi):
     dm = DataManager()
     dm.df_aconex = df
     return dm.localiza_doc_historico(it, cmi)
-
-
-import pytest
 
 
 @pytest.mark.parametrize("it,cmi", [

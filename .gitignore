@@ -2,6 +2,10 @@
 .env
 pip_corporativo.txt
 
+# Token de atualização embutido no build (gerado por tools/preparar_build.py).
+# NUNCA versionar: o build injeta, o Git não vê.
+docmanager/_update_auth.py
+
 # Python
 __pycache__/
 *.py[cod]
@@ -17,6 +21,7 @@ venv*/
 build/
 dist/
 *.spec.bak
+installer/Output/
 
 # Saídas de teste manual (planilhas geradas localmente)
 saidas_teste/
