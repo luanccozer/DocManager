@@ -6,16 +6,16 @@ Rodado pelo workflow ANTES do build (e dá para rodar na mão para testar):
 
 Escreve dois arquivos:
 
-  • `docmanager/_build_info.py` — a versão do binário, tirada da TAG. É o que o
+  • `docmanager/_build_info.py` - a versão do binário, tirada da TAG. É o que o
     verificador de atualização compara com o último Release. Sem este passo, um
     executável marcado 3.1.0 continuaria oferecendo "atualizar para a 3.1.0"
     eternamente.
 
-  • `docmanager/_update_auth.py` — o token de leitura do repositório (privado),
+  • `docmanager/_update_auth.py` - o token de leitura do repositório (privado),
     ofuscado. Está no `.gitignore`: o token entra no build, NUNCA no Git. O
     valor vem da variável de ambiente `DOCMANAGER_UPDATE_TOKEN` (no CI, do
     segredo `UPDATE_TOKEN`); sem ela o arquivo sai vazio e o build simplesmente
-    não checa atualizações — que é o certo para um build local.
+    não checa atualizações - que é o certo para um build local.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _saida_utf8() -> None:
     """Força UTF-8 no stdout/stderr.
 
     No Windows o Python escreve no console em cp1252 (a code page ANSI), e um
-    `print` com "versão →" morre com UnicodeEncodeError — o build falha por
+    `print` com "versão →" morre com UnicodeEncodeError - o build falha por
     causa de uma MENSAGEM, depois de já ter rodado lint e testes. Acontece tanto
     no runner do GitHub quanto no `build.bat` de qualquer máquina da empresa.
     """
@@ -47,7 +47,7 @@ def _saida_utf8() -> None:
 
 _saida_utf8()
 
-from docmanager._ofuscacao import ofuscar  # noqa: E402 — depende do sys.path acima
+from docmanager._ofuscacao import ofuscar  # noqa: E402 - depende do sys.path acima
 
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$")
 
@@ -70,7 +70,7 @@ def escrever_build_info(versao: str, origem: str, commit: str) -> Path:
     return destino
 
 
-CABECALHO_AUTH = '''"""Token de atualização embutido no build — GERADO, não edite.
+CABECALHO_AUTH = '''"""Token de atualização embutido no build - GERADO, não edite.
 
 Escrito por `tools/preparar_build.py` a partir do segredo `UPDATE_TOKEN` do
 repositório. Está no `.gitignore` de propósito: assim nenhum token chega ao Git,
@@ -104,7 +104,7 @@ def main() -> None:
     escrever_token(token)
     print("token   → docmanager/_update_auth.py  "
           + (f"({len(token)} caracteres, ofuscado)" if token
-             else "(VAZIO — este build não terá atualização automática)"))
+             else "(VAZIO - este build não terá atualização automática)"))
 
 
 if __name__ == "__main__":

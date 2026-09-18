@@ -24,15 +24,15 @@ class ConfigView(BaseView):
 
     # ─────────────────────────── credenciais do Aconex ──────────────────────
     def _credenciais(self, body, linha: int):
-        """Lista dos usuários cadastrados — o que substituiu editar o `.env`."""
+        """Lista dos usuários cadastrados - o que substituiu editar o `.env`."""
         card = Card(body, "Credenciais do Aconex")
         card.grid(row=linha, column=0, sticky="ew", pady=(0, 16))
 
         card.add(ctk.CTkLabel(
-            card, text="Cada pessoa usa a própria credencial OAuth do Aconex (Client ID, "
-                       "User ID e Client Secret). O segredo fica nesta máquina, cifrado "
-                       "pelo Windows na sua conta de usuário — não vai para o GitHub e "
-                       "continua valendo depois de cada atualização do DocManager.",
+            card, text="Cada pessoa usa a própria credencial do Aconex: Client ID, User ID "
+                       "e Client Secret. O segredo fica só nesta máquina, cifrado pelo "
+                       "Windows na sua conta de usuário. Ele não vai para o GitHub e "
+                       "continua valendo depois das atualizações.",
             font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680),
             pady=(0, 8))
 
@@ -44,7 +44,7 @@ class ConfigView(BaseView):
         ctk.CTkButton(botoes, text="Cadastrar novo", width=150, font=t.corpo(12),
                       fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
                       command=lambda: self._cadastrar(None)).pack(side="left")
-        self._opt_cred = ctk.CTkOptionMenu(botoes, values=["—"], width=200, font=t.corpo(12),
+        self._opt_cred = ctk.CTkOptionMenu(botoes, values=["(nenhum)"], width=200, font=t.corpo(12),
                                            fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
         self._opt_cred.pack(side="left", padx=8)
         ctk.CTkButton(botoes, text="Editar", width=90, font=t.corpo(12),
@@ -60,10 +60,10 @@ class ConfigView(BaseView):
         nomes = cofre().listar()
         self._lista_cred.configure(
             text=("Cadastrados: " + ", ".join(nomes)) if nomes
-            else "Nenhum usuário cadastrado ainda — a Extração Aconex não vai funcionar "
-                 "até cadastrar um.")
-        self._opt_cred.configure(values=nomes or ["—"])
-        self._opt_cred.set(nomes[0] if nomes else "—")
+            else "Nenhum usuário cadastrado. A Extração Aconex só funciona depois "
+                 "que você cadastrar um.")
+        self._opt_cred.configure(values=nomes or ["(nenhum)"])
+        self._opt_cred.set(nomes[0] if nomes else "(nenhum)")
 
     def _cadastrar(self, nome: str | None):
         from .credenciais_dialog import cadastrar
@@ -74,17 +74,17 @@ class ConfigView(BaseView):
 
     def _editar(self):
         nome = self._opt_cred.get()
-        if nome and nome != "—":
+        if nome and nome != "(nenhum)":
             self._cadastrar(nome)
 
     def _remover(self):
         nome = self._opt_cred.get()
-        if not nome or nome == "—":
+        if not nome or nome == "(nenhum)":
             return
         if not messagebox.askyesno(
                 "Remover credencial",
                 f"Apagar as credenciais de '{nome}' desta máquina?\n\n"
-                "O usuário some da lista da Extração Aconex. Nada é alterado no Aconex."):
+                "O usuário some da lista da Extração Aconex. No Aconex nada muda."):
             return
         cofre().remover(nome)
         self._atualizar_lista_cred()
@@ -114,8 +114,8 @@ class ConfigView(BaseView):
         card.add(botoes, pady=(0, 6))
 
         card.add(ctk.CTkLabel(
-            card, text="A verificação roda em segundo plano na abertura do app (no máximo uma "
-                       "vez a cada 6 horas) e funciona atrás do Zscaler e da VPN. Suas "
+            card, text="A verificação roda em segundo plano quando o app abre, no máximo uma "
+                       "vez a cada 6 horas, e funciona com o Zscaler e a VPN ligados. Suas "
                        "configurações e credenciais ficam fora da pasta do programa, então "
                        "a atualização não apaga nada.",
             font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680),
@@ -129,11 +129,11 @@ class ConfigView(BaseView):
         info = self.ctx.atualizacao
         if info is not None:
             texto = (f"Versão instalada: v{__version__}   ·   "
-                     f"✨ disponível: v{info.versao} — clique em 'Procurar atualizações "
+                     f"✨ disponível: v{info.versao}. Clique em 'Procurar atualizações "
                      f"agora' para instalar.")
         elif not updater.token():
             texto = (f"Versão instalada: v{__version__}   ·   este build não tem "
-                     f"atualização automática (build local).")
+                     f"atualização automática (foi gerado localmente).")
         else:
             texto = f"Versão instalada: v{__version__}"
         self._lbl_versao.configure(text=texto)
@@ -163,7 +163,7 @@ class ConfigView(BaseView):
             self.switch.select()
         card.add(self.switch, pady=(2, 8))
 
-        txt = ("Desligado (padrão): fluxo normal — planilhas de comissionamento e seus "
+        txt = ("Desligado (padrão): fluxo normal - planilhas de comissionamento e seus "
                "documentos são consolidados sem aprovação intermediária.\n\n"
                "Ligado: documentos de nível 4 sob planilhas VIP só contam como APROVADO "
                "quando o status real é 'Aprovado' seco; aprovações parciais viram "

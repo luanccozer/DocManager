@@ -1,9 +1,9 @@
-"""Scripts de build (`tools/`) — inclusive rodando com a codificação do Windows.
+"""Scripts de build (`tools/`) - inclusive rodando com a codificação do Windows.
 
 O motivo destes testes existirem: um `print("versão →")` derrubou uma publicação
 inteira. No Windows o Python escreve em cp1252 por padrão, onde "→" não existe,
 e o passo morria com UnicodeEncodeError DEPOIS de lint, testes e instalação de
-dependências — 2 minutos de CI perdidos por causa de uma mensagem. Rodar os
+dependências - 2 minutos de CI perdidos por causa de uma mensagem. Rodar os
 scripts como subprocesso com `PYTHONIOENCODING=cp1252` reproduz exatamente esse
 ambiente aqui, onde custa milissegundos.
 """
@@ -53,7 +53,7 @@ def test_carimba_a_versao_mesmo_com_console_cp1252(build_info_preservado):
 
 
 def test_versao_invalida_falha_com_mensagem_legivel(build_info_preservado):
-    """A mensagem de erro também tem acento — ela não pode virar outro crash."""
+    """A mensagem de erro também tem acento - ela não pode virar outro crash."""
     r = rodar("tools/preparar_build.py", "versao-errada")
     assert r.returncode != 0
     assert "inválida" in (r.stdout + r.stderr)
@@ -81,9 +81,9 @@ def test_sem_segredo_o_token_sai_vazio(build_info_preservado):
 # --------------------------------------------------------------------------
 CHANGELOG_EXEMPLO = """# Histórico
 
-## 3.1.0 — 2026-09-18
+## 3.1.0 - 2026-09-18
 
-- Atualização automática — com acento e travessão.
+- Atualização automática - com acento e travessão.
 """
 
 
@@ -143,7 +143,7 @@ def test_gera_os_dois_arquivos_com_console_cp1252(tmp_path):
     assert r.returncode == 0, f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}"
 
     bruto = manifesto.read_bytes()
-    assert not bruto.startswith(b"\xef\xbb\xbf"), "latest.json saiu com BOM — o app não lê"
+    assert not bruto.startswith(b"\xef\xbb\xbf"), "latest.json saiu com BOM - o app não lê"
     dados = json.loads(bruto.decode("utf-8"))
     assert dados["sha256"] and "Atualização" in dados["notas"]
     assert "Como instalar" in notas.read_text(encoding="utf-8")

@@ -1,4 +1,4 @@
-"""Paleta e tipografia — visual executivo/moderno, um só lugar."""
+"""Paleta e tipografia - visual executivo/moderno, um só lugar."""
 from __future__ import annotations
 
 import customtkinter as ctk

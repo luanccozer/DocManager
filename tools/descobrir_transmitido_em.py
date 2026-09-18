@@ -3,7 +3,7 @@
 Read-only. Responde de forma definitiva a pergunta da seção 7 de
 `docs/atualizacao_controle_documentos.md`:
 
-  1) faz o dump do schema do register (`/register/schema`) — lista TODOS os campos
+  1) faz o dump do schema do register (`/register/schema`) - lista TODOS os campos
      disponíveis, para ver se há algum de transmittal;
   2) consulta o documento de teste e imprime TODOS os campos que voltam para cada
      revisão, destacando quem for igual ao transmittal esperado.
@@ -37,7 +37,7 @@ def _log(msg=""):
 
 
 def _tags_e_valores(elem) -> list[tuple[str, str]]:
-    """(tag_local, texto) de todos os descendentes com texto — genérico, serve
+    """(tag_local, texto) de todos os descendentes com texto - genérico, serve
     tanto para o schema quanto para o documento (não assumimos a forma do XML)."""
     out = []
     for e in elem.iter():
@@ -51,7 +51,7 @@ def _tags_e_valores(elem) -> list[tuple[str, str]]:
 
 def dump_schema(session, headers, base_url):
     _log("\n" + "=" * 72)
-    _log("1) SCHEMA DO REGISTER  (/register/schema) — campos disponíveis")
+    _log("1) SCHEMA DO REGISTER  (/register/schema) - campos disponíveis")
     _log("=" * 72)
     url = f"{base_url}/schema"
     r = session.get(url, headers=headers, timeout=60)
@@ -73,7 +73,7 @@ def dump_schema(session, headers, base_url):
 
 def consultar_doc(session, headers, base_url):
     _log("\n" + "=" * 72)
-    _log(f"2) DOCUMENTO DE TESTE  ({DOC_TESTE})  — todos os campos por revisão")
+    _log(f"2) DOCUMENTO DE TESTE  ({DOC_TESTE})  - todos os campos por revisão")
     _log(f"   transmittal esperado: {TRANSMITTAL_ESPERADO} (na revisão 0)")
     _log("=" * 72)
     # Pede um superset largo de campos (o register ignora/erra os inexistentes;
@@ -100,7 +100,7 @@ def consultar_doc(session, headers, base_url):
                 marca = "   <<< TRANSMITTAL" if TRANSMITTAL_ESPERADO.lower() in val.lower() else ""
                 _log(f"  {tag:<26} {val}{marca}")
     if not achou:
-        _log("\n(nenhum documento retornou — a search_query pode não filtrar por "
+        _log("\n(nenhum documento retornou - a search_query pode não filtrar por "
              "docno; nesse caso rode a extração completa e filtre pelo código.)")
         _log("Amostra do XML devolvido:\n" + r.text[:600])
 
@@ -108,7 +108,7 @@ def consultar_doc(session, headers, base_url):
 def probe_mail(session, headers, config):
     """Sondagem MÍNIMA da Mail API: a fonte real do 'Transmitido em' (transmittals)
     segundo a KB §24.5. Só verifica se o endpoint responde neste projeto e mostra a
-    forma da resposta — não tenta ainda mapear doc→transmittal."""
+    forma da resposta - não tenta ainda mapear doc→transmittal."""
     _log("\n" + "=" * 72)
     _log("3) SONDAGEM DA MAIL API  (fonte real do 'Transmitido em')")
     _log("=" * 72)

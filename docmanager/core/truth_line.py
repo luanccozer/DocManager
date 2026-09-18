@@ -8,7 +8,7 @@ Substitui as 4 implementações divergentes do legado:
 
 REGRA CANÔNICA (limiar de versão por revisão): o Terminated invalida apenas
 as versões daquela revisão ATÉ a versão terminada. Sobrevive `Versão >
-maior versão Terminated da revisão` — o que permite o "renascimento" de uma
+maior versão Terminated da revisão` - o que permite o "renascimento" de uma
 revisão reenviada com versão maior. Esta é a única regra; o legado (exceto
 KPIs) descartava a revisão terminada inteira, matando o renascimento
 (divergência sancionada §21.8).

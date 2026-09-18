@@ -1,4 +1,4 @@
-"""CLI headless do DocManager — usada por testes, demonstração e regressão.
+"""CLI headless do DocManager - usada por testes, demonstração e regressão.
 
     python -m docmanager.cli historico --aconex base.xlsx [--controle ctrl.xlsx] --out hist.xlsx
 """

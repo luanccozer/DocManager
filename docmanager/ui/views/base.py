@@ -37,7 +37,7 @@ class BaseView(ctk.CTkFrame):
         self._montar_console()   # cria self.log (rodapé, altura dinâmica)
         self.montar(self.body)
 
-    # Console de log padronizado — presente em todas as views.
+    # Console de log padronizado - presente em todas as views.
     def _montar_console(self):
         self._console = ctk.CTkFrame(self, fg_color=t.CARD, corner_radius=10,
                                      border_width=1, border_color=t.CARD_BORDA, height=200)

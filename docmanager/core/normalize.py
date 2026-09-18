@@ -1,6 +1,6 @@
 """Normalizações canônicas de revisão, código e texto (KB §3, §6).
 
-Toda regra de normalização vive AQUI — nunca duplicar em views/relatórios.
+Toda regra de normalização vive AQUI - nunca duplicar em views/relatórios.
 """
 from __future__ import annotations
 
@@ -24,11 +24,11 @@ def normalizar_revisao(rev) -> str:
     return r.ljust(3, "z")
 
 
-REV_LIMITE_0A = normalizar_revisao("0A")  # '0Az' — limite da "primeira emissão da vida útil"
+REV_LIMITE_0A = normalizar_revisao("0A")  # '0Az' - limite da "primeira emissão da vida útil"
 
 
 def sort_key_revisao(rev) -> str:
-    """LEGADO — NÃO usar para ordenar o ciclo de vida. Porta da chave de 3 níveis
+    """LEGADO - NÃO usar para ordenar o ciclo de vida. Porta da chave de 3 níveis
     (data_manager L1192-1196). ERRADA para famílias: joga TODOS os números secos
     ('0','1','2' = aprovações) para o fim, depois das letras de famílias
     posteriores (ex.: '0' cai depois de '2A'). Para a ordem correta do ciclo use
@@ -52,7 +52,7 @@ def normalizar_codigo(cod) -> str:
 
     strip + upper + remoção do '.0' fantasma que o Excel cria quando um
     código puramente numérico é lido como float (ex.: '12345.0' -> '12345').
-    Só remove o sufixo se o restante for todo dígito — códigos reais com
+    Só remove o sufixo se o restante for todo dígito - códigos reais com
     pontos ('8501.20.15400.P') passam intactos.
     """
     if cod is None:
@@ -83,7 +83,7 @@ def celula_para_date(valor):
     `datetime`/`date` nativos, texto ('13/10/2025', ISO, …) e serial numérico.
 
     Existe porque o openpyxl devolve a mesma coluna ora como `datetime`, ora
-    como texto, ora como número — e comparar "qual data é mais recente" exige
+    como texto, ora como número - e comparar "qual data é mais recente" exige
     um `date` dos dois lados.
     """
     from datetime import date, datetime

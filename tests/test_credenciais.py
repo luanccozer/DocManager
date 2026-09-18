@@ -1,4 +1,4 @@
-"""Cofre de credenciais do Aconex — o que substituiu o `.env`.
+"""Cofre de credenciais do Aconex - o que substituiu o `.env`.
 
 O ponto sensível é a MIGRAÇÃO: quem atualiza da v3.0.0 tem as credenciais num
 `.env` e não pode abrir o app novo e encontrar a lista de usuários vazia.
@@ -44,7 +44,7 @@ def test_sobrevive_ao_fechar_e_abrir_o_app(cofre):
 
 
 def test_campos_obrigatorios(cofre):
-    """O Aconex exige os TRÊS dados — recusar cedo evita um erro de OAuth
+    """O Aconex exige os TRÊS dados - recusar cedo evita um erro de OAuth
     incompreensível 30 segundos depois."""
     for args in [("", "SCP", "1", "s"), ("N", "", "1", "s"), ("N", "SCP", "1", ""),
                  ("N", "SCP", "", "s")]:
@@ -79,7 +79,7 @@ def test_arquivo_corrompido_nao_impede_de_abrir(tmp_path):
 # --------------------------------------------------------------------------
 def test_importa_usuario_conhecido_pela_chave_do_env(cofre):
     """O .env em uso hoje traz `SECRET_LUAN`, mas o usuário se chama
-    'Luan Cozer' — o casamento usa a chave declarada em USUARIOS."""
+    'Luan Cozer' - o casamento usa a chave declarada em USUARIOS."""
     importados = cofre.importar_do_env(ab.USUARIOS, {"SECRET_LUAN": "abc"})
     assert importados == ["Luan Cozer"]
     c = cofre.obter("Luan Cozer")
@@ -95,7 +95,7 @@ def test_importa_usuario_novo_com_os_tres_dados(cofre):
 
 
 def test_secret_sozinho_nao_importa(cofre):
-    """Sem Client ID / User ID o secret não autentica — importar criaria um
+    """Sem Client ID / User ID o secret não autentica - importar criaria um
     usuário na lista que falharia na hora da extração."""
     assert cofre.importar_do_env(ab.USUARIOS, {"SECRET_DESCONHECIDO": "s"}) == []
     assert cofre.vazio()

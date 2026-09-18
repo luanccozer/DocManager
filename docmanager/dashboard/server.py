@@ -26,7 +26,7 @@ class DashboardServer:
             webbrowser.open(url)
             return url
         if not _porta_livre(self.porta):
-            # Porta ocupada (talvez uma execução anterior) — só abre o navegador.
+            # Porta ocupada (talvez uma execução anterior) - só abre o navegador.
             webbrowser.open(url)
             self._rodando = True
             return url

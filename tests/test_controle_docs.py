@@ -31,7 +31,7 @@ def _row(itaipu="", cmi="", prevista=None, reprog=None, fase=""):
 
 
 # ---------------------------------------------------------------------------
-# Causa 1 — cabeçalho com QUEBRA DE LINHA dentro da célula
+# Causa 1 - cabeçalho com QUEBRA DE LINHA dentro da célula
 # ---------------------------------------------------------------------------
 def test_norm_colapsa_quebra_de_linha_do_cabecalho():
     assert _norm("DATA PREVISTA DE\nEMISSÃO  ACONEX") == "DATA PREVISTA DE EMISSAO ACONEX"
@@ -60,7 +60,7 @@ def test_controle_le_datas_com_cabecalho_quebrado(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Causa 2 — coluna com FORMATOS MISTOS zerava tudo após a primeira linha
+# Causa 2 - coluna com FORMATOS MISTOS zerava tudo após a primeira linha
 # ---------------------------------------------------------------------------
 def test_data_real_do_excel_no_topo_nao_zera_o_resto_da_coluna():
     serie = pd.Series(["2026-10-13 00:00:00", "10/20/2026", "5/30/2035"])
@@ -79,7 +79,7 @@ def test_serial_do_excel_e_convertido():
 
 
 # ---------------------------------------------------------------------------
-# Causa 3 — linha SEM data escondendo a linha COM data
+# Causa 3 - linha SEM data escondendo a linha COM data
 # ---------------------------------------------------------------------------
 def test_linha_sem_data_nao_sombreia_a_com_data_pelo_codigo_preferido():
     """O código Itaipu do mapeamento casa com uma linha vazia; o código CMI casa
@@ -97,7 +97,7 @@ def test_sem_nenhuma_linha_com_data_devolve_a_primeira():
 
 
 # ---------------------------------------------------------------------------
-# Causa 4 — cascata de busca (o "Ctrl+F na mão")
+# Causa 4 - cascata de busca (o "Ctrl+F na mão")
 # ---------------------------------------------------------------------------
 def test_chave_frouxa_ignora_pontuacao():
     assert chave_frouxa("#ST00=M00MYA10&EAB010") == "ST00M00MYA10EAB010"
@@ -118,13 +118,13 @@ def test_busca_por_conteudo_acha_codigo_com_texto_em_volta():
 
 
 def test_codigo_curto_nao_dispara_fallback():
-    """Fallback com código curto casaria com qualquer coisa — fica desligado."""
+    """Fallback com código curto casaria com qualquer coisa - fica desligado."""
     ctrl = ControleDocs([_row(itaipu="ABC-123456789", prevista=date(2026, 1, 1))])
     assert ctrl.resolver([], "ABC", "").linha is None
 
 
 # ---------------------------------------------------------------------------
-# Causa 5 — documento fora do Aconex nunca recebia data no mapeamento
+# Causa 5 - documento fora do Aconex nunca recebia data no mapeamento
 # ---------------------------------------------------------------------------
 _COLS_MAPA = [
     "GRUPO", "Nº CMI", "N° ITAIPU", "DESCRIÇÃO DO DOCUMENTO", "NÍVEL",
@@ -170,7 +170,7 @@ def test_documento_nao_emitido_recebe_data_prevista_do_controle(tmp_path):
     ws2 = openpyxl.load_workbook(mapa_path).active
     col_prev = _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1
     assert str(ws2.cell(3, col_prev).value).startswith("2025-09-01")
-    # A linha 4 (fora do Aconex) também recebe — era o que sumia.
+    # A linha 4 (fora do Aconex) também recebe - era o que sumia.
     assert str(ws2.cell(4, col_prev).value).startswith("2026-08-05")
 
 
@@ -204,7 +204,7 @@ def test_log_de_diagnostico_nomeia_quem_nao_casou(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# §24.13 — Mapa adotou as regras de data do Doc List
+# §24.13 - Mapa adotou as regras de data do Doc List
 # ---------------------------------------------------------------------------
 def _resolver(prevista_celula, reprogramada_celula, prevista_ctrl, reprogramada_ctrl):
     from docmanager.core.mapping import resolver_datas_controle
@@ -214,7 +214,7 @@ def _resolver(prevista_celula, reprogramada_celula, prevista_ctrl, reprogramada_
 
 
 def test_prevista_do_controle_mais_recente_atualiza_a_celula():
-    """Antes o Mapa só escrevia na célula vazia — uma data nova no Controle
+    """Antes o Mapa só escrevia na célula vazia - uma data nova no Controle
     nunca chegava ao mapeamento."""
     d = _resolver(date(2026, 3, 1), None, date(2026, 9, 1), None)
     assert d.prevista_para_celula == date(2026, 9, 1)

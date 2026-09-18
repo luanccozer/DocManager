@@ -1,7 +1,7 @@
 """Atualização automática: comparação de versões, leitura do release e política.
 
 Nada aqui toca a rede. O que é testado é justamente a parte que decide se o
-usuário vai ou não ser avisado — e que, errada, produz os dois piores defeitos
+usuário vai ou não ser avisado - e que, errada, produz os dois piores defeitos
 possíveis: nunca avisar, ou reoferecer a mesma versão para sempre.
 """
 import json

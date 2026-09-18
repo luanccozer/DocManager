@@ -50,7 +50,7 @@ def _base_codigo_reaproveitado():
 
     Miniatura do caso real (2026-09-04): '08934100BUA20-FS00FE-02' pertencia ao
     workstatement de B02BPA20, mas outro documento o carregou até 27/05/2025 e
-    depois foi renomeado — como continuou tramitando, ganhava o desempate por data.
+    depois foi renomeado - como continuou tramitando, ganhava o desempate por data.
     """
     a = (HistoricoBuilder("TID-DONO", "IT-A", "CMI-X", "DOC CERTO")
          .evento("0A", 1, "Em Processo", "01/02/2024")
@@ -64,7 +64,7 @@ def _base_codigo_reaproveitado():
 
 def test_preferir_vigente_evita_match_fantasma():
     idx = AconexIndex(_base_codigo_reaproveitado())
-    # Padrão: vence a data mais recente ENTRE AS LINHAS DO MATCH — e a mais
+    # Padrão: vence a data mais recente ENTRE AS LINHAS DO MATCH - e a mais
     # recente com CMI-X é a de quem já abandonou o código (match fantasma).
     assert set(idx.localizar("", "CMI-X")["Tracking ID"]) == {"TID-EX"}
     # preferir_vigente: só casa, de início, com quem USA o CMI-X hoje.

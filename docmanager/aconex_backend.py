@@ -1,4 +1,4 @@
-"""Extração da base Aconex via API REST (KB §18.2) — sem tkinter.
+"""Extração da base Aconex via API REST (KB §18.2) - sem tkinter.
 
 Porta fiel de `AconexView.executar_script_aconex` (legado L1919-2155): OAuth2
 client_credentials, paginação de 500, parse XML, rename para colunas canônicas
@@ -40,7 +40,7 @@ CAMPOS_STRING = (
     "Disciplina_singleSelect,"
     "TipoDeDocumentoDcc_singleSelect,ControlCmi_singleLineText"
 )
-# NOTA (KB §24.5/§24.9): 'numberOfMarkups' foi testado e DESCARTADO — conta
+# NOTA (KB §24.5/§24.9): 'numberOfMarkups' foi testado e DESCARTADO - conta
 # ELEMENTOS de marcação, não as "Anotações" do site (v32: 344 vs 147; v93: 19 vs
 # 10). Não há endpoint de markups (todos 404) nem outro campo no schema. Sem
 # fonte confiável da contagem de anotações, a coluna foi removida (2026-07-15).
@@ -95,7 +95,7 @@ def _perfis_do_cofre() -> dict[str, dict]:
             if cred and cred.completa():
                 perfis[nome] = {"client_id": cred.client_id, "user_id": cred.user_id,
                                 "env": "", "fonte": "cofre"}
-    except Exception:  # noqa: BLE001 — cofre ilegível não pode esconder o .env
+    except Exception:  # noqa: BLE001 - cofre ilegível não pode esconder o .env
         pass
     return perfis
 
@@ -104,11 +104,11 @@ def perfis_disponiveis() -> dict[str, dict]:
     """{nome exibido → perfil} de todos os usuários utilizáveis.
 
     Duas fontes, nesta ordem de precedência:
-      1. **Cofre do app** — cadastrado na própria interface (Extração →
+      1. **Cofre do app** - cadastrado na própria interface (Extração →
          "Cadastrar usuário"), com o secret cifrado pela DPAPI do Windows. É o
          caminho normal desde a v3.1.0, em que o app passou a ser distribuído
          por instalador e ninguém mais recebe um `.env` pronto;
-      2. **`.env`** — formato legado: SECRET_<NOME> para os usuários conhecidos
+      2. **`.env`** - formato legado: SECRET_<NOME> para os usuários conhecidos
          (os IDs já estão em `USUARIOS`) ou SECRET_ + CLIENTID_ + USERID_ para um
          usuário novo. Quem já tinha um .env é migrado para o cofre no primeiro
          uso (`migrar_env_para_cofre`).
@@ -129,13 +129,13 @@ def migrar_env_para_cofre(log_cb=None) -> list[str]:
     """Importa para o cofre os usuários que ainda só existem no `.env`.
 
     Chamada uma vez na abertura do app: quem vem da v3.0.0 (com .env na máquina)
-    não precisa recadastrar nada — os dados aparecem já cadastrados na Extração.
+    não precisa recadastrar nada - os dados aparecem já cadastrados na Extração.
     Devolve os nomes importados (lista vazia quando não há nada a fazer)."""
     from .services.credenciais import cofre
 
     try:
         importados = cofre().importar_do_env(USUARIOS)
-    except Exception as e:  # noqa: BLE001 — migração nunca pode impedir a abertura
+    except Exception as e:  # noqa: BLE001 - migração nunca pode impedir a abertura
         if log_cb:
             log_cb(f"(não foi possível importar as credenciais do .env: {e})")
         return []
@@ -247,7 +247,7 @@ def _tentar_token(session, config: AconexConfig) -> str:
 
 
 def _estrategias_conexao(config: AconexConfig, log_cb=lambda _m: None) -> list:
-    """Vias de conexão a tentar, em ordem (item 3 — robustez VPN/Zscaler). Cada
+    """Vias de conexão a tentar, em ordem (item 3 - robustez VPN/Zscaler). Cada
     item: (nome, proxies|None, trust_env). proxies=None → deixa o requests usar
     o ambiente; {} → força SEM proxy."""
     if config.proxy:
@@ -255,7 +255,7 @@ def _estrategias_conexao(config: AconexConfig, log_cb=lambda _m: None) -> list:
     estr: list = []
     vistos: set = set()
 
-    # 1º — o proxy que o NAVEGADOR usaria, resolvido pelo Windows executando o
+    # 1º - o proxy que o NAVEGADOR usaria, resolvido pelo Windows executando o
     # arquivo PAC. Vem primeiro porque, em rede com PAC (o caso da CMI com o
     # GlobalProtect), é a ÚNICA via que funciona: o `getproxies()` abaixo não lê
     # PAC e conclui "sem proxy", mandando tudo para a conexão direta, que a VPN
@@ -281,8 +281,8 @@ def _estrategias_conexao(config: AconexConfig, log_cb=lambda _m: None) -> list:
 
 
 def _estabelecer_sessao(config: AconexConfig, log_cb):
-    """Tenta autenticar por várias vias (proxy do sistema, ambiente, direta) e —
-    só se houver falha de CERTIFICADO — repete SEM verificação SSL (último
+    """Tenta autenticar por várias vias (proxy do sistema, ambiente, direta) e -
+    só se houver falha de CERTIFICADO - repete SEM verificação SSL (último
     recurso, com aviso). Devolve (session, token) ou levanta RuntimeError com
     diagnóstico. Não prejudica quem já funciona: a via boa vem primeiro."""
     import requests
@@ -311,22 +311,22 @@ def _estabelecer_sessao(config: AconexConfig, log_cb):
                 token = _tentar_token(session, config)
             except requests.exceptions.SSLError as e:
                 houve_ssl = True
-                log_cb(f"  [{nome}] certificado SSL não confiável — {rede.resumo_erro(e)}")
+                log_cb(f"  [{nome}] certificado SSL não confiável - {rede.resumo_erro(e)}")
                 continue
             except PermissionError as e:
-                # Conectou, mas as credenciais foram recusadas — proxy não muda isso.
+                # Conectou, mas as credenciais foram recusadas - proxy não muda isso.
                 raise RuntimeError(f"Conectou, mas o Aconex recusou as credenciais "
                                    f"({e}). Verifique o secret/usuário.") from e
             except requests.exceptions.RequestException as e:
                 # A causa RAIZ, não o embrulho do requests: "Max retries
                 # exceeded" é idêntico para timeout, DNS e conexão recusada.
-                log_cb(f"  [{nome}] sem conexão — {rede.resumo_erro(e)}")
+                log_cb(f"  [{nome}] sem conexão - {rede.resumo_erro(e)}")
                 continue
             via = nome + ("" if verify else " · SSL NÃO verificado")
             log_cb(f"Conectado ao Aconex via {via}.")
             return session, token
     # Nenhuma rota funcionou: em vez de mandar "verifique a rede", despejar o
-    # estado real (proxy do Windows, PAC, DNS, porta 443) no log — é a diferença
+    # estado real (proxy do Windows, PAC, DNS, porta 443) no log - é a diferença
     # entre diagnosticar e ficar trocando a VPN no escuro.
     for linha in rede.diagnostico(urlparse(config.auth_url).hostname or ""):
         log_cb(linha)
@@ -351,13 +351,13 @@ def _parse_pagina(conteudo: bytes) -> list[dict]:
 
 
 def classificar_fonte(fonte) -> str:
-    """Mecanismo de tramitação a partir da Fonte (ReviewSource) — KB §24.1:
+    """Mecanismo de tramitação a partir da Fonte (ReviewSource) - KB §24.1:
       - 'WF-…'  → 'Fluxo'           (Workflow: ciclo de revisão pós-19/08/2024)
       - numérico → 'Transmissão'     (Transmittal)
       - 'SD-…'  → 'Docs. Fornecedor' (Supplier Docs)
       - 'Nenhum'/vazio → ''          (linha fora de qualquer ciclo)
 
-    NÃO diz ONDE (qual etapa/organização) — isso exige a Workflows API. Só
+    NÃO diz ONDE (qual etapa/organização) - isso exige a Workflows API. Só
     torna legível, na própria base, o TIPO de trâmite que a Fonte já carrega."""
     s = str(fonte or "").strip()
     if not s or s.upper() == "NENHUM":
@@ -374,7 +374,7 @@ def classificar_fonte(fonte) -> str:
 
 def montar_dataframe(registros: list[dict]) -> pd.DataFrame:
     """Monta o DataFrame canônico a partir dos dicts brutos do XML (função pura,
-    sem rede — testável): rename (§5) → coluna derivada 'Tipo de Tramitação' →
+    sem rede - testável): rename (§5) → coluna derivada 'Tipo de Tramitação' →
     ordem de colunas → datas dd/mm/yyyy. Colunas novas do Aconex que não estejam
     no `ORDEM_COLUNAS` vão para o fim (nunca somem)."""
     if not registros:
@@ -403,7 +403,7 @@ ESPERAS_BACKOFF = (5, 15, 30, 60)   # segundos entre tentativas
 
 @dataclass
 class ResultadoExtracao:
-    """Desfecho de uma extração — inclusive quando ela NÃO terminou.
+    """Desfecho de uma extração - inclusive quando ela NÃO terminou.
 
     Antes `extrair_base` devolvia um DataFrame e pronto: uma queda de conexão no
     meio da paginação produzia uma base truncada indistinguível de uma completa,
@@ -433,7 +433,7 @@ def _chave_checkpoint(config: AconexConfig) -> str:
 def _baixar_pagina(session, config, base_url, headers, page, log_cb):
     """Baixa UMA página com retentativas e backoff progressivo.
 
-    Devolve `(docs, fim_da_paginacao, erro, session)` — a sessão volta junto
+    Devolve `(docs, fim_da_paginacao, erro, session)` - a sessão volta junto
     porque uma reconexão a SUBSTITUI, e o laço de paginação precisa seguir com a
     nova (a antiga está morta). Renovar o token (401) não gasta tentativa:
     expirar depois de meia hora de paginação é o esperado, não uma falha.
@@ -454,7 +454,7 @@ def _baixar_pagina(session, config, base_url, headers, page, log_cb):
             if r.status_code == 200:
                 try:
                     return _parse_pagina(r.content), False, "", session
-                except Exception as e:  # noqa: BLE001 — XML truncado: vale retentar
+                except Exception as e:  # noqa: BLE001 - XML truncado: vale retentar
                     ultimo_erro = f"XML inválido na página {page}: {e}"
                     log_cb(f" [{ultimo_erro}] tentativa {tentativa + 1}/{TENTATIVAS_POR_PAGINA}...")
             elif r.status_code == 400:
@@ -470,9 +470,9 @@ def _baixar_pagina(session, config, base_url, headers, page, log_cb):
             else:
                 ultimo_erro = f"HTTP {r.status_code}"
                 log_cb(f" [Erro {r.status_code}] tentativa {tentativa + 1}/{TENTATIVAS_POR_PAGINA}...")
-        except Exception as e:  # noqa: BLE001 — rede/SSL/timeout
+        except Exception as e:  # noqa: BLE001 - rede/SSL/timeout
             ultimo_erro = f"conexão: {e}"
-            log_cb(f" [Erro de conexão] {str(e)[:120]} — tentativa "
+            log_cb(f" [Erro de conexão] {str(e)[:120]} - tentativa "
                    f"{tentativa + 1}/{TENTATIVAS_POR_PAGINA}...")
             if tentativa >= 1:
                 try:
@@ -498,7 +498,7 @@ def extrair_base(config: AconexConfig, *, log_cb=print, usar_checkpoint: bool = 
     ~30 min em produção) e devolve um `ResultadoExtracao`.
 
     Com `usar_checkpoint` (padrão), cada página baixada é persistida em disco:
-    se a conexão cair — ou o app for fechado — a próxima execução **retoma da
+    se a conexão cair - ou o app for fechado - a próxima execução **retoma da
     página seguinte** em vez de recomeçar do zero. O checkpoint só é apagado
     depois que o chamador confirma o salvamento (`limpar_checkpoint`).
 
@@ -512,7 +512,7 @@ def extrair_base(config: AconexConfig, *, log_cb=print, usar_checkpoint: bool = 
         truststore.inject_into_ssl()  # nas máquinas gerenciadas) na verificação SSL.
         log_cb("Certificados do Windows carregados (truststore).")
     except Exception as e:  # noqa: BLE001
-        log_cb(f"(truststore indisponível: {e} — se o Zscaler/GlobalProtect inspecionar "
+        log_cb(f"(truststore indisponível: {e} - se o Zscaler/GlobalProtect inspecionar "
                f"o SSL, a conexão pode cair no modo sem verificação de certificado)")
 
     ck = CheckpointExtracao(_chave_checkpoint(config), pasta_checkpoint) if usar_checkpoint else None
@@ -525,7 +525,7 @@ def extrair_base(config: AconexConfig, *, log_cb=print, usar_checkpoint: bool = 
             retomada = True
             page = ck.estado.proxima_pagina
             log_cb(f"Retomando extração interrompida em {ck.estado.atualizado_em}: "
-                   f"{len(all_data)} registros já baixados — continuando da página {page}.")
+                   f"{len(all_data)} registros já baixados - continuando da página {page}.")
         else:
             ck.limpar()   # meta órfão/corrompido não atrapalha a execução nova
 
@@ -587,7 +587,7 @@ def extrair_base(config: AconexConfig, *, log_cb=print, usar_checkpoint: bool = 
 
 
 def limpar_checkpoint(config: AconexConfig, pasta_checkpoint=None) -> None:
-    """Descarta o checkpoint da extração — chamar depois que a base foi SALVA."""
+    """Descarta o checkpoint da extração - chamar depois que a base foi SALVA."""
     from .services.aconex_checkpoint import CheckpointExtracao
     CheckpointExtracao(_chave_checkpoint(config), pasta_checkpoint).limpar()
 
@@ -624,7 +624,7 @@ def salvar_excel(df: pd.DataFrame, caminho) -> None:
 
 
 # ==========================================================================
-# Download de arquivos por lista de códigos (versão CURRENT) — KB Feature
+# Download de arquivos por lista de códigos (versão CURRENT) - KB Feature
 # ==========================================================================
 # Comprovado ao vivo (2026-07-29): a busca EXATA por código usa search_query com
 # o código ENTRE ASPAS ('"<codigo>"'); o arquivo da versão vigente sai de
@@ -668,7 +668,7 @@ class ResultadoDownload:
 def _buscar_doc_atual(session, base_url, headers, codigo: str):
     """(DocumentId, filename, revisão) da versão vigente do código, ou None.
 
-    Busca EXATA: `search_query='"<codigo>"'` (as aspas fazem o casamento exato —
+    Busca EXATA: `search_query='"<codigo>"'` (as aspas fazem o casamento exato -
     sem elas o register devolve 0). Sem `show_document_history`, o register já
     devolve só a versão corrente."""
     params = {"search_query": f'"{codigo}"',

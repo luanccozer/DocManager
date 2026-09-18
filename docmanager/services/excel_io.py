@@ -57,7 +57,7 @@ _RENOMEAR_SAIDA = {COL_DATA_ENVIO: "Data de Envio", COL_DATA_RETORNO: "Data de R
 def _achar_header_aconex(caminho, aba, max_scan=8) -> int:
     """Linha (base 0) do cabeçalho da base Aconex, localizada por âncora
     ('Tracking ID' ou 'No. do Documento'+'Revisão'). 0 se não achar (padrão).
-    Faz um 'peek' streaming (read_only) — barato mesmo em bases enormes."""
+    Faz um 'peek' streaming (read_only) - barato mesmo em bases enormes."""
     import openpyxl
     try:
         wb = openpyxl.load_workbook(caminho, read_only=True, keep_links=False)
@@ -110,7 +110,7 @@ def preparar_para_exportar(df_wide: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===========================================================================
-# MappingSheet — I/O da planilha de Mapeamento de Planos (KB §4, §21.1)
+# MappingSheet - I/O da planilha de Mapeamento de Planos (KB §4, §21.1)
 # ===========================================================================
 
 # Chave lógica → texto do cabeçalho (porta do dict legado L188-233).
@@ -185,7 +185,7 @@ class MappingSheet:
                 cell.value = None
 
     def get_data(self, chave: str, row: int):
-        """Valor da célula como `date` (ou None) — datetime nativo, texto ou
+        """Valor da célula como `date` (ou None) - datetime nativo, texto ou
         serial do Excel. Necessário para COMPARAR a data da planilha com a do
         Controle (a comparação de 'mais recente' não funciona com string)."""
         col = self._col(chave)
@@ -198,7 +198,7 @@ class MappingSheet:
 
         §21.1: há 4 colunas 'DATA REPROGRAMADA' (não endereçáveis por nome). A da
         etapa 1 é, por posição, a imediatamente à direita de 'DATA PREVISTA
-        EMISSÃO ETAPA 1' — e só vale se o cabeçalho vizinho de fato normalizar
+        EMISSÃO ETAPA 1' - e só vale se o cabeçalho vizinho de fato normalizar
         para REPROGRAMADA."""
         from ..core.normalize import remover_acentos
         col_prev = self.headers.get(COLUNAS_MAPA["data_previsao_etapa_1"])
@@ -255,10 +255,10 @@ _FILL_BANDA = PatternFill("solid", fgColor="F4F6F7")         # linha ímpar (zeb
 _FONT_HEADER = Font(color="FFFFFF", bold=True, size=10, name="Segoe UI")
 _FONT_DADO = Font(size=10, name="Segoe UI")
 # Status Docs: código atualizado no Aconex → só o TEXTO em azul (a fonte, sem
-# preencher a célula, mantendo a zebra). O 'não confere' NÃO recebe cor — só um
+# preencher a célula, mantendo a zebra). O 'não confere' NÃO recebe cor - só um
 # comentário na célula (decisão do usuário 2026-07-15).
 _FONT_COD_ALTERADO = Font(color="0070C0", size=10, name="Segoe UI")
-# Status Docs: código COMPARTILHADO por mais de um documento no Aconex — a
+# Status Docs: código COMPARTILHADO por mais de um documento no Aconex - a
 # eleição foi por data e precisa de conferência humana. Laranja (é aviso, não
 # erro) + comentário com os candidatos (2026-09-04).
 _FONT_COD_AMBIGUO = Font(color="C55A11", size=10, bold=True, name="Segoe UI")
@@ -463,15 +463,15 @@ def _nota_codigo_status(status: str, buscado: str, real: str) -> str:
     """Comentário do código que não bate com o documento encontrado.
 
     Separa "é de outro documento" (troca/digitação) de "não existe no Aconex"
-    (documento provavelmente não emitido) — acusar erro no segundo caso mina a
+    (documento provavelmente não emitido) - acusar erro no segundo caso mina a
     confiança no relatório (2026-09-04).
     """
     if status == "nao_localizado":
         base = (f"O código informado ('{buscado}') NÃO foi localizado em nenhum documento "
-                f"do Aconex — pode ser documento ainda não emitido/registrado, ou código "
+                f"do Aconex - pode ser documento ainda não emitido/registrado, ou código "
                 f"fora do padrão do sistema. A lista não está necessariamente errada.")
     else:
-        base = (f"O código informado ('{buscado}') pertence a OUTRO documento no Aconex — "
+        base = (f"O código informado ('{buscado}') pertence a OUTRO documento no Aconex - "
                 f"provável troca ou erro de digitação na lista.")
     if real:
         return base + "\nNa célula está o código real do documento encontrado (via Tracking ID)."
@@ -506,7 +506,7 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
     ws.freeze_panes = "A2"
     ws.row_dimensions[1].height = 26
 
-    # Cabeçalho — mesmo padrão executivo do Histórico (slate + branco + borda).
+    # Cabeçalho - mesmo padrão executivo do Histórico (slate + branco + borda).
     for c, h in enumerate(headers, 1):
         cell = ws.cell(1, c, h)
         cell.fill = _FILL_HEADER
@@ -518,13 +518,13 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
     # Legenda dos destaques, nos cabeçalhos de código (tooltip ao passar o mouse).
     _legenda = ("Texto AZUL = código atualizado no Aconex em relação ao buscado "
                 "(mudou no sistema).\nTexto LARANJA = código compartilhado por mais "
-                "de um documento no Aconex — CONFIRA o comentário: a escolha foi "
+                "de um documento no Aconex - CONFIRA o comentário: a escolha foi "
                 "pelo mais recente.\nCélula com comentário = o código informado não "
                 "confere com o documento encontrado; aqui está o código real dele.")
     ws.cell(1, 1).comment = Comment(_legenda, "DocManager")
     ws.cell(1, 2).comment = Comment(_legenda, "DocManager")
 
-    # Corpo — fonte, borda, zebra; 'Status Real' com cor semântica por cima.
+    # Corpo - fonte, borda, zebra; 'Status Real' com cor semântica por cima.
     for r, d in enumerate(linhas, 2):
         banda = _FILL_BANDA if r % 2 == 0 else None
         valores = [d.get("Código Itaipu", ""), d.get("Código CMI", ""), d.get("Título", ""),
@@ -633,7 +633,7 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
         series.dLbls.showLegendKey = False
         series.dLbls.position = "outEnd"
         ws.add_chart(chart, "J5")
-    except Exception:  # noqa: BLE001 — gráfico é acessório; nunca derruba a exportação
+    except Exception:  # noqa: BLE001 - gráfico é acessório; nunca derruba a exportação
         pass
 
     try:
@@ -654,12 +654,12 @@ def exportar_historico(df_wide: pd.DataFrame, caminho_saida) -> tuple[bool, str]
             df.to_excel(writer, index=False, sheet_name="Histórico")
             _estilizar_historico(writer.sheets["Histórico"], df)
         return True, f"Arquivo gerado com sucesso: {caminho_saida}"
-    except Exception as e:  # noqa: BLE001 — reportado ao chamador
+    except Exception as e:  # noqa: BLE001 - reportado ao chamador
         return False, f"Erro ao salvar Excel: {e}"
 
 
 # ---------------------------------------------------------------------------
-# Fluxos em Andamento (KB §24.12) — "onde está e com quem"
+# Fluxos em Andamento (KB §24.12) - "onde está e com quem"
 # ---------------------------------------------------------------------------
 _FILL_ATRASADO = PatternFill("solid", fgColor="FFC7CE")
 _FONT_ATRASADO = Font(color="9C0006", size=10, name="Segoe UI", bold=True)

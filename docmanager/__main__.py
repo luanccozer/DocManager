@@ -12,7 +12,7 @@ def main():
         # Rodou com o Python do sistema (sem as dependências) em vez do venv.
         raise SystemExit(
             f"Dependência ausente: '{e.name}'.\n"
-            f"Abra pelo run.bat (cria o .venv e instala tudo na 1ª vez) — ou ative "
+            f"Abra pelo run.bat (cria o .venv e instala tudo na 1ª vez) - ou ative "
             f"o ambiente virtual antes:\n"
             f"    .venv\\Scripts\\activate   (ou o seu venv)\n"
             f"    python -m docmanager"

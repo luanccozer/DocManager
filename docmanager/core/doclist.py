@@ -3,21 +3,21 @@
 O Doc List Mapping nasceu do Mapa dos Planos: a equipe gostou do follow-up
 semanal de uma documentação já definida e passou a usar a planilha de
 mapeamento para acompanhar OUTRO tipo de documentação, forçando regras que não
-se aplicavam. Este módulo formaliza aquela adaptação — mesma espinha dorsal
+se aplicavam. Este módulo formaliza aquela adaptação - mesma espinha dorsal
 (status real → consolidado → hierarquia → resumo), com três diferenças:
 
 1. **Dois níveis apenas.** Nível 1 deixou de ser documento: é um AGRUPAMENTO,
    um por escopo das Unidades Geradoras. Nível 2 são os documentos.
 2. **Uma coluna de hierarquia.** `PLANO DE EXECUÇÃO` e `PREDECESSOR` viravam
-   sempre o mesmo valor com só dois níveis — restou `PREDECESSOR`.
+   sempre o mesmo valor com só dois níveis - restou `PREDECESSOR`.
 3. **Planejamento dirigido pelo Controle de Documentos**: `DATA PREVISTA EMISSÃO`
    e `DATA REPROGRAMADA` vêm de lá, e a coluna `DATA-ALVO EMISSÃO` (ex-`TROCAR`)
-   consolida a data que vale para o dashboard — REPROGRAMADA quando houver,
+   consolida a data que vale para o dashboard - REPROGRAMADA quando houver,
    senão PREVISTA. `FASE DE PROJETO` é **input manual** (§27.3).
 
 O **STATUS CONSOLIDADO é o mesmo do Mapa** (`calcula_status_consolidado`): os
 três status de aprovação caem todos em `APROVADO`. Chegou a separá-los (§27),
-mas o usuário reverteu em 2026-07-28 — discretizar aqui só replicaria a coluna
+mas o usuário reverteu em 2026-07-28 - discretizar aqui só replicaria a coluna
 STATUS REAL, e quem quiser o detalhe no dashboard troca de coluna.
 
 Tudo aqui é função pura; o I/O da planilha vive em `services/doclist_io.py` e a
@@ -39,7 +39,7 @@ from .planejamento import reconciliar_datas
 
 # ---------------------------------------------------------------------------
 # Colunas (chave lógica → texto do cabeçalho), NA ORDEM do layout acordado.
-# A âncora de localização do cabeçalho é 'N° ITAIPU' — atenção ao codepoint:
+# A âncora de localização do cabeçalho é 'N° ITAIPU' - atenção ao codepoint:
 # 'N° ITAIPU' usa U+00B0 (GRAU) e 'Nº CMI' usa U+00BA (ORDINAL), igual ao Mapa.
 # ---------------------------------------------------------------------------
 COLUNAS_DOCLIST: dict[str, str] = {
@@ -131,7 +131,7 @@ class LinhaDocList:
 
 
 # ---------------------------------------------------------------------------
-# Situação de emissão — aderência ao planejamento (KB §27.5)
+# Situação de emissão - aderência ao planejamento (KB §27.5)
 # ---------------------------------------------------------------------------
 # Categoria ÚNICA por documento, feita para ser a Legenda do gráfico
 # "DOCUMENTOS PARA EMISSÃO" do dashboard: a barra continua no dia previsto
@@ -157,15 +157,15 @@ def classificar_situacao_emissao(*, data_primeira_emissao: date | None,
     """Balde de aderência do documento ao que foi planejado.
 
     A régua é a **data da primeira emissão** (`core/kpis.data_primeira_emissao`),
-    nunca a DATA ÚLTIMA EMISSÃO — evoluir de 0A até 0F é ciclo normal e não é
+    nunca a DATA ÚLTIMA EMISSÃO - evoluir de 0A até 0F é ciclo normal e não é
     atraso.
 
     Ordem de precedência:
 
-    1. `CANCELADO` — terminal, não interessa mais se nasceu no prazo. Fica de
+    1. `CANCELADO` - terminal, não interessa mais se nasceu no prazo. Fica de
        fora do gráfico por filtro do visual (decisão do usuário, 2026-09-16);
        o valor é gravado assim mesmo para a coluna não mentir.
-    2. `SEM PLANEJAMENTO` — sem DATA-ALVO não há o que cobrar. É o mesmo furo
+    2. `SEM PLANEJAMENTO` - sem DATA-ALVO não há o que cobrar. É o mesmo furo
        que a aba "Sem Planejamento" da Análise de Período já denuncia.
     3. Emitido → comparou a 1ª emissão com o alvo.
     4. Não emitido → comparou HOJE com o alvo.
@@ -184,7 +184,7 @@ def calcular_dias_desvio_emissao(data_primeira_emissao: date | None,
                                  data_alvo: date | None) -> int | None:
     """Dias entre a 1ª emissão e o alvo. Negativo = adiantado.
 
-    `None` quando falta uma das pontas — só tem sentido para documento emitido
+    `None` quando falta uma das pontas - só tem sentido para documento emitido
     e planejado.
     """
     if data_primeira_emissao is None or data_alvo is None:
@@ -193,7 +193,7 @@ def calcular_dias_desvio_emissao(data_primeira_emissao: date | None,
 
 
 # ---------------------------------------------------------------------------
-# Hierarquia — só dois níveis, uma coluna
+# Hierarquia - só dois níveis, uma coluna
 # ---------------------------------------------------------------------------
 def calcular_predecessores(linhas: list[LinhaDocList]) -> dict[int, str]:
     """row → PREDECESSOR.
@@ -300,11 +300,11 @@ def resolver_datas_doclist(*, prevista_atual: date | None, reprogramada_atual: d
                            controle) -> DatasDocList:
     """Aplica as regras de planejamento do Doc List (§27).
 
-    - **DATA PREVISTA EMISSÃO** — vem do Controle; havendo divergência com a
+    - **DATA PREVISTA EMISSÃO** - vem do Controle; havendo divergência com a
       planilha, vence a data MAIS RECENTE.
-    - **DATA REPROGRAMADA** — vem do Controle, mas NUNCA sobrescreve: a coluna
+    - **DATA REPROGRAMADA** - vem do Controle, mas NUNCA sobrescreve: a coluna
       também aceita input manual, que tem a palavra final.
-    - **DATA-ALVO EMISSÃO** — sempre recalculada: reprogramada > prevista.
+    - **DATA-ALVO EMISSÃO** - sempre recalculada: reprogramada > prevista.
 
     A regra é a mesma do Mapa dos Planos (`core/planejamento.py`, §24.13).
     **FASE DE PROJETO não entra aqui**: é input manual (§27.3).

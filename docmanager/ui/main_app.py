@@ -53,7 +53,7 @@ class MainApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         t.aplicar()
-        self.title(f"DocManager Itaipu — v{__version__}")
+        self.title(f"DocManager Itaipu - v{__version__}")
         self.geometry("1180x740")
         self.minsize(980, 640)
         self.configure(fg_color=t.FUNDO)
@@ -78,7 +78,7 @@ class MainApp(ctk.CTk):
         self._montar_botoes()
         self.selecionar(VIEWS[0].key)
 
-        # Checagem automática: em thread, e só depois de a janela estar montada —
+        # Checagem automática: em thread, e só depois de a janela estar montada -
         # nada disso pode atrasar a abertura do app.
         self.after(1200, lambda: self.verificar_atualizacao(False))
 
@@ -121,7 +121,7 @@ class MainApp(ctk.CTk):
             self._botoes[spec.key] = item
 
         # Rodapé: a versão instalada. Quando sai uma nova, este mesmo rótulo
-        # vira o aviso — é o canto da tela onde a pessoa já olha para conferir
+        # vira o aviso - é o canto da tela onde a pessoa já olha para conferir
         # em que versão está, então é onde a novidade faz mais sentido.
         self._rodape = ctk.CTkLabel(self.sidebar, text=f"v{__version__}", font=t.corpo(10),
                                     text_color=t.TEXTO_FRACO, cursor="hand2")
@@ -156,7 +156,7 @@ class MainApp(ctk.CTk):
         def _trabalho():
             try:
                 info = updater.checar(__version__)
-            except Exception as e:  # noqa: BLE001 — aqui o erro É a resposta
+            except Exception as e:  # noqa: BLE001 - aqui o erro É a resposta
                 self.after(0, lambda erro=e: messagebox.showwarning(
                     "Não foi possível verificar",
                     f"{erro}\n\nVocê pode continuar usando o DocManager normalmente."))
@@ -183,7 +183,7 @@ class MainApp(ctk.CTk):
                           ao_pular=lambda v: updater.ignorar_versao(self.ctx.config, v))
 
     def _fechar_para_instalar(self):
-        """Sai de cena para o instalador poder sobrescrever os arquivos — o
+        """Sai de cena para o instalador poder sobrescrever os arquivos - o
         Windows não deixa regravar um .exe que está rodando."""
         try:
             self.quit()
@@ -239,7 +239,7 @@ def _registrar_mutex():
     try:
         import ctypes
         _handle_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, NOME_MUTEX)
-    except Exception:  # noqa: BLE001 — sem mutex o app abre igual
+    except Exception:  # noqa: BLE001 - sem mutex o app abre igual
         pass
 
 
@@ -250,12 +250,12 @@ def main():
     try:
         from ..aconex_backend import migrar_env_para_cofre
         migrar_env_para_cofre()
-    except Exception:  # noqa: BLE001 — migração nunca impede a abertura
+    except Exception:  # noqa: BLE001 - migração nunca impede a abertura
         pass
 
     app = MainApp()
     app.withdraw()   # oculta enquanto a splash aparece
-    # Fecha o splash NATIVO do PyInstaller (pyi_splash) — cobriu a carga desde o
+    # Fecha o splash NATIVO do PyInstaller (pyi_splash) - cobriu a carga desde o
     # duplo-clique no .exe. Em desenvolvimento não existe → ignora.
     try:
         import pyi_splash

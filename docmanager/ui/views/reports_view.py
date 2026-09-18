@@ -24,7 +24,7 @@ class ReportsView(BaseView):
         RunBar(botoes, "Relatório de Avanço", self._avanco, self.log).pack(fill="x", pady=4)
         RunBar(botoes, "Auditoria de Integração", self._integracao, self.log).pack(fill="x", pady=4)
 
-        # Fluxos vêm de OUTRA base (a Workflows API), com seletor próprio — juntar
+        # Fluxos vêm de OUTRA base (a Workflows API), com seletor próprio - juntar
         # os dois seletores num só faria o usuário apontar o arquivo errado.
         card_wf = Card(body, "Base de Fluxos de Trabalho (extraída na aba Extração Aconex)")
         card_wf.grid(row=2, column=0, sticky="ew", pady=(14, 8))
@@ -102,7 +102,7 @@ class ReportsView(BaseView):
         por_pessoa = resumir_por_responsavel(detalhe, por="pessoa")
         por_org = resumir_por_responsavel(detalhe, por="organizacao")
         atrasados = int((pd.to_numeric(detalhe["Dias de Atraso"], errors="coerce") > 0).sum())
-        self.log.log(f"{len(detalhe)} etapas em aberto — {atrasados} atrasadas; "
+        self.log.log(f"{len(detalhe)} etapas em aberto - {atrasados} atrasadas; "
                      f"{len(por_pessoa)} responsáveis, {len(por_org)} organizações.")
         run.set_progress(0.8)
 

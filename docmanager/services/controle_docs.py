@@ -7,9 +7,9 @@ prioridade do Aconex.
 
 Leitura DINÂMICA e robusta a mudanças de layout:
   - o cabeçalho é localizado por âncora ("CODIFICAÇÃO ITAIPÚ (ACONEX)" ou
-    "ITEM"+"NÚMERO INTERNO"), varrendo as primeiras linhas — não é fixo na 4ª;
+    "ITEM"+"NÚMERO INTERNO"), varrendo as primeiras linhas - não é fixo na 4ª;
   - as colunas casam por nome normalizado (sem acento, maiúsculas, TODO espaço
-    em branco colapsado — inclusive as QUEBRAS DE LINHA que o Excel esconde
+    em branco colapsado - inclusive as QUEBRAS DE LINHA que o Excel esconde
     dentro do cabeçalho), em três níveis: igualdade → 'contém' → todas as
     palavras do alvo presentes (§24.12);
   - as datas são lidas por coluna com day/month-first INFERIDO por VOTAÇÃO nos
@@ -22,7 +22,7 @@ frouxa (só alfanuméricos) → 'contém' (o Ctrl+F na mão). Em todos os nívei
 linha COM data vence a linha sem data.
 
 A data de referência de cada documento (`data_ref`) é a REPROGRAMAÇÃO quando
-preenchida, senão a DATA PREVISTA — usada por Mapa, Doc List, Histórico e demais
+preenchida, senão a DATA PREVISTA - usada por Mapa, Doc List, Histórico e demais
 módulos.
 """
 from __future__ import annotations
@@ -50,10 +50,10 @@ class ControleRow:
     titulo: str
     data_prevista: date | None
     data_reprogramada: date | None
-    fase: str = ""          # FASE DE PROJETO (§24.11) — vai ao histórico/Doc List
-    emitido: str = ""       # EMITIDO / NÃO EMITIDO — para o log de divergência
+    fase: str = ""          # FASE DE PROJETO (§24.11) - vai ao histórico/Doc List
+    emitido: str = ""       # EMITIDO / NÃO EMITIDO - para o log de divergência
     # Metadados do Controle para preencher a linha NÃO EMITIDO do Histórico (o doc
-    # não está no Aconex, então esses campos vêm do Controle — pedido do usuário):
+    # não está no Aconex, então esses campos vêm do Controle - pedido do usuário):
     especialidade: str = ""      # EQUIPAMENTO / SISTEMA                → Especialidade
     subespecialidade: str = ""   # REFERÊNCIA DA ESPECIFICAÇÃO TÉCNICA  → Subespecialidade
     tipo_documento: str = ""     # TIPO DE DOCUMENTO                    → Tipo do Documento DCC
@@ -97,7 +97,7 @@ def chave_codigo(cod) -> str:
 
 def chave_frouxa(cod) -> str:
     """Chave de fallback: só alfanuméricos. Faz `#ST00=M00MYA10&EAB010` casar com
-    `ST00-M00MYA10&EAB010` ou `ST00 M00MYA10 EAB010` — variações de pontuação e
+    `ST00-M00MYA10&EAB010` ou `ST00 M00MYA10 EAB010` - variações de pontuação e
     decoração que a digitação manual introduz nas duas planilhas (§24.12)."""
     return _RE_NAO_ALNUM.sub("", chave_codigo(cod))
 
@@ -114,7 +114,7 @@ class MatchControle:
     """Resultado da busca de um documento no Controle, com a PROVENIÊNCIA.
 
     `via`: 'exato' | 'frouxo' | 'contido' | '' (não encontrado). Serve ao log de
-    diagnóstico — o usuário precisa saber quando a data veio de um casamento
+    diagnóstico - o usuário precisa saber quando a data veio de um casamento
     tolerante, não de uma igualdade perfeita.
     """
     linha: ControleRow | None = None
@@ -136,7 +136,7 @@ class ControleDocs:
                     if not cod:
                         continue
                     # Código duplicado (mesmo doc em mais de uma linha/aba): a
-                    # linha COM data vence a sem data — linha vazia não pode
+                    # linha COM data vence a sem data - linha vazia não pode
                     # "sombrear" a que tem a informação (§24.8).
                     self._indexar(self._por_codigo, cod, r)
                     frouxa = chave_frouxa(parte)
@@ -171,7 +171,7 @@ class ControleDocs:
 
     def buscar_contendo(self, codigo, *, min_len: int = MIN_LEN_FALLBACK) -> ControleRow | None:
         """Busca de ÚLTIMO recurso (§24.8c), como o Ctrl+F na mão: varre as
-        linhas testando se a célula CONTÉM o código (ou o inverso) — pega
+        linhas testando se a célula CONTÉM o código (ou o inverso) - pega
         células com decoração/texto extra em volta do código. Linha com data
         vence; `min_len` evita casamentos absurdos com códigos curtos.
 
@@ -206,7 +206,7 @@ class ControleDocs:
         Ordem dos códigos: Itaipu atual → CMI atual → históricos do Tracking.
         Ordem das estratégias: chave exata → chave frouxa → 'contém'.
 
-        Em TODAS as etapas a linha COM data vence a linha sem data — um código
+        Em TODAS as etapas a linha COM data vence a linha sem data - um código
         que casa com uma linha vazia do Controle não pode mais esconder a linha
         preenchida de outro código do mesmo documento (causa raiz de §24.8b).
         `permitir_contido=False` desliga a varredura O(n) para chamadas em lote.
@@ -268,7 +268,7 @@ def _norm(v) -> str:
     O colapso é o ponto crítico: no Controle real o cabeçalho vem quebrado em
     duas linhas dentro da própria célula ("DATA PREVISTA DE\\nEMISSÃO ACONEX").
     A versão anterior só trocava dois espaços por um, então a quebra de linha
-    sobrevivia e o `_col` nunca achava a coluna — o módulo rodava inteiro sem
+    sobrevivia e o `_col` nunca achava a coluna - o módulo rodava inteiro sem
     nenhuma data e sem erro nenhum (causa raiz do §24.8/§24.12).
     """
     s = remover_acentos(str(v)).replace("\xa0", " ")
@@ -356,7 +356,7 @@ def _infer_dayfirst(series) -> bool:
     A versão anterior decidia no PRIMEIRO valor com componente > 12: bastava uma
     célula ISO ('2025-10-13 00:00:00', que é como o pandas devolve uma data real
     do Excel com dtype=str) no topo de uma coluna M/D/AAAA para a coluna inteira
-    ser lida ao contrário. Datas ISO não votam — não são ambíguas.
+    ser lida ao contrário. Datas ISO não votam - não são ambíguas.
     """
     dia_primeiro = mes_primeiro = 0
     for v in series:
@@ -384,7 +384,7 @@ def _para_datetime(series, dayfirst: bool):
     e devolve NaT para todo o resto. Como o Controle real mistura datas de
     verdade do Excel (que com `dtype=str` chegam em ISO, '2025-10-13 00:00:00')
     com datas digitadas ('10/20/2025'), uma única célula ISA no topo bastava
-    para a coluna inteira virar NaT — nenhum documento recebia data e nenhum
+    para a coluna inteira virar NaT - nenhum documento recebia data e nenhum
     erro aparecia.
     """
     try:
@@ -489,8 +489,8 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
 def ler_controle(caminho, sheet=0, *, log_cb=None) -> ControleDocs:
     """Lê o Controle de Documentos de forma dinâmica, da ABA SELECIONADA na
     interface (decisão do usuário, §24.8c: o seletor de aba existe exatamente
-    para apontar a aba certa — não varremos as demais). Nunca lança por coluna
-    ausente — avisa via `log_cb` e segue."""
+    para apontar a aba certa - não varremos as demais). Nunca lança por coluna
+    ausente - avisa via `log_cb` e segue."""
     def log(msg):
         if log_cb:
             log_cb(msg)

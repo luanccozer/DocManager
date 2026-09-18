@@ -63,7 +63,7 @@ def test_renascimento_current_na_versao_renascida():
 def test_renascimento_current_na_versao_terminada():
     # Caso-chave da §21.8: o flag Current ficou preso na versão terminada (v3),
     # mas existe a v5 reenviada. O limiar deve reconhecer o renascimento e
-    # apontar a 0B v5 como vigente — onde o legado cairia para a 0A.
+    # apontar a 0B v5 como vigente - onde o legado cairia para a 0A.
     tl = _tl(
         HistoricoBuilder("T", "IT", "CMI")
         .evento("0A", 1, "Aprovado", "01/03/2024")
@@ -120,7 +120,7 @@ def test_limpar_terminated_idempotente():
 
 def test_legado_exclui_revisao_ignora_renascimento():
     # Current preso na 0B terminada + 0B v5 reenviada. Com o quirk legado, a 0B
-    # some inteira e a vigente vira 0A — a divergência que a §21.8 corrige.
+    # some inteira e a vigente vira 0A - a divergência que a §21.8 corrige.
     df = (
         HistoricoBuilder("T", "IT", "CMI")
         .evento("0A", 1, "Aprovado", "01/03/2024")

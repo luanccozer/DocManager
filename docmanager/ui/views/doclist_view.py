@@ -1,4 +1,4 @@
-"""Módulo **Doc List Mapping** — follow-up semanal de uma lista de documentos.
+"""Módulo **Doc List Mapping** - follow-up semanal de uma lista de documentos.
 
 Mesmo fluxo do Mapa dos Planos (base Aconex + planilha + Controle opcional),
 com as regras próprias do módulo. Traz as duas análises por período, que se
@@ -22,7 +22,7 @@ class DocListView(BaseView):
     subtitulo_view = ("Follow-up da lista de documentos: status, agrupamento por escopo, "
                       "planejamento de emissão e análises por período")
 
-    # Colunas que o Delta lê da planilha — mesmos nomes do Mapa dos Planos.
+    # Colunas que o Delta lê da planilha - mesmos nomes do Mapa dos Planos.
     _COLS_CFG = {"doc": "N° ITAIPU", "grupo": "GRUPO", "sistema": "SISTEMA",
                  "nivel": "NÍVEL", "titulo": "DESCRIÇÃO DO DOCUMENTO",
                  "predecessor": "PREDECESSOR"}
@@ -70,7 +70,7 @@ class DocListView(BaseView):
         """O que ACONTECEU entre duas datas (olha para trás, pelo Aconex).
 
         Mesmo motor do Mapa dos Planos: as colunas de que ele precisa têm os
-        mesmos nomes neste layout. `estrito=False` fixo — a regra das planilhas
+        mesmos nomes neste layout. `estrito=False` fixo - a regra das planilhas
         VIP é de níveis 3/4, que não existem aqui."""
         if not self.sel_doclist.path:
             messagebox.showwarning("Aviso", "Selecione a planilha do Doc List Mapping primeiro.")
@@ -96,7 +96,7 @@ class DocListView(BaseView):
         DeltaDialog(self, path_map=self.sel_doclist.path, sheet_map=self.sel_doclist.sheet,
                     path_hist=self.sel_aconex.path, sheet_hist=self.sel_aconex.sheet,
                     cols_config=cfg, estrito=False,
-                    titulo="Doc List Mapping — Mudanças por Período (Delta)")
+                    titulo="Doc List Mapping - Mudanças por Período (Delta)")
 
     def _tarefa(self, run: RunBar):
         if not self.sel_aconex.path or not self.sel_doclist.path:

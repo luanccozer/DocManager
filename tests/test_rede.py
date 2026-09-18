@@ -5,7 +5,7 @@ Estes testes existem por causa de um log real que não respondia a pergunta:
     [proxy do sistema] sem conexão (HTTPSConnectionPool(host='...', port=443): Max retr).
     [conexão direta]   sem conexão (HTTPSConnectionPool(host='...', port=443): Max retr).
 
-As duas rotas falharam com a MESMA frase — que é a mesma para timeout, DNS,
+As duas rotas falharam com a MESMA frase - que é a mesma para timeout, DNS,
 conexão recusada e proxy recusando. Sem saber qual foi, não dá para agir.
 """
 import socket
@@ -97,7 +97,7 @@ def test_timeout_de_tcp_explica_firewall(monkeypatch):
 
 
 def test_diagnostico_nunca_levanta(monkeypatch):
-    """Ele roda JUSTAMENTE quando tudo já deu errado — não pode ser a gota."""
+    """Ele roda JUSTAMENTE quando tudo já deu errado - não pode ser a gota."""
     monkeypatch.setattr(socket, "getaddrinfo",
                         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     assert rede.diagnostico("x")      # devolve linhas em vez de explodir
@@ -114,7 +114,7 @@ def test_fora_do_windows_avisa_em_vez_de_quebrar():
 # A API é do Windows, então aqui se testa tudo o que NÃO depende dela: o
 # parsing da resposta, a ordem da cascata e o comportamento fora do Windows.
 # Que a via realmente conecta o Aconex com a VPN ligada só a máquina do
-# usuário prova — este módulo garante que ela é tentada, e primeiro.
+# usuário prova - este módulo garante que ela é tentada, e primeiro.
 # --------------------------------------------------------------------------
 @pytest.mark.parametrize("bruto,esperado", [
     ("PROXY 127.0.0.1:10017; DIRECT", ["127.0.0.1:10017"]),   # PAC de VPN
@@ -179,7 +179,7 @@ def test_cascata_do_aconex_tambem_usa_o_pac(monkeypatch):
 
 
 def test_cache_do_proxy_pode_ser_esquecido():
-    """Ligar/desligar a VPN muda a resposta do PAC — o cache não pode
+    """Ligar/desligar a VPN muda a resposta do PAC - o cache não pode
     sobreviver a isso."""
     rede._cache_proxy["https://x"] = (["velho:80"], 9e9)
     rede.esquecer_proxy_descoberto()

@@ -146,7 +146,7 @@ def test_controle_codigo_duplicado_prefere_linha_datada(tmp_path):
 
 
 # ==========================================================================
-# Histórico dirigido pelo Controle (§24.11) — estrutura nova
+# Histórico dirigido pelo Controle (§24.11) - estrutura nova
 # ==========================================================================
 def test_controle_obrigatorio():
     b = base(HistoricoBuilder("T1", "IT-1", "CMI-1").evento("0A", 1, "Em Processo", "01/09/2024", current=True))
@@ -196,7 +196,7 @@ def test_remocao_manual_por_cmi_e_tolerante_a_sujeira():
 
 
 def test_remocao_manual_de_todos_gera_historico_vazio():
-    """Remover todos os documentos não deve quebrar — histórico vazio."""
+    """Remover todos os documentos não deve quebrar - histórico vazio."""
     b, ctrl = _dois_docs()
     wide = gerar_historico(b, ctrl, DelayPolicy(hoje=date(2024, 12, 31)),
                            excluir_codigos=["IT-1", "IT-2"])
@@ -231,7 +231,7 @@ def test_nao_emitido_tracking_em_branco_e_atraso_corrente():
 
 def test_nao_emitido_recebe_metadados_do_controle():
     """A linha NÃO EMITIDO herda Especialidade/Subespecialidade/Tipo DCC/Subtipo DCC
-    do Controle (o doc não está no Aconex para trazê-los) — pedido do usuário."""
+    do Controle (o doc não está no Aconex para trazê-los) - pedido do usuário."""
     b = base(HistoricoBuilder("T1", "IT-1", "CMI-1").evento("0A", 1, "Em Processo", "01/09/2024", current=True))
     wide = gerar_historico(
         b, _ctrl({"itaipu": "IT-1", "cmi": "CMI-1"},

@@ -4,11 +4,11 @@ Porta de `DataManager.calcula_status_consolidado` (L298), `..._estrito` (L325),
 `calcular_emitido_nao_emitido` (L116) e `calcula_parado_com` (L340).
 
 Mudança sancionada (§21.5): a regra morta `se == 'Em Processo' and
-sr == 'Análise 1ª Emissão'` foi REMOVIDA — nenhum motor produz "Análise 1ª
+sr == 'Análise 1ª Emissão'` foi REMOVIDA - nenhum motor produz "Análise 1ª
 Emissão" (provado pelo diferencial cartesiano). O bucket ERRO permanece como
 sentinela de combinação não prevista (§21.4).
 
-A regra estrita recebe `estrito`/é chamada explicitamente — o backend não lê
+A regra estrita recebe `estrito`/é chamada explicitamente - o backend não lê
 config; quem decide ligar o pente-fino é o orquestrador (toggle VIP).
 """
 from __future__ import annotations

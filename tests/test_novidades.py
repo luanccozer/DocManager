@@ -1,4 +1,4 @@
-"""Leitura do CHANGELOG.md — a fonte das novidades da Home e do Release."""
+"""Leitura do CHANGELOG.md - a fonte das novidades da Home e do Release."""
 from docmanager._build_info import VERSAO
 from docmanager.services import novidades
 from docmanager.services.novidades import analisar, bloco_de, ler
@@ -7,7 +7,7 @@ EXEMPLO = """# Histórico de versões
 
 Texto de abertura que não é novidade nenhuma.
 
-## 3.1.0 — 2026-09-18
+## 3.1.0 - 2026-09-18
 
 - Atualização automática pelo GitHub.
 - Credenciais cadastradas no app.

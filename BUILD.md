@@ -14,24 +14,24 @@ Ninguém precisa mais empacotar nada à mão, nem enviar ZIP por e-mail, nem cop
 Abra o **`CHANGELOG.md`** e acrescente o bloco da versão **no topo**:
 
 ```markdown
-## 3.1.1 — 2026-09-25
+## 3.1.1 - 2026-09-25
 
 - O que mudou, em uma frase que o usuário entenda.
 - Outra coisa que mudou.
 ```
 
-Esse texto é a **fonte única**: vira a descrição do Release no GitHub **e** a
+Esse texto alimenta os dois lados: vira a descrição do Release no GitHub e a
 seção "O que há de novo" da tela inicial do app. Commite normalmente.
 
 ### 2. Disparar a publicação
 
-Duas formas — as duas fazem exatamente a mesma coisa, escolha a que preferir.
+Duas formas - as duas fazem exatamente a mesma coisa, escolha a que preferir.
 
 #### a) Pelo site, sem terminal (mais simples)
 
 1. Vá em **Actions → Release → Run workflow**.
 2. Em *Versão*, escreva `3.1.1` (sem o `v`).
-3. **Desmarque** *Pré-lançamento* — marcado, o app não oferece a versão como
+3. **Desmarque** *Pré-lançamento* - marcado, o app não oferece a versão como
    atualização (é o modo de ensaio).
 4. **Run workflow**.
 
@@ -47,11 +47,11 @@ git push origin v3.1.1
 Em ~10 minutos o Release está publicado e **todo mundo que já tem o app
 instalado é avisado sozinho** na próxima vez que abrir.
 
-> A tag **manda na versão**: `v3.1.1` → o executável se identifica como `3.1.1`.
-> Não existe versão escrita à mão em lugar nenhum.
+> A tag **manda na versão**: `v3.1.1` faz o executável se identificar como
+> `3.1.1`. Não existe versão escrita à mão em lugar nenhum.
 
 Acompanhe em **Actions → Release**. Se algo falhar, o workflow para antes de
-publicar — nunca sai um Release pela metade.
+publicar, então não sai Release pela metade.
 
 > Criar a tag pela página **Releases → Draft a new release** também funciona: o
 > GitHub cria tag e release de uma vez, e o workflow anexa o instalador ao
@@ -70,9 +70,9 @@ para testar, sem queimar a versão de verdade.
 
 | Passo | Por quê |
 |---|---|
-| `ruff` + `pytest` | Portão: 2 minutos de teste antes de 10 de empacotamento. Versão quebrada publicada é muito mais cara de desfazer. |
+| `ruff` + `pytest` | Portão de entrada: 2 minutos de teste antes de 10 de empacotamento. Desfazer uma versão quebrada custa muito mais. |
 | `tools/preparar_build.py` | Carimba a versão da tag em `_build_info.py` e embute o token de atualização em `_update_auth.py`. |
-| `pyinstaller docmanager.spec` | Gera `dist\DocManager\` (onedir — ver abaixo). |
+| `pyinstaller docmanager.spec` | Gera `dist\DocManager\` (onedir - ver abaixo). |
 | `ISCC installer\docmanager.iss` | Monta o `DocManager_Itaipu_Setup_<versão>.exe`. |
 | SHA256 + `latest.json` | O app confere o hash do instalador **antes** de executá-lo. |
 | `gh release create` | Publica o Release com o instalador, o manifesto e as notas do CHANGELOG. |
@@ -89,11 +89,11 @@ Releases. Ele é injetado no build a partir do segredo **`UPDATE_TOKEN`** e
 **nunca** entra no Git (`docmanager/_update_auth.py` está no `.gitignore`).
 
 > ⚠️ **Um token embutido num `.exe` é extraível** por quem tiver o arquivo. A
-> ofuscação do `_ofuscacao.py` só impede que ele apareça num `strings` — não é
+> ofuscação do `_ofuscacao.py` só impede que ele apareça num `strings` - não é
 > segurança. Por isso ele **tem** que ser um PAT *fine-grained*, **somente
-> leitura**, **restrito a este repositório**: no pior caso, alguém consegue ler
-> o código que essa pessoa já recebeu — nada mais. Nunca use um token clássico
-> nem um com permissão de escrita.
+> leitura** e **restrito a este repositório**. No pior caso, alguém consegue ler
+> o código que essa pessoa já recebeu, e nada além disso. Nunca use um token
+> clássico nem um com permissão de escrita.
 
 **Como criar/trocar:**
 
@@ -117,7 +117,7 @@ Documentos\DocManager_Itaipu\update_token.txt
 ```
 
 com o token novo dentro. O app prefere esse arquivo ao token embutido. É uma
-saída de emergência — o certo é publicar uma versão nova.
+saída de emergência - o certo é publicar uma versão nova.
 
 ---
 
@@ -128,7 +128,7 @@ compara com a própria versão e, se houver novidade, mostra o aviso. Ao clicar 
 **Atualizar agora**: baixa o instalador, confere o SHA256, executa em modo
 silencioso e fecha o app para que os arquivos possam ser trocados.
 
-Quatro armadilhas foram tratadas explicitamente — são as que costumam fazer um
+Quatro armadilhas foram tratadas explicitamente - são as que costumam fazer um
 auto-update "existir mas não funcionar":
 
 1. **Repositório privado + `browser_download_url`.** Em repo privado, aquela URL
@@ -139,7 +139,7 @@ auto-update "existir mas não funcionar":
    e ainda recusa qualquer download menor que 1 MB.
 
 2. **Zscaler / GlobalProtect.** Sem os certificados do Windows, todo HTTPS falha
-   com `certificate verify failed` e o app **nunca avisa** que há versão nova —
+   com `certificate verify failed` e o app **nunca avisa** que há versão nova -
    silenciosamente. O `services/rede.py` injeta o `truststore` e tenta, em
    ordem, proxy do sistema → variáveis de ambiente → conexão direta, com uma
    última tentativa sem verificação de TLS **apenas** se todas as falhas forem
@@ -154,7 +154,7 @@ auto-update "existir mas não funcionar":
    em execução. O app cria um **mutex nomeado** (`NOME_MUTEX` em
    `ui/main_app.py`) e o instalador o declara em `AppMutex` (`installer/docmanager.iss`):
    é assim que o Inno descobre o app aberto e o fecha. **Os dois nomes têm que
-   ser iguais** — se alguém mudar um, a atualização passa a falhar com "arquivo
+   ser iguais** - se alguém mudar um, a atualização passa a falhar com "arquivo
    em uso".
 
 ### Escopo da instalação e o UAC
@@ -167,7 +167,7 @@ O instalador **pergunta** onde instalar:
 | **Somente para mim** | `%LOCALAPPDATA%\Programs\DocManager Itaipu` | **Silenciosa, sem UAC** |
 
 Se a sua equipe não tem senha de administrador, oriente a escolher **"somente
-para mim"** — aí a atualização é um clique e nada mais.
+para mim"** - aí a atualização é um clique e nada mais.
 
 ---
 
@@ -223,45 +223,45 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 | Atualizar | Troca só os arquivos alterados | Reenviar o exe inteiro |
 | Diagnóstico | Dá para ver os arquivos | Caixa-preta |
 
-**UPX está desligado** no `.spec` — compressão UPX é outro gatilho comum de antivírus.
+**UPX está desligado** no `.spec` - compressão UPX é outro gatilho comum de antivírus.
 
 ### A tela de carregamento (splash)
 
 São **duas coisas diferentes**:
 
-1. **Splash nativo do PyInstaller** (`pyi_splash`) — aparece **no duplo-clique**,
+1. **Splash nativo do PyInstaller** (`pyi_splash`) - aparece **no duplo-clique**,
    enquanto o Python e as bibliotecas carregam. Configurado no `docmanager.spec`
    (objeto `Splash`) com **`assets/splash.png`**, e fechado por
    `pyi_splash.close()` em `ui/main_app.py` assim que o app fica pronto.
-2. **Splash do app** (`ui/splash.py`) — a janela com o logo, mostrada logo depois.
+2. **Splash do app** (`ui/splash.py`) - a janela com o logo, mostrada logo depois.
 
 **Para mudar a imagem de carregamento**: edite e rode `tools/gerar_splash.py`,
 depois rebuilde.
 
-> ⚠️ **Não aponte o `Splash` para `assets/logo_final.png`** — apesar do nome, é
+> ⚠️ **Não aponte o `Splash` para `assets/logo_final.png`** - apesar do nome, é
 > um **placeholder** herdado do legado. O logo real é o `assets/logo_definitivo.ico`.
 
 ---
 
 ## Problemas comuns
 
-**`ModuleNotFoundError` ao abrir o .exe** — falta um *hidden import*. Acrescente
+**`ModuleNotFoundError` ao abrir o .exe** - falta um *hidden import*. Acrescente
 o módulo na lista `_hidden` do `docmanager.spec` e rebuilde. (Já cobrimos dash,
 dbc, plotly, customtkinter, truststore, certifi, openpyxl, xlsxwriter, PIL.)
 
-**A seção "O que há de novo" some no .exe** — o `CHANGELOG.md` precisa estar nos
+**A seção "O que há de novo" some no .exe** - o `CHANGELOG.md` precisa estar nos
 `datas` do `docmanager.spec` (`("CHANGELOG.md", ".")`). Já está.
 
-**O app não avisa de versão nova** — nesta ordem: (1) o build tem token? As
+**O app não avisa de versão nova** - nesta ordem: (1) o build tem token? As
 Configurações dizem *"este build não tem atualização automática"* quando não
 tem; (2) o `UPDATE_TOKEN` venceu? (3) rede: clique em **Procurar atualizações
-agora** nas Configurações — ao contrário da checagem automática, esse botão
+agora** nas Configurações - ao contrário da checagem automática, esse botão
 **mostra o erro**.
 
-**"Arquivo em uso" ao atualizar** — o `AppMutex` do `.iss` e o `NOME_MUTEX` do
+**"Arquivo em uso" ao atualizar** - o `AppMutex` do `.iss` e o `NOME_MUTEX` do
 `ui/main_app.py` estão diferentes.
 
-**Antivírus bloqueou** — é onedir sem UPX, o cenário mais amigável. Se persistir,
+**Antivírus bloqueou** - é onedir sem UPX, o cenário mais amigável. Se persistir,
 peça ao TI para liberar a pasta ou assine digitalmente o executável (abaixo).
 
 ---
@@ -272,11 +272,11 @@ Todo mundo que baixar o instalador vai ver **"O Windows protegeu o computador"**
 Não é falso-positivo de vírus: o SmartScreen desconfia de qualquer executável
 **sem assinatura digital** e sem histórico de downloads. Dá para passar em dois
 cliques (*Mais informações → Executar assim mesmo*), e as notas de cada Release
-já explicam isso — mas é atrito toda vez, e assusta quem não é técnico.
+já explicam isso. Ainda assim é atrito toda vez, e assusta quem não é técnico.
 
-**Isso não melhora sozinho.** A "reputação" do SmartScreen se constrói com
-volume de downloads; um app interno com cinco usuários nunca chega lá. E como
-cada versão nova gera um arquivo novo, o aviso volta a cada publicação.
+**Isso não melhora sozinho.** A reputação do SmartScreen se constrói com volume
+de downloads, e um app interno com cinco usuários nunca chega lá. Como cada
+versão nova gera um arquivo diferente, o aviso volta a cada publicação.
 
 As saídas, em ordem de custo:
 
@@ -293,8 +293,8 @@ nos *Secrets* do repositório. Vale assinar **os dois**: o `DocManager.exe` e o
 instalador.
 
 > Antes de comprar, pergunte ao TI: empresas com CA interna às vezes já emitem
-> certificados de assinatura para uso corporativo, de graça — e aí o SmartScreen
+> certificados de assinatura para uso corporativo, de graça - e aí o SmartScreen
 > confia dentro do domínio.
 
-**Abre e fecha na hora** — rode pelo `cmd` para ver o erro, ou gere um build com
+**Abre e fecha na hora** - rode pelo `cmd` para ver o erro, ou gere um build com
 `console=True` no `.spec` para depurar.

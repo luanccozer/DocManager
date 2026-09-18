@@ -125,7 +125,7 @@ def _escrever_grupo(ds: DocListSheet, row: int) -> None:
 def _escrever_situacao_emissao(ds: DocListSheet, row: int, r, data_alvo, hoje: date) -> None:
     """Grava o bloco de aderência ao planejamento (KB §27.5).
 
-    `DATA 1ª EMISSÃO` vai como data NATIVA — o dashboard precisa dela agrupável,
+    `DATA 1ª EMISSÃO` vai como data NATIVA - o dashboard precisa dela agrupável,
     igual à DATA-ALVO. `DIAS DESVIO EMISSÃO` vai como número (negativo =
     adiantado), não como texto, para o Power BI conseguir somar/mediar.
     """
@@ -200,7 +200,7 @@ def atualizar_doclist(
 
         df_tracking = idx.localizar(c_itaipu, c_cmi)
 
-        # Planejamento vindo do Controle (roda mesmo sem o doc no Aconex — é
+        # Planejamento vindo do Controle (roda mesmo sem o doc no Aconex - é
         # justamente o não emitido que precisa da data prevista).
         for chave in ("data_prevista", "data_reprogramada", "data_alvo"):
             ds.matar_zumbi(chave, row)
@@ -226,7 +226,7 @@ def atualizar_doclist(
         _escrever_documento(ds, row, resultado)
         _escrever_situacao_emissao(ds, row, resultado, datas.data_alvo, hoje_ref)
 
-        # Descrição — cadeia de prioridade Aconex > Controle > planilha (§27.3).
+        # Descrição - cadeia de prioridade Aconex > Controle > planilha (§27.3).
         # Quem está no Aconex já teve a descrição escrita acima. Para o resto,
         # o título do Controle SOBRESCREVE o que estiver na célula: descrição
         # digitada à mão costuma ser genérica, e a do Controle é a boa.
@@ -245,7 +245,7 @@ def atualizar_doclist(
     fora = niveis_fora_do_padrao(linhas)
     if fora:
         log_cb(f"Aviso: {len(fora)} linha(s) com NÍVEL fora de 1/2 "
-               f"(linhas {', '.join(str(r) for r in fora[:10])}) — tratadas como documento.")
+               f"(linhas {', '.join(str(r) for r in fora[:10])}) - tratadas como documento.")
     predecessores = calcular_predecessores(linhas)
     for ln in linhas:
         ds.set_val("predecessor", ln.row, predecessores[ln.row])

@@ -138,7 +138,7 @@ def test_status_pares_cmi_nao_confere_sem_cmi_no_sistema():
 def test_status_pares_itaipu_manda_quando_cmi_aponta_outro_doc():
     """Cenário do usuário: Itaipu certo, CMI (número interno) errado apontando
     para OUTRO documento. Com a prioridade Itaipu → CMI, acha o doc CERTO pelo
-    Itaipu e sinaliza o CMI errado — em vez de ir ao documento errado pelo CMI."""
+    Itaipu e sinaliza o CMI errado - em vez de ir ao documento errado pelo CMI."""
     b = base(
         HistoricoBuilder("TX", "IT-XX01", "CMI-XX01", "DOC ALVO")
         .evento("0A", 1, "Aprovado", "01/03/2024", current=True),
@@ -156,7 +156,7 @@ def test_status_pares_itaipu_manda_quando_cmi_aponta_outro_doc():
 
 def _base_cmi_reaproveitado():
     """Miniatura do caso real: CMI-X é do DOC CERTO, mas outro documento o teve
-    e mexeu depois — pelo desempate por data, ele roubava o match."""
+    e mexeu depois - pelo desempate por data, ele roubava o match."""
     return base(
         HistoricoBuilder("TID-DONO", "IT-CERTO", "CMI-X", "WORKSTATEMENT CERTO")
         .evento("0B", 1, "Aprovado com Comentários", "14/08/2024", current=True),
@@ -169,7 +169,7 @@ def _base_cmi_reaproveitado():
 
 def test_status_pares_ignora_documento_que_abandonou_o_codigo():
     """Caso do usuário (2026-09-04): Itaipu da lista não existe no Aconex e o CMI
-    é compartilhado. O documento certo é o que AINDA usa o CMI — não o que o
+    é compartilhado. O documento certo é o que AINDA usa o CMI - não o que o
     abandonou e continuou tramitando (match fantasma)."""
     linhas, _, _ = analisar_status_pares(_base_cmi_reaproveitado(), [("IT-QUE-NAO-EXISTE", "CMI-X")])
     d = linhas[0]

@@ -1,13 +1,13 @@
-"""Motor de Status Real — a "Batalha de Versões" (KB §8).
+"""Motor de Status Real - a "Batalha de Versões" (KB §8).
 
 Porta fiel de `DataManager.calcular_status_real` (legado L128-297). Recebe o
-histórico completo do Tracking ID (já tratado de Terminated pelo chamador —
+histórico completo do Tracking ID (já tratado de Terminated pelo chamador -
 ver truth_line) e a revisão vigente, e devolve o status que o documento
 realmente tem, ignorando ruídos de integração.
 
 Alterações vs legado:
   - o literal '2024-08-19' vira `is_regime_novo` (ponto único da regra de corte,
-    §21.3) — sem mudança de comportamento, pois o legado já comparava com `>=`;
+    §21.3) - sem mudança de comportamento, pois o legado já comparava com `>=`;
   - a lista NOMINAL de `core/excecoes.py` (§21.9) libera a reprovação em revisão
     numérica para os documentos publicados com a revisão errada.
 
@@ -101,7 +101,7 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
         # seca ('0', '1') é o marco definitivo da família: uma reprovação nela é
         # contraditória e segue para a batalha, onde é tratada como ruído.
         # A exceção nominal (§21.9) cobre o documento emitido direto em revisão
-        # numérica por engano de publicação — sem ela, ele viraria NÃO EMITIDO.
+        # numérica por engano de publicação - sem ela, ele viraria NÃO EMITIDO.
         if not str(revisao_current).isdigit() or reprovacao_numerica_vale(df_tracking):
             return linha_atual[COL_STATUS]
     if status_atual_str in status_informativo:
@@ -127,7 +127,7 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
             if status_atual_str == "EM PROCESSO":
                 return "Em Processo"
             return NAO_EMITIDO
-        # Filtra a FAMÍLIA ATUAL — mudar de família (0->1) reseta aprovações.
+        # Filtra a FAMÍLIA ATUAL - mudar de família (0->1) reseta aprovações.
         familia_atual = str(revisao_current).strip()[0]
         mask_familia = df_historico[COL_REVISAO].astype(str).str.strip().str.startswith(familia_atual)
         df_alvo_batalha = df_historico[mask_familia]

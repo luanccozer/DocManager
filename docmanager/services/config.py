@@ -1,6 +1,6 @@
 """Persistência de configuração e caminhos (KB §20).
 
-Config em Documents/DocManager_Itaipu/config.json, schema 2 — coexiste com o app
+Config em Documents/DocManager_Itaipu/config.json, schema 2 - coexiste com o app
 legado (que ignora chaves novas). Guarda o toggle da regra estrita VIP e o
 último diretório usado por tipo de arquivo.
 """
@@ -36,7 +36,7 @@ class AppSettings:
     verificar_atualizacoes: bool = True
     # Versão que a pessoa mandou pular ("" = nenhuma). Não silencia as seguintes.
     versao_ignorada: str = ""
-    # ISO da última consulta ao GitHub — evita bater no servidor a cada abertura.
+    # ISO da última consulta ao GitHub - evita bater no servidor a cada abertura.
     ultima_verificacao: str = ""
 
 
@@ -73,7 +73,7 @@ class ConfigManager:
 
     def lembrar_dir(self, tipo: str, caminho: str) -> None:
         """Guarda o diretório do `caminho` para o `tipo` E na memória global
-        `_ultimo` — assim abrir/salvar em qualquer módulo lembra o último local."""
+        `_ultimo` - assim abrir/salvar em qualquer módulo lembra o último local."""
         if caminho:
             d = os.path.dirname(caminho)
             paths = self._data.setdefault("paths", {})

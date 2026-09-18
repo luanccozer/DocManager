@@ -72,14 +72,14 @@ def identificar_planilhas_vip(linhas: list[LinhaPlano]) -> set[str]:
     return vips
 
 
-# Descrições dos PLANOS de (des)comissionamento (nível 2) — pai das planilhas VIP.
+# Descrições dos PLANOS de (des)comissionamento (nível 2) - pai das planilhas VIP.
 _DESC_PLANO_COMISS = ("PLANO DE COMISSIONAMENTO", "PLANO DE DESCOMISSIONAMENTO")
 
 
 def identificar_planos_comissionamento(linhas: list[LinhaPlano]) -> set[str]:
     """Códigos Itaipu dos PLANOS de (des)comissionamento: nível 2 cuja DESCRIÇÃO
     contém 'PLANO DE COMISSIONAMENTO'/'PLANO DE DESCOMISSIONAMENTO' (pedido do
-    usuário). As planilhas de nível 3 SOB eles recebem a regra estrita — mesma
+    usuário). As planilhas de nível 3 SOB eles recebem a regra estrita - mesma
     ideia dos documentos de nível 4 sob planilhas VIP (nível 3), um nível acima."""
     planos: set[str] = set()
     for ln in linhas:
@@ -95,7 +95,7 @@ def aplicar_regra_estrita(linhas: list[LinhaPlano], predecessores: dict[int, tup
     por `calcula_status_consolidado_estrito`:
       - documentos de **nível 4** cujo PREDECESSOR é uma planilha VIP (nível 3);
       - planilhas de **nível 3** cujo PREDECESSOR é um PLANO de (des)comissionamento
-        de nível 2 — mesma regra, um nível acima (pedido do usuário)."""
+        de nível 2 - mesma regra, um nível acima (pedido do usuário)."""
     planos_comiss = planos_comiss or set()
     novos: dict[int, str] = {}
     if not vips and not planos_comiss:
@@ -117,7 +117,7 @@ def calcular_resumo_quantidades(linhas: list[LinhaPlano], predecessores: dict[in
     Conta apenas filhos DIRETOS (predecessor == código do pai). Nível 1/2 já
     APROVADO → 'Plano Aprovado'. A quebra de Aprovação Intermediária aparece,
     quando `estrito=True`, no nível 3 (suas planilhas) e nos PLANOS de
-    (des)comissionamento de nível 2 (contando as planilhas de nível 3 sob eles —
+    (des)comissionamento de nível 2 (contando as planilhas de nível 3 sob eles -
     pedido do usuário); esses planos NÃO caem no atalho 'Plano Aprovado'.
     """
     planos_comiss = planos_comiss or set()

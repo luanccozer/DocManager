@@ -202,7 +202,7 @@ def test_resumo_do_plano_comissionamento_conta_intermediaria():
 
 def test_resumo_plano_comissionamento_sem_toggle_mantem_plano_aprovado():
     """Com o toggle DESLIGADO, o plano nível 2 APROVADO volta ao atalho 'Plano
-    Aprovado' — nenhuma mudança de comportamento."""
+    Aprovado' - nenhuma mudança de comportamento."""
     linhas = _linhas_comiss()
     hier = calcular_hierarquia(linhas)
     planos = identificar_planos_comissionamento(linhas)

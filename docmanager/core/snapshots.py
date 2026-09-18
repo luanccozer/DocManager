@@ -1,4 +1,4 @@
-"""Análise Delta — a "Máquina do Tempo" (KB §17).
+"""Análise Delta - a "Máquina do Tempo" (KB §17).
 
 Porta de `DataManager.obter_snapshot_status` (L576) e `calcular_mudancas_periodo`
 (L620). Compara o estado de cada documento do mapeamento entre duas datas.
@@ -210,7 +210,7 @@ def calcular_mudancas_base(df_base, data_ini_str, data_fim_str, *,
                            codigos=None):
     """Delta FLEXÍVEL direto na base Aconex (KB §17, sem depender do mapeamento).
 
-    Agrupa por um metadado à escolha (Especialidade, DCC, etc.) — evita usar o
+    Agrupa por um metadado à escolha (Especialidade, DCC, etc.) - evita usar o
     mapeamento como gambiarra para classificações que não são de plano.
     `codigos`: se dado, restringe aos documentos cujo No. do Documento/Controle
     do Emissor estão na lista. Retorna (ok, arvore{grupo: {"—": [itens]}}, total).

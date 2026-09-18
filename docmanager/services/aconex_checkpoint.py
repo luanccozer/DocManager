@@ -2,12 +2,12 @@
 
 A extração completa do projeto leva ~30 min de paginação. Quando a conexão caía
 no meio, todo o tempo ia embora: o código parava a paginação e devolvia o que
-tinha em memória — **sem avisar que estava truncado**. Este módulo persiste as
+tinha em memória - **sem avisar que estava truncado**. Este módulo persiste as
 páginas já baixadas para que a próxima tentativa continue de onde parou.
 
 Formato (dois arquivos por extração):
-  - `<base>.jsonl`  — um registro bruto do XML por linha, anexado a cada página;
-  - `<base>.meta.json` — `{pagina, total, offset, ...}` do último ponto ÍNTEGRO.
+  - `<base>.jsonl`  - um registro bruto do XML por linha, anexado a cada página;
+  - `<base>.meta.json` - `{pagina, total, offset, ...}` do último ponto ÍNTEGRO.
 
 O `offset` (tamanho do .jsonl no fim da última página confirmada) é o que torna
 a retomada exata: se o processo morre no meio da escrita de uma página, o
@@ -15,7 +15,7 @@ arquivo é TRUNCADO de volta ao offset antes de continuar. Sem isso, uma página
 pela metade viraria registro duplicado ou JSON quebrado.
 
 A chave do checkpoint inclui projeto + campos + paginação: mudou a consulta,
-mudou o checkpoint — nunca se retoma uma extração com parâmetros diferentes.
+mudou o checkpoint - nunca se retoma uma extração com parâmetros diferentes.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ VERSAO_FORMATO = 1
 
 
 def pasta_padrao() -> Path:
-    """`Documents/DocManager_Itaipu/extracoes` — ao lado da config do app."""
+    """`Documents/DocManager_Itaipu/extracoes` - ao lado da config do app."""
     p = Path.home() / "Documents" / "DocManager_Itaipu" / "extracoes"
     p.mkdir(parents=True, exist_ok=True)
     return p
@@ -57,7 +57,7 @@ class EstadoCheckpoint:
 
 class CheckpointExtracao:
     """Diário de bordo da paginação. Use como context manager ou chame
-    `abrir()`/`fechar()` — `registrar_pagina` é o único ponto de commit."""
+    `abrir()`/`fechar()` - `registrar_pagina` é o único ponto de commit."""
 
     def __init__(self, chave: str, pasta: Path | str | None = None):
         self.pasta = Path(pasta) if pasta is not None else pasta_padrao()
@@ -76,7 +76,7 @@ class CheckpointExtracao:
     def ler_meta(self) -> EstadoCheckpoint | None:
         try:
             dados = json.loads(self.path_meta.read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001 — checkpoint corrompido = sem checkpoint
+        except Exception:  # noqa: BLE001 - checkpoint corrompido = sem checkpoint
             return None
         if dados.get("versao") != VERSAO_FORMATO or dados.get("chave") != self.chave:
             return None
@@ -120,7 +120,7 @@ class CheckpointExtracao:
 
         Binário de propósito: em modo texto o `tell()` devolve um cookie opaco,
         que não serve como offset de `truncate()`. Em binário ele é o byte exato
-        — que é justamente o que torna a retomada precisa.
+        - que é justamente o que torna a retomada precisa.
         """
         if self._fh is None:
             self._fh = open(self.path_dados, "ab")
@@ -157,7 +157,7 @@ class CheckpointExtracao:
                 self._fh = None
 
     def limpar(self) -> None:
-        """Apaga o checkpoint — chamar só depois que a base foi SALVA."""
+        """Apaga o checkpoint - chamar só depois que a base foi SALVA."""
         self.fechar()
         for p in (self.path_dados, self.path_meta, self.path_meta_tmp):
             try:

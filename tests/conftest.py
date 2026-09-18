@@ -1,7 +1,7 @@
 """Isolamento dos dados do usuário durante os testes.
 
 Config e credenciais moram em `Documentos\\DocManager_Itaipu`. Sem isolar, a
-suíte leria (e escreveria!) o cofre real de quem está rodando os testes — e o
+suíte leria (e escreveria!) o cofre real de quem está rodando os testes - e o
 resultado mudaria de máquina para máquina. `DOCMANAGER_DADOS_DIR` redireciona a
 pasta inteira para um diretório temporário por teste.
 """

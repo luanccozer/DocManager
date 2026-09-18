@@ -66,13 +66,13 @@ def data_primeira_emissao(df_tracking: pd.DataFrame) -> date | None:
 
     É a régua de aderência ao planejamento: comparada com a `DATA-ALVO EMISSÃO`,
     diz se o documento nasceu no prazo. **Não confundir com `DATA ÚLTIMA
-    EMISSÃO`**, que é a revisão vigente — 0A→0F é ciclo normal de aprovação, e
+    EMISSÃO`**, que é a revisão vigente - 0A→0F é ciclo normal de aprovação, e
     usar a última revisão como régua produziria um mar de falsos atrasos.
 
     Regras (decididas pelo usuário em 2026-09-16):
 
     - **A revisão nascedoura é a `0A`** quando ela existe no histórico limpo.
-    - **Sem `0A`, vale a emissão mais antiga** — é o caso dos documentos SAT,
+    - **Sem `0A`, vale a emissão mais antiga** - é o caso dos documentos SAT,
       continuação de documentos legados da Itaipu, que já entram em revisões
       altas. O que interessa ali é a primeira entrega PARA A ITAIPU, e o
       histórico já chega aqui sem o lixo descartado (ciclos internos e revisões
@@ -81,7 +81,7 @@ def data_primeira_emissao(df_tracking: pd.DataFrame) -> date | None:
       reenvio da mesma revisão corrigiu a entrega anterior, então é ele que
       marca a entrega válida.
 
-    O evento de emissão é a linha com `Status == 'Em Processo'` — a submissão à
+    O evento de emissão é a linha com `Status == 'Em Processo'` - a submissão à
     Itaipu. Revisão que nunca teve 'Em Processo' é ruído e não conta (mesma
     leitura do Momento B em `calcular_atrasos_acumulados`).
 
@@ -89,7 +89,7 @@ def data_primeira_emissao(df_tracking: pd.DataFrame) -> date | None:
 
     > O "Momento A" de `calcular_atrasos_acumulados` responde a uma pergunta
     > parecida, mas **não** é a mesma conta: lá a revisão nascedoura é sempre a
-    > primeira cronológica (nunca prefere `0A`). Mantido como está de propósito —
+    > primeira cronológica (nunca prefere `0A`). Mantido como está de propósito -
     > aquele número já está validado em dados reais e mexer nele mudaria o
     > `atraso_acumulado_cmi` em produção.
     """
@@ -204,7 +204,7 @@ def calcular_atrasos_acumulados(df_tracking: pd.DataFrame, status_real, data_pre
     if df.empty:
         return res
 
-    # Momentos B (Itaipu) e C (retrabalho CMI) — bandeira documento_aprovado.
+    # Momentos B (Itaipu) e C (retrabalho CMI) - bandeira documento_aprovado.
     documento_aprovado = False
     for i, rev in enumerate(revisoes):
         df_rev = df[df[COL_REVISAO] == rev]

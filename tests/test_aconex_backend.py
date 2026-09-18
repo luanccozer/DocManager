@@ -1,8 +1,8 @@
 """Extração Aconex: tipo de tramitação (Fonte) + montagem do DataFrame.
 
 Testa a montagem do DataFrame SEM rede (função pura `montar_dataframe`) e o
-parse de XML sintético — nada aqui toca a API nem depende de segredo (KB §24.5).
-(As colunas de anotações/markups foram removidas — §24.9: numberOfMarkups conta
+parse de XML sintético - nada aqui toca a API nem depende de segredo (KB §24.5).
+(As colunas de anotações/markups foram removidas - §24.9: numberOfMarkups conta
 elementos, não as Anotações do site, e não há endpoint confiável.)
 """
 import os

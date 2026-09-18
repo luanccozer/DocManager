@@ -28,7 +28,7 @@ class HistoricoView(BaseView):
         rem = Card(body, "Remover documentos (opcional)")
         rem.grid(row=1, column=0, sticky="ew", pady=(0, 12))
         rem.add(ctk.CTkLabel(
-            rem, text="Cole os códigos Itaipu dos documentos que NÃO devem entrar no histórico — "
+            rem, text="Cole os códigos Itaipu dos documentos que não devem entrar no histórico, "
             "um por linha (copie do Excel). Também aceita código CMI. Vale para a Planilha e o Dashboard.",
             font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700),
             sticky="w", pady=(0, 4))
@@ -50,7 +50,7 @@ class HistoricoView(BaseView):
 
         ctk.CTkLabel(aba_dash, text="Dashboard web: First Time Right, ciclo de aprovação, status vigente, "
                      "fluxo de envios/retornos, evolução do atraso no tempo e gargalos por especialidade.\n"
-                     "Em desenvolvimento — será liberado em breve.",
+                     "Em desenvolvimento. Será liberado em breve.",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700).grid(
             row=0, column=0, sticky="w", pady=8, padx=6)
         run_dash = RunBar(aba_dash, "Gerar e Abrir Dashboard", self._abrir_dashboard, self.log)
