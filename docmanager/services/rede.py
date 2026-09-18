@@ -27,6 +27,7 @@ Aqui está a versão genérica (GET), usada pelo verificador de atualização.
 from __future__ import annotations
 
 import os
+import urllib.parse
 import urllib.request
 from typing import Callable, Iterable
 
@@ -122,13 +123,13 @@ def abrir(url: str, *, headers: dict | None = None, timeout: int = 30,
                 resp = sessao.get(url, headers=headers or {}, timeout=timeout, stream=stream)
             except requests.exceptions.SSLError as e:
                 houve_ssl = True
-                problemas.append(f"{nome}: certificado não confiável ({str(e)[:80]})")
-                log_cb(f"  [{nome}] certificado SSL não confiável.")
+                problemas.append(f"{nome}: certificado não confiável ({resumo_erro(e, 120)})")
+                log_cb(f"  [{nome}] certificado SSL não confiável — {resumo_erro(e)}")
                 sessao.close()
                 continue
             except requests.exceptions.RequestException as e:
-                problemas.append(f"{nome}: sem conexão ({str(e)[:80]})")
-                log_cb(f"  [{nome}] sem conexão ({str(e)[:80]}).")
+                problemas.append(f"{nome}: sem conexão ({resumo_erro(e, 120)})")
+                log_cb(f"  [{nome}] sem conexão — {resumo_erro(e)}")
                 sessao.close()
                 continue
 
@@ -145,5 +146,123 @@ def abrir(url: str, *, headers: dict | None = None, timeout: int = 30,
             sessao.close()
             raise FalhaDeRede(f"HTTP {resp.status_code} em {url}{corpo}")
 
+    for linha in diagnostico(urllib.parse.urlparse(url).hostname or ""):
+        log_cb(linha)
     raise FalhaDeRede("Nenhuma rota de rede funcionou. Tentativas:\n  · "
                       + "\n  · ".join(problemas or ["(nenhuma rota disponível)"]))
+
+
+# ─────────────────────────── diagnóstico de rede ────────────────────────────
+#
+# Quando NENHUMA rota funciona, a pergunta seguinte é sempre a mesma: o Windows
+# tem proxy configurado? qual? o nome resolve? a porta 443 abre? Sem isso o log
+# só diz "sem conexão", que não distingue firewall de proxy errado, e a pessoa
+# fica trocando de VPN no escuro. Estas funções respondem tudo de uma vez.
+
+def resumo_erro(e: BaseException, limite: int = 240) -> str:
+    """A mensagem MAIS ESPECÍFICA de uma exceção de rede.
+
+    O `requests` embrulha o `urllib3`, que embrulha o erro de socket. O texto de
+    fora ("HTTPSConnectionPool(host=..., port=443): Max retries exceeded") é o
+    mesmo para causas completamente diferentes — timeout, DNS, conexão recusada,
+    proxy recusando. Quem responde "o que aconteceu de fato" é a causa lá no
+    fundo, que é o que esta função vai buscar.
+    """
+    especifico = e
+    # requests.ConnectionError → MaxRetryError → .reason é o erro real.
+    alvo = e.args[0] if getattr(e, "args", None) else None
+    if (motivo := getattr(alvo, "reason", None)) is not None:
+        especifico = motivo
+    for _ in range(6):          # limite: cadeias circulares existem
+        proxima = especifico.__cause__ or especifico.__context__
+        if proxima is None:
+            break
+        especifico = proxima
+    texto = f"{type(especifico).__name__}: {especifico}"
+    return texto if len(texto) <= limite else texto[:limite - 1] + "…"
+
+
+def _proxies_do_windows() -> list[str]:
+    """Como o WINDOWS está configurado — que não é o que o Python enxerga.
+
+    O `urllib.request.getproxies()` lê só `ProxyEnable`/`ProxyServer` do
+    registro. Ele IGNORA o `AutoConfigURL` (arquivo PAC), que é justamente como
+    o Zscaler costuma ser distribuído, e ignora a configuração do WinHTTP. Numa
+    máquina só com PAC, o Python conclui "sem proxy" e tenta conexão direta —
+    que a VPN bloqueia. Por isso o diagnóstico mostra as três coisas.
+    """
+    if os.name != "nt":
+        return ["  (diagnóstico de proxy do Windows: só no Windows)"]
+    linhas: list[str] = []
+    try:
+        import winreg
+
+        chave = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, chave) as k:
+            for nome in ("ProxyEnable", "ProxyServer", "AutoConfigURL", "ProxyOverride"):
+                try:
+                    valor, _ = winreg.QueryValueEx(k, nome)
+                    linhas.append(f"  {nome} = {valor}")
+                except FileNotFoundError:
+                    linhas.append(f"  {nome} = (não definido)")
+    except Exception as e:  # noqa: BLE001
+        linhas.append(f"  (não foi possível ler o registro: {e})")
+
+    try:
+        import subprocess
+
+        r = subprocess.run(["netsh", "winhttp", "show", "proxy"], capture_output=True,
+                           text=True, timeout=15,
+                           creationflags=0x08000000)   # CREATE_NO_WINDOW
+        for linha in r.stdout.splitlines():
+            if linha.strip():
+                linhas.append(f"  [winhttp] {linha.strip()}")
+    except Exception as e:  # noqa: BLE001
+        linhas.append(f"  (netsh winhttp indisponível: {e})")
+    return linhas
+
+
+def diagnostico(host: str, porta: int = 443) -> list[str]:
+    """Relatório do estado da rede para `host`. Nunca levanta exceção."""
+    import socket
+
+    linhas = ["─── Diagnóstico de rede ───"]
+
+    vistos = {v: os.getenv(v) for v in ("HTTPS_PROXY", "https_proxy",
+                                        "HTTP_PROXY", "http_proxy", "NO_PROXY")}
+    definidos = {k: v for k, v in vistos.items() if v}
+    linhas.append(f"Variáveis de proxy do ambiente: {definidos or '(nenhuma)'}")
+
+    try:
+        linhas.append(f"O que o Python enxerga (getproxies): {urllib.request.getproxies() or '(nada)'}")
+    except Exception as e:  # noqa: BLE001
+        linhas.append(f"O que o Python enxerga (getproxies): erro — {e}")
+
+    linhas.append("Como o Windows está configurado:")
+    linhas.extend(_proxies_do_windows())
+
+    # DNS e TCP separados: dizem coisas diferentes. Nome que não resolve é
+    # bloqueio de DNS; porta que não abre com o nome resolvendo é firewall.
+    try:
+        enderecos = sorted({info[4][0] for info in socket.getaddrinfo(host, porta)})
+        linhas.append(f"DNS de {host}: {', '.join(enderecos)}")
+    except Exception as e:  # noqa: BLE001
+        linhas.append(f"DNS de {host}: FALHOU — {e}")
+        return linhas + ["→ O nome nem resolve: é bloqueio de DNS da rede/VPN, "
+                         "não problema do aplicativo."]
+
+    try:
+        with socket.create_connection((host, porta), timeout=8):
+            linhas.append(f"Conexão TCP direta a {host}:{porta}: ABRIU")
+            linhas.append("→ A porta abre direto. Se mesmo assim a extração falha, "
+                          "o bloqueio está no TLS ou o destino exige ir por proxy.")
+    except socket.timeout:
+        linhas.append(f"Conexão TCP direta a {host}:{porta}: TIMEOUT")
+        linhas.append("→ Os pacotes estão sendo DESCARTADOS em silêncio (típico de "
+                      "firewall corporativo). Ou o acesso a este destino não está "
+                      "liberado na VPN, ou o tráfego precisa ir por um proxy que o "
+                      "Python não descobriu — compare com o 'Como o Windows está "
+                      "configurado' acima.")
+    except Exception as e:  # noqa: BLE001
+        linhas.append(f"Conexão TCP direta a {host}:{porta}: {type(e).__name__} — {e}")
+    return linhas

@@ -16,11 +16,14 @@ import os
 import re
 import urllib.request
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pandas as pd
+
+from .services import rede
 
 if TYPE_CHECKING:  # 'requests' é import tardio (só a extração ao vivo usa)
     import requests
@@ -293,21 +296,28 @@ def _estabelecer_sessao(config: AconexConfig, log_cb):
                 token = _tentar_token(session, config)
             except requests.exceptions.SSLError as e:
                 houve_ssl = True
-                log_cb(f"  [{nome}] certificado SSL não confiável ({str(e)[:90]}).")
+                log_cb(f"  [{nome}] certificado SSL não confiável — {rede.resumo_erro(e)}")
                 continue
             except PermissionError as e:
                 # Conectou, mas as credenciais foram recusadas — proxy não muda isso.
                 raise RuntimeError(f"Conectou, mas o Aconex recusou as credenciais "
                                    f"({e}). Verifique o secret/usuário.") from e
             except requests.exceptions.RequestException as e:
-                log_cb(f"  [{nome}] sem conexão ({str(e)[:90]}).")
+                # A causa RAIZ, não o embrulho do requests: "Max retries
+                # exceeded" é idêntico para timeout, DNS e conexão recusada.
+                log_cb(f"  [{nome}] sem conexão — {rede.resumo_erro(e)}")
                 continue
             via = nome + ("" if verify else " · SSL NÃO verificado")
             log_cb(f"Conectado ao Aconex via {via}.")
             return session, token
+    # Nenhuma rota funcionou: em vez de mandar "verifique a rede", despejar o
+    # estado real (proxy do Windows, PAC, DNS, porta 443) no log — é a diferença
+    # entre diagnosticar e ficar trocando a VPN no escuro.
+    for linha in rede.diagnostico(urlparse(config.auth_url).hostname or ""):
+        log_cb(linha)
     raise RuntimeError("Não foi possível conectar ao Aconex por nenhuma via "
                        "(proxy do sistema, variáveis de ambiente, conexão direta, "
-                       "SSL). Verifique VPN/Zscaler, proxy e conexão de rede.")
+                       "SSL). O diagnóstico de rede acima diz onde está travando.")
 
 
 def _parse_pagina(conteudo: bytes) -> list[dict]:
