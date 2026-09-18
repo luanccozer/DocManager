@@ -1,4 +1,4 @@
-"""Relatório de Avanço — foto vigente com prazos de devolução (KB §18.3).
+"""Relatório de Avanço - foto vigente com prazos de devolução (KB §18.3).
 
 Porta fiel de `DataManager.gerar_relatorio_avanco` (L774-918). Usa a
 nomenclatura antiga de propósito (pós-corte, 'Em Processo' vira 'Para Análise'

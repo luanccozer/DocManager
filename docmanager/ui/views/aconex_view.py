@@ -52,7 +52,7 @@ class AconexView(BaseView):
             wraplength=680, anchor="w")
         card.add(self._aviso_cadastro, pady=(0, 4))
 
-        # Entrada manual (visível só quando "Outro" é escolhido) — não é salva.
+        # Entrada manual (visível só quando "Outro" é escolhido) - não é salva.
         self._manual = ctk.CTkFrame(card, fg_color="transparent")
         self.entry_client = ctk.CTkEntry(self._manual, placeholder_text="Client ID (APP ID) do Aconex",
                                          font=t.corpo(12))
@@ -64,7 +64,7 @@ class AconexView(BaseView):
             w.pack(fill="x", pady=3)
         card.add(self._manual)
 
-        self.entry_proxy = ctk.CTkEntry(card, placeholder_text="Proxy (opcional) — vazio detecta automático",
+        self.entry_proxy = ctk.CTkEntry(card, placeholder_text="Proxy (opcional). Em branco, o app detecta sozinho.",
                                         font=t.corpo(12))
         card.add(self.entry_proxy)
         self._dica = ctk.CTkLabel(card, text="", font=t.corpo(11), text_color=t.TEXTO_FRACO, anchor="w")
@@ -81,8 +81,9 @@ class AconexView(BaseView):
 
     def _montar_aba_extracao(self, aba):
         aba.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(aba, text="Baixa o histórico COMPLETO do projeto (todas as revisões, com Tracking "
-                     "ID) para um Excel. Pode levar vários minutos; retoma de onde parou se cair.",
+        ctk.CTkLabel(aba, text="Baixa o histórico completo do projeto (todas as revisões, com "
+                     "Tracking ID) para um Excel. Leva vários minutos e retoma de onde parou "
+                     "se a conexão cair.",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
             row=0, column=0, sticky="w", padx=6, pady=(8, 2))
         self.run = RunBar(aba, "Iniciar Extração", self._tarefa, self.log)
@@ -99,8 +100,8 @@ class AconexView(BaseView):
     def _montar_aba_fluxos(self, aba):
         aba.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(aba, text="Baixa os FLUXOS DE TRABALHO (a aba 'Fluxos de Trabalho' do Aconex): "
-                     "etapa, prazo e a quem cada documento está atribuído. Use um período curto para "
-                     "atualizar rápido — só o que mudou desde então é baixado.",
+                     "etapa, prazo e a quem cada documento está atribuído. Um período curto "
+                     "atualiza rápido, porque baixa só o que mudou desde então.",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
             row=0, column=0, sticky="w", padx=6, pady=(8, 2))
 
@@ -155,7 +156,7 @@ class AconexView(BaseView):
             if not messagebox.askyesno(
                     "Extração incompleta",
                     f"A extração parou antes do fim ({r.motivo}).\n\n"
-                    f"{len(r.df)} linhas ficaram salvas para retomada — rode de novo que ela "
+                    f"{len(r.df)} linhas ficaram salvas para retomada - rode de novo que ela "
                     f"continua da página {r.paginas + 1}.\n\n"
                     "Quer salvar agora um Excel com o que já veio (base PARCIAL)?"):
                 self.log.log("Excel parcial não gerado. O progresso segue guardado para retomar.")
@@ -175,8 +176,8 @@ class AconexView(BaseView):
 
     def _montar_aba_download(self, aba):
         aba.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(aba, text="Cole os códigos Itaipu (um por linha). Baixa a VERSÃO ATUAL (current) "
-                     "de cada documento como arquivo, na pasta escolhida.",
+        ctk.CTkLabel(aba, text="Cole os códigos Itaipu, um por linha. Baixa a versão atual "
+                     "(current) de cada documento para a pasta escolhida.",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
             row=0, column=0, sticky="w", padx=6, pady=(8, 2))
         self.txt_codigos = ctk.CTkTextbox(aba, height=140, font=t.mono(11), fg_color="#0B1119")
@@ -241,12 +242,12 @@ class AconexView(BaseView):
         if escolha == self._OUTRO:
             self._manual.grid()
             self._dica.configure(text="Entrada manual: informe os 3 dados do usuário do Aconex. "
-                                      "Valem só para esta extração (NÃO são salvos) — use "
-                                      "'Cadastrar usuário' para guardar de vez.")
+                                      "Valem só para esta extração e não são salvos. Para "
+                                      "guardar de vez, use 'Cadastrar usuário'.")
         else:
             self._manual.grid_remove()
-            self._dica.configure(text="O Client Secret fica guardado nesta máquina, cifrado pelo "
-                                      "Windows. Use 'Editar' para trocá-lo.")
+            self._dica.configure(text="O Client Secret está guardado nesta máquina, cifrado pelo "
+                                      "Windows. Para trocá-lo, use 'Editar'.")
         self._atualizar_aviso()
 
     def _atualizar_aviso(self):
@@ -258,11 +259,10 @@ class AconexView(BaseView):
             self._aviso_cadastro.grid_remove()
             return
         self._aviso_cadastro.configure(
-            text="⚠️  Nenhum usuário cadastrado ainda. A Extração Aconex usa a API oficial, "
-                 "que exige uma credencial OAuth pessoal: clique em CADASTRAR USUÁRIO e "
+            text="⚠️  Nenhum usuário cadastrado ainda. Clique em CADASTRAR USUÁRIO e "
                  "informe o Client ID (APP ID), o User ID e o Client Secret que o "
-                 "administrador do Aconex forneceu para você. É uma vez só — fica "
-                 "guardado nesta máquina e sobrevive às atualizações do DocManager.")
+                 "administrador do Aconex passou para você. É uma vez só: fica guardado "
+                 "nesta máquina e continua valendo depois das atualizações.")
         self._aviso_cadastro.grid()
 
     # --- cadastro das credenciais -------------------------------------------
@@ -298,13 +298,13 @@ class AconexView(BaseView):
         """Checa, ANTES de gastar tempo, se há com o que autenticar.
 
         Roda dentro da thread da tarefa, então o diálogo é agendado de volta na
-        thread da interface com `after` — abrir janela de outra thread trava o Tk.
+        thread da interface com `after` - abrir janela de outra thread trava o Tk.
         """
         from ...aconex_backend import usuarios_disponiveis
 
         if usuarios_disponiveis() or self.opt_user.get() == self._OUTRO:
             return True
-        self.log.log("Nenhum usuário do Aconex cadastrado — abrindo o cadastro.")
+        self.log.log("Nenhum usuário do Aconex cadastrado - abrindo o cadastro.")
         self.after(0, self._cadastrar)
         return False
 
@@ -343,7 +343,7 @@ class AconexView(BaseView):
         pendente = checkpoint_pendente(config)
         if pendente is not None:
             self.log.log(f"Há uma extração interrompida em {pendente.atualizado_em} com "
-                         f"{pendente.total} registros — será retomada da página "
+                         f"{pendente.total} registros - será retomada da página "
                          f"{pendente.proxima_pagina}.")
         run.set_progress(0.05)
         self.log.log("Extração iniciada (pode levar vários minutos)...")
@@ -362,7 +362,7 @@ class AconexView(BaseView):
             salvar = messagebox.askyesno(
                 "Extração incompleta",
                 f"A extração parou antes do fim ({r.motivo}).\n\n"
-                f"{len(r.df)} linhas foram baixadas e ficaram salvas para retomada — "
+                f"{len(r.df)} linhas foram baixadas e ficaram salvas para retomada - "
                 f"basta rodar de novo que ela continua da página {r.paginas + 1}.\n\n"
                 "Quer salvar agora um Excel com o que já veio (base PARCIAL)?")
             if not salvar:

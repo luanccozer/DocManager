@@ -1,9 +1,9 @@
-"""Identidade do BUILD — escrita pelo CI, nunca editada à mão em release.
+"""Identidade do BUILD - escrita pelo CI, nunca editada à mão em release.
 
 Esta é a fonte única da versão do app. O workflow `.github/workflows/release.yml`
 reescreve este arquivo a partir da tag do Git (`v3.1.0` → `VERSAO = "3.1.0"`)
 antes de rodar o PyInstaller, de modo que o executável SEMPRE sabe qual versão
-ele é — que é justamente o que o verificador de atualização compara com o
+ele é - que é justamente o que o verificador de atualização compara com o
 último Release do GitHub.
 
 Por que não vem mais do `.env` (como até a v3.0.0): o `.env` é um arquivo do

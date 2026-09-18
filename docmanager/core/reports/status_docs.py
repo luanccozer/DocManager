@@ -1,4 +1,4 @@
-"""Status Documentos — status real de uma lista de códigos (KB §18.1).
+"""Status Documentos - status real de uma lista de códigos (KB §18.1).
 
 Para cada código: linha da verdade → roteia para o motor comum ou o de modelos
 BIM (conforme Tipo do Documento) → status real. Reúne os pré-requisitos que já
@@ -61,7 +61,7 @@ def _classificar_codigo_busca(buscado: str, vigente: str, hist_norm: set, *,
 
 
 def _descrever_tracking(idx: AconexIndex, tracking_id: str) -> str:
-    """'<Itaipu> / <CMI> (rev X) — <Título>' do documento, pela linha da verdade."""
+    """'<Itaipu> / <CMI> (rev X) - <Título>' do documento, pela linha da verdade."""
     df_t = idx.historico(tracking_id)
     if df_t.empty:
         return str(tracking_id)
@@ -70,7 +70,7 @@ def _descrever_tracking(idx: AconexIndex, tracking_id: str) -> str:
     it = str(linha.get(COL_DOC_ITAIPU, "")).strip()
     cmi = str(linha.get(COL_DOC_CMI, "")).strip()
     rev = str(linha.get("Revisão", "")).strip()
-    return f"{it} / {cmi} (rev {rev}) — {str(linha.get(COL_TITULO, '')).strip()}"
+    return f"{it} / {cmi} (rev {rev}) - {str(linha.get(COL_TITULO, '')).strip()}"
 
 
 _MAX_CANDIDATOS = 6
@@ -81,7 +81,7 @@ def _texto_ambiguidade(idx: AconexIndex, res, codigo: str) -> str:
     eleito = str(res.df[COL_TRACKING].iloc[0]) if not res.df.empty else ""
     partes = [f"ATENÇÃO: o código '{codigo}' aparece em {len(res.candidatos)} documentos "
               f"diferentes no Aconex. O DocManager escolheu o de alteração mais recente "
-              f"entre os que ainda usam esse código — confira se é o que você queria:"]
+              f"entre os que ainda usam esse código - confira se é o que você queria:"]
     for tid in res.candidatos[:_MAX_CANDIDATOS]:
         marca = ">> ESCOLHIDO" if str(tid) == eleito else "   outro    "
         partes.append(f"{marca}: {_descrever_tracking(idx, tid)}")
@@ -99,7 +99,7 @@ def analisar_status_documentos(df_base: pd.DataFrame, codigos, *, tipo_codigo="i
         if not cod:
             continue
         # `preferir_vigente`: quem USA o código hoje ganha de quem só o usou no
-        # passado — mesma política da leitura via Excel (ver `analisar_status_pares`).
+        # passado - mesma política da leitura via Excel (ver `analisar_status_pares`).
         par = (cod, "") if tipo_codigo == "itaipu" else ("", cod)
         df_t = idx.localizar(*par, preferir_vigente=True)
         if df_t.empty:
@@ -124,7 +124,7 @@ def analisar_status_documentos(df_base: pd.DataFrame, codigos, *, tipo_codigo="i
 
 
 def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Counter, bool]:
-    """Status real por par (código Itaipu, código CMI) — porta de
+    """Status real por par (código Itaipu, código CMI) - porta de
     StatusCheckView.iniciar_processo (aconex_reviewer L1474-1581).
 
     Alimenta o Excel legado (Código Itaipu/CMI, Título, Revisão, Data, Status
@@ -133,14 +133,14 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
 
     Cada linha carrega ainda campos internos (prefixo '_' → não viram coluna do
     Excel) que o exportador usa para destacar o código:
-      - `_itaipu_status`/`_cmi_status` ∈ {'', 'atualizado', 'nao_confere'} — ver
+      - `_itaipu_status`/`_cmi_status` ∈ {'', 'atualizado', 'nao_confere'} - ver
         `_classificar_codigo_busca`. 'atualizado' → azul; 'nao_confere' → laranja.
-      - `_itaipu_buscado`/`_cmi_buscado` — o que o usuário digitou (vai para o
+      - `_itaipu_buscado`/`_cmi_buscado` - o que o usuário digitou (vai para o
         comentário do 'nao_confere', avisando que estava errado).
-      - `_itaipu_real`/`_cmi_real` — o código vigente do documento ('' se o doc
+      - `_itaipu_real`/`_cmi_real` - o código vigente do documento ('' se o doc
         não tem esse código); distingue "corrigido" de "doc não possui".
-      - `_via` ∈ {'', 'par', 'itaipu', 'cmi'} — qual código achou o documento.
-      - `_ambiguo` / `_ambiguo_info` — o código que achou o documento é
+      - `_via` ∈ {'', 'par', 'itaipu', 'cmi'} - qual código achou o documento.
+      - `_ambiguo` / `_ambiguo_info` - o código que achou o documento é
         compartilhado por mais de um Tracking; a eleição foi por data e PRECISA
         de conferência humana (texto laranja + comentário com os candidatos).
     A célula mostra o código VIGENTE (correto) sempre que ele existe.
@@ -164,7 +164,7 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
         # número interno (CMI) errado na lista é sinalizado por cor/comentário,
         # em vez de arrastar a busca para o documento errado.
         # `preferir_vigente`: um código compartilhado só casa, de início, com o
-        # documento que o usa HOJE — sem isso o desempate por data elege quem já
+        # documento que o usa HOJE - sem isso o desempate por data elege quem já
         # abandonou o código (match fantasma; ver `AconexIndex.resolver`).
         res = idx.resolver(c_it, c_cmi, preferir_itaipu=True, preferir_vigente=True)
         df_t = res.df
@@ -189,7 +189,7 @@ def analisar_status_pares(df_base: pd.DataFrame, pares) -> tuple[list[dict], Cou
                     c_cmi, cur_cmi, hist_norm, conhecido=idx.conhece_codigo(c_cmi))
                 dados["_itaipu_real"], dados["_cmi_real"] = cur_it, cur_cmi
                 # A célula mostra o código VIGENTE (correto) do documento sempre
-                # que ele existe — inclusive no 'nao_confere' (o correto vai para
+                # que ele existe - inclusive no 'nao_confere' (o correto vai para
                 # a célula; o código errado buscado vai para o comentário; pedido
                 # do usuário). Sem código vigente, mantém o buscado.
                 if cur_it:

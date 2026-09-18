@@ -2,9 +2,9 @@
 
 Porta única para a UI. Três frentes:
   - atualização da planilha (status, hierarquia de dois níveis, planejamento);
-  - **Análise por Período** — o que está previsto para emitir (olha para FRENTE,
+  - **Análise por Período** - o que está previsto para emitir (olha para FRENTE,
     pelas datas de planejamento);
-  - **Delta por Período** — o que aconteceu entre duas datas (olha para TRÁS,
+  - **Delta por Período** - o que aconteceu entre duas datas (olha para TRÁS,
     pelo histórico do Aconex). Reaproveita o motor do Mapa dos Planos: as
     colunas que ele precisa (GRUPO, SISTEMA, NÍVEL, DESCRIÇÃO, PREDECESSOR,
     N° ITAIPU) têm os mesmos nomes nos dois layouts.

@@ -19,7 +19,7 @@ class AppContext:
     # A checagem roda em segundo plano e termina DEPOIS de a interface já estar
     # montada, então quem quiser mostrar o aviso (Home, rodapé da sidebar,
     # Configurações) se inscreve aqui e é avisado quando a resposta chegar.
-    # `atualizacao` guarda o resultado para quem se inscrever depois — a Home é
+    # `atualizacao` guarda o resultado para quem se inscrever depois - a Home é
     # criada na abertura, mas as Configurações só quando a pessoa clica nelas.
     atualizacao: object | None = None
     abrir_atualizacao: Callable[[], None] | None = None
@@ -39,5 +39,5 @@ class AppContext:
         for cb in list(self._ouvintes):
             try:
                 cb(info)
-            except Exception:  # noqa: BLE001 — um ouvinte quebrado não derruba os outros
+            except Exception:  # noqa: BLE001 - um ouvinte quebrado não derruba os outros
                 pass

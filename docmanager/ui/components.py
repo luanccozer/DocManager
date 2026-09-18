@@ -169,7 +169,7 @@ class NavItem(ctk.CTkFrame):
     caem em fonte de fallback do Windows). Se o rótulo do ícone dimensionar a
     coluna, o glifo mais largo empurra o texto e aquele item fica DESLOCADO em
     relação aos outros. Com `grid_propagate(False)` numa célula de tamanho fixo,
-    o glifo é centralizado dentro dela e nunca altera a largura — todos os
+    o glifo é centralizado dentro dela e nunca altera a largura - todos os
     rótulos começam no mesmo x, qualquer que seja o emoji."""
 
     LARGURA_ICONE = 26

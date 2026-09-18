@@ -1,4 +1,4 @@
-"""Fluxos em Andamento — onde cada documento está e com quem (KB §24.12).
+"""Fluxos em Andamento - onde cada documento está e com quem (KB §24.12).
 
 Responde a pergunta que a base do register NUNCA respondeu: *este documento está
 parado com quem, desde quando e vence quando?* A aba "Fluxos de Trabalho" do
@@ -37,7 +37,7 @@ COLUNAS_DETALHE = [
     "Qtd. Atribuídos", "Data de Recebimento", "Data de Vencimento",
     "Dias em Aberto", "Dias de Atraso", "Situação",
     "Iniciador", "Organização Iniciador", "Motivo da Emissão", "Tracking ID",
-    # Pareada com `Atribuído a` — necessária ao resumo por pessoa e útil na
+    # Pareada com `Atribuído a` - necessária ao resumo por pessoa e útil na
     # leitura de etapas mistas (quem é de qual organização).
     "Organizações (por atribuído)",
 ]
@@ -60,11 +60,11 @@ def _situacao(venc: date | None, hoje: date) -> str:
 
 
 def analisar_fluxos_em_andamento(df_wf: pd.DataFrame, *, hoje: date | None = None) -> pd.DataFrame:
-    """Uma linha por etapa EM ABERTO de fluxo em andamento — o "onde está agora".
+    """Uma linha por etapa EM ABERTO de fluxo em andamento - o "onde está agora".
 
     Filtra `Status do Fluxo == 'Em Andamento'` e `Status da Etapa` em
     {'Atual', 'Em Atraso'}: as etapas já concluídas são passado e as de
-    'Previsão' ainda não começaram — nenhuma das duas responde "com quem está".
+    'Previsão' ainda não começaram - nenhuma das duas responde "com quem está".
 
     `Dias em Aberto` conta do recebimento da etapa até hoje; `Dias de Atraso` só
     existe depois do vencimento (0 quando no prazo). NÃO se usa o `Dias em
@@ -76,7 +76,7 @@ def analisar_fluxos_em_andamento(df_wf: pd.DataFrame, *, hoje: date | None = Non
     hoje = hoje or date.today()
     falta = {WF_COL_STATUS, WF_COL_ETAPA_STATUS} - set(df_wf.columns)
     if falta:
-        raise KeyError(f"Base de fluxos sem as colunas {sorted(falta)} — "
+        raise KeyError(f"Base de fluxos sem as colunas {sorted(falta)} - "
                        f"selecione o Excel de Fluxos (aba 'Fluxos'), não a base de documentos.")
 
     st = df_wf[WF_COL_STATUS].astype(str).str.strip()
@@ -103,7 +103,7 @@ def analisar_fluxos_em_andamento(df_wf: pd.DataFrame, *, hoje: date | None = Non
 
 
 def resumir_por_responsavel(df_detalhe: pd.DataFrame, *, por: str = "pessoa") -> pd.DataFrame:
-    """Agrega o detalhe por responsável — a leitura "quem está segurando o quê".
+    """Agrega o detalhe por responsável - a leitura "quem está segurando o quê".
 
     `por='pessoa'` EXPLODE a lista de atribuídos (uma etapa com 10 revisores
     conta 1 para cada um: a pergunta é "o que está na mão de fulano", e a soma da
@@ -111,11 +111,11 @@ def resumir_por_responsavel(df_detalhe: pd.DataFrame, *, por: str = "pessoa") ->
     pela organização, sem explodir pessoas.
 
     Cada pessoa entra com a organização DELA (coluna pareada), não com a lista de
-    organizações da etapa — senão quem atua em etapas mistas se fragmenta em
+    organizações da etapa - senão quem atua em etapas mistas se fragmenta em
     várias linhas. A chave é (nome, organização), não o UserId: no diretório
     real 58 nomes têm contas em organizações diferentes (ex.: 'BIANCA SANTOS'
     tem 1 conta no CMI e 2 na GE), e separá-los por organização é o desejado;
-    contas homônimas DENTRO da mesma organização somam — quase sempre a mesma
+    contas homônimas DENTRO da mesma organização somam - quase sempre a mesma
     pessoa com duas contas, e pelo nome não há como distinguir mesmo.
     """
     if df_detalhe.empty:

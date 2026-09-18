@@ -107,7 +107,7 @@ def test_descontinuidades_viram_vazio():
 
 def test_em_aberto_com_itaipu_conta_ate_hoje():
     """Pedido do usuário (2026-07-14): enviado e ainda não devolvido = o relógio
-    corre até hoje NAS PRÓPRIAS colunas Dias/Atraso Itaipu — mas só para o envio
+    corre até hoje NAS PRÓPRIAS colunas Dias/Atraso Itaipu - mas só para o envio
     mais recente do documento (revisões superadas continuam vazias)."""
     df = calcular_atrasos(_wide([
         # documento com uma única revisão pendente: 01/09 → 31/12 = 121 dias

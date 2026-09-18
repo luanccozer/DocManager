@@ -3,7 +3,7 @@
 São acordos entre arquivos DIFERENTES, que nenhum teste de unidade pegaria e que
 nada no dia a dia lembra de conferir: quebram calados e só aparecem quando a
 atualização falha na máquina de alguém. Ler texto com regex, em vez de importar,
-é de propósito — o `ui/main_app.py` precisa de tkinter, que não existe no CI.
+é de propósito - o `ui/main_app.py` precisa de tkinter, que não existe no CI.
 """
 import functools
 import re
@@ -60,7 +60,7 @@ def test_versao_do_build_e_semver():
 
 def test_o_repositorio_do_updater_bate_com_o_remoto_documentado():
     """Um fork ou uma renomeação do repo deixaria o updater apontando para o
-    lugar errado — e ninguém receberia atualização nunca mais."""
+    lugar errado - e ninguém receberia atualização nunca mais."""
     from docmanager.services.updater import REPO_NOME, REPO_OWNER
 
     assert f"{REPO_OWNER}/{REPO_NOME}" == "luanccozer/DocManager"
@@ -71,7 +71,7 @@ def test_o_repositorio_do_updater_bate_com_o_remoto_documentado():
 # O Inno abortou a publicação da 3.1.0-rc.1 com
 #   Value of [Setup] section directive "VersionInfoVersion" is invalid
 # porque esse campo é o número de versão BINÁRIO do Windows e só aceita
-# dígitos — o sufixo "-rc.1" não entra. São duas versões diferentes, e as duas
+# dígitos - o sufixo "-rc.1" não entra. São duas versões diferentes, e as duas
 # pontas (o .iss e o workflow) têm que continuar concordando sobre isso.
 
 def test_versioninfo_nao_usa_a_versao_com_sufixo():
@@ -92,8 +92,8 @@ def _bash_posix_disponivel() -> bool:
     """Há um `bash` POSIX utilizável nesta máquina?
 
     No Windows o `bash` do PATH costuma ser o do WSL: sem distro instalada, ele
-    responde "Windows Subsystem for Linux has no installed distributions" — em
-    UTF-16 — com código de saída 1. Sem esta checagem, o teste abaixo comparava
+    responde "Windows Subsystem for Linux has no installed distributions" - em
+    UTF-16 - com código de saída 1. Sem esta checagem, o teste abaixo comparava
     essa mensagem com a versão e reprovava o build inteiro. Ironia registrada:
     um teste feito para pegar defeitos do Windows, ele mesmo só rodava em Linux.
 
@@ -125,4 +125,4 @@ def test_corte_do_sufixo_do_workflow_produz_versao_numerica():
         obtido = r.stdout.strip()
         assert obtido == esperado, f"{entrada} virou {obtido}, esperado {esperado}"
         assert all(p.isdigit() for p in obtido.split(".")), \
-            f"'{obtido}' tem parte não numérica — o Inno recusaria"
+            f"'{obtido}' tem parte não numérica - o Inno recusaria"

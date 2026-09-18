@@ -15,9 +15,9 @@ relatórios.
 1. Abra a página de [**Releases**](https://github.com/luanccozer/DocManager/releases)
    e baixe o `DocManager_Itaipu_Setup_<versão>.exe` mais recente.
 2. Execute. O instalador pergunta onde instalar:
-   - **Para todos os usuários** — vai para `C:\Program Files`, **precisa de senha
+   - **Para todos os usuários** - vai para `C:\Program Files`, **precisa de senha
      de administrador** (na instalação e a cada atualização);
-   - **Somente para mim** — vai para a sua pasta de usuário, **não precisa de
+   - **Somente para mim** - vai para a sua pasta de usuário, **não precisa de
      administrador** e as atualizações são silenciosas.
 
    > Se você não tem senha de administrador na máquina da empresa, escolha
@@ -38,12 +38,12 @@ relatórios.
 > **"Desbloquear"** no rodapé da aba *Geral* → *Aplicar*. Depois é só abrir.
 >
 > Para eliminar o aviso de vez seria preciso comprar um certificado de
-> assinatura de código — ver [`BUILD.md`](BUILD.md), seção *Assinatura digital*.
+> assinatura de código. Ver [`BUILD.md`](BUILD.md), seção *Assinatura digital*.
 
 ### Primeiro uso: cadastrar as suas credenciais do Aconex
 
 Só a **Extração Aconex** precisa disso. Os demais módulos (Mapa, Doc List,
-Status, Histórico, Relatórios) funcionam sem cadastro nenhum — basta ter os
+Status, Histórico, Relatórios) funcionam sem cadastro nenhum, bastam os
 arquivos Excel.
 
 1. No app, abra **📥 Extração Aconex**.
@@ -56,13 +56,14 @@ arquivos Excel.
    | **User ID** | O número da sua conta no Aconex (só dígitos, ex.: `1208560183`). Não é segredo. |
    | **Client Secret** | A senha do aplicativo. **Esta é a parte sigilosa.** |
 
-4. Salve. Pronto — é **uma vez só**.
+4. Salve. É **uma vez só**.
 
 O Client Secret fica guardado **nesta máquina**, cifrado pelo Windows (DPAPI) na
 sua conta de usuário, em `Documentos\DocManager_Itaipu\credenciais.json`. Ele
 não vai para o GitHub, não fica na pasta do programa e **continua valendo depois
-de cada atualização**. Copiar esse arquivo para outra máquina não funciona — a
-cifragem é atrelada à sua conta do Windows; na máquina nova, cadastre de novo.
+de cada atualização**. Copiar esse arquivo para outra máquina não adianta,
+porque a cifragem é atrelada à sua conta do Windows. Na máquina nova, cadastre
+de novo.
 
 Para trocar o secret, ver quem está cadastrado ou remover alguém:
 **⚙️ Configurações → Credenciais do Aconex**.
@@ -84,14 +85,14 @@ Clique e depois em **Atualizar agora**: o app baixa o instalador, confere a
 integridade do arquivo (SHA256), fecha sozinho e reabre já atualizado. Quem
 instalou em *Program Files* verá o pedido de administrador do Windows.
 
-A verificação funciona **atrás do Zscaler e da VPN** — ela usa os certificados
-do Windows e testa as rotas de rede em cascata (proxy do sistema, variáveis de
-ambiente, conexão direta).
+A verificação funciona **com o Zscaler e a VPN ligados**. Ela usa os certificados
+do Windows, obedece o arquivo PAC da rede e ainda testa as rotas em cascata
+(proxy do sistema, variáveis de ambiente, conexão direta).
 
 Em **⚙️ Configurações → Atualizações** dá para desligar o aviso automático ou
-forçar uma verificação na hora com **Procurar atualizações agora** (esse botão,
-ao contrário da checagem automática, **mostra o erro** se algo falhar — é por
-onde começar a diagnosticar).
+forçar uma verificação na hora com **Procurar atualizações agora**. Esse botão,
+ao contrário da checagem automática, **mostra o erro** se algo falhar, e é por
+onde começar a diagnosticar.
 
 ---
 
@@ -115,10 +116,10 @@ virtual, instala as dependências e abre o app; nas próximas, só abre.
 > python -m docmanager
 > ```
 
-Para publicar uma versão nova, veja o [**BUILD.md**](BUILD.md) — é escrever o
-`CHANGELOG.md` e criar a tag; o GitHub faz o resto.
+Para publicar uma versão nova, veja o [**BUILD.md**](BUILD.md). Resume-se a
+escrever o `CHANGELOG.md` e criar a tag; o GitHub faz o resto.
 
-### Rede corporativa (Zscaler) — já vem resolvido
+### Rede corporativa (Zscaler) - já vem resolvido
 
 Atrás do Zscaler o `pip` erra e trava por causa da inspeção de SSL. O `run.bat` e
 o `build.bat` **já chamam o pip com os argumentos que resolvem isso**, sem você
@@ -148,9 +149,8 @@ linha (ou defina a variável de ambiente `DOCMANAGER_PIP_ARGS`):
 
 ### Onde ficam os seus dados
 
-Tudo em **`Documentos\DocManager_Itaipu\`**, fora da pasta do programa de
-propósito — assim a atualização, que reescreve a pasta de instalação, nunca
-encosta neles:
+Tudo em **`Documentos\DocManager_Itaipu\`**, fora da pasta do programa. Assim a
+atualização, que reescreve a pasta de instalação, nunca encosta neles:
 
 | Arquivo | O que guarda |
 |---|---|
@@ -167,12 +167,12 @@ Para desenvolvimento, `DOCMANAGER_DADOS_DIR` redireciona essa pasta inteira.
 Em **todo** seletor de arquivo há um botão de **Aba (Sheet)**: escolha a aba certa
 do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem selecionada).
 
-- **🗺️ Mapa dos Planos** — atualiza a planilha de Mapeamento (status real,
+- **🗺️ Mapa dos Planos** - atualiza a planilha de Mapeamento (status real,
   hierarquia, KPIs, atrasos). Selecione a **Base Aconex** + o **Mapeamento** e,
   opcionalmente, o **Controle de Documentos** (preenche datas previstas /
   reprogramação). O botão **⏳ Analisar Mudanças por Período (Delta)** abre a
   "Máquina do Tempo" comparando o status entre duas datas.
-- **📑 Doc List Mapping** — follow-up de uma lista de documentos, com dois níveis
+- **📑 Doc List Mapping** - follow-up de uma lista de documentos, com dois níveis
   (nível 1 = agrupamento por escopo, nível 2 = documentos) e uma única coluna
   `PREDECESSOR`. Do **Controle de Documentos** vêm as datas de planejamento,
   consolidadas na coluna `DATA-ALVO EMISSÃO` (reprogramada > prevista) que o
@@ -182,28 +182,28 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   e **⏳ Analisar Mudanças por Período (Delta)** mostra o que aconteceu entre
   duas datas. Ambas exportam Excel.
   Detalhes em [`docs/doc_list_mapping.md`](docs/doc_list_mapping.md).
-- **🔎 Status Documentos** — status real de documentos. Escolha a origem na aba:
+- **🔎 Status Documentos** - status real de documentos. Escolha a origem na aba:
   *Via Arquivo Excel* (arquivo + colunas), *Via Lista Rápida* (colar códigos) ou
   *Todos Aconex* (todos os vigentes). Botões no rodapé: **Gerar Status Atual**
   (Excel + gráfico) e **Analisar Delta do Período** (como os documentos daquela
   aba mudaram, agrupado por metadado).
-- **📊 Histórico e Dashboard** — na aba *Planilha*, gera o Histórico Consolidado
+- **📊 Histórico e Dashboard** - na aba *Planilha*, gera o Histórico Consolidado
   (1 linha por revisão + colunas de atraso Itaipu/CMI). Na aba *Dashboard*, sobe
   o painel web executivo (evolução do atraso, First Time Right, gargalos...).
-- **📋 Relatórios** — Relatório de Avanço, Auditoria de Integração e **Fluxos em
+- **📋 Relatórios** - Relatório de Avanço, Auditoria de Integração e **Fluxos em
   Andamento** (onde cada documento está e com quem: etapa atual, responsável,
   vencimento e dias de atraso). O de fluxos usa a **base de Fluxos**, que tem
-  seletor de arquivo próprio — não é a base de documentos.
+  seletor de arquivo próprio - não é a base de documentos.
   Detalhes em [`docs/fluxos_de_trabalho.md`](docs/fluxos_de_trabalho.md).
-- **📥 Extração Aconex** — baixa a base completa do Aconex via API (precisa das
-  credenciais cadastradas — ver "Primeiro uso" acima). Operação longa (~30 min em produção). **Se a conexão cair, o progresso
+- **📥 Extração Aconex** - baixa a base completa do Aconex via API (precisa das
+  credenciais cadastradas; ver "Primeiro uso" acima). Operação longa (~30 min em produção). **Se a conexão cair, o progresso
   não se perde**: cada página baixada fica guardada e a próxima execução retoma
   de onde parou (o app avisa no log). Uma extração interrompida é sinalizada como
-  **parcial** — você escolhe se quer o Excel do que já veio.
+  **parcial** - você escolhe se quer o Excel do que já veio.
   Na aba **🔀 Fluxos de Trabalho** baixa os workflows (etapa, prazo e a quem cada
   documento está atribuído), com seletor de período: "tudo" leva ~20 min, mas
   "últimos 30 dias" atualiza em ~1 min.
-- **⚙️ Configurações** — **Credenciais do Aconex** (cadastrar, editar, remover),
+- **⚙️ Configurações** - **Credenciais do Aconex** (cadastrar, editar, remover),
   **Atualizações** do app, a *Regra da Aprovação Intermediária* (VIP) e a base do
   atraso CMI na 0A.
 
@@ -212,7 +212,7 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
 ## Arquitetura (visão rápida)
 
 ```
-ui/            interface (CustomTkinter) — uma view por módulo
+ui/            interface (CustomTkinter) - uma view por módulo
   ↓ importa só de
 *_backend.py   backend público de cada módulo (na raiz do pacote):
                mapa_backend · doclist_backend · status_backend ·
@@ -220,7 +220,7 @@ ui/            interface (CustomTkinter) — uma view por módulo
                aconex_backend
   ↓ apoiado em
 common.py      funções compartilhadas (carga da base, índice de identidade,
-               linha da verdade, motores de status, KPIs) — o "cérebro" comum
+               linha da verdade, motores de status, KPIs) - o "cérebro" comum
   ↓ implementado por
 core/          lógica pura, 100% testável (constantes, status, wide, atrasos...)
 services/      I/O (Excel, config, orquestrações)

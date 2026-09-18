@@ -1,5 +1,5 @@
 # ════════════════════════════════════════════════════════════════════════════
-#  Release do DocManager Itaipu — build + instalador + publicação
+#  Release do DocManager Itaipu - build + instalador + publicação
 #
 #  Como se lança uma versão nova (é só isto):
 #     1. acrescente o bloco da versão no CHANGELOG.md e faça commit;
@@ -9,11 +9,11 @@
 #  Os apps já instalados avisam sozinhos na próxima abertura.
 #
 #  Segredo necessário (Settings → Secrets and variables → Actions):
-#     UPDATE_TOKEN — PAT fine-grained, SOMENTE LEITURA (Contents: Read-only),
+#     UPDATE_TOKEN - PAT fine-grained, SOMENTE LEITURA (Contents: Read-only),
 #                    restrito a ESTE repositório. É ele que o app embute para
 #                    conseguir ler os Releases, já que o repositório é privado.
 #                    Sem o segredo o build sai sem atualização automática (e o
-#                    workflow avisa) — nada quebra.
+#                    workflow avisa) - nada quebra.
 #  Ver BUILD.md, seção "Rotação do token".
 # ════════════════════════════════════════════════════════════════════════════
 name: Release
@@ -42,7 +42,7 @@ jobs:
     timeout-minutes: 45
     env:
       # Windows roda o Python em cp1252 por padrão, e qualquer `print` com "→"
-      # ou acento derruba o passo com UnicodeEncodeError — o build morre por
+      # ou acento derruba o passo com UnicodeEncodeError - o build morre por
       # causa de uma MENSAGEM, depois de lint e testes já terem passado.
       # PYTHONUTF8=1 liga o modo UTF-8 do Python para o job inteiro.
       PYTHONUTF8: "1"
@@ -101,7 +101,7 @@ jobs:
         run: |
           python tools/preparar_build.py "${{ steps.versao.outputs.versao }}" \
             --origem github-actions --commit "${{ github.sha }}"
-          # `secrets` não é um contexto válido em `if:` de passo — por isso a
+          # `secrets` não é um contexto válido em `if:` de passo - por isso a
           # presença do token vira um output aqui.
           if [ -z "$DOCMANAGER_UPDATE_TOKEN" ]; then
             echo "tem_token=false" >> "$GITHUB_OUTPUT"
@@ -131,7 +131,7 @@ jobs:
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) {
-            Write-Host "Inno Setup não encontrado na imagem — instalando via Chocolatey."
+            Write-Host "Inno Setup não encontrado na imagem - instalando via Chocolatey."
             choco install innosetup --no-progress -y
           }
           "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -176,7 +176,7 @@ jobs:
           if [ "$PRERELEASE" = "true" ]; then sinal="--prerelease"; else sinal="--prerelease=false"; fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "O release $TAG já existe — anexando os arquivos a ele."
+            echo "O release $TAG já existe - anexando os arquivos a ele."
             gh release upload "$TAG" "${ativos[@]}" --clobber
             gh release edit "$TAG" \
               --title "DocManager Itaipu v$VERSAO" \
@@ -184,7 +184,7 @@ jobs:
           else
             echo "Criando o release $TAG."
             # --target: a tag, quando ainda não existe, nasce apontando para
-            # este commit — e não para o topo da branch padrão no momento.
+            # este commit - e não para o topo da branch padrão no momento.
             gh release create "$TAG" "${ativos[@]}" \
               --target "${{ github.sha }}" \
               --title "DocManager Itaipu v$VERSAO" \

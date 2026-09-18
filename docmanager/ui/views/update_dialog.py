@@ -1,4 +1,4 @@
-"""Janela "há uma nova versão" — aviso, download com progresso e instalação.
+"""Janela "há uma nova versão" - aviso, download com progresso e instalação.
 
 O download roda numa thread separada; todo toque na interface volta para a
 thread do Tk via `self.after`, porque widgets do Tkinter só podem ser mexidos
@@ -56,8 +56,8 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         notas.configure(state="disabled")
 
         if updater.precisa_elevacao():
-            ctk.CTkLabel(quadro, text="ℹ️ O DocManager está instalado em Program Files: o "
-                         "Windows vai pedir permissão de administrador para concluir.",
+            ctk.CTkLabel(quadro, text="ℹ️ O DocManager está instalado em Program Files, então "
+                         "o Windows vai pedir permissão de administrador para concluir.",
                          font=t.corpo(11), text_color=t.TEXTO_FRACO, justify="left",
                          wraplength=560).pack(anchor="w", pady=(10, 0))
 
@@ -105,7 +105,7 @@ class AtualizacaoDialog(ctk.CTkToplevel):
 
     # --- ações ---
     def _dizer(self, msg: str):
-        """Escreve no rótulo de status — seguro para chamar de outra thread."""
+        """Escreve no rótulo de status - seguro para chamar de outra thread."""
         self.after(0, lambda: self.status.configure(text=msg))
 
     def _progresso(self, fracao: float):
@@ -130,7 +130,7 @@ class AtualizacaoDialog(ctk.CTkToplevel):
                                      log_cb=self._dizer)
             self._dizer("Iniciando a instalação...")
             updater.instalar(caminho, log_cb=self._dizer)
-        except Exception as e:  # noqa: BLE001 — qualquer falha vira aviso na tela
+        except Exception as e:  # noqa: BLE001 - qualquer falha vira aviso na tela
             self.after(0, lambda erro=e: self._falhou(erro))
             return
         self.after(400, self._encerrar_para_instalar)
@@ -144,8 +144,8 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         self._dizer("")
         messagebox.showerror(
             "Não foi possível atualizar",
-            f"{erro}\n\nVocê pode continuar usando esta versão normalmente e baixar "
-            f"a nova manualmente em:\n{self.info.url_pagina}", parent=self)
+            f"{erro}\n\nVocê pode seguir usando esta versão normalmente. Para baixar a "
+            f"nova à mão:\n{self.info.url_pagina}", parent=self)
 
     def _encerrar_para_instalar(self):
         self._dizer("O DocManager vai fechar para concluir a instalação.")

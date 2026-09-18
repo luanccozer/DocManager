@@ -1,4 +1,4 @@
-"""Sonda a Mail API do Aconex para o "Transmitido em" — foco em CUSTO de tempo.
+"""Sonda a Mail API do Aconex para o "Transmitido em" - foco em CUSTO de tempo.
 
 Read-only. Responde: (1) qual `mail_box` é válido; (2) quantos transmittals
 existem (define o custo da paginação); (3) se o registro de cada mail já traz os
@@ -78,7 +78,7 @@ def main():
         # 4) detalhe do mail: lista documentos anexados?
         mid = m.attrib.get("MailId") or m.attrib.get("mailId")
         if mid:
-            print(f"\n=== 4) GET /mail/{mid} — lista documentos anexados? ===")
+            print(f"\n=== 4) GET /mail/{mid} - lista documentos anexados? ===")
             rd = session.get(f"{mail}/{mid}", headers=auth, timeout=60)
             print(f"  HTTP {rd.status_code}")
             if rd.status_code == 200:

@@ -51,7 +51,7 @@ UninstallDisplayIcon={app}\{#AppExe}
 ; --- Escopo da instalacao -----------------------------------------------
 ; O padrao continua sendo "para todos" (Program Files, com admin), mas o
 ; instalador PERGUNTA. Quem nao tem senha de administrador escolhe "somente
-; para mim" e vai para %LOCALAPPDATA%\Programs — e ai a atualizacao automatica
+; para mim" e vai para %LOCALAPPDATA%\Programs - e ai a atualizacao automatica
 ; roda sem nenhum popup do UAC.
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
@@ -59,7 +59,7 @@ PrivilegesRequiredOverridesAllowed=dialog commandline
 ; --- Atualizacao por cima da versao anterior ----------------------------
 ; AppMutex e a peca que faz a atualizacao funcionar: o app cria este mutex
 ; nomeado ao abrir (ui/main_app.py, NOME_MUTEX). Com ele o Inno DESCOBRE que o
-; DocManager esta rodando e o fecha antes de trocar os arquivos — sem isso a
+; DocManager esta rodando e o fecha antes de trocar os arquivos - sem isso a
 ; instalacao falha com "arquivo em uso", que e o sintoma classico de
 ; auto-update quebrado. Os dois nomes TEM que ser iguais.
 AppMutex=DocManagerItaipu_AppMutex
@@ -92,4 +92,4 @@ Type: filesandordirs; Name: "{app}\_internal\__pycache__"
 [Messages]
 ; As credenciais agora sao cadastradas DENTRO do app; nao existe mais .env para
 ; a pessoa copiar. A mensagem final diz exatamente o que fazer na 1a abertura.
-brazilianportuguese.FinishedLabel=Instalacao concluida.%n%nPRIMEIRO USO: para a Extracao Aconex funcionar, abra o DocManager, va em "Extracao Aconex" e clique em CADASTRAR USUARIO. Informe o Client ID (APP ID), o User ID e o Client Secret que o administrador do Aconex forneceu para voce.%n%nE uma vez so: os dados ficam guardados nesta maquina, cifrados pelo Windows, e continuam valendo depois de cada atualizacao.%n%nOs demais modulos (Mapa, Doc List, Status, Historico, Relatorios) funcionam sem cadastro nenhum.
+brazilianportuguese.FinishedLabel=Instalacao concluida.%n%nPRIMEIRO USO: para a Extracao Aconex funcionar, abra o DocManager, va em "Extracao Aconex" e clique em CADASTRAR USUARIO. Informe o Client ID (APP ID), o User ID e o Client Secret que o administrador do Aconex passou para voce.%n%nE uma vez so. Os dados ficam guardados nesta maquina, cifrados pelo Windows, e continuam valendo depois das atualizacoes.%n%nOs outros modulos (Mapa, Doc List, Status, Historico, Relatorios) funcionam sem cadastro nenhum.

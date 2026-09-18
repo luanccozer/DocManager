@@ -36,7 +36,7 @@ def test_anulacao_consolida_como_cancelado():
 
 
 def test_void_nao_e_confundido_com_outro_status():
-    """Só o VOID exato anula — 'Avoided'/'Voided' não entram na lista."""
+    """Só o VOID exato anula - 'Avoided'/'Voided' não entram na lista."""
     b = HistoricoBuilder("T", "IT", "CMI").evento("0A", 1, "Avoided", "01/03/2024", current=True)
     assert _real(b, "0A") != "Cancelado"
 
@@ -95,7 +95,7 @@ def test_reprovado_com_atual_em_processo_vira_em_processo():
 
 
 def test_reprovacao_em_revisao_numerica_ignorada():
-    # "Não Aprovado" numa revisão definitiva (0) não rebaixa — segue a batalha.
+    # "Não Aprovado" numa revisão definitiva (0) não rebaixa - segue a batalha.
     b = (HistoricoBuilder("T", "IT", "CMI")
          .evento("0A", 1, "Aprovado", "01/03/2024")
          .evento("0", 1, "Não Aprovado", "05/04/2024")

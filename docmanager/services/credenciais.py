@@ -1,28 +1,28 @@
-"""Cofre das credenciais do Aconex — o que substitui o `.env`.
+"""Cofre das credenciais do Aconex - o que substitui o `.env`.
 
 Por que mudou
 -------------
 Até a v3.0.0 o app era distribuído como um ZIP e o `.env` (com o Client Secret)
 viajava junto, copiado à mão para a máquina de cada pessoa. Com o instalador do
 GitHub isso deixou de existir: ninguém mais recebe um `.env` pronto. Então o
-cadastro passou a ser feito DENTRO do app — a tela de Extração pede os três
+cadastro passou a ser feito DENTRO do app - a tela de Extração pede os três
 dados que o Aconex exige na primeira vez que a pessoa tenta extrair.
 
 Onde fica e como é protegido
 ----------------------------
-`Documentos\\DocManager_Itaipu\\credenciais.json` — fora da pasta do programa,
+`Documentos\\DocManager_Itaipu\\credenciais.json` - fora da pasta do programa,
 de propósito: assim a atualização (que reescreve Program Files) não encosta nas
 credenciais de ninguém.
 
 O Client Secret é cifrado com a **DPAPI do Windows** (`CryptProtectData`), a
 mesma API que o Chrome e o Edge usam para guardar senhas. A chave é derivada da
 conta do Windows: o arquivo copiado para outra máquina, ou aberto por outro
-usuário, não decifra. Não é cofre de banco — quem já estiver logado como a
-pessoa consegue ler —, mas é muito melhor que o `.env` em texto puro, que
+usuário, não decifra. Não é cofre de banco - quem já estiver logado como a
+pessoa consegue ler , mas é muito melhor que o `.env` em texto puro, que
 qualquer um lia com o Bloco de Notas.
 
 Fora do Windows (desenvolvimento em Linux/macOS) a DPAPI não existe e o segredo
-fica em base64, que **não é criptografia** — só evita leitura acidental. O campo
+fica em base64, que **não é criptografia** - só evita leitura acidental. O campo
 `cifrado` do arquivo registra qual dos dois foi usado.
 """
 from __future__ import annotations
@@ -57,7 +57,7 @@ def _dpapi(funcao: str, dados: bytes) -> bytes:
     saida = BLOB()
     crypt32 = ctypes.windll.crypt32
     chamada = getattr(crypt32, funcao)
-    # CRYPTPROTECT_UI_FORBIDDEN (0x1): nunca abrir caixa de diálogo — o app pode
+    # CRYPTPROTECT_UI_FORBIDDEN (0x1): nunca abrir caixa de diálogo - o app pode
     # estar cifrando dentro de uma thread de trabalho, sem janela para exibir.
     ok = chamada(ctypes.byref(entrada), None, None, None, None, 0x01, ctypes.byref(saida))
     if not ok:
@@ -74,7 +74,7 @@ def cifrar(segredo: str) -> tuple[str, bool]:
     if dpapi_disponivel():
         try:
             return base64.b64encode(_dpapi("CryptProtectData", bruto)).decode("ascii"), True
-        except Exception:  # noqa: BLE001 — DPAPI indisponível: não perder o cadastro
+        except Exception:  # noqa: BLE001 - DPAPI indisponível: não perder o cadastro
             pass
     return base64.b64encode(bruto).decode("ascii"), False
 
@@ -108,7 +108,7 @@ def sufixo_env(nome: str) -> str:
 def pasta_dados() -> Path:
     """Pasta de dados do usuário (credenciais, config, token de atualização).
 
-    `DOCMANAGER_DADOS_DIR` redireciona tudo — é o que deixa os testes rodarem
+    `DOCMANAGER_DADOS_DIR` redireciona tudo - é o que deixa os testes rodarem
     isolados, e serve a quem precisa dos dados fora de `Documentos`.
     """
     if (custom := os.getenv("DOCMANAGER_DADOS_DIR", "").strip()):
@@ -132,7 +132,7 @@ class Cofre:
                 d = json.loads(self.caminho.read_text(encoding="utf-8"))
                 if isinstance(d, dict) and isinstance(d.get("usuarios"), dict):
                     return d
-        except Exception:  # noqa: BLE001 — arquivo corrompido não pode travar o app
+        except Exception:  # noqa: BLE001 - arquivo corrompido não pode travar o app
             pass
         return {"schema": SCHEMA, "usuarios": {}}
 
@@ -142,7 +142,7 @@ class Cofre:
         self.caminho.write_text(json.dumps(self._dados, indent=2, ensure_ascii=False),
                                 encoding="utf-8")
         if os.name != "nt":
-            # Sem DPAPI o segredo está só em base64 — ao menos feche o arquivo
+            # Sem DPAPI o segredo está só em base64 - ao menos feche o arquivo
             # para os outros usuários da máquina.
             try:
                 self.caminho.chmod(0o600)
@@ -177,7 +177,7 @@ class Cofre:
         if not nome:
             raise ValueError("Informe um nome para identificar o usuário.")
         if not (client_id and user_id and secret):
-            raise ValueError("Client ID, User ID e Client Secret são obrigatórios — "
+            raise ValueError("Client ID, User ID e Client Secret são obrigatórios - "
                              "o Aconex exige os três para autenticar.")
         if not user_id.isdigit():
             raise ValueError(f"O User ID do Aconex é numérico (ex.: 1208560183). "
@@ -203,7 +203,7 @@ class Cofre:
 
         Roda sozinho na primeira execução depois da atualização: quem já tinha um
         `.env` funcionando não precisa recadastrar nada. Quem já está no cofre
-        NÃO é sobrescrito — o cadastro feito no app sempre vence o `.env` velho.
+        NÃO é sobrescrito - o cadastro feito no app sempre vence o `.env` velho.
 
         `conhecidos` é o mapa de usuários com Client/User ID já sabidos
         (`aconex_backend.USUARIOS`); passado por parâmetro para este módulo não
@@ -253,7 +253,7 @@ def cofre() -> Cofre:
 
 
 def recarregar() -> Cofre:
-    """Descarta a instância em memória — usado depois de um cadastro externo."""
+    """Descarta a instância em memória - usado depois de um cadastro externo."""
     global _cofre
     _cofre = None
     return cofre()

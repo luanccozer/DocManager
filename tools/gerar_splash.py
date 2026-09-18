@@ -1,11 +1,11 @@
-"""Gera `assets/splash.png` — a tela de carregamento NATIVA do executável.
+"""Gera `assets/splash.png` - a tela de carregamento NATIVA do executável.
 
 Essa imagem é mostrada pelo bootloader do PyInstaller (objeto `Splash` no
 `docmanager.spec`) já no duplo-clique, enquanto o Python e as bibliotecas
 carregam; `ui/main_app.main()` a fecha quando o app fica pronto.
 
 É uma imagem ESTÁTICA (o bootloader não anima). Antes o "carregando" vinha de
-uma barra parcial, que ficava feia; agora a tela é limpa — logo + título +
+uma barra parcial, que ficava feia; agora a tela é limpa - logo + título +
 subtítulo + um "Carregando..." discreto, SEM barra. As cores saem do tema do
 app, para o splash e a janela combinarem.
 
@@ -55,7 +55,7 @@ def gerar() -> str:
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, W - 1, H - 1], outline=t.ACENTO, width=2)
 
-    # Logo centralizado no topo — dá cara de tela intencional (não "vazia").
+    # Logo centralizado no topo - dá cara de tela intencional (não "vazia").
     y = 32
     logo = _logo(84)
     if logo is not None:

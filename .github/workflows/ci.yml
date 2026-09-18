@@ -1,6 +1,6 @@
 # Portão de qualidade de todo commit: lint + suíte de testes.
 #
-# Roda em Linux de propósito — é ~3x mais rápido e mais barato que o Windows, e
+# Roda em Linux de propósito - é ~3x mais rápido e mais barato que o Windows, e
 # o núcleo testado (core/, services/) não tem nada de específico do sistema. O
 # que é só do Windows (DPAPI, mutex, instalador) é exercitado no workflow de
 # Release, que roda no windows-latest de verdade.
@@ -53,7 +53,7 @@ jobs:
               sys.exit("CHANGELOG.md não tem nenhum bloco '## <versão>' reconhecível.")
           if bloco_de(texto, VERSAO) is None:
               print(f"::warning::_build_info.VERSAO é {VERSAO}, mas o CHANGELOG.md não "
-                    f"tem bloco para ela. O Release sairia sem notas — acrescente "
-                    f"'## {VERSAO} — <data>' antes de criar a tag.")
+                    f"tem bloco para ela. O Release sairia sem notas - acrescente "
+                    f"'## {VERSAO} - <data>' antes de criar a tag.")
           print(f"CHANGELOG ok: {len(blocos)} versões, a mais recente é a v{blocos[0].versao}.")
           PY

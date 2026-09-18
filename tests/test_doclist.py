@@ -38,7 +38,7 @@ HOJE = date(2026, 7, 27)
 
 
 # ---------------------------------------------------------------------------
-# Status consolidado — IGUAL ao do Mapa (§27.4)
+# Status consolidado - IGUAL ao do Mapa (§27.4)
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("status_real,status_emissao,esperado", [
     ("Aprovado", "Aprovado", "APROVADO"),
@@ -160,7 +160,7 @@ def test_data_alvo_prefere_reprogramada():
 
 
 def test_fase_do_controle_e_ignorada():
-    """§27.3: FASE DE PROJETO virou input manual — o Controle não a fornece mais."""
+    """§27.3: FASE DE PROJETO virou input manual - o Controle não a fornece mais."""
     d = _resolver(fase="FABRICAÇÃO")
     assert not hasattr(d, "fase")
 
@@ -265,7 +265,7 @@ def test_ciclo_completo_doclist(tmp_path):
     assert val(3, "ÚLTIMA REV. EMITIDA") == "0A"
 
     # FASE DE PROJETO é input manual (§27.3): o Controle tem 'FABRICAÇÃO', a
-    # planilha não — e continua não tendo.
+    # planilha não - e continua não tendo.
     assert val(3, "FASE DE PROJETO") is None
 
     # Planejamento: datas nativas e a data-alvo (reprogramada > prevista).
@@ -350,7 +350,7 @@ def test_janelas_padrao_cobrem_hoje():
 
 
 # ---------------------------------------------------------------------------
-# Situação de emissão — aderência ao planejamento (§27.5)
+# Situação de emissão - aderência ao planejamento (§27.5)
 # ---------------------------------------------------------------------------
 ALVO = date(2026, 3, 10)
 
@@ -375,7 +375,7 @@ def test_regua_e_a_primeira_emissao_nao_a_ultima():
     """O teste que justifica a coluna: 0A no prazo, 0F meses depois.
 
     Usar DATA ÚLTIMA EMISSÃO como régua acusaria 9 meses de atraso num
-    documento que nasceu adiantado — 0A→0F é ciclo normal de aprovação.
+    documento que nasceu adiantado - 0A→0F é ciclo normal de aprovação.
     """
     df = _hist(("0A", 1, "Em Processo", "05/03/2026"),
                ("0A", 2, "Não Aprovado", "01/04/2026"),
@@ -443,7 +443,7 @@ def test_documento_sem_historico_nao_tem_primeira_emissao():
     (None, ALVO, "NÃO EMITIDO", SIT_PENDENTE_VENCIDO),
     (None, None, "NÃO EMITIDO", SIT_SEM_PLANEJAMENTO),
     (date(2026, 3, 5), None, "APROVADO", SIT_SEM_PLANEJAMENTO),
-    # CANCELADO é terminal e vence tudo — sai do gráfico por filtro do visual.
+    # CANCELADO é terminal e vence tudo - sai do gráfico por filtro do visual.
     (date(2026, 3, 5), ALVO, "CANCELADO", SIT_CANCELADO),
     (None, None, "CANCELADO", SIT_CANCELADO),
 ])
@@ -515,7 +515,7 @@ def test_ciclo_completo_grava_situacao_emissao(tmp_path):
     assert val(4, "DATA 1ª EMISSÃO").date() == date(2026, 1, 10)
     assert val(5, "DATA 1ª EMISSÃO") is None
 
-    # DIAS DESVIO é NÚMERO, não texto — negativo = adiantado.
+    # DIAS DESVIO é NÚMERO, não texto - negativo = adiantado.
     assert val(3, "DIAS DESVIO EMISSÃO") == 28      # 01/03 vs 01/02
     assert val(4, "DIAS DESVIO EMISSÃO") == -22     # 10/01 vs 01/02
     assert val(5, "DIAS DESVIO EMISSÃO") is None

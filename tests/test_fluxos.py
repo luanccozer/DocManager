@@ -93,7 +93,7 @@ def test_parse_achata_assignees_e_pessoas():
 
 
 def test_parse_faz_strip_do_espaco_a_direita():
-    """O Aconex manda 'Concluído ' com espaço — sem strip, todo filtro falha."""
+    """O Aconex manda 'Concluído ' com espaço - sem strip, todo filtro falha."""
     xml = XML.replace(b"<StepStatus>Atual</StepStatus>",
                       b"<StepStatus>Concluido </StepStatus>")
     assert parse_pagina_workflows(xml)[0]["StepStatus"] == "Concluido"
@@ -136,7 +136,7 @@ def test_fluxos_vence_hoje():
 
 
 def test_fluxos_ignora_etapas_fechadas_e_previsao():
-    """Só 'Atual'/'Em Atraso' respondem 'com quem está' — concluída é passado,
+    """Só 'Atual'/'Em Atraso' respondem 'com quem está' - concluída é passado,
     previsão ainda não começou."""
     df = _base_fluxos()
     df.loc[0, "Status da Etapa"] = "Concluído"
@@ -151,7 +151,7 @@ def test_fluxos_ignora_fluxo_concluido():
 
 
 def test_fluxos_base_errada_da_erro_acionavel():
-    """Apontar a base de DOCUMENTOS aqui é o engano óbvio — a mensagem tem que dizer."""
+    """Apontar a base de DOCUMENTOS aqui é o engano óbvio - a mensagem tem que dizer."""
     with pytest.raises(KeyError, match="Fluxos"):
         analisar_fluxos_em_andamento(pd.DataFrame({"No. do Documento": ["X"]}))
 

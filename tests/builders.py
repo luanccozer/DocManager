@@ -67,7 +67,7 @@ def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True,
     `linhas`: list[dict] com chaves itaipu, cmi, titulo, prevista, reprog, fase.
     Códigos podem ser float (ex.: 12345.0) para exercitar o '.0' fantasma.
     `cabecalhos`: sobrescreve os textos do cabeçalho (dict por chave: itaipu,
-    cmi, prevista, reprog, fase) — para exercitar cabeçalhos quebrados em duas
+    cmi, prevista, reprog, fase) - para exercitar cabeçalhos quebrados em duas
     linhas, com espaços a mais, etc.
     """
     from openpyxl import Workbook

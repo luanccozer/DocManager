@@ -47,7 +47,7 @@ class ResultadoDocumento:
     atrasos: dict = field(default_factory=dict)
     # Régua de aderência ao planejamento (KB §27.5): a PRIMEIRA emissão, não a
     # última. Quem transforma isso em balde é o Doc List
-    # (`core/doclist.classificar_situacao_emissao`) — a regra é dele, não do Mapa.
+    # (`core/doclist.classificar_situacao_emissao`) - a regra é dele, não do Mapa.
     data_primeira_emissao: date | None = None
 
 
@@ -95,9 +95,9 @@ def resolver_data_prevista(valor_celula, codigos_historicos, cod_itaipu_atual,
 class DatasControle:
     """Resultado da resolução das datas do Controle para um documento do Mapa.
 
-    - `prevista_para_celula`: DATA PREVISTA a escrever na célula ETAPA 1 —
+    - `prevista_para_celula`: DATA PREVISTA a escrever na célula ETAPA 1 -
       `None` significa "não mexer".
-    - `reprogramada`: REPROGRAMAÇÃO a escrever — `None` significa "não mexer".
+    - `reprogramada`: REPROGRAMAÇÃO a escrever - `None` significa "não mexer".
     - `data_ref`: REPROGRAMAÇÃO > PREVISTA **já considerando o que ficará nas
       células**, não só o que veio do Controle. É a data que o atraso usa.
     - `via`: como o documento foi localizado no Controle ('exato' | 'frouxo' |
@@ -105,7 +105,7 @@ class DatasControle:
     - `prevista_atualizada`: a célula já tinha data e o Controle trouxe uma mais
       recente (para o log distinguir preenchimento de atualização).
     - `titulo_controle`: DESCRIÇÃO do Controle. Serve de **fallback** para a
-      descrição do documento quando o Aconex não o conhece (§27.3) — sem isso o
+      descrição do documento quando o Aconex não o conhece (§27.3) - sem isso o
       não emitido fica só com o código na planilha.
     """
     prevista_para_celula: date | None = None
@@ -125,16 +125,16 @@ def resolver_datas_controle(valor_celula_prevista, codigos_historicos, cod_itaip
                             valor_celula_reprogramada: date | None = None) -> DatasControle:
     """Resolve PREVISTA e REPROGRAMAÇÃO da etapa 1 e entrega a `data_ref` do atraso.
 
-    Regras (unificadas com o Doc List Mapping a pedido do usuário, §24.13 —
+    Regras (unificadas com o Doc List Mapping a pedido do usuário, §24.13 -
     "a lógica dele é melhor"):
 
-    - **DATA PREVISTA** — vence a data **mais recente** entre a planilha e o
+    - **DATA PREVISTA** - vence a data **mais recente** entre a planilha e o
       Controle. Antes o Mapa só escrevia na célula vazia, então uma reprogramação
       de calendário registrada no Controle nunca chegava ao mapeamento.
-    - **DATA REPROGRAMADA** — só preenche o **vazio**: a coluna aceita input
+    - **DATA REPROGRAMADA** - só preenche o **vazio**: a coluna aceita input
       manual, e antes o Mapa a sobrescrevia a cada rodada, apagando o que a
       equipe tinha digitado.
-    - **`data_ref`** — REPROGRAMAÇÃO > PREVISTA sobre os valores FINAIS (os que
+    - **`data_ref`** - REPROGRAMAÇÃO > PREVISTA sobre os valores FINAIS (os que
       ficam nas células). Antes vinha só do Controle, então o atraso ignorava uma
       data mais recente que estivesse na planilha.
 

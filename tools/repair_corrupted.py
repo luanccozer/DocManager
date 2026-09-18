@@ -8,7 +8,7 @@ O copy-paste quebrou strings contendo cores hex em duas linhas físicas:
 
 O reparo rejunta cada par numa linha só, guiado por ast.parse (que aponta a
 linha da aspa aberta). Invariante de segurança: o texto reparado, removidas
-as quebras de linha, é IDENTICO ao original — nada além de junções.
+as quebras de linha, é IDENTICO ao original - nada além de junções.
 
 Os originais corrompidos estão preservados no commit baseline do git; este
 script lê da raiz do projeto e grava as cópias reparadas em legacy/
@@ -64,11 +64,11 @@ def reparar_sintaxe(linhas: list[str], nome: str) -> int:
             # Guarda anti-disparo-errado: só rejunta o padrão conhecido da corrupção
             if not RE_LINHA_HEX.match(linhas[i + 1]):
                 raise RuntimeError(
-                    f"{nome}: linha {e.lineno + 1} não começa com cor hex — inspeção manual necessária"
+                    f"{nome}: linha {e.lineno + 1} não começa com cor hex - inspeção manual necessária"
                 )
             if not RE_FIM_ASPA_ABERTA.search(linhas[i].rstrip("\r\n")):
                 raise RuntimeError(
-                    f"{nome}: linha {e.lineno} não termina em aspa aberta — inspeção manual necessária"
+                    f"{nome}: linha {e.lineno} não termina em aspa aberta - inspeção manual necessária"
                 )
             _junta(linhas, i)
             juncoes += 1
@@ -105,7 +105,7 @@ def reparar_arquivo(origem: Path, destino: Path) -> tuple[int, int]:
 
     # INVARIANTE: nada além de quebras de linha foi alterado
     if texto.replace("\r", "").replace("\n", "") != reparado.replace("\r", "").replace("\n", ""):
-        raise RuntimeError(f"{origem.name}: invariante violada — conteúdo alterado além de junções!")
+        raise RuntimeError(f"{origem.name}: invariante violada - conteúdo alterado além de junções!")
 
     destino.parent.mkdir(parents=True, exist_ok=True)
     with open(destino, "w", encoding="utf-8", newline="") as f:
@@ -122,9 +122,9 @@ def main() -> int:
             print(f"  {nome_origem}: NÃO ENCONTRADO na raiz (originais estão no commit baseline)")
             return 1
         j_sin, j_cos = reparar_arquivo(origem, LEGACY / nome_destino)
-        print(f"  {nome_origem} -> legacy/{nome_destino}: {j_sin} junções de sintaxe, {j_cos} cosméticas — OK")
+        print(f"  {nome_origem} -> legacy/{nome_destino}: {j_sin} junções de sintaxe, {j_cos} cosméticas - OK")
     (LEGACY / "__init__.py").write_text(
-        '"""Scripts legados reparados e congelados — oráculo dos testes diferenciais."""\n',
+        '"""Scripts legados reparados e congelados - oráculo dos testes diferenciais."""\n',
         encoding="utf-8",
     )
     print("Todos os arquivos reparados, compilados e validados.")

@@ -4,7 +4,7 @@ Ponto único de import para o que é usado por MAIS DE UM módulo: carga da base
 Aconex, exportação genérica de Excel, índice de identidade, linha da verdade e
 os motores de status. A implementação detalhada (e testada) continua em
 `core/` e `services/`; aqui está a superfície pública que os backends e a UI
-consomem — equivale ao antigo `data_manager.py`, porém sem I/O de tela.
+consomem - equivale ao antigo `data_manager.py`, porém sem I/O de tela.
 
 Arquitetura (v3):
     ui/  →  *_backend.py  →  common.py  →  core/ + services/  (implementação)

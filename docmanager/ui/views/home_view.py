@@ -1,11 +1,11 @@
-"""Home — tela inicial neutra: boas-vindas, módulos e novidades.
+"""Home - tela inicial neutra: boas-vindas, módulos e novidades.
 
 O app abre aqui. Não é um módulo de processamento (sem console de log): é um
 ponto de partida que mostra os blocos e, abaixo, as atualizações recentes.
 
 As novidades NÃO ficam mais escritas aqui: elas vêm do `CHANGELOG.md`, que é o
 mesmo texto publicado no Release do GitHub. Para anunciar algo, basta abrir um
-bloco novo lá — esta tela e a página do Release passam a mostrar a mesma coisa.
+bloco novo lá - esta tela e a página do Release passam a mostrar a mesma coisa.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ MODULOS = [
     ("relatorios", "📋", "Relatórios", "Relatório de Avanço (prazos de devolução da Itaipu) e Auditoria de "
      "Integração (documentos presos em 0AA)."),
     ("aconex", "📥", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex. "
-     "Na primeira vez, cadastre as suas credenciais do Aconex na própria tela."),
+     "Na primeira vez, cadastre as suas credenciais na própria tela."),
     ("config", "⚙️", "Configurações", "Credenciais do Aconex, atualizações do app, Regra da Aprovação "
      "Intermediária (VIP) e a base do atraso CMI na 0A."),
 ]
@@ -49,9 +49,9 @@ class HomeView(ctk.CTkFrame):
         body.grid_columnconfigure(0, weight=1)
         self._body = body
         self._hero(body)          # row 0
-        self._aviso_versao(body)  # row 1 — some quando não há atualização
-        self._modulos(body)       # row 2 — módulos
-        self._novidades(body)     # row 3 — novidades depois
+        self._aviso_versao(body)  # row 1 - some quando não há atualização
+        self._modulos(body)       # row 2 - módulos
+        self._novidades(body)     # row 3 - novidades depois
         # A checagem termina depois desta tela existir; o contexto avisa quando
         # (e já avisa na hora se a resposta chegou antes de a Home ser criada).
         self.ctx.ao_achar_atualizacao(
@@ -77,7 +77,7 @@ class HomeView(ctk.CTkFrame):
                      justify="left", wraplength=760).pack(anchor="w", padx=24, pady=(0, 18))
 
     def _aviso_versao(self, body):
-        """Faixa "há uma nova versão" — criada escondida e revelada pelo aviso."""
+        """Faixa "há uma nova versão" - criada escondida e revelada pelo aviso."""
         self._faixa = ctk.CTkFrame(body, fg_color=t.CARD, corner_radius=12,
                                    border_width=1, border_color=t.ACENTO)
         self._faixa.grid(row=1, column=0, sticky="ew", pady=(0, 16))
@@ -96,10 +96,10 @@ class HomeView(ctk.CTkFrame):
     def _mostrar_aviso(self, info):
         try:
             self._faixa_txt.configure(
-                text=f"A versão v{info.versao} já está disponível — você está na "
-                     f"v{self.ctx.versao}. Clique para ver o que mudou e atualizar.")
+                text=f"Saiu a versão v{info.versao}. Você está na v{self.ctx.versao}. "
+                     f"Clique para ver o que mudou e atualizar.")
             self._faixa.grid()
-        except Exception:  # noqa: BLE001 — a tela pode já ter sido destruída
+        except Exception:  # noqa: BLE001 - a tela pode já ter sido destruída
             pass
 
     def _modulos(self, body):
@@ -116,7 +116,7 @@ class HomeView(ctk.CTkFrame):
             topo = ctk.CTkFrame(bloco, fg_color="transparent")
             topo.pack(anchor="w", padx=16, pady=(14, 2), fill="x")
             # Célula de largura travada: o glifo do emoji não empurra o nome
-            # (emojis têm métricas diferentes) — mesma razão do NavItem.
+            # (emojis têm métricas diferentes) - mesma razão do NavItem.
             cel = ctk.CTkFrame(topo, fg_color="transparent", width=26, height=26)
             cel.pack(side="left", padx=(0, 8))
             cel.pack_propagate(False)
@@ -139,7 +139,7 @@ class HomeView(ctk.CTkFrame):
             w.bind("<Button-1>", abrir)
             try:
                 w.configure(cursor="hand2")
-            except Exception:  # noqa: BLE001 — nem todo widget aceita cursor
+            except Exception:  # noqa: BLE001 - nem todo widget aceita cursor
                 pass
         bloco.bind("<Enter>", lambda _e: bloco.configure(border_color=t.ACENTO))
         bloco.bind("<Leave>", lambda _e: bloco.configure(border_color=t.CARD_BORDA))

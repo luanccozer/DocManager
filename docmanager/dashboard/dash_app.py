@@ -1,4 +1,4 @@
-"""App Dash executiva do histórico. Fábrica `create_app(df_wide)` — sem variável
+"""App Dash executiva do histórico. Fábrica `create_app(df_wide)` - sem variável
 global e sem `app.layout` injetado de fora (dívidas do legado resolvidas)."""
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def create_app(df_wide) -> dash.Dash:
     app.layout = html.Div(style={"background": FUNDO, "minHeight": "100vh", "padding": "28px",
                                  "fontFamily": "Segoe UI"}, children=[
         html.H2("Dashboard do Histórico Consolidado", style={"color": TEXTO, "marginBottom": "4px"}),
-        html.Div("Visão executiva — CMI ↔ Itaipu", style={"color": TEXTO_FRACO, "marginBottom": "20px"}),
+        html.Div("Visão executiva - CMI ↔ Itaipu", style={"color": TEXTO_FRACO, "marginBottom": "20px"}),
         cards,
         # Evolução do atraso ocupa a largura toda (gráfico principal).
         html.Div(graf(_fig_evolucao(ds.evolucao_atraso(df_wide))), style={"marginBottom": "16px"}),

@@ -3,14 +3,14 @@
 Regras de comparação:
 - Vereditos do motor de status real comparam em UPPER + strip (listas *_UPPER).
 - O consolidado legado compara alguns status em case ORIGINAL (STATUS_EM_INTEGRACAO)
-  — preservado para não mudar comportamento (KB §9).
+  - preservado para não mudar comportamento (KB §9).
 """
 from __future__ import annotations
 
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Marco temporal — mudança de fluxo no Aconex (KB §7, §21.3)
+# Marco temporal - mudança de fluxo no Aconex (KB §7, §21.3)
 # Regime NOVO (workflow) ⇔ data >= 19/08/2024. Ponto ÚNICO da regra.
 # ---------------------------------------------------------------------------
 DATA_CORTE_FLUXO = pd.Timestamp("2024-08-19")
@@ -29,7 +29,7 @@ SLA_ITAIPU_DEMAIS = 15      # análise das demais revisões
 SLA_CMI_REEMISSAO = 15      # retrabalho/reemissão após veredito
 
 # ---------------------------------------------------------------------------
-# Vereditos e trâmite — documentos comuns (KB §8.1; legado: data_manager L146-152)
+# Vereditos e trâmite - documentos comuns (KB §8.1; legado: data_manager L146-152)
 # ---------------------------------------------------------------------------
 STATUS_APROVACAO_UPPER = ("APROVADO", "APROVADO COM COMENTÁRIOS", "PARA ASSINATURA")
 STATUS_REPROVACAO_UPPER = ("NÃO APROVADO",)
@@ -38,11 +38,11 @@ STATUS_INFORMATIVO_UPPER = ("INFORMATIVO", "PARA INFORMAÇÃO")
 # sistema em inglês). Todos são sinônimos e o motor os unifica em
 # `STATUS_CANCELADO` no status real (decisão do usuário, 2026-07-28).
 STATUS_ANULACAO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT", "VOID")
-# Rótulo CANÔNICO do status real de um documento anulado — um só, para o
+# Rótulo CANÔNICO do status real de um documento anulado - um só, para o
 # dashboard não ter que conhecer os sinônimos do Aconex.
 STATUS_CANCELADO = "Cancelado"
 
-# Fantasmas de integração/internos — case ORIGINAL (legado: data_manager L23-26).
+# Fantasmas de integração/internos - case ORIGINAL (legado: data_manager L23-26).
 # O consolidado legado faz `status in STATUS_EM_INTEGRACAO` sem normalizar.
 STATUS_EM_INTEGRACAO = (
     "Em Integração", "Integrado", "Não Integrado", "Em Validação", "Validado",
@@ -51,12 +51,12 @@ STATUS_EM_INTEGRACAO = (
 )
 STATUS_EM_INTEGRACAO_UPPER = tuple(s.strip().upper() for s in STATUS_EM_INTEGRACAO)
 
-# "Para Análise" é fantasma somente no regime novo (>= corte) — ver status_engine.
+# "Para Análise" é fantasma somente no regime novo (>= corte) - ver status_engine.
 PARA_ANALISE_UPPER = ("PARA ANÁLISE", "PARA ANALISE")
 
 # ---------------------------------------------------------------------------
 # Sucesso/falha/cancelamento dos KPIs (legado: data_manager L1835-1837)
-# Inclui variantes em inglês e 'Apto para Firma' — universo mais largo que o
+# Inclui variantes em inglês e 'Apto para Firma' - universo mais largo que o
 # do motor de status real, de propósito.
 # ---------------------------------------------------------------------------
 KPI_STATUS_SUCESSO_UPPER = (
@@ -70,7 +70,7 @@ KPI_STATUS_CANCELADO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT", "V
 # ---------------------------------------------------------------------------
 # Dataset do histórico consolidado / dashboard (legado: data_manager L941-948)
 # ---------------------------------------------------------------------------
-# Filtro de linhas do dataset (compara o Status BRUTO do Aconex) — por isso
+# Filtro de linhas do dataset (compara o Status BRUTO do Aconex) - por isso
 # lista os sinônimos de anulação em vez do rótulo canônico.
 HIST_STATUS_VALIDOS = (
     "Anulado", "Aprovado", "Aprovado com Comentários", "Cancelado", "VOID",
@@ -121,7 +121,7 @@ COLS_STRIP_CARGA = (
 )
 
 # ---------------------------------------------------------------------------
-# Planilha de Mapeamento — âncoras (KB §4). ATENÇÃO aos codepoints:
+# Planilha de Mapeamento - âncoras (KB §4). ATENÇÃO aos codepoints:
 #   'N° ITAIPU' usa U+00B0 (SINAL DE GRAU);  'Nº CMI' usa U+00BA (ORDINAL).
 # Trocar um pelo outro faz o find_headers falhar silenciosamente.
 # ---------------------------------------------------------------------------
@@ -152,17 +152,17 @@ CONS_ERRO = "ERRO"  # sentinela intencional de combinação não mapeada (KB §2
 NAO_EMITIDO = "NÃO EMITIDO"
 
 # ---------------------------------------------------------------------------
-# Fluxos de Trabalho — Workflows API (KB §24.12)
+# Fluxos de Trabalho - Workflows API (KB §24.12)
 # ---------------------------------------------------------------------------
 # ATENÇÃO: a API devolve estes valores LOCALIZADOS EM PORTUGUÊS, e vários com
 # espaço à direita ('Concluído '). O guia oficial documenta os rótulos em inglês
-# ('In Progress', 'Completed') — que NÃO aparecem na resposta. Comparar sempre
+# ('In Progress', 'Completed') - que NÃO aparecem na resposta. Comparar sempre
 # com estas constantes, após strip (feito na carga).
 WF_STATUS_ANDAMENTO = "Em Andamento"
 WF_STATUS_CONCLUIDO = "Concluído"
 WF_STATUS_ENCERRADO = "Encerrado"
 
-# Status da ETAPA. 'Atual' e 'Em Atraso' são as etapas EM ABERTO — é nelas que
+# Status da ETAPA. 'Atual' e 'Em Atraso' são as etapas EM ABERTO - é nelas que
 # mora a resposta "com quem o documento está agora".
 WF_ETAPA_ATUAL = "Atual"
 WF_ETAPA_ATRASADA = "Em Atraso"
@@ -172,7 +172,7 @@ WF_ETAPA_CONCLUIDA = "Concluído"
 WF_ETAPA_ENCERRADA = "Encerrado"
 
 # Colunas canônicas da base de fluxos (as de documento repetem os nomes da base
-# do register de propósito — é o que permite juntar sem tradução).
+# do register de propósito - é o que permite juntar sem tradução).
 WF_COL_NUMERO = "Nº do Fluxo"
 WF_COL_STATUS = "Status do Fluxo"
 WF_COL_ETAPA = "Etapa"

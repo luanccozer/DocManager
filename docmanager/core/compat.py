@@ -14,7 +14,7 @@ def month_end_freq() -> str:
     """Alias de frequência mensal (fim de mês) válido na versão corrente.
 
     'ME' só existe em pandas >= 2.2; 'M' foi removido no pandas 3.
-    (O legado usa freq='ME' fixo — quebrava em pandas < 2.2.)
+    (O legado usa freq='ME' fixo - quebrava em pandas < 2.2.)
     """
     if (_PD_MAJOR, _PD_MINOR) >= (2, 2):
         return "ME"

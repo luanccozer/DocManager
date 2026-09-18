@@ -1,4 +1,4 @@
-"""Orquestração do Histórico Consolidado — DIRIGIDO PELO CONTROLE (§24.11).
+"""Orquestração do Histórico Consolidado - DIRIGIDO PELO CONTROLE (§24.11).
 
 O Controle de Documentos (agora OBRIGATÓRIO) determina QUAIS documentos entram
 no histórico; o extrato Aconex fornece o histórico (revisões, envios, retornos)
@@ -116,7 +116,7 @@ def _anexar_controle(d: dict, r, base_cmi_0a: str) -> None:
 def _linha_nao_emitido(r, base_cmi_0a: str) -> dict:
     """Documento do Controle sem tracking no Aconex → 1 linha NÃO EMITIDO. Recebe
     um Tracking interno único (para o atraso agrupar corretamente) que é APAGADO
-    na saída — o usuário quer o Tracking em branco para os não emitidos."""
+    na saída - o usuário quer o Tracking em branco para os não emitidos."""
     chave = chave_codigo(r.cod_itaipu) or chave_codigo(r.cod_cmi) or r.titulo
     d = {
         COL_DOC_ITAIPU: r.cod_itaipu,
@@ -152,7 +152,7 @@ def _chaves_exclusao(codigos) -> dict[str, str]:
 
 def _chaves_da_linha(r) -> set[str]:
     """Chaves de código (Itaipu e CMI, célula multi-código) de uma linha do
-    Controle — para casar contra a lista manual de remoção."""
+    Controle - para casar contra a lista manual de remoção."""
     chaves: set[str] = set()
     for cod_bruto in (r.cod_itaipu, r.cod_cmi):
         for parte in partes_codigo(cod_bruto):
@@ -168,7 +168,7 @@ def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None,
     """Histórico dirigido pelo Controle (obrigatório). Ver docstring do módulo.
 
     `excluir_codigos`: lista MANUAL de códigos (Itaipu ou CMI) colada na interface
-    para remover documentos do histórico — casada de forma tolerante contra o
+    para remover documentos do histórico - casada de forma tolerante contra o
     código Itaipu E o CMI de cada linha do Controle."""
     policy = policy or DelayPolicy()
 
@@ -219,7 +219,7 @@ def gerar_historico(df_bruto: pd.DataFrame, controle: ControleDocs | None,
             linhas.append(_linha_nao_emitido(r, policy.base_cmi_0a))
             # Sinaliza: Controle diz EMITIDO mas a busca NÃO achou tracking algum
             # (pedido do usuário). Se achou tracking mas sem revisão válida
-            # (fantasma filtrado), não é "sem tracking" — não entra aqui.
+            # (fantasma filtrado), não é "sem tracking" - não entra aqui.
             if r.esta_emitido and not tracking:
                 emitido_sem_tracking.append(r)
 

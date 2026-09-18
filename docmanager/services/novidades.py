@@ -1,17 +1,17 @@
-"""Leitura do `CHANGELOG.md` — fonte única do "o que há de novo".
+"""Leitura do `CHANGELOG.md` - fonte única do "o que há de novo".
 
 Antes a Home tinha uma lista fixa no código (`home_view.NOVIDADES`) e o release
 seria escrito à mão: duas listas para manter em dia, que iam divergir no
-primeiro dia corrido. Agora as duas saem daqui — a Home mostra o bloco da versão
+primeiro dia corrido. Agora as duas saem daqui - a Home mostra o bloco da versão
 instalada e o workflow usa o mesmo bloco como corpo do Release no GitHub.
 
 Formato esperado (o de sempre, "Keep a Changelog" enxuto):
 
-    ## 3.1.0 — 2026-09-18
+    ## 3.1.0 - 2026-09-18
     - primeira novidade
     - segunda novidade
 
-    ## 3.0.0 — 2026-08-02
+    ## 3.0.0 - 2026-08-02
     - ...
 
 Tudo aqui é função pura sobre texto: sem rede, sem Tk, testável direto.
@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-# "## 3.1.0 — 2026-09-18", "## v3.1.0 - 2026-09-18" ou só "## 3.1.0".
+# "## 3.1.0 - 2026-09-18", "## v3.1.0 - 2026-09-18" ou só "## 3.1.0".
 _CABECALHO = re.compile(r"^##\s+v?(?P<versao>\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.]+)?)"
                         r"\s*(?:[—–-]\s*(?P<data>.+?))?\s*$")
 _ITEM = re.compile(r"^\s*[-*+]\s+(?P<texto>.+?)\s*$")
@@ -37,7 +37,7 @@ class Bloco:
         return f"v{self.versao}" + (f" · {self.data}" if self.data else "")
 
     def markdown(self) -> str:
-        """O bloco de volta em Markdown — é o corpo do Release no GitHub."""
+        """O bloco de volta em Markdown - é o corpo do Release no GitHub."""
         return "\n".join(f"- {i}" for i in self.itens)
 
 
@@ -78,7 +78,7 @@ def caminho_changelog() -> str:
 
     No `.exe` ele é embutido na raiz do bundle (ver `docmanager.spec`) e o
     `resource_path` acha direto. Em desenvolvimento o arquivo mora na RAIZ do
-    repositório, um nível acima do pacote — daí o segundo candidato.
+    repositório, um nível acima do pacote - daí o segundo candidato.
     """
     import os
 
@@ -96,7 +96,7 @@ def ler(versao: str | None = None) -> Bloco | None:
     """Bloco da `versao` (padrão: a versão instalada); cai para o mais recente.
 
     A queda para o mais recente cobre o build de desenvolvimento, cuja versão
-    ainda não tem entrada no CHANGELOG — melhor mostrar as últimas novidades do
+    ainda não tem entrada no CHANGELOG - melhor mostrar as últimas novidades do
     que uma Home vazia.
     """
     from .. import __version__

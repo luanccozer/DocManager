@@ -16,12 +16,12 @@ Ciclo de vida das revisões (KB §3.1): a família começa nas internas de
 integração 0AA/0AB (só alguns tipos), emite ao cliente na 0A, evolui 0B/0C… e
 FECHA na aprovação de número seco (0). Se algo muda depois, nasce a próxima
 família 1A/1B…→1, e assim por diante. A ordem correta é, portanto,
-`0AA<0AB<0A<0B<0<1A<1B<1<…` — exatamente o que `normalizar_revisao` produz.
+`0AA<0AB<0A<0B<0<1A<1B<1<…` - exatamente o que `normalizar_revisao` produz.
 
 Divergências sancionadas: #2 (borda). O antigo #4 (ordenar o histórico pela
 sort key de 3 níveis, herdada de data_manager L1192) foi um ERRO: aquela chave
 joga TODOS os números secos (0,1,2 = aprovações) para o fim, depois das letras
-de famílias posteriores — desalinhando a família e bagunçando a cadeia de
+de famílias posteriores - desalinhando a família e bagunçando a cadeia de
 atraso CMI (que mede contra o retorno da revisão anterior). Corrigido aqui.
 """
 from __future__ import annotations
@@ -106,9 +106,9 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     df = df[~((~antigo) & (df[COL_STATUS] == "Para Análise"))]
 
     # Regras cirúrgicas do "Para Aprovação": comissionamento vira retorno
-    # ("Para Assinatura"), MARCADO com _pa_comiss — a etapa 5 só o aceita como
+    # ("Para Assinatura"), MARCADO com _pa_comiss - a etapa 5 só o aceita como
     # retorno se a revisão tiver envio (não existe retorno de doc não emitido,
-    # §24.8). O restante NÃO é mais exterminado aqui — segue no frame até a
+    # §24.8). O restante NÃO é mais exterminado aqui - segue no frame até a
     # etapa 5, onde serve de ENVIO-fallback (§24.7) e sai do fluxo.
     mask_para_aprov = df[COL_STATUS] == "Para Aprovação"
     mask_comiss = df[COL_TITULO].str.contains(r"PLANILHA[S]? DE COMISSIONAMENTO", case=False, na=False)
@@ -129,7 +129,7 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
         stripped = df[col].astype(str).str.strip()
         df[col] = stripped.groupby(df[COL_TRACKING]).transform(_ultimo_nao_vazio)
 
-    # 5. Seleção do ciclo por revisão — REGRA DO ÚLTIMO CICLO CONSISTENTE
+    # 5. Seleção do ciclo por revisão - REGRA DO ÚLTIMO CICLO CONSISTENTE
     # (validada pelo usuário em 2026-07-14; KB §24.6). Por (Tracking, Revisão):
     #   - retorno = último retorno (como sempre);
     #   - envio   = último 'Em Processo' com data ≤ retorno (par consistente);
@@ -165,7 +165,7 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
         g_ret = ret_g.get(chave)
         if g_env is None:                       # só retorno (sem envio na base)
             # 'Para Assinatura' fabricado do PA de comissionamento NÃO vale como
-            # retorno de revisão nunca emitida (§24.8) — fica só o que é real.
+            # retorno de revisão nunca emitida (§24.8) - fica só o que é real.
             g_ret_ok = g_ret[~g_ret["_pa_comiss"]] if "_pa_comiss" in g_ret.columns else g_ret
             if g_ret_ok.empty:
                 continue                        # nada real → revisão não existe no wide

@@ -8,13 +8,13 @@ Rode dentro do venv com PyInstaller instalado:
 
 A versão do build vem de `docmanager/_build_info.py` (o CI a escreve a partir da
 tag). Credenciais do Aconex NÃO entram aqui: desde a v3.1.0 elas são cadastradas
-dentro do app e guardadas em Documentos\\DocManager_Itaipu — nenhum segredo é
+dentro do app e guardadas em Documentos\\DocManager_Itaipu - nenhum segredo é
 empacotado no executável.
 """
 from PyInstaller.utils.hooks import collect_all
 
 # dash/dbc/plotly/customtkinter/truststore trazem dados e submódulos que o
-# PyInstaller não descobre sozinho — collect_all pega datas + binaries + imports.
+# PyInstaller não descobre sozinho - collect_all pega datas + binaries + imports.
 _datas, _binaries, _hidden = [], [], []
 for _pkg in ("dash", "dash_bootstrap_components", "plotly",
              "customtkinter", "truststore", "certifi"):
@@ -26,7 +26,7 @@ for _pkg in ("dash", "dash_bootstrap_components", "plotly",
 # Assets do app (logo/ícone) embutidos.
 _datas += [("assets", "assets")]
 # CHANGELOG na raiz do bundle: é dele que a Home tira "O que há de novo"
-# (services/novidades.py) — sem isto a seção some no executável.
+# (services/novidades.py) - sem isto a seção some no executável.
 _datas += [("CHANGELOG.md", ".")]
 
 # Reforço de imports que costumam escapar da análise estática.

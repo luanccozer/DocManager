@@ -1,10 +1,10 @@
 """I/O da planilha **Doc List Mapping** (KB §27.1).
 
 Duas responsabilidades:
-  - `DocListSheet` — abre a planilha, localiza o cabeçalho e lê/escreve por
+  - `DocListSheet` - abre a planilha, localiza o cabeçalho e lê/escreve por
     chave lógica, tratando datas como DATA NATIVA do Excel (e não texto), que é
     o que o dashboard precisa para agrupar por período;
-  - `exportar_analise_periodo` — o Excel do relatório "próximos a emitir".
+  - `exportar_analise_periodo` - o Excel do relatório "próximos a emitir".
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ FORMATO_DATA = "DD/MM/YYYY"
 def _norm_cabecalho(v) -> str:
     """Cabeçalho comparável: sem acento, MAIÚSCULAS, espaços colapsados.
 
-    O colapso cobre as quebras de linha que o Excel esconde dentro da célula —
+    O colapso cobre as quebras de linha que o Excel esconde dentro da célula -
     a mesma armadilha que escondia as colunas do Controle de Documentos.
     """
     import re
@@ -110,7 +110,7 @@ class DocListSheet:
         return _para_date(self.ws.cell(row=row, column=col).value)
 
     def set_data(self, chave: str, row: int, valor: date | None) -> bool:
-        """Grava DATA NATIVA (com formato dd/mm/aaaa) — nunca texto, senão o
+        """Grava DATA NATIVA (com formato dd/mm/aaaa) - nunca texto, senão o
         dashboard não consegue agrupar por período."""
         col = self._col_por_chave.get(chave)
         if not col:
@@ -214,14 +214,14 @@ _COLS_RELATORIO = [
 def exportar_analise_periodo(itens, resumo_dados, caminho_saida, *, titulo_janela: str,
                              hoje: date, sem_data=()) -> tuple[bool, str]:
     """Excel da análise por período: cabeçalho executivo, quadro por mês, o
-    detalhe dos documentos e — quando houver — os que estão sem planejamento."""
+    detalhe dos documentos e - quando houver - os que estão sem planejamento."""
     import openpyxl
 
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Previstos no Período"
 
-    ws["A1"] = "Doc List Mapping — Documentos previstos para emissão"
+    ws["A1"] = "Doc List Mapping - Documentos previstos para emissão"
     ws["A1"].font = _FONT_TITULO
     ws["A2"] = (f"Período: {titulo_janela}   |   Gerado em {hoje.strftime('%d/%m/%Y')}   |   "
                 f"{resumo_dados['total']} documento(s): {resumo_dados['vencidos']} vencido(s), "

@@ -23,7 +23,7 @@ _APROVADOS = {"Aprovado", "Aprovado com Comentários", "Para Assinatura"}
 class StatusDeltaDialog(ctk.CTkToplevel):
     def __init__(self, parent, *, path_aconex, sheet_aconex, codigos, is_todos, metadados):
         super().__init__(parent)
-        self.title("Análise de Mudanças por Período — Status Documentos")
+        self.title("Análise de Mudanças por Período - Status Documentos")
         self.geometry("1120x600")
         self.configure(fg_color=t.FUNDO)
         self.path_aconex, self.sheet_aconex = path_aconex, sheet_aconex

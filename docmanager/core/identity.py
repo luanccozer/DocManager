@@ -3,13 +3,13 @@
 Um documento pode trocar de código (Itaipu e/ou CMI) entre revisões; a única
 chave imutável é o Tracking ID. Este módulo concentra:
 
-- `AconexIndex` — busca em cascata ouro/prata/bronze com semântica IDÊNTICA a
+- `AconexIndex` - busca em cascata ouro/prata/bronze com semântica IDÊNTICA a
   `DataManager.localiza_doc_historico` (legado L71-111), mas com dicionários
   O(1) em vez de varreduras booleanas da base inteira por documento. `resolver`
   devolve, além do histórico, COMO o documento foi achado (`Resolucao`).
-- `construir_indice_reverso` — todos os códigos que cada documento já teve
+- `construir_indice_reverso` - todos os códigos que cada documento já teve
   (normalizados) → Tracking ID. Usado no matching com o Controle de Documentos.
-- `obter_codigos_historicos` — porta fiel do legado (L345-368).
+- `obter_codigos_historicos` - porta fiel do legado (L345-368).
 """
 from __future__ import annotations
 
@@ -25,11 +25,11 @@ from .normalize import normalizar_codigo
 class Resolucao:
     """Resultado da cascata: o histórico eleito MAIS como se chegou nele.
 
-    - `df` — histórico completo do Tracking eleito (vazio ⇒ não encontrado).
-    - `via` ∈ {'', 'par', 'itaipu', 'cmi'} — qual código resolveu o documento.
-    - `vigente` — o código casou com a identidade ATUAL do documento (linha
+    - `df` - histórico completo do Tracking eleito (vazio ⇒ não encontrado).
+    - `via` ∈ {'', 'par', 'itaipu', 'cmi'} - qual código resolveu o documento.
+    - `vigente` - o código casou com a identidade ATUAL do documento (linha
       `Current`); `False` ⇒ casou só com uma revisão antiga (código trocado).
-    - `candidatos` — Tracking IDs que o match considerou ANTES do desempate por
+    - `candidatos` - Tracking IDs que o match considerou ANTES do desempate por
       data. Mais de um ⇒ o código é compartilhado e a eleição foi um chute
       informado: quem consome deve sinalizar (`ambiguo`).
     """
@@ -66,7 +66,7 @@ class AconexIndex:
     """Índice da base Aconex completa (como sai de `carregar_aconex`: dtype str,
     fillna(''), strip nas colunas-chave).
 
-    O matching da cascata é EXATO e case-sensitive, como no legado — a
+    O matching da cascata é EXATO e case-sensitive, como no legado - a
     normalização agressiva (upper/'.0') existe só no índice reverso, que é
     recurso novo. Não normalizar às cegas aqui: mudaria eleições de Tracking.
     """
@@ -128,12 +128,12 @@ class AconexIndex:
 
     # ------------------------------------------------------------------
     def conhece_codigo(self, codigo) -> bool:
-        """True se o código (normalizado) aparece em QUALQUER linha da base —
+        """True se o código (normalizado) aparece em QUALQUER linha da base -
         de qualquer documento, de qualquer época.
 
         Distingue "esse código é de OUTRO documento" (erro de digitação/troca na
         lista) de "esse código não existe no Aconex" (documento provavelmente
-        ainda não emitido/registrado) — ver `_classificar_codigo_busca`.
+        ainda não emitido/registrado) - ver `_classificar_codigo_busca`.
         """
         if self._codigos_norm is None:
             cods: set[str] = set()
@@ -156,7 +156,7 @@ class AconexIndex:
     # ------------------------------------------------------------------
     def localizar(self, codigo_itaipu, codigo_cmi, *, preferir_itaipu: bool = False,
                   preferir_vigente: bool = False) -> pd.DataFrame:
-        """Histórico do Tracking eleito pela cascata — ver `resolver`."""
+        """Histórico do Tracking eleito pela cascata - ver `resolver`."""
         return self.resolver(codigo_itaipu, codigo_cmi, preferir_itaipu=preferir_itaipu,
                              preferir_vigente=preferir_vigente).df
 
@@ -166,7 +166,7 @@ class AconexIndex:
         """Cascata ouro/prata/bronze + desempate por data (legado L71-111).
 
         1. Ouro: match exato simultâneo Itaipu+CMI (ambos com len > 3).
-        2/3. Prata → Bronze: só CMI (mais estável), depois só Itaipu — a ordem do
+        2/3. Prata → Bronze: só CMI (mais estável), depois só Itaipu - a ordem do
            legado, usada por Histórico/Mapa/Doc List. Com `preferir_itaipu=True`
            a ordem INVERTE para Itaipu → CMI: é o que o Status Documentos (leitura
            via Excel) usa, porque o Itaipu é a âncora de local/sistema/tipo e um
@@ -180,7 +180,7 @@ class AconexIndex:
         casa, de início, com quem o usa HOJE (linha `Current`); as ocorrências
         históricas viram último recurso. Sem isso, um código compartilhado entre
         documentos (o CMI renumera e reaproveita) pode eleger, pelo desempate de
-        data, justamente o documento que JÁ ABANDONOU aquele código — "match
+        data, justamente o documento que JÁ ABANDONOU aquele código - "match
         fantasma": o mais recente a mexer no código não é o dono dele. Foi o que
         levou `08934100BUA20-FS00FE-02` ao workstatement errado (2026-09-04). O
         último recurso preserva o recurso do "código atualizado (azul)": quem
@@ -237,7 +237,7 @@ def construir_indice_reverso(df_aconex: pd.DataFrame) -> dict:
     """{código normalizado (Itaipu OU CMI, qualquer época) → Tracking ID}.
 
     Recurso NOVO (matching Controle de Documentos ↔ base Aconex). Construído
-    sobre a BASE BRUTA COMPLETA — nunca sobre um dataset filtrado, para que
+    sobre a BASE BRUTA COMPLETA - nunca sobre um dataset filtrado, para que
     "não está no índice" signifique "nunca existiu no Aconex".
     Colisão (mesmo código em Trackings diferentes): vence o de Data de
     Alteração mais recente, coerente com o desempate da cascata.

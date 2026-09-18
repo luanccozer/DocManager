@@ -1,11 +1,11 @@
-"""Exceções pontuais POR DOCUMENTO — dívida conhecida, não regra de domínio.
+"""Exceções pontuais POR DOCUMENTO - dívida conhecida, não regra de domínio.
 
 ⚠️ **PENDÊNCIA ABERTA.** Cada entrada aqui é um documento cujo dado de origem
 está provavelmente ERRADO no Aconex e que, até alguém corrigir na fonte, precisa
 de um desvio no motor. Isto não é extensão do domínio: é remendo nomeado, com
 data e motivo, para não virar regra silenciosa.
 
-Antes de acrescentar uma entrada, confirme que o caso é MESMO isolado — se
+Antes de acrescentar uma entrada, confirme que o caso é MESMO isolado - se
 aparecer um segundo documento com o mesmo sintoma, a regra do motor é que está
 errada, e o certo é discutir a regra, não crescer esta lista.
 
@@ -32,12 +32,12 @@ def _chave(cod) -> str:
 # Reprovação em revisão NUMÉRICA que deve valer (KB §21.9)
 # ---------------------------------------------------------------------------
 # Regra normal (§8.4/§8.7): revisão numérica seca ('0', '1', '2') é o marco
-# DEFINITIVO da família — um "Não Aprovado" nela é contraditório e o motor o
+# DEFINITIVO da família - um "Não Aprovado" nela é contraditório e o motor o
 # trata como ruído. Isso vale para 99,9% dos documentos.
 #
 # Os documentos abaixo são a exceção: foram emitidos DIRETO numa revisão
 # numérica (sem passar pelas revisões-letra) e voltaram reprovados. O mais
-# provável é erro de quem publicou — deveria ter sido '0A', não '0'. Sem o
+# provável é erro de quem publicou - deveria ter sido '0A', não '0'. Sem o
 # desvio, o motor conclui NÃO EMITIDO e o documento some das análises.
 #
 # PENDENTE (2026-07-28): confirmar com a Itaipu/CMI se a revisão do documento
@@ -60,7 +60,7 @@ def _codigos_do_documento(df_tracking) -> set[str]:
 def reprovacao_numerica_vale(df_tracking) -> bool:
     """True se ESTE documento está na lista de exceção acima.
 
-    Casa por qualquer código histórico (Itaipu ou CMI) — o código do documento
+    Casa por qualquer código histórico (Itaipu ou CMI) - o código do documento
     muda ao longo da vida, e a identidade real é o Tracking ID (§6).
     """
     if df_tracking is None or df_tracking.empty or not DOCS_REPROVACAO_EM_REVISAO_NUMERICA:

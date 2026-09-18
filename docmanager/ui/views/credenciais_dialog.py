@@ -1,4 +1,4 @@
-"""Cadastro das credenciais do Aconex — a janela que substituiu o `.env`.
+"""Cadastro das credenciais do Aconex - a janela que substituiu o `.env`.
 
 Aparece sozinha quando a pessoa tenta extrair sem ter usuário cadastrado, e
 também pelo botão "Cadastrar usuário" (Extração) ou pelas Configurações.
@@ -18,31 +18,30 @@ from ...services.credenciais import cofre
 from .. import theme as t
 
 AJUDA = (
-    "A Extração Aconex usa a API oficial, que exige uma credencial OAuth pessoal — "
-    "a mesma que você usaria no Postman. São três dados, todos fornecidos pelo "
-    "administrador do Aconex / pelo portal de integrações da Oracle quando o "
-    "aplicativo é registrado para você:\n\n"
-    "• Client ID (APP ID) — identifica o aplicativo registrado no seu nome. "
-    "Costuma ter a cara de SCP_SEU_NOME_ACONEX_client_APPID.\n"
-    "• User ID — o número da sua conta no Aconex (só dígitos, ex.: 1208560183).\n"
-    "• Client Secret — a senha do aplicativo. É a única parte sigilosa.\n\n"
-    "O Client ID e o User ID não são segredo. O Client Secret é guardado nesta "
-    "máquina cifrado pelo Windows (DPAPI), na sua conta de usuário: ele não vai "
-    "para o GitHub, não fica na pasta do programa e continua valendo depois de "
-    "cada atualização do DocManager."
+    "A Extração Aconex usa a API oficial, e ela exige uma credencial OAuth sua. "
+    "São três dados, que o administrador do Aconex passa quando registra o "
+    "aplicativo no seu nome:\n\n"
+    "• Client ID (APP ID): identifica esse aplicativo. Costuma ter a cara de "
+    "SCP_SEU_NOME_ACONEX_client_APPID.\n"
+    "• User ID: o número da sua conta no Aconex. Só dígitos, por exemplo "
+    "1208560183.\n"
+    "• Client Secret: a senha do aplicativo. É a única parte sigilosa.\n\n"
+    "O Client Secret fica guardado só nesta máquina, cifrado pelo Windows na sua "
+    "conta de usuário. Ele não vai para o GitHub nem para a pasta do programa, e "
+    "continua valendo depois que o DocManager se atualizar."
 )
 
 
 class CadastroCredencialDialog(ctk.CTkToplevel):
     """Modal de cadastro/edição. Depois de `wait_window`, leia `.resultado`
-    (nome salvo) — fica `None` se a pessoa cancelar."""
+    (nome salvo) - fica `None` se a pessoa cancelar."""
 
     def __init__(self, master, nome: str | None = None):
         super().__init__(master)
         self.resultado: str | None = None
         self._editando = nome
 
-        self.title("Cadastrar usuário do Aconex" if not nome else f"Editar — {nome}")
+        self.title("Cadastrar usuário do Aconex" if not nome else f"Editar - {nome}")
         self.configure(fg_color=t.FUNDO)
         self.resizable(False, False)
         self.transient(master)
@@ -106,7 +105,7 @@ class CadastroCredencialDialog(ctk.CTkToplevel):
             x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
             y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
             self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
-        except Exception:  # noqa: BLE001 — posição é cosmética
+        except Exception:  # noqa: BLE001 - posição é cosmética
             pass
 
     def _tornar_modal(self):

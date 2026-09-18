@@ -1,7 +1,7 @@
 """Checkpoint e retomada da extração Aconex (KB §28).
 
 Nada aqui toca a rede: a sessão HTTP é simulada, e o que se testa é o contrato
-de retomada — não perder página, não duplicar página e nunca devolver uma base
+de retomada - não perder página, não duplicar página e nunca devolver uma base
 truncada como se estivesse completa.
 """
 import json
@@ -42,7 +42,7 @@ def test_registrar_e_carregar_paginas(tmp_path):
 
 def test_pagina_escrita_pela_metade_e_descartada(tmp_path):
     """Crash no meio da escrita: o meta ainda aponta a página anterior, e o
-    .jsonl é truncado de volta — sem registro duplicado nem JSON quebrado."""
+    .jsonl é truncado de volta - sem registro duplicado nem JSON quebrado."""
     ck = CheckpointExtracao("k2", tmp_path)
     ck.registrar_pagina(1, [{"DocumentNumber": "A"}])
     ck.fechar()

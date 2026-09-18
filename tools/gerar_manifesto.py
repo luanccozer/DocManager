@@ -5,13 +5,13 @@ Por que é um script Python, e não umas linhas de PowerShell no workflow
 A primeira versão fazia isto direto no YAML e tinha três armadilhas, todas
 invisíveis até o build quebrar (ou, pior, publicar um manifesto torto):
 
-  • **encoding** — o CHANGELOG tem "—", "ç", "ã". No Windows o Python escreve em
+  • **encoding** - o CHANGELOG tem "-", "ç", "ã". No Windows o Python escreve em
     cp1252 por padrão e a saída morria com UnicodeEncodeError; o PowerShell
     ainda relia esse texto com outra tabela, podendo gravar acento trocado no
     manifesto que o app mostra para o usuário;
-  • **tipo** — a saída de várias linhas do `python` vira um ARRAY no PowerShell,
+  • **tipo** - a saída de várias linhas do `python` vira um ARRAY no PowerShell,
     e o `ConvertTo-Json` gravava uma LISTA onde o app espera texto;
-  • **BOM** — `Set-Content -Encoding utf8` no PowerShell 5 grava BOM, e o
+  • **BOM** - `Set-Content -Encoding utf8` no PowerShell 5 grava BOM, e o
     `json.loads` do app engasga com ele.
 
 Aqui nada disso existe: o mesmo processo lê o CHANGELOG, calcula o hash e grava
@@ -33,37 +33,37 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from docmanager.services.novidades import bloco_de  # noqa: E402 — depende do sys.path
+from docmanager.services.novidades import bloco_de  # noqa: E402 - depende do sys.path
 
 # Rodapé fixo das notas do Release. Fica aqui, e não no YAML, porque é texto
-# com acento — exatamente o que quebrava no shell do Windows.
+# com acento - exatamente o que quebrava no shell do Windows.
 COMO_INSTALAR = """
 ---
 
 ### Como instalar
 
 Baixe o `DocManager_Itaipu_Setup_*.exe` abaixo e execute. O instalador pergunta
-se quer instalar **para todos os usuários** (precisa de administrador) ou
-**somente para você** (não precisa — e aí as atualizações são silenciosas).
+se quer instalar **para todos os usuários**, que pede senha de administrador, ou
+**somente para você**, que não pede e deixa as atualizações silenciosas.
 
 > ### ⚠️ "O Windows protegeu o computador"
 >
-> Vai aparecer. **Não é vírus**: o SmartScreen avisa isso para todo programa
-> recém-compilado que ainda não é assinado digitalmente.
+> Esse aviso vai aparecer, e não é vírus. O SmartScreen reclama de todo programa
+> recém-compilado que ainda não tem assinatura digital.
 >
-> Para continuar: clique em **"Mais informações"** — um link pequeno e cinza,
-> logo abaixo do texto — e só então aparece o botão **"Executar assim mesmo"**.
-> Antes desse clique a janela só oferece *Não executar*.
+> Para continuar, clique em **"Mais informações"**. É um link pequeno e cinza,
+> logo abaixo do texto, e só depois dele aparece o botão **"Executar assim
+> mesmo"**. Antes disso a janela só oferece *Não executar*.
 >
-> Alternativa: botão direito no arquivo → **Propriedades** → marcar
-> **"Desbloquear"** lá embaixo → *Aplicar*, e abrir normalmente.
+> Se preferir: botão direito no arquivo, **Propriedades**, marque
+> **"Desbloquear"** no rodapé e clique em *Aplicar*.
 
 Quem já tem o DocManager instalado **não precisa baixar nada**: o app avisa
 sozinho e se atualiza com um clique.
 
 **Primeiro uso:** abra o app, vá em *Extração Aconex* e clique em **Cadastrar
-usuário** para informar as suas credenciais do Aconex. Os demais módulos
-funcionam sem cadastro nenhum.
+usuário** para informar as suas credenciais. Os outros módulos funcionam sem
+cadastro nenhum.
 """
 
 
@@ -122,7 +122,7 @@ def main() -> None:
         corpo_do_release(args.versao, manifesto["notas"]), encoding="utf-8")
 
     # Resumo so em ASCII: este print vai para o log do runner, que no Windows
-    # pode estar em cp1252 — nao pode ser ele a derrubar o build.
+    # pode estar em cp1252 - nao pode ser ele a derrubar o build.
     print(f"manifesto: {args.saida_manifesto}")
     print(f"  versao : {manifesto['versao']} ({manifesto['tag']})")
     print(f"  arquivo: {manifesto['arquivo']}")
@@ -131,7 +131,7 @@ def main() -> None:
     print(f"  notas  : {len(manifesto['notas'].splitlines())} linha(s)")
     if not manifesto["notas"]:
         print(f"::warning::O CHANGELOG.md nao tem bloco para a versao "
-              f"{args.versao} — o Release vai sair sem notas.")
+              f"{args.versao} - o Release vai sair sem notas.")
 
 
 if __name__ == "__main__":

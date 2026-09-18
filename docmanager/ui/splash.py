@@ -3,7 +3,7 @@ Fecha sozinha e revela a janela principal.
 
 Feita em tkinter PURO (e não CTkToplevel) de propósito. O CTkToplevel registra a
 janela no ScalingTracker do CustomTkinter, que redetecta o DPI DEPOIS de a janela
-já estar na tela e reaplica a geometria escalada — em telas corporativas com
+já estar na tela e reaplica a geometria escalada - em telas corporativas com
 escala de 125/150% isso fazia a splash "pular" de tamanho ao abrir (no notebook a
 100% a escala já batia, então lá não pulava). Aqui o DPI é lido UMA vez, tudo é
 montado escondido e em pixels físicos, e a janela só aparece pronta: sem reflow,
@@ -52,7 +52,7 @@ def mostrar_splash(app, *, ms: int = 1600, ao_fechar=None):
     chama `ao_fechar` (tipicamente `app.deiconify`)."""
     try:
         sp = tk.Toplevel(app)
-        sp.withdraw()                 # monta escondida — sem flash nem reflow
+        sp.withdraw()                 # monta escondida - sem flash nem reflow
         sp.overrideredirect(True)
         sp.configure(bg=t.ACENTO)     # o fundo de acento faz de "borda" de 2 px
 
@@ -84,7 +84,7 @@ def mostrar_splash(app, *, ms: int = 1600, ao_fechar=None):
                  font=("Segoe UI", -px(12))).place(x=cx, y=y, anchor="n")
         y += px(12) + px(20)
 
-        # Barra indeterminada (marquee) desenhada num Canvas — dá o "dinâmico" da
+        # Barra indeterminada (marquee) desenhada num Canvas - dá o "dinâmico" da
         # splash sem depender de ttk/CTk (e sem os efeitos colaterais de escala).
         bw, bh = px(250), px(6)
         canvas = tk.Canvas(inner, width=bw, height=bh, bg=t.CARD_BORDA,
@@ -115,7 +115,7 @@ def mostrar_splash(app, *, ms: int = 1600, ao_fechar=None):
         sp.lift()
         sp.attributes("-topmost", True)
         _animar()
-    except Exception:  # noqa: BLE001 — se a splash falhar, segue direto para o app
+    except Exception:  # noqa: BLE001 - se a splash falhar, segue direto para o app
         if ao_fechar:
             ao_fechar()
         return None

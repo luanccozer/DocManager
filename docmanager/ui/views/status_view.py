@@ -125,7 +125,7 @@ class StatusDocsView(BaseView):
     def _montar_todos(self, aba):
         aba.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(aba, text="Usa automaticamente TODOS os documentos vigentes (Current) da base Aconex "
-                     "carregada — tanto para o Status Atual quanto para o Delta do período.",
+                     "carregada, tanto para o Status Atual quanto para o Delta do período.",
                      font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680).grid(
             row=0, column=0, sticky="w", padx=6, pady=16)
 
@@ -213,13 +213,13 @@ class StatusDocsView(BaseView):
         if n_atualizados:
             self.log.log(f"  {n_atualizados} com código atualizado no Aconex vs. a busca (texto azul).")
         if n_nao_confere:
-            self.log.log(f"  {n_nao_confere} com código de OUTRO documento — corrigido; ver comentário na célula.")
+            self.log.log(f"  {n_nao_confere} com código de OUTRO documento - corrigido; ver comentário na célula.")
         if n_nao_localizado:
             self.log.log(f"  {n_nao_localizado} com código não localizado no Aconex "
-                         f"(possível documento não emitido) — ver comentário na célula.")
+                         f"(possível documento não emitido) - ver comentário na célula.")
         if n_ambiguos:
             self.log.log(f"  {n_ambiguos} com código compartilhado por mais de um documento "
-                         f"(texto laranja) — CONFIRA o comentário na célula.")
+                         f"(texto laranja) - CONFIRA o comentário na célula.")
         run.set_progress(0.9)
         nome = f"Status_Docs_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
         saida = pedir_salvar(self.ctx.config, "saida", nome)

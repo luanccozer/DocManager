@@ -1,22 +1,22 @@
 """Atrasos por revisão do histórico consolidado (feature nova principal).
 
-Decisão do usuário (2026-07-11): QUATRO colunas — dias corridos brutos (tempo
+Decisão do usuário (2026-07-11): QUATRO colunas - dias corridos brutos (tempo
 de ciclo) E atraso com desconto de SLA, para cada lado (Itaipu e CMI):
 
   Dias Itaipu    = (Data Retorno − Data Envio).days
                    EM ABERTO (sem retorno E envio mais recente do documento):
-                   (hoje − Data Envio).days — o relógio corre até hoje (2026-07-14)
+                   (hoje − Data Envio).days - o relógio corre até hoje (2026-07-14)
   Atraso Itaipu  = max(0, Dias Itaipu − SLA[30 se 0A senão 15])
   Dias CMI       = 1ª emissão: (Data Envio − data_ref).days
                    demais revs: (Data Envio − Retorno da rev anterior).days
-  Atraso CMI     = 1ª emissão: max(0, Dias CMI)         (SEM desconto — a data
+  Atraso CMI     = 1ª emissão: max(0, Dias CMI)         (SEM desconto - a data
                                                           prevista já É o prazo)
                    demais revs: max(0, Dias CMI − 15)
                    sintética (não postada): max(0, hoje − data_ref)  ← correndo
 
 O histórico contabiliza a reemissão SEMPRE (toda revisão que segue outra). O
 recorte "só conta quando a revisão anterior foi reprovada" (regra de
-necessidade) é aplicado depois, na camada de análise de dados — que tem o
+necessidade) é aplicado depois, na camada de análise de dados - que tem o
 Status Retorno da revisão anterior disponível no próprio histórico.
 
 Qualquer descontinuidade (sem envio, rev anterior sem retorno, datas
@@ -24,7 +24,7 @@ invertidas, sem data_ref) → célula VAZIA. Nunca inventar número. Exceção
 deliberada (pedido do usuário, 2026-07-14): revisão SEM retorno cujo envio é o
 mais recente do documento = "está com a Itaipu AGORA" → Dias/Atraso Itaipu
 contam até hoje. Revisões sem retorno SUPERADAS por envio mais novo (o doc
-seguiu adiante) continuam vazias — o relógio delas não corre para sempre.
+seguiu adiante) continuam vazias - o relógio delas não corre para sempre.
 
 `data_ref` chega pré-calculada na coluna 'Data Prevista (Controle)' de cada
 linha do wide (REPROGRAMAÇÃO > DATA PREVISTA, resolvida em wide.py).

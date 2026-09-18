@@ -1,4 +1,4 @@
-"""Auditoria de Fluxo de Integração — quem deveria ter passado pela 0AA (KB §18.4).
+"""Auditoria de Fluxo de Integração - quem deveria ter passado pela 0AA (KB §18.4).
 
 Porta fiel de `DataManager.auditar_fluxo_integracao` (L2036-2133). Universo:
 Current=True cujo No. do Documento contém um dos 27 DCCs monitorados; marca

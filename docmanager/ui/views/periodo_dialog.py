@@ -1,4 +1,4 @@
-"""Análise por Período do Doc List Mapping — "o que está previsto para emitir".
+"""Análise por Período do Doc List Mapping - "o que está previsto para emitir".
 
 Lê a planilha do módulo e lista os documentos cuja **DATA-ALVO EMISSÃO**
 (REPROGRAMADA quando existe, senão PREVISTA) cai na janela escolhida. Atalhos
@@ -22,7 +22,7 @@ _AGRUPADORES = {"Mês": "mes", "Grupo": "grupo", "Sistema": "sistema", "Fase de 
 class PeriodoDialog(ctk.CTkToplevel):
     def __init__(self, parent, *, path_doclist, sheet=None, hoje: date | None = None):
         super().__init__(parent)
-        self.title("Doc List Mapping — Documentos previstos por período")
+        self.title("Doc List Mapping - Documentos previstos por período")
         self.geometry("1180x640")
         self.configure(fg_color=t.FUNDO)
         self.path_doclist, self.sheet = path_doclist, sheet
@@ -231,7 +231,7 @@ class PeriodoDialog(ctk.CTkToplevel):
                                titulo="Salvar Análise por Período", parent=self)
         if not caminho:
             return
-        titulo = self._rotulo_janela or f"{self.entry_ini.get().strip() or '—'} a {self.entry_fim.get().strip() or '—'}"
+        titulo = self._rotulo_janela or f"{self.entry_ini.get().strip() or '-'} a {self.entry_fim.get().strip() or '-'}"
         ok, msg = exportar_analise_periodo(self._itens, resumo(self._itens), caminho,
                                            titulo_janela=titulo, hoje=self.hoje,
                                            sem_data=self._sem_data)

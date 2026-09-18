@@ -1,19 +1,19 @@
 """Extração dos Fluxos de Trabalho via Workflows API do Aconex (KB §24.12).
 
 Espelha `aconex_backend` (mesma sessão, mesmo token, mesmo backoff, mesmo
-checkpoint), mas ataca outro serviço — e é ele que traz o que o register NUNCA
+checkpoint), mas ataca outro serviço - e é ele que traz o que o register NUNCA
 teve: **a quem cada etapa está atribuída, o prazo e o atraso**.
 
 ARMADILHA CENTRAL (custou uma investigação inteira, 2026-09-04): o Aconex roteia
-por *media type versionado*. Com `Accept: application/xml` — o header da extração
-de documentos — TODA rota de workflow responde **404 `URL_UNKNOWN`**, como se o
+por *media type versionado*. Com `Accept: application/xml` - o header da extração
+de documentos - TODA rota de workflow responde **404 `URL_UNKNOWN`**, como se o
 serviço não existisse neste tenant. O serviço existe; o header é que precisa ser
 `application/vnd.aconex.workflow.v1+xml`. Nunca copiar o Accept do register.
 
 Outras diferenças verificadas ao vivo contra o projeto real:
 - `page_size` aceita até **1000** (o guia diz "mínimo e múltiplo de 25, padrão
   25"); com 1000 o projeto inteiro sai em ~96 páginas.
-- `updated_after`/`updated_before` (RFC3339) permitem extração INCREMENTAL —
+- `updated_after`/`updated_before` (RFC3339) permitem extração INCREMENTAL -
   7 dias ≈ 2.700 registros contra ~96.000 do total.
 - Os valores vêm **localizados em português** (`Em Andamento`, `Concluído`,
   `Em Atraso`, `Previsão`), não em inglês como o guia documenta. Comparar com as
@@ -40,7 +40,7 @@ ACCEPT_WORKFLOWS = "application/vnd.aconex.workflow.v1+xml"
 PAGE_SIZE_WF = 1000
 
 # Rotas do serviço (todas confirmadas 200 no projeto real). A busca por status
-# tem rota própria no guia, mas nenhuma grafia testada respondeu — filtra-se no
+# tem rota própria no guia, mas nenhuma grafia testada respondeu - filtra-se no
 # cliente, que é barato porque o status vem em toda linha.
 ROTAS = {
     "todos": "workflows",
@@ -51,7 +51,7 @@ ROTAS = {
 }
 
 # Os valores REAIS (em português, com espaço à direita) moram na fonte única de
-# constantes de domínio — ver `core/constants.py`, seção "Fluxos de Trabalho".
+# constantes de domínio - ver `core/constants.py`, seção "Fluxos de Trabalho".
 
 # Grupos de pessoa no XML: viram duas colunas (nome e organização).
 _PESSOAS = {"Initiator": "Iniciador", "Reviewer": "Revisor"}
@@ -64,7 +64,7 @@ MAPA_COLUNAS_WF = {
     "StepName": "Etapa",
     "StepStatus": "Status da Etapa",
     "StepOutcome": "Resultado da Etapa",
-    # Nomes IDÊNTICOS aos da base de documentos — é o que permite juntar os dois
+    # Nomes IDÊNTICOS aos da base de documentos - é o que permite juntar os dois
     # mundos sem tradução (Tracking ID é a identidade canônica, KB §6).
     "DocumentNumber": "No. do Documento",
     "DocumentRevision": "Revisão",
@@ -116,7 +116,7 @@ def _texto(el, nome: str) -> str:
 def parse_pagina_workflows(conteudo: bytes) -> list[dict]:
     """XML de uma página → lista de dicts achatados (função pura, sem rede).
 
-    Cada `<Workflow>` é UMA linha (fluxo × documento × etapa) — o mesmo grão da
+    Cada `<Workflow>` é UMA linha (fluxo × documento × etapa) - o mesmo grão da
     aba Fluxos de Trabalho do site. `Assignees` é 1..n: vira nome/organização
     concatenados, porque a linha precisa caber numa planilha.
     """
@@ -153,7 +153,7 @@ def parse_pagina_workflows(conteudo: bytes) -> list[dict]:
                 item[f"Organização {rot}"] = _texto(filho, "OrganizationName")
             elif filho.text is not None:
                 # strip OBRIGATÓRIO: o Aconex devolve vários valores com espaço à
-                # direita ('Concluído ') — sem isso toda comparação exata falha.
+                # direita ('Concluído ') - sem isso toda comparação exata falha.
                 item[nome] = filho.text.strip()
         if len(item) > 1:
             linhas.append(item)
@@ -163,7 +163,7 @@ def parse_pagina_workflows(conteudo: bytes) -> list[dict]:
 def montar_dataframe_workflows(registros: list[dict]) -> pd.DataFrame:
     """Dicts brutos → DataFrame canônico (pura): rename, ordem, datas dd/mm/yyyy.
 
-    Colunas novas que o Aconex venha a acrescentar vão para o fim — nunca somem.
+    Colunas novas que o Aconex venha a acrescentar vão para o fim - nunca somem.
     """
     if not registros:
         return pd.DataFrame()
@@ -185,7 +185,7 @@ def _chave_checkpoint_wf(config: AconexConfig, rota: str, updated_after: str) ->
 
 
 def _baixar_pagina_wf(session, config, url, headers, params, page, log_cb):
-    """Uma página com retentativas/backoff — mesma política da extração de docs.
+    """Uma página com retentativas/backoff - mesma política da extração de docs.
 
     Devolve `(linhas, fim, erro, session)`; a sessão volta junto porque uma
     reconexão a SUBSTITUI.
@@ -200,7 +200,7 @@ def _baixar_pagina_wf(session, config, url, headers, params, page, log_cb):
             if r.status_code == 200:
                 try:
                     return parse_pagina_workflows(r.content), False, "", session
-                except Exception as e:  # noqa: BLE001 — XML truncado: vale retentar
+                except Exception as e:  # noqa: BLE001 - XML truncado: vale retentar
                     ultimo_erro = f"XML inválido na página {page}: {e}"
             elif r.status_code == 400:
                 # Fim normal da paginação (page_number além do total).
@@ -238,14 +238,14 @@ def extrair_workflows(config: AconexConfig, *, log_cb=print, rota: str = "todos"
                       progress_cb=None, cancelado_cb=None) -> ResultadoExtracao:
     """Extrai os Fluxos de Trabalho do projeto (~96 páginas de 1000, ~20 min).
 
-    `updated_after`/`updated_before`: RFC3339 (`2026-08-01T00:00:00Z`) — com o
+    `updated_after`/`updated_before`: RFC3339 (`2026-08-01T00:00:00Z`) - com o
     primeiro a extração vira INCREMENTAL e cai para segundos. `rota`: chave de
     `ROTAS`. Retomada por checkpoint igual à extração de documentos.
     """
     from .services.aconex_checkpoint import CheckpointExtracao
 
     try:
-        import truststore   # certificados do Windows (Zscaler) — ver aconex_backend
+        import truststore   # certificados do Windows (Zscaler) - ver aconex_backend
         truststore.inject_into_ssl()
     except Exception:  # noqa: BLE001
         pass
@@ -263,7 +263,7 @@ def extrair_workflows(config: AconexConfig, *, log_cb=print, rota: str = "todos"
             retomada = True
             page = ck.estado.proxima_pagina
             log_cb(f"Retomando extração de fluxos em {ck.estado.atualizado_em}: "
-                   f"{len(todos)} registros — continuando da página {page}.")
+                   f"{len(todos)} registros - continuando da página {page}.")
         else:
             ck.limpar()
 
@@ -330,7 +330,7 @@ def extrair_workflows(config: AconexConfig, *, log_cb=print, rota: str = "todos"
 
 def limpar_checkpoint_wf(config: AconexConfig, *, rota: str = "todos",
                          updated_after: str = "", pasta_checkpoint=None) -> None:
-    """Descarta o checkpoint — chamar depois que a base de fluxos foi SALVA."""
+    """Descarta o checkpoint - chamar depois que a base de fluxos foi SALVA."""
     from .services.aconex_checkpoint import CheckpointExtracao
     CheckpointExtracao(_chave_checkpoint_wf(config, rota, updated_after),
                        pasta_checkpoint).limpar()

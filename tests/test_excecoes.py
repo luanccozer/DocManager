@@ -2,7 +2,7 @@
 
 Cada teste aqui trava UM remendo: o desvio precisa valer para o documento
 listado e para NENHUM outro. Se um destes testes quebrar porque a entrada foi
-removida de `core/excecoes.py`, o remendo deixou de ser necessário — remova o
+removida de `core/excecoes.py`, o remendo deixou de ser necessário - remova o
 teste junto.
 """
 from builders import HistoricoBuilder
@@ -15,7 +15,7 @@ from docmanager.core.mapping import processar_documento
 from docmanager.core.status_engine import calcular_status_real
 
 # O documento da exceção: emitido direto na revisão '0' (sem passar pelas
-# revisões-letra) e devolvido Não Aprovado — provável erro de publicação.
+# revisões-letra) e devolvido Não Aprovado - provável erro de publicação.
 DOC_EXCECAO = "#ITA0=C01CCA10&EDE020"
 
 
@@ -48,7 +48,7 @@ def test_excecao_tolera_sujeira_de_excel_no_codigo():
 
 
 def test_excecao_nao_afeta_revisao_letra():
-    """Revisão-letra já retornava reprovado direto — nada muda para ela."""
+    """Revisão-letra já retornava reprovado direto - nada muda para ela."""
     for codigo in (DOC_EXCECAO, "#QUALQUER=OUTRO&DOC01"):
         df = _historico(codigo, revisao="0A")
         assert calcular_status_real(df, "0A") == "Não Aprovado"

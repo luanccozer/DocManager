@@ -1,10 +1,10 @@
-"""Análise por período do Doc List Mapping (KB §27.2) — funções puras.
+"""Análise por período do Doc List Mapping (KB §27.2) - funções puras.
 
 Responde à pergunta de planejamento do usuário: *quais documentos estão
 previstos para emitir nos próximos tempos?*
 
 A data que vale é a **DATA-ALVO EMISSÃO** (`REPROGRAMADA` quando existe, senão
-`DATA PREVISTA EMISSÃO`) — a mesma que o módulo grava na planilha para o
+`DATA PREVISTA EMISSÃO`) - a mesma que o módulo grava na planilha para o
 dashboard ler. Cada item carrega a `origem` dessa data, para o leitor saber se
 o prazo já foi reprogramado.
 """
@@ -98,7 +98,7 @@ def analisar_periodo(linhas: list[LinhaDocList], *, inicio: date | None, fim: da
                      hoje: date, incluir_emitidos: bool = False) -> list[ItemPeriodo]:
     """Documentos cuja DATA-ALVO cai na janela, ordenados por data.
 
-    As linhas de NÍVEL 1 são agrupamentos, não documentos — ficam de fora.
+    As linhas de NÍVEL 1 são agrupamentos, não documentos - ficam de fora.
     Por padrão os já emitidos também saem: a pergunta é "o que falta emitir".
     """
     janela = Janela("", inicio, fim)
@@ -117,7 +117,7 @@ def analisar_periodo(linhas: list[LinhaDocList], *, inicio: date | None, fim: da
 
 
 def listar_sem_data(linhas: list[LinhaDocList], *, incluir_emitidos: bool = False) -> list[LinhaDocList]:
-    """Documentos sem NENHUMA data de planejamento — o furo que a análise por
+    """Documentos sem NENHUMA data de planejamento - o furo que a análise por
     período não enxerga e que o usuário precisa fechar no Controle."""
     saida = []
     for ln in linhas:

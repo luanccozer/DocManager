@@ -146,7 +146,7 @@ def atualizar_mapeamento(
         #
         # A busca roda MESMO com o documento ausente do Aconex (§24.12): antes
         # havia um `and not df_tracking.empty` aqui, então justamente o documento
-        # NÃO EMITIDO — o que mais precisa da data planejada — nunca a recebia,
+        # NÃO EMITIDO - o que mais precisa da data planejada - nunca a recebia,
         # embora o usuário o encontrasse no Controle com um Ctrl+F.
         ms.matar_zumbi("data_previsao_etapa_1", row)
         data_ref, datas = None, None
@@ -176,7 +176,7 @@ def atualizar_mapeamento(
             df_tracking, nivel=nivel, tag_etapa=tag_etapa, data_prevista=data_prevista, hoje=hoje)
         _escrever_resultado(ms, row, resultado)
 
-        # Descrição — cadeia de prioridade Aconex > Controle > planilha (§27.3).
+        # Descrição - cadeia de prioridade Aconex > Controle > planilha (§27.3).
         # Quem está no Aconex já teve a descrição escrita acima. Para o resto,
         # o título do Controle SOBRESCREVE o que estiver na célula: descrição
         # digitada à mão costuma ser genérica, e a do Controle é a boa.
@@ -189,7 +189,7 @@ def atualizar_mapeamento(
         for linha_log in diag.linhas_log():
             log_cb(linha_log)
 
-    # Hierarquia (posicional) — relê os códigos já atualizados.
+    # Hierarquia (posicional) - relê os códigos já atualizados.
     log_cb("Calculando predecessores e planos de execução...")
     linhas = ms.ler_linhas()
     hierarquia = calcular_hierarquia(linhas)

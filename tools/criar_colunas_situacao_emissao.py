@@ -10,14 +10,14 @@ Decisões de projeto, para quem for mexer depois:
 
 - **Anexa no fim, nunca insere no meio.** `ws.insert_cols()` do openpyxl move os
   valores mas NÃO move larguras de coluna, ranges de formatação condicional nem
-  o autofiltro — numa planilha real isso aparece como dano visível. Como o app
+  o autofiltro - numa planilha real isso aparece como dano visível. Como o app
   localiza coluna pelo TEXTO do cabeçalho (`DocListSheet`), a posição é
   irrelevante para o código: arraste as colunas para onde quiser depois.
 - **Idempotente**: coluna que já existe é deixada em paz (comparação sem acento,
   maiúsculas e espaços colapsados, igual à do app).
 - **Faz backup** antes de gravar.
 
-⚠️ Renomear o cabeçalho quebra o vínculo com o código — mover, agrupar, ocultar
+⚠️ Renomear o cabeçalho quebra o vínculo com o código - mover, agrupar, ocultar
 ou reordenar, não.
 """
 from __future__ import annotations
@@ -78,7 +78,7 @@ def criar_colunas(caminho: Path, aba: str | None = None, *, log=print) -> int:
         titulo_modelo, numfmt, largura = NOVAS[chave]
         col_modelo = existentes.get(_norm_cabecalho(titulo_modelo))
         if col_modelo is None:
-            raise SystemExit(f"Coluna-modelo '{titulo_modelo}' não existe na aba — abortado.")
+            raise SystemExit(f"Coluna-modelo '{titulo_modelo}' não existe na aba - abortado.")
 
         # Cabeçalho: mesma cara do cabeçalho vizinho.
         origem = ws.cell(row_header, col_modelo)

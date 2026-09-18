@@ -1,8 +1,8 @@
 """Atualização automática a partir dos Releases do GitHub.
 
 Como funciona, em uma frase: o app pergunta ao GitHub qual é o último Release,
-compara com a versão do próprio binário (`_build_info.VERSAO`), e — se for mais
-nova — baixa o instalador, confere o SHA256 e o executa; o app se fecha para que
+compara com a versão do próprio binário (`_build_info.VERSAO`), e - se for mais
+nova - baixa o instalador, confere o SHA256 e o executa; o app se fecha para que
 o instalador possa substituir os arquivos.
 
 ═══ Os quatro erros que quebram um auto-update e como cada um foi tratado ═══
@@ -10,7 +10,7 @@ o instalador possa substituir os arquivos.
 1. **Repositório PRIVADO + `browser_download_url`.** Em repo privado aquela URL
    só funciona para um NAVEGADOR LOGADO: um `requests.get` nela recebe uma
    página HTML de login, com status 200. O download "dá certo" e entrega um HTML
-   de 4 KB renomeado para `.exe` — que não instala nada. O jeito certo é o
+   de 4 KB renomeado para `.exe` - que não instala nada. O jeito certo é o
    endpoint de API do asset (`/releases/assets/{id}`) com
    `Accept: application/octet-stream` e o token. É o que `baixar()` usa.
 
@@ -31,7 +31,7 @@ o instalador possa substituir os arquivos.
 O repositório é privado, então a consulta exige autenticação. O token é embutido
 no build pelo workflow (nunca fica no Git). **Ofuscação não é segurança**: quem
 tiver o `.exe` consegue extraí-lo. Por isso ele deve ser um PAT *fine-grained*,
-SOMENTE LEITURA (`Contents: Read-only`) e restrito a ESTE repositório — o pior
+SOMENTE LEITURA (`Contents: Read-only`) e restrito a ESTE repositório - o pior
 caso é alguém conseguir ler o código que essa pessoa já recebeu. Ver BUILD.md
 (seção "Rotação do token") para trocá-lo.
 """
@@ -71,8 +71,8 @@ def versao_em_partes(versao: str) -> tuple:
     """'v3.10.2-beta.1' → chave ordenável. Função pura (testada).
 
     Segue o essencial do SemVer: compara número a número e coloca a pré-versão
-    ANTES da versão final (3.1.0-beta < 3.1.0). Entradas estranhas não explodem —
-    o que não for número vira 0 —, porque uma tag digitada errada no GitHub não
+    ANTES da versão final (3.1.0-beta < 3.1.0). Entradas estranhas não explodem -
+    o que não for número vira 0 , porque uma tag digitada errada no GitHub não
     pode derrubar o app de quem está usando.
     """
     texto = str(versao or "").strip().lstrip("vV")
@@ -90,20 +90,20 @@ def e_mais_nova(remota: str, atual: str) -> bool:
     """True se `remota` for estritamente mais nova que `atual`."""
     try:
         return versao_em_partes(remota) > versao_em_partes(atual)
-    except Exception:  # noqa: BLE001 — nunca deixar a comparação derrubar o app
+    except Exception:  # noqa: BLE001 - nunca deixar a comparação derrubar o app
         return False
 
 
 # ─────────────────────────────── o token ────────────────────────────────────
 
 # O par ofuscar/desofuscar vive em `_ofuscacao.py`, compartilhado com o script de
-# build — as duas pontas TÊM que usar o mesmo algoritmo (ver o módulo).
+# build - as duas pontas TÊM que usar o mesmo algoritmo (ver o módulo).
 def caminho_token_externo() -> Path:
     """Arquivo opcional para trocar o token SEM refazer o build (ver BUILD.md).
 
     Fica na mesma pasta de dados do usuário que guarda a config e as credenciais
     (`Documentos\\DocManager_Itaipu` por padrão). Antes esse caminho era montado
-    à mão aqui e ignorava o `DOCMANAGER_DADOS_DIR` — o que fazia a suíte de
+    à mão aqui e ignorava o `DOCMANAGER_DADOS_DIR` - o que fazia a suíte de
     testes escrever um token na pasta Documentos DE VERDADE de quem rodasse os
     testes, e esse arquivo passaria a ter precedência sobre o token do build.
     """
@@ -128,7 +128,7 @@ def token() -> str:
         from .._update_auth import TOKEN_OFUSCADO   # gerado pelo CI (fora do Git)
 
         return desofuscar(TOKEN_OFUSCADO) if TOKEN_OFUSCADO else ""
-    except Exception:  # noqa: BLE001 — build local não tem o módulo: sem update
+    except Exception:  # noqa: BLE001 - build local não tem o módulo: sem update
         return ""
 
 
@@ -147,7 +147,7 @@ class Atualizacao:
     versao: str
     notas: str
     nome_arquivo: str
-    url_asset: str          # endpoint de API — o único que funciona em repo privado
+    url_asset: str          # endpoint de API - o único que funciona em repo privado
     tamanho: int
     sha256: str             # '' quando o release não publicou o hash
     url_pagina: str
@@ -169,7 +169,7 @@ def _instalador(release: dict) -> dict | None:
 
 
 def interpretar_release(release: dict, manifesto: dict | None = None) -> Atualizacao | None:
-    """Monta a `Atualizacao` a partir do JSON do release. Pura — testada.
+    """Monta a `Atualizacao` a partir do JSON do release. Pura - testada.
 
     O SHA256 vem, em ordem: do `latest.json` publicado junto; senão do campo
     `digest` que a própria API do GitHub devolve; senão fica vazio (o download
@@ -199,7 +199,7 @@ def interpretar_release(release: dict, manifesto: dict | None = None) -> Atualiz
 
 
 class SemToken(RuntimeError):
-    """O build não tem token — checar atualização é impossível neste repositório."""
+    """O build não tem token - checar atualização é impossível neste repositório."""
 
 
 def checar(versao_atual: str, *, log_cb: Log = _nada) -> Atualizacao | None:
@@ -207,7 +207,7 @@ def checar(versao_atual: str, *, log_cb: Log = _nada) -> Atualizacao | None:
 
     Levanta `SemToken` (build sem token, ou token recusado pelo GitHub) ou
     `rede.FalhaDeRede` (rede/Zscaler). Quem chama decide se mostra o erro ou
-    engole — a checagem automática engole, o botão das Configurações mostra.
+    engole - a checagem automática engole, o botão das Configurações mostra.
     """
     if not token():
         raise SemToken(
@@ -235,7 +235,7 @@ def checar(versao_atual: str, *, log_cb: Log = _nada) -> Atualizacao | None:
             if resp.status_code == 404:
                 # Sem release publicado ainda, ou o token não enxerga o
                 # repositório: num repo privado o GitHub responde 404, e não 403,
-                # para quem não tem acesso — daí as duas hipóteses na mensagem.
+                # para quem não tem acesso - daí as duas hipóteses na mensagem.
                 log_cb("Nenhum release publicado ainda (ou o token não tem acesso "
                        "ao repositório).")
                 return None
@@ -261,7 +261,7 @@ def checar(versao_atual: str, *, log_cb: Log = _nada) -> Atualizacao | None:
                 if r.status_code == 200:
                     manifesto = json.loads(r.content.decode("utf-8-sig"))  # tolera BOM
                 r.close()
-            except Exception as e:  # noqa: BLE001 — manifesto é um extra
+            except Exception as e:  # noqa: BLE001 - manifesto é um extra
                 log_cb(f"(não foi possível ler o {ARQUIVO_MANIFESTO}: {e})")
     finally:
         sessao.close()
@@ -284,7 +284,7 @@ def pasta_download() -> Path:
 
 
 class HashDivergente(RuntimeError):
-    """O arquivo baixado não bate com o SHA256 publicado — não pode ser executado."""
+    """O arquivo baixado não bate com o SHA256 publicado - não pode ser executado."""
 
 
 def baixar(info: Atualizacao, *, progresso_cb: Progresso = _nada,
@@ -292,7 +292,7 @@ def baixar(info: Atualizacao, *, progresso_cb: Progresso = _nada,
     """Baixa o instalador e confere o SHA256. Devolve o caminho do arquivo.
 
     Usa o endpoint de API do asset (não o `browser_download_url`): em repositório
-    privado só ele entrega o binário — ver o item 1 do cabeçalho do módulo.
+    privado só ele entrega o binário - ver o item 1 do cabeçalho do módulo.
     """
     destino = pasta_download() / info.nome_arquivo
     log_cb(f"Baixando {info.nome_arquivo} ({info.tamanho_mb} MB)...")
@@ -317,7 +317,7 @@ def baixar(info: Atualizacao, *, progresso_cb: Progresso = _nada,
         resp.close()
         sessao.close()
 
-    # Um HTML de login (repo privado acessado sem token) tem alguns KB — um
+    # Um HTML de login (repo privado acessado sem token) tem alguns KB - um
     # instalador tem dezenas de MB. Barra o "download que deu certo" enganoso.
     tamanho_baixado = parcial.stat().st_size
     if tamanho_baixado < 1_000_000:
@@ -325,7 +325,7 @@ def baixar(info: Atualizacao, *, progresso_cb: Progresso = _nada,
         raise HashDivergente(
             f"O arquivo baixado é pequeno demais para ser o instalador "
             f"({tamanho_baixado} bytes). Isso costuma ser uma página de erro no "
-            f"lugar do binário — token de atualização inválido ou expirado.")
+            f"lugar do binário - token de atualização inválido ou expirado.")
 
     obtido = digest.hexdigest()
     if info.sha256:
@@ -337,7 +337,7 @@ def baixar(info: Atualizacao, *, progresso_cb: Progresso = _nada,
                 f"Baixe manualmente pela página do Release.")
         log_cb("Integridade conferida (SHA256 confere).")
     else:
-        log_cb("⚠️ O release não publicou o SHA256 — não deu para conferir a "
+        log_cb("⚠️ O release não publicou o SHA256 - não deu para conferir a "
                "integridade do arquivo.")
 
     destino.unlink(missing_ok=True)
@@ -371,7 +371,7 @@ def precisa_elevacao() -> bool:
         teste.touch()
         teste.unlink()
         return False
-    except Exception:  # noqa: BLE001 — sem permissão (ou pasta somente leitura)
+    except Exception:  # noqa: BLE001 - sem permissão (ou pasta somente leitura)
         return True
 
 
@@ -382,7 +382,7 @@ ARGS_INSTALADOR = ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
 
 
 def instalar(caminho: Path, *, log_cb: Log = _nada) -> None:
-    """Dispara o instalador e volta — quem chama deve FECHAR o app em seguida.
+    """Dispara o instalador e volta - quem chama deve FECHAR o app em seguida.
 
     Com elevação (instalação em Program Files) usa `ShellExecuteW` com o verbo
     `runas`, que é o único jeito de fazer o Windows mostrar o UAC: um
@@ -453,12 +453,12 @@ def registrar_verificacao(config) -> None:
 
     try:
         config.set_setting("ultima_verificacao", datetime.now().isoformat(timespec="seconds"))
-    except Exception:  # noqa: BLE001 — não poder gravar não pode quebrar a checagem
+    except Exception:  # noqa: BLE001 - não poder gravar não pode quebrar a checagem
         pass
 
 
 def ignorar_versao(config, versao: str) -> None:
-    """Silencia UMA versão. A próxima que sair volta a avisar — de propósito:
+    """Silencia UMA versão. A próxima que sair volta a avisar - de propósito:
     'pular' não pode virar 'nunca mais me avise' sem a pessoa perceber."""
     try:
         config.set_setting("versao_ignorada", str(versao))
@@ -478,7 +478,7 @@ def verificar_em_segundo_plano(config, versao_atual: str, ao_encontrar,
     """Dispara a checagem numa thread e chama `ao_encontrar(info)` se houver novidade.
 
     Nunca levanta exceção: numa checagem automática, rede indisponível ou build
-    sem token são silêncio no log — o app segue como se nada fosse. Quem quer o
+    sem token são silêncio no log - o app segue como se nada fosse. Quem quer o
     erro na tela (botão "Procurar atualizações") usa `checar()` diretamente.
 
     `ao_encontrar` roda NA THREAD DE FUNDO: quem passa o callback é responsável
@@ -502,7 +502,7 @@ def verificar_em_segundo_plano(config, versao_atual: str, ao_encontrar,
         if info is None:
             return
         if not forcar and esta_ignorada(config, info.versao):
-            log_cb(f"(v{info.versao} foi marcada como 'pular' — sem aviso)")
+            log_cb(f"(v{info.versao} foi marcada como 'pular' - sem aviso)")
             return
         ao_encontrar(info)
 

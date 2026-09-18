@@ -3,7 +3,7 @@
 Porta fiel de `DataManager.calcular_status_real_modelo` (legado L1704-1771):
 varredura de fantasmas + Milestone Lock (Fase Preliminar → LOD 300 → LOD 350).
 Usado hoje no módulo Status Documentos; o Mapa dos Planos NÃO roteia para
-este motor (decisão preservada — KB §22.6).
+este motor (decisão preservada - KB §22.6).
 """
 from __future__ import annotations
 
