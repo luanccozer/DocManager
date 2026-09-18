@@ -5,8 +5,12 @@ nada no dia a dia lembra de conferir: quebram calados e só aparecem quando a
 atualização falha na máquina de alguém. Ler texto com regex, em vez de importar,
 é de propósito — o `ui/main_app.py` precisa de tkinter, que não existe no CI.
 """
+import functools
 import re
+import subprocess
 from pathlib import Path
+
+import pytest
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -83,11 +87,32 @@ def test_workflow_passa_a_versao_numerica_para_o_inno():
     assert "numerica=" in wf, "o workflow não calcula a versão sem o sufixo"
 
 
+@functools.lru_cache(maxsize=1)
+def _bash_posix_disponivel() -> bool:
+    """Há um `bash` POSIX utilizável nesta máquina?
+
+    No Windows o `bash` do PATH costuma ser o do WSL: sem distro instalada, ele
+    responde "Windows Subsystem for Linux has no installed distributions" — em
+    UTF-16 — com código de saída 1. Sem esta checagem, o teste abaixo comparava
+    essa mensagem com a versão e reprovava o build inteiro. Ironia registrada:
+    um teste feito para pegar defeitos do Windows, ele mesmo só rodava em Linux.
+
+    A CI de cada commit (ci.yml) roda em Ubuntu, então a expressão continua
+    sendo exercitada de verdade a cada push; no job de Release, que é Windows,
+    este teste é pulado.
+    """
+    try:
+        r = subprocess.run(["bash", "-c", "echo pronto"], capture_output=True,
+                           text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0 and r.stdout.strip() == "pronto"
+
+
+@pytest.mark.skipif(not _bash_posix_disponivel(),
+                    reason="sem bash POSIX (Windows/WSL sem distro)")
 def test_corte_do_sufixo_do_workflow_produz_versao_numerica():
     """Roda a EXPRESSÃO que está no YAML, não uma cópia dela."""
-    import re
-    import subprocess
-
     wf = _ler(".github/workflows/release.yml")
     m = re.search(r'^\s*(numerica="\$\{versao%%.*\}")\s*$', wf, re.M)
     assert m, "não achei a linha que calcula a versão numérica no workflow"
