@@ -15,6 +15,16 @@
   #define MyAppVersion "3.1.0"
 #endif
 
+; VersionInfoVersion e o numero de versao BINARIO do Windows (o que aparece nas
+; Propriedades do arquivo) e so aceita DIGITOS: "3.1.0-rc.1" faz o Inno abortar
+; com 'Value of [Setup] section directive "VersionInfoVersion" is invalid'.
+; Por isso o pre-lancamento tem duas versoes: a de exibicao, com o sufixo, e
+; esta, so numerica. O workflow calcula e passa /DMyVersionInfo=3.1.0; quem
+; compilar na mao um pre-lancamento precisa passar tambem.
+#ifndef MyVersionInfo
+  #define MyVersionInfo MyAppVersion
+#endif
+
 #define AppName "DocManager Itaipu"
 #define AppExe "DocManager.exe"
 
@@ -23,7 +33,7 @@ AppId={{7C3B2A10-DOCM-4ITA-IPU0-DOCMANAGER01}}
 AppName={#AppName}
 AppVersion={#MyAppVersion}
 AppVerName={#AppName} {#MyAppVersion}
-VersionInfoVersion={#MyAppVersion}
+VersionInfoVersion={#MyVersionInfo}
 AppPublisher=CMI - Engenharia
 AppUpdatesURL=https://github.com/luanccozer/DocManager/releases
 DefaultDirName={autopf}\{#AppName}

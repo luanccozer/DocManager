@@ -70,9 +70,14 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
           versao="${versao#v}"
-          echo "versao=$versao"   >> "$GITHUB_OUTPUT"
-          echo "tag=v$versao"     >> "$GITHUB_OUTPUT"
-          echo "Versão desta publicação: $versao"
+          # O Windows exige um numero de versao SO COM DIGITOS no recurso do
+          # binario (VersionInfoVersion do .iss). "3.1.0-rc.1" faz o Inno abortar,
+          # entao o sufixo de pre-lancamento e cortado aqui: 3.1.0-rc.1 -> 3.1.0.
+          numerica="${versao%%-*}"
+          echo "versao=$versao"       >> "$GITHUB_OUTPUT"
+          echo "numerica=$numerica"   >> "$GITHUB_OUTPUT"
+          echo "tag=v$versao"         >> "$GITHUB_OUTPUT"
+          echo "Versão desta publicação: $versao (binário: $numerica)"
 
       - name: Instalar dependências
         run: |
@@ -134,7 +139,9 @@ jobs:
       - name: Montar o instalador
         shell: pwsh
         run: |
-          & "$env:ISCC" "/DMyAppVersion=${{ steps.versao.outputs.versao }}" installer\docmanager.iss
+          & "$env:ISCC" "/DMyAppVersion=${{ steps.versao.outputs.versao }}" `
+                        "/DMyVersionInfo=${{ steps.versao.outputs.numerica }}" `
+                        installer\docmanager.iss
           $origem = "installer/Output/DocManager_Itaipu_Setup.exe"
           if (-not (Test-Path $origem)) { throw "O Inno Setup não gerou o instalador." }
           # Nome com a versão: nos Downloads de quem baixa, "Setup.exe" sozinho

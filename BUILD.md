@@ -185,6 +185,14 @@ Gera `dist\DocManager\DocManager.exe`. Para o instalador:
 iscc /DMyAppVersion=3.1.1 installer\docmanager.iss
 ```
 
+> **Pré-lançamento na mão:** o `VersionInfoVersion` do Windows só aceita dígitos,
+> então uma versão com sufixo precisa passar *também* a versão numérica, senão o
+> Inno aborta com *"VersionInfoVersion is invalid"*:
+> ```bat
+> iscc /DMyAppVersion=3.1.1-rc.1 /DMyVersionInfo=3.1.1 installer\docmanager.iss
+> ```
+> O workflow calcula e passa isso sozinho.
+
 > ⚠️ O build local sai **sem** o token, logo o executável gerado **não avisa de
 > versões novas**. Para distribuir de verdade, use a tag.
 
