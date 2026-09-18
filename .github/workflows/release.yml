@@ -24,9 +24,14 @@ on:
   workflow_dispatch:
     inputs:
       versao:
-        description: "Versão para um build de teste (ex.: 3.1.1-rc.1). Publica como pré-lançamento."
+        description: "Versão a publicar, sem o 'v' (ex.: 3.1.0, ou 3.1.1-rc.1 para teste)"
         required: true
         type: string
+      prerelease:
+        description: "Pré-lançamento (o app NÃO oferece pré-lançamentos como atualização). Desmarque para publicar de verdade."
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write        # necessário para criar o Release e subir os assets
@@ -52,7 +57,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             versao="${{ inputs.versao }}"
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "prerelease=${{ inputs.prerelease }}" >> "$GITHUB_OUTPUT"
           else
             versao="${GITHUB_REF_NAME#v}"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
@@ -188,17 +193,43 @@ jobs:
           EOF
           cat notas_release.md
 
+      # Idempotente de propósito. Há DOIS caminhos para chegar aqui e os dois
+      # têm que funcionar:
+      #   · a tag foi criada por `git push origin v3.1.0` → o release ainda não
+      #     existe e é criado aqui;
+      #   · a tag foi criada pela página "Releases" do GitHub (o caminho de quem
+      #     não usa terminal) → o GitHub JÁ criou tag e release, e um
+      #     `gh release create` falharia com "release already exists". Nesse caso
+      #     os arquivos são anexados ao release que já está lá.
       - name: Publicar o Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.versao.outputs.tag }}
+          VERSAO: ${{ steps.versao.outputs.versao }}
+          PRERELEASE: ${{ steps.versao.outputs.prerelease }}
         shell: bash
         run: |
-          gh release create "${{ steps.versao.outputs.tag }}" \
-            "$INSTALADOR#Instalador do DocManager Itaipu" \
-            "latest.json#Manifesto (versão + SHA256)" \
-            --title "DocManager Itaipu v${{ steps.versao.outputs.versao }}" \
-            --notes-file notas_release.md \
-            ${{ steps.versao.outputs.prerelease == 'true' && '--prerelease' || '' }}
+          ativos=("$INSTALADOR#Instalador do DocManager Itaipu"
+                  "latest.json#Manifesto (versão + SHA256)")
+          if [ "$PRERELEASE" = "true" ]; then sinal="--prerelease"; else sinal="--prerelease=false"; fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "O release $TAG já existe — anexando os arquivos a ele."
+            gh release upload "$TAG" "${ativos[@]}" --clobber
+            gh release edit "$TAG" \
+              --title "DocManager Itaipu v$VERSAO" \
+              --notes-file notas_release.md "$sinal"
+          else
+            echo "Criando o release $TAG."
+            # --target: a tag, quando ainda não existe, nasce apontando para
+            # este commit — e não para o topo da branch padrão no momento.
+            gh release create "$TAG" "${ativos[@]}" \
+              --target "${{ github.sha }}" \
+              --title "DocManager Itaipu v$VERSAO" \
+              --notes-file notas_release.md "$sinal"
+          fi
+          echo "─── publicado ───"
+          gh release view "$TAG"
 
       # Guardado por 30 dias: se alguém precisar do build sem passar pelo
       # instalador (teste rápido, diagnóstico), está aqui.
