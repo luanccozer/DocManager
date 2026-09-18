@@ -99,8 +99,17 @@ def e_mais_nova(remota: str, atual: str) -> bool:
 # O par ofuscar/desofuscar vive em `_ofuscacao.py`, compartilhado com o script de
 # build — as duas pontas TÊM que usar o mesmo algoritmo (ver o módulo).
 def caminho_token_externo() -> Path:
-    """Arquivo opcional para trocar o token SEM refazer o build (ver BUILD.md)."""
-    return Path.home() / "Documents" / "DocManager_Itaipu" / "update_token.txt"
+    """Arquivo opcional para trocar o token SEM refazer o build (ver BUILD.md).
+
+    Fica na mesma pasta de dados do usuário que guarda a config e as credenciais
+    (`Documentos\\DocManager_Itaipu` por padrão). Antes esse caminho era montado
+    à mão aqui e ignorava o `DOCMANAGER_DADOS_DIR` — o que fazia a suíte de
+    testes escrever um token na pasta Documentos DE VERDADE de quem rodasse os
+    testes, e esse arquivo passaria a ter precedência sobre o token do build.
+    """
+    from .credenciais import pasta_dados
+
+    return pasta_dados() / "update_token.txt"
 
 
 def token() -> str:
