@@ -29,6 +29,24 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
+
+def _saida_utf8() -> None:
+    """Força UTF-8 no stdout/stderr.
+
+    No Windows o Python escreve no console em cp1252 (a code page ANSI), e um
+    `print` com "versão →" morre com UnicodeEncodeError — o build falha por
+    causa de uma MENSAGEM, depois de já ter rodado lint e testes. Acontece tanto
+    no runner do GitHub quanto no `build.bat` de qualquer máquina da empresa.
+    """
+    for fluxo in (sys.stdout, sys.stderr):
+        try:
+            fluxo.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):  # saída redirecionada/substituída
+            pass
+
+
+_saida_utf8()
+
 from docmanager._ofuscacao import ofuscar  # noqa: E402 — depende do sys.path acima
 
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$")
