@@ -13,6 +13,7 @@ dela aqui **antes** de criar a tag.
 - O Client Secret passa a ser guardado cifrado pelo Windows (DPAPI), na conta do usuário, em vez de ficar em texto puro no `.env`.
 - A versão exibida no título, na barra lateral, na tela de carregamento e na Home passa a vir do próprio programa — sempre correta depois de uma atualização.
 - Novidades e Releases saem do mesmo `CHANGELOG.md`: o que aparece na Home é exatamente o que foi publicado.
+- Quando a Extração Aconex não conecta, o log passa a mostrar a causa real (timeout, DNS, conexão recusada) e um diagnóstico da rede — proxy do Windows, arquivo PAC, resolução de nome e teste da porta 443 — em vez do genérico "sem conexão".
 
 ## 3.0.0 — 2026-08-02
 
