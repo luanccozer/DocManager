@@ -40,6 +40,13 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      # Windows roda o Python em cp1252 por padrão, e qualquer `print` com "→"
+      # ou acento derruba o passo com UnicodeEncodeError — o build morre por
+      # causa de uma MENSAGEM, depois de lint e testes já terem passado.
+      # PYTHONUTF8=1 liga o modo UTF-8 do Python para o job inteiro.
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
 
     steps:
       - uses: actions/checkout@v4
@@ -137,70 +144,18 @@ jobs:
           Move-Item $origem $destino -Force
           "INSTALADOR=$destino" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # latest.json vai como asset do próprio Release: é dele que o app tira o
-      # SHA256 para conferir o download antes de executar o instalador.
-      - name: Gerar o latest.json (manifesto com o SHA256)
-        shell: pwsh
-        run: |
-          $hash = (Get-FileHash $env:INSTALADOR -Algorithm SHA256).Hash.ToLower()
-          $tamanho = (Get-Item $env:INSTALADOR).Length
-          # -join: a saída de várias linhas do python vira um ARRAY no
-          # PowerShell, e o ConvertTo-Json gravaria uma lista onde o app espera
-          # texto. Juntar aqui mantém o manifesto com o tipo certo.
-          $notas = (python -c "import sys; sys.path.insert(0,'.'); from docmanager.services.novidades import bloco_de; t=open('CHANGELOG.md',encoding='utf-8').read(); b=bloco_de(t,'${{ steps.versao.outputs.versao }}'); print(b.markdown() if b else '')") -join "`n"
-          @{
-            versao       = "${{ steps.versao.outputs.versao }}"
-            tag          = "${{ steps.versao.outputs.tag }}"
-            arquivo      = [System.IO.Path]::GetFileName($env:INSTALADOR)
-            sha256       = $hash
-            tamanho      = $tamanho
-            publicado_em = (Get-Date -Format "yyyy-MM-dd")
-            notas        = $notas
-          } | ConvertTo-Json | Set-Content -Path latest.json -Encoding utf8
-          Get-Content latest.json
-          "SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Escrever as notas do Release
+      # O manifesto (que o app lê para conferir o SHA256 antes de instalar) e as
+      # notas do Release saem do mesmo script: ele lê o CHANGELOG, calcula o
+      # hash e grava os dois em UTF-8 sem BOM. Era PowerShell + heredoc de bash,
+      # e o texto com acento do CHANGELOG quebrava os dois no Windows.
+      - name: Gerar o manifesto e as notas do Release
         shell: bash
         run: |
-          python - <<'PY' > notas_release.md
-          import sys
-          sys.path.insert(0, ".")
-          from docmanager.services.novidades import bloco_de
+          python tools/gerar_manifesto.py \
+            --instalador "$INSTALADOR" \
+            --versao "${{ steps.versao.outputs.versao }}" \
+            --tag "${{ steps.versao.outputs.tag }}"
 
-          versao = "${{ steps.versao.outputs.versao }}"
-          texto = open("CHANGELOG.md", encoding="utf-8").read()
-          bloco = bloco_de(texto, versao)
-          print(f"## O que mudou na v{versao}\n")
-          print(bloco.markdown() if bloco else "_(esta versão não trouxe notas no CHANGELOG.md)_")
-          PY
-          cat >> notas_release.md <<'EOF'
-
-          ---
-
-          ### Como instalar
-
-          Baixe o `DocManager_Itaipu_Setup_*.exe` abaixo e execute. O instalador
-          pergunta se quer instalar **para todos os usuários** (precisa de
-          administrador) ou **somente para você** (não precisa).
-
-          Quem já tem o DocManager instalado **não precisa baixar nada**: o app
-          avisa sozinho e se atualiza com um clique.
-
-          **Primeiro uso:** abra o app, vá em *Extração Aconex* e clique em
-          **Cadastrar usuário** para informar as suas credenciais do Aconex. Os
-          demais módulos funcionam sem cadastro nenhum.
-          EOF
-          cat notas_release.md
-
-      # Idempotente de propósito. Há DOIS caminhos para chegar aqui e os dois
-      # têm que funcionar:
-      #   · a tag foi criada por `git push origin v3.1.0` → o release ainda não
-      #     existe e é criado aqui;
-      #   · a tag foi criada pela página "Releases" do GitHub (o caminho de quem
-      #     não usa terminal) → o GitHub JÁ criou tag e release, e um
-      #     `gh release create` falharia com "release already exists". Nesse caso
-      #     os arquivos são anexados ao release que já está lá.
       - name: Publicar o Release
         env:
           GH_TOKEN: ${{ github.token }}
