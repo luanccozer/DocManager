@@ -262,9 +262,39 @@ agora** nas Configurações — ao contrário da checagem automática, esse bot�
 `ui/main_app.py` estão diferentes.
 
 **Antivírus bloqueou** — é onedir sem UPX, o cenário mais amigável. Se persistir,
-peça ao TI para liberar a pasta ou **assinar digitalmente** o `DocManager.exe`
-(o ideal no corporativo — e resolveria também o aviso do SmartScreen no
-instalador).
+peça ao TI para liberar a pasta ou assine digitalmente o executável (abaixo).
+
+---
+
+## Assinatura digital (o aviso do SmartScreen)
+
+Todo mundo que baixar o instalador vai ver **"O Windows protegeu o computador"**.
+Não é falso-positivo de vírus: o SmartScreen desconfia de qualquer executável
+**sem assinatura digital** e sem histórico de downloads. Dá para passar em dois
+cliques (*Mais informações → Executar assim mesmo*), e as notas de cada Release
+já explicam isso — mas é atrito toda vez, e assusta quem não é técnico.
+
+**Isso não melhora sozinho.** A "reputação" do SmartScreen se constrói com
+volume de downloads; um app interno com cinco usuários nunca chega lá. E como
+cada versão nova gera um arquivo novo, o aviso volta a cada publicação.
+
+As saídas, em ordem de custo:
+
+| Caminho | Efeito | Custo |
+|---|---|---|
+| Conviver com os dois cliques | Funciona, mas atrita a cada versão | zero |
+| Pedir ao TI para liberar (política de SmartScreen/AppLocker para o publisher ou a pasta) | Some para a empresa toda | zero, mas depende do TI |
+| **Certificado de assinatura de código OV** | Assinado; a reputação ainda leva algumas semanas para amadurecer | ~US$ 200–400/ano |
+| **Certificado EV** | Reputação do SmartScreen **imediata** | ~US$ 300–600/ano, exige token físico ou HSM |
+
+Se a CMI decidir assinar, o passo é acrescentar um `signtool sign` ao workflow
+entre "Montar o instalador" e "Gerar o manifesto", com o certificado guardado
+nos *Secrets* do repositório. Vale assinar **os dois**: o `DocManager.exe` e o
+instalador.
+
+> Antes de comprar, pergunte ao TI: empresas com CA interna às vezes já emitem
+> certificados de assinatura para uso corporativo, de graça — e aí o SmartScreen
+> confia dentro do domínio.
 
 **Abre e fecha na hora** — rode pelo `cmd` para ver o erro, ou gere um build com
 `console=True` no `.spec` para depurar.
