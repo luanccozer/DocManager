@@ -23,14 +23,28 @@ Abra o **`CHANGELOG.md`** e acrescente o bloco da versão **no topo**:
 Esse texto é a **fonte única**: vira a descrição do Release no GitHub **e** a
 seção "O que há de novo" da tela inicial do app. Commite normalmente.
 
-### 2. Criar a tag
+### 2. Disparar a publicação
+
+Duas formas — as duas fazem exatamente a mesma coisa, escolha a que preferir.
+
+#### a) Pelo site, sem terminal (mais simples)
+
+1. Vá em **Actions → Release → Run workflow**.
+2. Em *Versão*, escreva `3.1.1` (sem o `v`).
+3. **Desmarque** *Pré-lançamento* — marcado, o app não oferece a versão como
+   atualização (é o modo de ensaio).
+4. **Run workflow**.
+
+O próprio workflow cria a tag e o Release. Nada para instalar na sua máquina.
+
+#### b) Pelo terminal
 
 ```bat
 git tag v3.1.1
 git push origin v3.1.1
 ```
 
-Pronto. Em ~10 minutos o Release está publicado e **todo mundo que já tem o app
+Em ~10 minutos o Release está publicado e **todo mundo que já tem o app
 instalado é avisado sozinho** na próxima vez que abrir.
 
 > A tag **manda na versão**: `v3.1.1` → o executável se identifica como `3.1.1`.
@@ -39,11 +53,16 @@ instalado é avisado sozinho** na próxima vez que abrir.
 Acompanhe em **Actions → Release**. Se algo falhar, o workflow para antes de
 publicar — nunca sai um Release pela metade.
 
-### Build de teste (sem criar tag)
+> Criar a tag pela página **Releases → Draft a new release** também funciona: o
+> GitHub cria tag e release de uma vez, e o workflow anexa o instalador ao
+> release que já existe em vez de tentar criar outro.
 
-Em **Actions → Release → Run workflow**, informe uma versão como `3.1.1-rc.1`.
-Sai publicado como **pré-lançamento**, e o app **não** oferece pré-lançamentos
-como atualização (só o `latest`).
+### Ensaio antes de valer
+
+Rode o **Run workflow** com uma versão como `3.1.1-rc.1` e *Pré-lançamento*
+**marcado**. Sai publicado como pré-lançamento, que o app ignora como
+atualização: dá para conferir que o build e o instalador saíram certos, e baixar
+para testar, sem queimar a versão de verdade.
 
 ---
 
