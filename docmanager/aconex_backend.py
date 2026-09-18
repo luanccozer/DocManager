@@ -246,13 +246,27 @@ def _tentar_token(session, config: AconexConfig) -> str:
     raise PermissionError(f"HTTP {resp.status_code}: {resp.text[:160]}")
 
 
-def _estrategias_conexao(config: AconexConfig) -> list:
+def _estrategias_conexao(config: AconexConfig, log_cb=lambda _m: None) -> list:
     """Vias de conexão a tentar, em ordem (item 3 — robustez VPN/Zscaler). Cada
     item: (nome, proxies|None, trust_env). proxies=None → deixa o requests usar
     o ambiente; {} → força SEM proxy."""
     if config.proxy:
         return [("proxy informado", {"http": config.proxy, "https": config.proxy}, False)]
     estr: list = []
+    vistos: set = set()
+
+    # 1º — o proxy que o NAVEGADOR usaria, resolvido pelo Windows executando o
+    # arquivo PAC. Vem primeiro porque, em rede com PAC (o caso da CMI com o
+    # GlobalProtect), é a ÚNICA via que funciona: o `getproxies()` abaixo não lê
+    # PAC e conclui "sem proxy", mandando tudo para a conexão direta, que a VPN
+    # descarta. Se não houver PAC, devolve [] e nada muda.
+    for endereco in rede.proxies_do_windows_para(config.auth_url, log_cb):
+        if endereco in vistos:
+            continue
+        vistos.add(endereco)
+        alvo = endereco if "://" in endereco else f"http://{endereco}"
+        estr.append((f"proxy do Windows ({endereco})", {"http": alvo, "https": alvo}, False))
+
     try:
         sistema = urllib.request.getproxies()
     except Exception:  # noqa: BLE001
@@ -261,6 +275,7 @@ def _estrategias_conexao(config: AconexConfig) -> list:
         estr.append(("proxy do sistema", sistema, False))
     if any(os.getenv(v) for v in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy")):
         estr.append(("variáveis de ambiente", None, True))
+    # A direta entra SEMPRE e por último: é ela que funciona fora da VPN.
     estr.append(("conexão direta", {}, False))
     return estr
 
@@ -272,7 +287,7 @@ def _estabelecer_sessao(config: AconexConfig, log_cb):
     diagnóstico. Não prejudica quem já funciona: a via boa vem primeiro."""
     import requests
 
-    estrategias = _estrategias_conexao(config)
+    estrategias = _estrategias_conexao(config, log_cb)
     houve_ssl = False
     for verify in (True, False):
         if not verify:
