@@ -210,7 +210,21 @@ def pasta_update(tmp_path, monkeypatch):
     pasta = tmp_path / "update"
     pasta.mkdir()
     monkeypatch.setattr(updater, "pasta_download", lambda: pasta)
-    return pasta
+    # O instalador falso continua rodando depois que `instalar` volta (como o de
+    # verdade): encerra no fim do teste, senão sobra processo órfão da suíte.
+    abertos = []
+    popen = updater.subprocess.Popen
+
+    def popen_registrando(*args, **kwargs):
+        processo = popen(*args, **kwargs)
+        abertos.append(processo)
+        return processo
+
+    monkeypatch.setattr(updater.subprocess, "Popen", popen_registrando)
+    yield pasta
+    for processo in abertos:
+        processo.kill()
+        processo.wait()
 
 
 @pytest.mark.skipif(__import__("os").name == "nt", reason="instalador falso é script com shebang")
