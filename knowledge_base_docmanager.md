@@ -427,7 +427,7 @@ Arquivo opcional no Mapa dos Planos. Leitura: `header=3` (cabeçalho na linha 4)
 3. Coleta **todos os códigos históricos** do documento (§6) e busca cada um no dicionário.
 4. **Uma única data encontrada** → usa (fast path).
 5. **Datas conflitantes** (códigos do mesmo doc com datas diferentes no Controle) → desempate: data atrelada ao **código Itaipu atual** do mapeamento → senão, ao **código CMI atual** → senão, a **data mais nova** (segurança).
-6. Formato visual: `dd/mm/yyyy`.
+6. Formato: data nativa do Excel, no formato **Data** (desde a v3.1.1, §27.6; antes o openpyxl deixava `yyyy-mm-dd`).
 
 ---
 
@@ -1011,7 +1011,7 @@ Diferenças em relação ao Mapa dos Planos:
 
 As duas regras de data são as mesmas do Mapa dos Planos desde §24.13 (`core/planejamento.py`); nasceram aqui e foram adotadas lá. `FASE DE PROJETO` saiu desta tabela em §27.3.
 
-`DATA-ALVO EMISSÃO` ocupa o lugar da antiga coluna **`TROCAR`** (renomeada automaticamente na primeira atualização, junto com `RESPONSÁVEL`→`RESPONSIBLE (COE/VENDOR)` e `OBSERVAÇÃO`→`OBSERVAÇÕES`). É ela que prepara a leitura por período no dashboard: gravada como **data nativa** do Excel, não texto — assim como `DATA ÚLTIMA EMISSÃO` neste módulo (o Mapa escreve texto).
+`DATA-ALVO EMISSÃO` ocupa o lugar da antiga coluna **`TROCAR`** (renomeada automaticamente na primeira atualização, junto com `RESPONSÁVEL`→`RESPONSIBLE (COE/VENDOR)` e `OBSERVAÇÃO`→`OBSERVAÇÕES`). É ela que prepara a leitura por período no dashboard: gravada como **data nativa** do Excel, não texto — assim como `DATA ÚLTIMA EMISSÃO` (o Mapa a escrevia como texto até a v3.1.0, §27.6).
 
 **Análise por Período** (`core/doclist_periodo.py` + `ui/views/periodo_dialog.py`): janela sobre a DATA-ALVO com atalhos (vencidos, próximos 7/30/90 dias, restante do mês, mês que vem, este ano) ou intervalo manual; árvore por Mês/Grupo/Sistema/Fase; cada item traz a **origem** da data (Prevista ou Reprogramada) e os dias até o alvo. Agrupamentos (nível 1) e já emitidos ficam de fora por padrão. O Excel sai com quadro por mês, o detalhe e uma aba **"Sem Planejamento"** — os documentos sem nenhuma data, que a análise por período não enxerga.
 
@@ -1041,13 +1041,22 @@ O §27 tinha separado `APROVADO` / `APROVADO COM COMENTÁRIOS` / `PARA ASSINATUR
 
 **Pedido**: "corrigir o formato das datas, elas precisam estar em Data e não como custom, no formato que o Power BI possa ler, pelo menos a coluna DATA-ALVO".
 
-**Causa**: as datas já eram gravadas como data nativa, mas com o formato `DD/MM/YYYY`, que o Excel classifica como **Personalizado**. Agora `doclist_io.FORMATO_DATA` é o formato de Data do próprio Excel (numFmtId 14, "Data abreviada"): categoria **Data**, exibida no padrão do Windows (dd/mm/aaaa no Brasil), e o Power BI tipa a coluna como data. Vale para as cinco colunas de data e para o "Data-Alvo" do Excel da Análise por Período. `set_data` também grava só o dia (sem hora), senão o Power BI lê data/hora.
+**Causa**: as datas já eram gravadas como data nativa, mas com o formato `DD/MM/YYYY`, que o Excel classifica como **Personalizado**. Agora `excel_io.FORMATO_DATA` é o formato de Data do próprio Excel (numFmtId 14, "Data abreviada"): categoria **Data**, exibida no padrão do Windows (dd/mm/aaaa no Brasil), e o Power BI tipa a coluna como data. Vale para as cinco colunas de data e para o "Data-Alvo" do Excel da Análise por Período. `gravar_data` também grava só o dia (sem hora), senão o Power BI lê data/hora.
+
+**Implementação única** em `services/excel_io.py`, usada pelas duas planilhas (Doc List e Mapa): `gravar_data`, `gravar_data_ou_texto` (a DATA ÚLTIMA EMISSÃO, que chega do Aconex como texto), `normalizar_celula_data` e `aviso_datas_com_texto` (o log).
 
 **Duas fontes de texto no meio da coluna**, que fazem o Power BI ler a coluna inteira como texto:
 - a DATA-ALVO das linhas de **grupo** (nível 1) nunca era reescrita e podia guardar sobra (ex.: da antiga coluna `TROCAR`). Agora é limpa, como o resto do bloco do grupo: agrupamento não tem DATA-ALVO;
 - DATA PREVISTA e DATA REPROGRAMADA aceitam input manual. `DocListSheet.normalizar_data` regrava como data o que for data em outra forma (texto '15/10/2026', serial, formato personalizado de uma rodada anterior); fórmula e vazio ficam como estão. Texto que não é data ('A DEFINIR') **não é apagado** (é o que alguém digitou), mas o log aponta coluna, linha e conteúdo.
 
 Planilha atualizada na v3.1.0: uma rodada de atualização basta para trocar o formato das células já existentes. Testes: `tests/test_doclist.py` (seção "Datas como DATA do Excel").
+
+**Mapa dos Planos (mesmo pedido, estendido pelo usuário)**: "Vamos aplicar pro mapa dos planos também".
+- `DATA ÚLTIMA EMISSÃO` era gravada como **texto** 'dd/mm/aaaa' (`_fmt_data`, removida); agora é data nativa, como no Doc List;
+- `DATA PREVISTA EMISSÃO ETAPA 1` e a `DATA REPROGRAMADA` da etapa 1 eram gravadas pelo Controle sem formato, e o openpyxl as deixava `yyyy-mm-dd` (Personalizado); agora saem no formato Data. As duas também passam por `normalizar_data` / `normalizar_reprogramada_etapa1` em toda linha, como as manuais do Doc List;
+- as DATAS PREVISTAS e REPROGRAMADAS das **etapas 2 a 4** continuam intocadas: são só input manual, e as REPROGRAMADAS nem são endereçáveis por nome (§21.1). Há teste travando isso.
+
+**Defeito antigo achado no caminho**: rodando o Mapa **sem** o Controle, o atraso lia a DATA PREVISTA com `get_val`, que devolve o texto da célula - para uma data nativa, `'2024-12-01 00:00:00'`. Os KPIs interpretam com `dayfirst=True`, e o pandas troca dia e mês: 1º/12 virava 12/01 sempre que o dia era até 12, errando `DIAS DE ATRASO`, `SITUAÇÃO DO PRAZO` e o `ATRASO ACUMULADO CMI`. Agora `ms.get_data` entrega a data. Com o Controle não acontecia (a `data_ref` já era data). Testes: `tests/test_mapping.py` (seção "Datas como DATA do Excel").
 
 ---
 

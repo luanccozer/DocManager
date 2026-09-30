@@ -177,7 +177,7 @@ def test_release_publicado_de_verdade_e_entendido():
     assert info.url_asset.endswith("/releases/assets/573114368")   # a URL de API
     assert info.sha256 == "b675b74dc1dace0d54762173eaf0c1d250d31d3824d7a63c89e983c4e9eb3491"
     assert info.tamanho_mb == 51.7
-    assert updater.e_mais_nova("3.2.0", "3.1.0")
+    assert updater.e_mais_nova("3.1.1", "3.1.0")
 
 
 # --------------------------------------------------------------------------

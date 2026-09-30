@@ -99,7 +99,7 @@ do Windows, obedece o arquivo PAC da rede e ainda testa as rotas em cascata
 > **Vindo da v3.1.0:** a primeira atualização é feita pelo código da versão que
 > está instalada. Numa instalação *para todos os usuários* (Program Files), o
 > app fecha e **não reabre sozinho** dessa vez: espere a janelinha de progresso
-> sumir e abra o DocManager pelo atalho. A partir da v3.2.0 ele reabre sozinho
+> sumir e abra o DocManager pelo atalho. A partir da v3.1.1 ele reabre sozinho
 > nos dois tipos de instalação.
 
 ---
@@ -178,8 +178,10 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
 - **🗺️ Mapa dos Planos** - atualiza a planilha de Mapeamento (status real,
   hierarquia, KPIs, atrasos). Selecione a **Base Aconex** + o **Mapeamento** e,
   opcionalmente, o **Controle de Documentos** (preenche datas previstas /
-  reprogramação). O botão **⏳ Analisar Mudanças por Período (Delta)** abre a
-  "Máquina do Tempo" comparando o status entre duas datas.
+  reprogramação). As datas que o app grava (DATA ÚLTIMA EMISSÃO e a DATA
+  PREVISTA e a REPROGRAMADA da etapa 1) saem no formato **Data** do Excel, que o
+  Power BI lê como data. O botão **⏳ Analisar Mudanças por Período (Delta)**
+  abre a "Máquina do Tempo" comparando o status entre duas datas.
 - **📑 Doc List Mapping** - follow-up de uma lista de documentos, com dois níveis
   (nível 1 = agrupamento por escopo, nível 2 = documentos) e uma única coluna
   `PREDECESSOR`. Do **Controle de Documentos** vêm as datas de planejamento,

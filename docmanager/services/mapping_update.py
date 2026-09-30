@@ -24,7 +24,7 @@ from ..core.hierarchy import (
 from ..core.identity import AconexIndex, obter_codigos_historicos
 from ..core.mapping import processar_documento, resolver_datas_controle
 from .controle_docs import ControleDocs
-from .excel_io import MappingSheet, carregar_base_aconex
+from .excel_io import COLUNAS_MAPA, MappingSheet, aviso_datas_com_texto, carregar_base_aconex
 
 
 @dataclass
@@ -78,18 +78,12 @@ class DiagnosticoControle:
         return msgs
 
 
-def _fmt_data(valor) -> str:
-    """Formata data para dd/mm/yyyy quando possível (senão devolve string)."""
-    try:
-        return valor.strftime("%d/%m/%Y")
-    except Exception:
-        return str(valor) if valor is not None else ""
-
-
 def _escrever_resultado(ms: MappingSheet, row: int, r) -> None:
     # Visuais (None → limpa a célula / mata zumbi)
     ms.set_val("revisao", row, r.revisao)
-    ms.set_val("data_ultimo_status", row, _fmt_data(r.data_ultimo_status) if r.data_ultimo_status else None)
+    # DATA ÚLTIMA EMISSÃO como data nativa, igual ao Doc List. Até a v3.1.0 ia
+    # como TEXTO 'dd/mm/aaaa', que o Power BI não agrupa por período.
+    ms.set_data_ou_texto("data_ultimo_status", row, r.data_ultimo_status)
     ms.set_val("status_emissao", row, r.status_emissao)
     if r.cod_itaipu_atual:
         ms.set_val("codigo_itaipu", row, r.cod_itaipu_atual)
@@ -131,6 +125,7 @@ def atualizar_mapeamento(
     total = ms.max_row - ms.start_row + 1
     processadas = 0
     diag = DiagnosticoControle()
+    datas_com_texto: list[str] = []
     for i, row in enumerate(range(ms.start_row, ms.max_row + 1)):
         if progress_cb and total > 0 and i % 10 == 0:
             progress_cb(i / total)
@@ -141,6 +136,15 @@ def atualizar_mapeamento(
         processadas += 1
         df_tracking = idx.localizar(c_itaipu, c_cmi)
 
+        # As datas da etapa 1 que a equipe digita (e que o app também preenche
+        # pelo Controle) viram DATA do Excel - texto '15/10/2026', formato
+        # personalizado... -, para o Power BI ler a coluna como data (§27.6).
+        for rotulo, texto in (
+                (COLUNAS_MAPA["data_previsao_etapa_1"], ms.normalizar_data("data_previsao_etapa_1", row)),
+                ("DATA REPROGRAMADA (etapa 1)", ms.normalizar_reprogramada_etapa1(row))):
+            if texto is not None:
+                datas_com_texto.append(f"{rotulo} linha {row}: '{texto}'")
+
         # Datas do Controle (§13, §24): PREVISTA na célula (só se vazia),
         # REPROGRAMAÇÃO na coluna própria; atraso calculado por REPROGRAMAÇÃO>PREVISTA.
         #
@@ -148,7 +152,6 @@ def atualizar_mapeamento(
         # havia um `and not df_tracking.empty` aqui, então justamente o documento
         # NÃO EMITIDO - o que mais precisa da data planejada - nunca a recebia,
         # embora o usuário o encontrasse no Controle com um Ctrl+F.
-        ms.matar_zumbi("data_previsao_etapa_1", row)
         data_ref, datas = None, None
         if controle is not None:
             codigos = obter_codigos_historicos(df_tracking) if not df_tracking.empty else []
@@ -157,7 +160,7 @@ def atualizar_mapeamento(
                 codigos, c_itaipu, c_cmi, controle,
                 valor_celula_reprogramada=ms.get_reprogramada_etapa1(row))
             if datas.prevista_para_celula is not None:
-                ms.set_val("data_previsao_etapa_1", row, datas.prevista_para_celula)
+                ms.set_data("data_previsao_etapa_1", row, datas.prevista_para_celula)
                 diag.previstas += 1
                 diag.previstas_atualizadas += int(datas.prevista_atualizada)
             # Só escreve no VAZIO: a coluna aceita input manual (§24.13).
@@ -168,7 +171,7 @@ def atualizar_mapeamento(
             data_ref = datas.data_ref
         # Atraso usa a data_ref (já com o que ficou nas células); sem Controle,
         # cai na data que está na planilha.
-        data_prevista = data_ref if data_ref is not None else (ms.get_val("data_previsao_etapa_1", row) or None)
+        data_prevista = data_ref if data_ref is not None else ms.get_data("data_previsao_etapa_1", row)
 
         nivel = ms.get_val("nivel", row)
         tag_etapa = ms.get_val("filtro_etapa", row)
@@ -188,6 +191,8 @@ def atualizar_mapeamento(
     if controle is not None:
         for linha_log in diag.linhas_log():
             log_cb(linha_log)
+    if (aviso := aviso_datas_com_texto(datas_com_texto)):
+        log_cb(aviso)
 
     # Hierarquia (posicional) - relê os códigos já atualizados.
     log_cb("Calculando predecessores e planos de execução...")

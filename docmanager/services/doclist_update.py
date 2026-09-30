@@ -30,7 +30,7 @@ from ..core.identity import AconexIndex, obter_codigos_historicos
 from ..core.mapping import processar_documento
 from .controle_docs import ControleDocs
 from .doclist_io import DocListSheet
-from .excel_io import carregar_base_aconex
+from .excel_io import aviso_datas_com_texto, carregar_base_aconex
 
 
 # Colunas de data que aceitam input manual (as outras o app calcula e grava).
@@ -89,24 +89,6 @@ class DiagnosticoDocList:
         return msgs
 
 
-def _escrever_data_emissao(ds: DocListSheet, row: int, valor) -> None:
-    """Grava DATA ÚLTIMA EMISSÃO como data NATIVA do Excel.
-
-    O Mapa dos Planos escreve essa célula como texto 'dd/mm/aaaa'; aqui não
-    serve, porque o Doc List alimenta um dashboard que precisa agrupar por
-    período. Valor irreconhecível cai como texto, para não sumir informação.
-    """
-    if not valor:
-        ds.set_val("data_ultimo_status", row, None)
-        return
-    from .doclist_io import _para_date
-    d = _para_date(valor)
-    if d is not None:
-        ds.set_data("data_ultimo_status", row, d)
-    else:
-        ds.set_val("data_ultimo_status", row, str(valor))
-
-
 def _escrever_grupo(ds: DocListSheet, row: int) -> None:
     """Linha de NÍVEL 1: agrupamento por escopo, não é documento.
 
@@ -146,7 +128,8 @@ def _escrever_situacao_emissao(ds: DocListSheet, row: int, r, data_alvo, hoje: d
 
 def _escrever_documento(ds: DocListSheet, row: int, r) -> None:
     ds.set_val("revisao", row, r.revisao)
-    _escrever_data_emissao(ds, row, r.data_ultimo_status)
+    # Data nativa: o dashboard precisa agrupar por período (KB §27.6).
+    ds.set_data_ou_texto("data_ultimo_status", row, r.data_ultimo_status)
     ds.set_val("status_emissao", row, r.status_emissao)
     if r.cod_itaipu_atual:
         ds.set_val("codigo_itaipu", row, r.cod_itaipu_atual)
@@ -251,13 +234,8 @@ def atualizar_doclist(
     if controle is not None:
         for linha_log in diag.linhas_log():
             log_cb(linha_log)
-    if datas_com_texto:
-        amostra = "; ".join(datas_com_texto[:DiagnosticoDocList.LIMITE_AMOSTRA])
-        resto = "" if len(datas_com_texto) <= DiagnosticoDocList.LIMITE_AMOSTRA else \
-            f" (+{len(datas_com_texto) - DiagnosticoDocList.LIMITE_AMOSTRA} outras)"
-        log_cb(f"Aviso: {len(datas_com_texto)} célula(s) com texto nas colunas de data, que "
-               f"ficaram como estão: {amostra}{resto}. Enquanto houver texto nessas colunas, "
-               f"o Power BI não as lê como data - troque por uma data ou apague.")
+    if (aviso := aviso_datas_com_texto(datas_com_texto)):
+        log_cb(aviso)
 
     # Hierarquia: uma coluna só (PREDECESSOR), dois níveis.
     log_cb("Calculando predecessores...")

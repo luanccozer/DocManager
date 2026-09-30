@@ -117,10 +117,10 @@ brazilianportuguese.FinishedLabel=Instalacao concluida.%n%nPRIMEIRO USO: para a 
 //                   permissao de administrador concedida, se foi pedida. So
 //                   entao o app se fecha; se o instalador terminar sem criar o
 //                   arquivo (UAC recusado, por exemplo), o app segue aberto e
-//                   avisa. Existe a partir da 3.2.
+//                   avisa. Existe a partir da 3.1.1.
 //   /REABRIR        o app disparou o instalador SEM elevar e o proprio Inno
 //                   pediu a permissao: "runasoriginaluser" abre o app de novo
-//                   na conta de quem o estava usando. Existe a partir da 3.2.
+//                   na conta de quem o estava usando. Existe a partir da 3.1.1.
 // O app 3.1.0 nao passa nenhum dos dois, e continua funcionando: a espera vale
 // para ele, e a reabertura tambem, na instalacao "somente para mim".
 

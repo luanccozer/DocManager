@@ -116,7 +116,7 @@ tocado.
 ## 3. Pipeline de atualização, passo a passo
 
 `atualizar_doclist` em
-[`services/doclist_update.py:144`](../docmanager/services/doclist_update.py#L144):
+[`services/doclist_update.py:148`](../docmanager/services/doclist_update.py#L148):
 
 1. Abre a planilha, renomeia cabeçalhos legados, avisa sobre colunas ausentes.
 2. Para cada linha:
@@ -125,14 +125,14 @@ tocado.
      `df_tracking` (histórico completo daquele documento no Aconex) e chama
      `processar_documento`.
 3. `processar_documento`
-   ([`core/mapping.py:154`](../docmanager/core/mapping.py#L154)) devolve um
+   ([`core/mapping.py:162`](../docmanager/core/mapping.py#L162)) devolve um
    `ResultadoDocumento`.
 4. `_escrever_documento`
-   ([`services/doclist_update.py:124`](../docmanager/services/doclist_update.py#L124))
+   ([`services/doclist_update.py:129`](../docmanager/services/doclist_update.py#L129))
    grava o resultado nas células.
 5. Calcula predecessores e `RESUMO QUANTIDADES` dos grupos.
 
-### `ResultadoDocumento` ([`core/mapping.py:29`](../docmanager/core/mapping.py#L29))
+### `ResultadoDocumento` ([`core/mapping.py:33`](../docmanager/core/mapping.py#L33))
 
 ```python
 revisao, data_ultimo_status, status_emissao,
@@ -143,7 +143,7 @@ atrasos: dict,   # calculado; o Doc List não usa
 data_primeira_emissao: date | None,   # <-- a régua de aderência (§7)
 ```
 
-### `DocListSheet` ([`services/doclist_io.py:48`](../docmanager/services/doclist_io.py#L48))
+### `DocListSheet` ([`services/doclist_io.py:47`](../docmanager/services/doclist_io.py#L47))
 
 | Método | Uso |
 |---|---|
