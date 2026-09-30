@@ -27,6 +27,9 @@
 
 #define AppName "DocManager Itaipu"
 #define AppExe "DocManager.exe"
+; Mutex que o app cria ao abrir (ui/main_app.py, NOME_MUTEX). Os dois nomes TEM
+; que ser iguais - ver AppMutex e o [Code] no fim deste arquivo.
+#define AppMutexName "DocManagerItaipu_AppMutex"
 
 [Setup]
 AppId={{7C3B2A10-DOCM-4ITA-IPU0-DOCMANAGER01}}
@@ -57,12 +60,14 @@ PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
 
 ; --- Atualizacao por cima da versao anterior ----------------------------
-; AppMutex e a peca que faz a atualizacao funcionar: o app cria este mutex
-; nomeado ao abrir (ui/main_app.py, NOME_MUTEX). Com ele o Inno DESCOBRE que o
-; DocManager esta rodando e o fecha antes de trocar os arquivos - sem isso a
-; instalacao falha com "arquivo em uso", que e o sintoma classico de
-; auto-update quebrado. Os dois nomes TEM que ser iguais.
-AppMutex=DocManagerItaipu_AppMutex
+; AppMutex: o app cria este mutex nomeado ao abrir, e e por ele que o Inno
+; DESCOBRE que o DocManager esta rodando. Ele NAO fecha o app: numa instalacao
+; feita na mao, mostra "feche o aplicativo"; em modo silencioso (a atualizacao
+; automatica), responde Cancelar sozinho e ABORTA. Por isso a atualizacao
+; automatica espera o app sair antes dessa checagem - ver InitializeSetup no
+; [Code]. Quem fecha o que ainda estiver usando os arquivos e o Restart
+; Manager (CloseApplications).
+AppMutex={#AppMutexName}
 CloseApplications=yes
 RestartApplications=yes
 
@@ -84,6 +89,9 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Abrir o {#AppName}"; Flags: nowait postinstall skipifsilent
+; Atualizacao automatica (silenciosa): reabre o app no fim. O Restart Manager so
+; reabre o que ele mesmo fechou, e o DocManager sai sozinho antes.
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: ReabrirAposAtualizar
 
 [UninstallDelete]
 ; Restos do build antigo (pyc/cache) que nao constam no manifesto de instalacao.
@@ -93,3 +101,76 @@ Type: filesandordirs; Name: "{app}\_internal\__pycache__"
 ; As credenciais agora sao cadastradas DENTRO do app; nao existe mais .env para
 ; a pessoa copiar. A mensagem final diz exatamente o que fazer na 1a abertura.
 brazilianportuguese.FinishedLabel=Instalacao concluida.%n%nPRIMEIRO USO: para a Extracao Aconex funcionar, abra o DocManager, va em "Extracao Aconex" e clique em CADASTRAR USUARIO. Informe o Client ID (APP ID), o User ID e o Client Secret que o administrador do Aconex passou para voce.%n%nE uma vez so. Os dados ficam guardados nesta maquina, cifrados pelo Windows, e continuam valendo depois das atualizacoes.%n%nOs outros modulos (Mapa, Doc List, Status, Historico, Relatorios) funcionam sem cadastro nenhum.
+
+[Code]
+// ==========================================================================
+//  Atualizacao automatica disparada pelo proprio DocManager
+// ==========================================================================
+// O app baixa este instalador, dispara em modo silencioso e so DEPOIS se
+// fecha - leva alguns segundos para sair. Sem a espera abaixo, a checagem do
+// AppMutex encontrava o app ainda aberto e abortava a atualizacao em meio
+// segundo, deixando a versao antiga (reproduzido com este script no Wine).
+// InitializeSetup roda ANTES daquela checagem, por isso a espera fica aqui.
+//
+// Parametros que o app passa (alem dos do Inno):
+//   /SINAL=arquivo  o instalador cria o arquivo quando chega aqui, ja com a
+//                   permissao de administrador concedida, se foi pedida. So
+//                   entao o app se fecha; se o instalador terminar sem criar o
+//                   arquivo (UAC recusado, por exemplo), o app segue aberto e
+//                   avisa. Existe a partir da 3.1.1.
+//   /REABRIR        o app disparou o instalador SEM elevar e o proprio Inno
+//                   pediu a permissao: "runasoriginaluser" abre o app de novo
+//                   na conta de quem o estava usando. Existe a partir da 3.1.1.
+// O app 3.1.0 nao passa nenhum dos dois, e continua funcionando: a espera vale
+// para ele, e a reabertura tambem, na instalacao "somente para mim".
+
+const
+  EsperaMaximaMs = 60000;
+  PassoMs = 250;
+
+function TemParametro(const Nome: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), Nome) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function InitializeSetup(): Boolean;
+var
+  Sinal: String;
+  Esperado: Integer;
+begin
+  Result := True;
+  Sinal := ExpandConstant('{param:SINAL|}');
+  if Sinal <> '' then
+    SaveStringToFile(Sinal, 'pronto', False);
+
+  // Instalacao feita na mao: o proprio Inno pede para fechar o app.
+  if not WizardSilent then
+    Exit;
+
+  Esperado := 0;
+  while CheckForMutexes('{#AppMutexName}') and (Esperado < EsperaMaximaMs) do
+  begin
+    Sleep(PassoMs);
+    Esperado := Esperado + PassoMs;
+  end;
+  if Esperado > 0 then
+    Log(Format('DocManager: esperou %d ms o app fechar.', [Esperado]));
+end;
+
+function ReabrirAposAtualizar(): Boolean;
+begin
+  // Sem /REABRIR (app 3.1.0), numa instalacao para todos os usuarios o
+  // instalador ja nasceu elevado: a "conta original" pode ser a do
+  // administrador que digitou a senha, e o app abriria com os Documentos e as
+  // credenciais de outra pessoa. Nesse caso a pessoa reabre pelo atalho.
+  Result := WizardSilent and (TemParametro('/REABRIR') or
+    (TemParametro('/RESTARTAPPLICATIONS') and not IsAdminInstallMode));
+end;

@@ -56,8 +56,9 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         notas.configure(state="disabled")
 
         if updater.precisa_elevacao():
-            ctk.CTkLabel(quadro, text="ℹ️ O DocManager está instalado em Program Files, então "
-                         "o Windows vai pedir permissão de administrador para concluir.",
+            ctk.CTkLabel(quadro, text="ℹ️ O DocManager está instalado para todos os usuários "
+                         "(Program Files), então o Windows vai pedir permissão de "
+                         "administrador para concluir.",
                          font=t.corpo(11), text_color=t.TEXTO_FRACO, justify="left",
                          wraplength=560).pack(anchor="w", pady=(10, 0))
 
@@ -124,7 +125,12 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         threading.Thread(target=self._trabalho, daemon=True).start()
 
     def _trabalho(self):
-        """Roda FORA da thread da interface: baixa, confere e dispara o instalador."""
+        """Roda FORA da thread da interface: baixa, confere e dispara o instalador.
+
+        `instalar` só volta quando o instalador está pronto (já passou pela
+        permissão do Windows, se ela foi pedida). Se ele não ficar pronto, cai no
+        `_falhou` e o app segue aberto - fechar antes era o que abortava a
+        atualização na v3.1.0."""
         try:
             caminho = updater.baixar(self.info, progresso_cb=self._progresso,
                                      log_cb=self._dizer)
@@ -133,7 +139,8 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         except Exception as e:  # noqa: BLE001 - qualquer falha vira aviso na tela
             self.after(0, lambda erro=e: self._falhou(erro))
             return
-        self.after(400, self._encerrar_para_instalar)
+        # O instalador espera o app sair; a pausa é só para dar tempo de ler.
+        self.after(1500, self._encerrar_para_instalar)
 
     def _falhou(self, erro: Exception):
         self._baixando = False
@@ -148,7 +155,7 @@ class AtualizacaoDialog(ctk.CTkToplevel):
             f"nova à mão:\n{self.info.url_pagina}", parent=self)
 
     def _encerrar_para_instalar(self):
-        self._dizer("O DocManager vai fechar para concluir a instalação.")
+        self._dizer("O DocManager vai fechar e abrir de novo, já atualizado.")
         try:
             self.grab_release()
         except tk.TclError:

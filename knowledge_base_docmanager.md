@@ -245,6 +245,28 @@ Se o **Título** contém `PLANILHA` **e** `COMISSIONAMENTO`:
 
 Motivo: no fluxo do outro time do cliente (comissionamento), "Para Aprovação" é um estágio avançado real, não um fantasma. Esta é a **única porta** pela qual "Para Aprovação" pode emergir como status real — e, quando emerge, o consolidado o mapeia para APROVADO (ou APROVAÇÃO INTERMEDIÁRIA sob a regra estrita, §10).
 
+#### 8.2.1 ✅ Status próprios do fluxo de comissionamento (2026-09-30, pedido do usuário)
+
+"As planilhas de comissionamento nível 3 receberam novos status (apenas aquilo que é nível 3)":
+
+| Rótulo no Aconex | Equivale a | Consolidado |
+|---|---|---|
+| `Aguardando Editável` | `Para Assinatura` | APROVADO |
+| `Reviewed with No Comments` | `Não Aprovado` | NÃO APROVADO |
+
+**Onde mora**: `core/comissionamento.py`, fonte única do que é específico das planilhas: o reconhecimento pelo título (mesmo critério da exceção acima, porque o motor não conhece o nível da linha e o Status Documentos, o Histórico e o Delta nem têm mapeamento), a tabela de equivalência e `traduzir_historico`. A comparação tolera acento, caixa e espaços ('Aguardando Editavel' também vale).
+
+**Como**: os rótulos são traduzidos ANTES de qualquer motor olhar o histórico, então valem todas as regras do status equivalente (salvamento na própria revisão, batalha, reprovação em revisão numérica, regra estrita VIP):
+- status real: `status_engine`, só quando o histórico é de planilha;
+- KPIs e atrasos: `kpis._preparar_historico` (senão o retorno não era reconhecido e o relógio da CMI ficava vazio);
+- histórico consolidado e dashboard: `wide.gerar_dataset_dashboard`, antes do filtro `HIST_STATUS_VALIDOS`, que não conhece os rótulos e apagaria o retorno da revisão;
+- Relatório de Avanço: antes do filtro `_STATUS_VALIDOS`, pelo mesmo motivo;
+- consolidado: traduz também o bruto, senão o par (Não Aprovado, Reviewed with No Comments) cairia em ERRO (§9).
+
+A coluna STATUS (bruto) do Mapa e do Doc List continua com o rótulo do Aconex; o STATUS REAL mostra o equivalente. Fora das planilhas os rótulos NÃO são traduzidos: o pedido é só para o nível 3, e um documento comum com esses rótulos segue caindo onde sempre caiu.
+
+**Testes**: `tests/test_comissionamento.py`. O central é o de EQUIVALÊNCIA: o mesmo histórico, escrito com os rótulos novos e com os status equivalentes, dá o mesmo resultado em status real, consolidado, KPIs, atrasos e 1ª emissão.
+
 ### 8.3 Linha da verdade (status atual)
 
 Dentro da revisão vigente (`revisao_current`), a linha da verdade é a de **maior Versão_Int**. Se a revisão vigente não existe no histórico → `NÃO EMITIDO`.
@@ -315,6 +337,7 @@ Reduz (Status Real, Status bruto Aconex, Emitido/Não Emitido) a buckets executi
 |---|---|
 | Status Real ∈ {Aprovado, Aprovado com Comentários, Para Assinatura, Informativo, Para Aprovação} | **APROVADO** |
 | Real = Não Aprovado **e** bruto = Não Aprovado | **NÃO APROVADO** |
+| Real = Não Aprovado **e** bruto = Reviewed with No Comments (planilha de comissionamento, §8.2.1) | **NÃO APROVADO** |
 | Real = Não Aprovado **e** bruto ∈ fantasmas (ou "Para Análise") | **NÃO APROVADO** |
 | Real = Não Aprovado **e** bruto = Em Processo | **EM PROCESSO** (reemissão já tramitando) |
 | Real ∈ {Anulado, Cancelado, Issued for Annulment} | **CANCELADO** |
@@ -404,7 +427,7 @@ Arquivo opcional no Mapa dos Planos. Leitura: `header=3` (cabeçalho na linha 4)
 3. Coleta **todos os códigos históricos** do documento (§6) e busca cada um no dicionário.
 4. **Uma única data encontrada** → usa (fast path).
 5. **Datas conflitantes** (códigos do mesmo doc com datas diferentes no Controle) → desempate: data atrelada ao **código Itaipu atual** do mapeamento → senão, ao **código CMI atual** → senão, a **data mais nova** (segurança).
-6. Formato visual: `dd/mm/yyyy`.
+6. Formato: data nativa do Excel, no formato **Data** (desde a v3.1.1, §27.6; antes o openpyxl deixava `yyyy-mm-dd`).
 
 ---
 
@@ -988,7 +1011,7 @@ Diferenças em relação ao Mapa dos Planos:
 
 As duas regras de data são as mesmas do Mapa dos Planos desde §24.13 (`core/planejamento.py`); nasceram aqui e foram adotadas lá. `FASE DE PROJETO` saiu desta tabela em §27.3.
 
-`DATA-ALVO EMISSÃO` ocupa o lugar da antiga coluna **`TROCAR`** (renomeada automaticamente na primeira atualização, junto com `RESPONSÁVEL`→`RESPONSIBLE (COE/VENDOR)` e `OBSERVAÇÃO`→`OBSERVAÇÕES`). É ela que prepara a leitura por período no dashboard: gravada como **data nativa** do Excel, não texto — assim como `DATA ÚLTIMA EMISSÃO` neste módulo (o Mapa escreve texto).
+`DATA-ALVO EMISSÃO` ocupa o lugar da antiga coluna **`TROCAR`** (renomeada automaticamente na primeira atualização, junto com `RESPONSÁVEL`→`RESPONSIBLE (COE/VENDOR)` e `OBSERVAÇÃO`→`OBSERVAÇÕES`). É ela que prepara a leitura por período no dashboard: gravada como **data nativa** do Excel, não texto — assim como `DATA ÚLTIMA EMISSÃO` (o Mapa a escrevia como texto até a v3.1.0, §27.6).
 
 **Análise por Período** (`core/doclist_periodo.py` + `ui/views/periodo_dialog.py`): janela sobre a DATA-ALVO com atalhos (vencidos, próximos 7/30/90 dias, restante do mês, mês que vem, este ano) ou intervalo manual; árvore por Mês/Grupo/Sistema/Fase; cada item traz a **origem** da data (Prevista ou Reprogramada) e os dias até o alvo. Agrupamentos (nível 1) e já emitidos ficam de fora por padrão. O Excel sai com quadro por mês, o detalhe e uma aba **"Sem Planejamento"** — os documentos sem nenhuma data, que a análise por período não enxerga.
 
@@ -1014,6 +1037,27 @@ O §27 tinha separado `APROVADO` / `APROVADO COM COMENTÁRIOS` / `PARA ASSINATUR
 
 `calcula_status_consolidado_doclist` foi **removida** (virou indireção vazia sobre `calcula_status_consolidado`) e `doclist_update` passou a usar o consolidado que `processar_documento` já calcula. As constantes `CONS_APROVADO_COM_COMENTARIOS`/`CONS_PARA_ASSINATURA` saíram. O RESUMO QUANTIDADES voltou a `Total / Aprovados / Em Processo / Não Aprovados / Não Emitidos` (+ `Cancelados` quando houver), como no exemplo original do usuário.
 
+### 27.6 ✅ Datas no formato Data do Excel, para o Power BI (2026-09-30, pedido do usuário)
+
+**Pedido**: "corrigir o formato das datas, elas precisam estar em Data e não como custom, no formato que o Power BI possa ler, pelo menos a coluna DATA-ALVO".
+
+**Causa**: as datas já eram gravadas como data nativa, mas com o formato `DD/MM/YYYY`, que o Excel classifica como **Personalizado**. Agora `excel_io.FORMATO_DATA` é o formato de Data do próprio Excel (numFmtId 14, "Data abreviada"): categoria **Data**, exibida no padrão do Windows (dd/mm/aaaa no Brasil), e o Power BI tipa a coluna como data. Vale para as cinco colunas de data e para o "Data-Alvo" do Excel da Análise por Período. `gravar_data` também grava só o dia (sem hora), senão o Power BI lê data/hora.
+
+**Implementação única** em `services/excel_io.py`, usada pelas duas planilhas (Doc List e Mapa): `gravar_data`, `gravar_data_ou_texto` (a DATA ÚLTIMA EMISSÃO, que chega do Aconex como texto), `normalizar_celula_data` e `aviso_datas_com_texto` (o log).
+
+**Duas fontes de texto no meio da coluna**, que fazem o Power BI ler a coluna inteira como texto:
+- a DATA-ALVO das linhas de **grupo** (nível 1) nunca era reescrita e podia guardar sobra (ex.: da antiga coluna `TROCAR`). Agora é limpa, como o resto do bloco do grupo: agrupamento não tem DATA-ALVO;
+- DATA PREVISTA e DATA REPROGRAMADA aceitam input manual. `DocListSheet.normalizar_data` regrava como data o que for data em outra forma (texto '15/10/2026', serial, formato personalizado de uma rodada anterior); fórmula e vazio ficam como estão. Texto que não é data ('A DEFINIR') **não é apagado** (é o que alguém digitou), mas o log aponta coluna, linha e conteúdo.
+
+Planilha atualizada na v3.1.0: uma rodada de atualização basta para trocar o formato das células já existentes. Testes: `tests/test_doclist.py` (seção "Datas como DATA do Excel").
+
+**Mapa dos Planos (mesmo pedido, estendido pelo usuário)**: "Vamos aplicar pro mapa dos planos também".
+- `DATA ÚLTIMA EMISSÃO` era gravada como **texto** 'dd/mm/aaaa' (`_fmt_data`, removida); agora é data nativa, como no Doc List;
+- `DATA PREVISTA EMISSÃO ETAPA 1` e a `DATA REPROGRAMADA` da etapa 1 eram gravadas pelo Controle sem formato, e o openpyxl as deixava `yyyy-mm-dd` (Personalizado); agora saem no formato Data. As duas também passam por `normalizar_data` / `normalizar_reprogramada_etapa1` em toda linha, como as manuais do Doc List;
+- as DATAS PREVISTAS e REPROGRAMADAS das **etapas 2 a 4** continuam intocadas: são só input manual, e as REPROGRAMADAS nem são endereçáveis por nome (§21.1). Há teste travando isso.
+
+**Defeito antigo achado no caminho**: rodando o Mapa **sem** o Controle, o atraso lia a DATA PREVISTA com `get_val`, que devolve o texto da célula - para uma data nativa, `'2024-12-01 00:00:00'`. Os KPIs interpretam com `dayfirst=True`, e o pandas troca dia e mês: 1º/12 virava 12/01 sempre que o dia era até 12, errando `DIAS DE ATRASO`, `SITUAÇÃO DO PRAZO` e o `ATRASO ACUMULADO CMI`. Agora `ms.get_data` entrega a data. Com o Controle não acontecia (a `data_ref` já era data). Testes: `tests/test_mapping.py` (seção "Datas como DATA do Excel").
+
 ---
 
 ## 28. ✅ Extração Aconex retomável (2026-07-27, pedido do usuário)
@@ -1029,6 +1073,30 @@ O §27 tinha separado `APROVADO` / `APROVADO COM COMENTÁRIOS` / `PARA ASSINATUR
 **Contrato honesto**: `extrair_base` passou a devolver `ResultadoExtracao(df, completa, paginas, registros, motivo, checkpoint, retomada)`. A view oferece salvar a base **parcial** (avisando que é parcial) e o CLI sai com **código 2** — base parcial não pode passar por completa num script. O checkpoint só é apagado (`limpar_checkpoint`) **depois** que o Excel está em disco: cancelar o diálogo de salvamento não joga a extração fora. `cancelado_cb` permite interromper preservando o progresso; `limpar_antigos` recolhe checkpoints esquecidos há mais de 30 dias.
 
 **Testes**: `tests/test_aconex_checkpoint.py` (13), com a sessão HTTP simulada — sem rede e sem segredo. Cobrem retomada exata (a página já baixada não é rebaixada), página escrita pela metade, meta corrompido, cancelamento e a regressão principal: falha de rede **não** devolve base truncada como completa.
+
+---
+
+## 29. ✅ Interface e atualização automática (2026-09-30, pedido do usuário)
+
+### 29.1 Views guardadas e o gancho `ao_exibir`
+
+**Sintoma**: o usuário do Aconex cadastrado em **Configurações** não aparecia na **Extração Aconex**; só o cadastro feito na própria Extração funcionava.
+
+**Causa**: a `MainApp` cria cada view uma vez (na primeira visita) e a guarda. A Extração lia a lista de usuários só ao nascer; o cadastro nas Configurações ia para o mesmo cofre, mas a tela já criada nunca o relia. Reproduzido com a janela de verdade (Xvfb).
+
+**Correção**: `MainApp.selecionar` chama `ao_exibir()` toda vez que uma view volta para a tela (`BaseView` tem a versão vazia; a Home não herda de `BaseView`, daí o `getattr`). A Extração relê a lista e `aconex_backend.escolher_usuario` decide quem fica selecionado: o recém-cadastrado substitui a entrada manual (a não ser que ela já esteja preenchida), e um usuário renomeado continua selecionado. As Configurações também releem a lista e o estado da atualização. O antigo `_atualizar_vip` do Mapa virou o `ao_exibir` dele. **Regra para views novas**: o que pode mudar por fora da tela é relido no `ao_exibir`, nunca só no `montar`.
+
+Testes: `tests/test_credenciais.py` (`escolher_usuario`) e `tests/test_ui_telas.py`, que abre a janela de verdade (na CI com Xvfb; sem tela, é pulado).
+
+### 29.2 Atualização automática: a corrida com o app fechando
+
+A primeira atualização de verdade (3.1.0 → próxima) nunca tinha rodado. A revisão achou, e o Wine reproduziu, um defeito que a derrubava: em modo silencioso o Inno checa o `AppMutex` logo ao abrir e responde **Cancelar** sozinho à caixa "feche o aplicativo" - e o app 3.1.0 dispara o instalador e só depois fecha. O instalador saía com código 1 em meio segundo e a versão antiga ficava.
+
+Correção nos dois lados (detalhes em `BUILD.md`, armadilha 5):
+- **instalador** (`[Code]` do `.iss`): `InitializeSetup`, que roda antes da checagem, espera o app sair (até 60 s) em modo silencioso; uma entrada do `[Run]` reabre o app no fim. Por rodar o instalador NOVO, isso já vale para quem está na 3.1.0;
+- **app** (`updater.instalar`): dispara o instalador sem elevar, com `/SINAL` e `/REABRIR`, e só fecha quando o instalador cria o arquivo-sinal (já passou pelo UAC). Se ele terminar antes, o app segue aberto e avisa. Depois do `mainloop`, `os._exit(0)` garante que o processo (e o mutex) some na hora.
+
+Também: botão **Procurar atualizações** na barra lateral e checagem automática repetida enquanto o app fica aberto (a de hora em hora só pergunta; quem limita a 6 h é `updater.deve_verificar`). A atualização continua baixando o **instalador inteiro**; o porquê (e o caminho, se um dia o tamanho do download pesar) está em `BUILD.md`, "Por que a atualização baixa o instalador inteiro".
 
 ---
 

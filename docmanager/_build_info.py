@@ -16,7 +16,7 @@ Os valores abaixo são só o rótulo dos builds locais (feitos pelo `build.bat`)
 from __future__ import annotations
 
 # Sobrescrito pelo CI a partir da tag. Em build local fica como está.
-VERSAO = "3.1.0"
+VERSAO = "3.1.1"
 
 # Commit curto e data do build (o CI preenche; local fica vazio).
 COMMIT = ""

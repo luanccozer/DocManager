@@ -17,6 +17,7 @@ from datetime import date
 import openpyxl
 
 from ..core.doclist import (
+    COLUNAS_DOCLIST,
     NIVEL_GRUPO,
     calcular_dias_desvio_emissao,
     calcular_predecessores,
@@ -29,7 +30,11 @@ from ..core.identity import AconexIndex, obter_codigos_historicos
 from ..core.mapping import processar_documento
 from .controle_docs import ControleDocs
 from .doclist_io import DocListSheet
-from .excel_io import carregar_base_aconex
+from .excel_io import aviso_datas_com_texto, carregar_base_aconex
+
+
+# Colunas de data que aceitam input manual (as outras o app calcula e grava).
+COLUNAS_DATA_MANUAIS = ("data_prevista", "data_reprogramada")
 
 
 @dataclass
@@ -84,24 +89,6 @@ class DiagnosticoDocList:
         return msgs
 
 
-def _escrever_data_emissao(ds: DocListSheet, row: int, valor) -> None:
-    """Grava DATA ÚLTIMA EMISSÃO como data NATIVA do Excel.
-
-    O Mapa dos Planos escreve essa célula como texto 'dd/mm/aaaa'; aqui não
-    serve, porque o Doc List alimenta um dashboard que precisa agrupar por
-    período. Valor irreconhecível cai como texto, para não sumir informação.
-    """
-    if not valor:
-        ds.set_val("data_ultimo_status", row, None)
-        return
-    from .doclist_io import _para_date
-    d = _para_date(valor)
-    if d is not None:
-        ds.set_data("data_ultimo_status", row, d)
-    else:
-        ds.set_val("data_ultimo_status", row, str(valor))
-
-
 def _escrever_grupo(ds: DocListSheet, row: int) -> None:
     """Linha de NÍVEL 1: agrupamento por escopo, não é documento.
 
@@ -116,8 +103,10 @@ def _escrever_grupo(ds: DocListSheet, row: int) -> None:
     ds.set_val("com_itaipu", row, "CMI")
     # Agrupamento não tem DATA-ALVO nem emissão: o bloco de aderência fica
     # VAZIO de propósito, para não inventar um balde e poluir a legenda do
-    # dashboard com linhas que não são documento.
-    for chave in ("revisao", "data_ultimo_status", "status_emissao",
+    # dashboard com linhas que não são documento. A DATA-ALVO também é limpa:
+    # antes ela nunca era reescrita no grupo e podia guardar texto no meio da
+    # coluna de data - o que faz o Power BI ler a coluna inteira como texto.
+    for chave in ("data_alvo", "revisao", "data_ultimo_status", "status_emissao",
                   "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao"):
         ds.set_val(chave, row, None)
 
@@ -139,7 +128,8 @@ def _escrever_situacao_emissao(ds: DocListSheet, row: int, r, data_alvo, hoje: d
 
 def _escrever_documento(ds: DocListSheet, row: int, r) -> None:
     ds.set_val("revisao", row, r.revisao)
-    _escrever_data_emissao(ds, row, r.data_ultimo_status)
+    # Data nativa: o dashboard precisa agrupar por período (KB §27.6).
+    ds.set_data_ou_texto("data_ultimo_status", row, r.data_ultimo_status)
     ds.set_val("status_emissao", row, r.status_emissao)
     if r.cod_itaipu_atual:
         ds.set_val("codigo_itaipu", row, r.cod_itaipu_atual)
@@ -183,6 +173,7 @@ def atualizar_doclist(
     total = max(ds.max_row - ds.start_row + 1, 1)
     processadas = grupos = 0
     diag = DiagnosticoDocList()
+    datas_com_texto: list[str] = []
 
     for i, row in enumerate(range(ds.start_row, ds.max_row + 1)):
         if progress_cb and i % 10 == 0:
@@ -193,6 +184,13 @@ def atualizar_doclist(
             continue
         processadas += 1
 
+        # As datas digitadas à mão viram DATA do Excel (texto '15/10/2026',
+        # formato personalizado...), para o Power BI ler a coluna como data. As
+        # colunas calculadas já são gravadas assim mais adiante.
+        for chave in COLUNAS_DATA_MANUAIS:
+            if (texto := ds.normalizar_data(chave, row)) is not None:
+                datas_com_texto.append(f"{COLUNAS_DOCLIST[chave]} linha {row}: '{texto}'")
+
         if ds.get_val("nivel", row).strip() == NIVEL_GRUPO:
             grupos += 1
             _escrever_grupo(ds, row)
@@ -202,8 +200,6 @@ def atualizar_doclist(
 
         # Planejamento vindo do Controle (roda mesmo sem o doc no Aconex - é
         # justamente o não emitido que precisa da data prevista).
-        for chave in ("data_prevista", "data_reprogramada", "data_alvo"):
-            ds.matar_zumbi(chave, row)
         datas = resolver_datas_doclist(
             prevista_atual=ds.get_data("data_prevista", row),
             reprogramada_atual=ds.get_data("data_reprogramada", row),
@@ -238,6 +234,8 @@ def atualizar_doclist(
     if controle is not None:
         for linha_log in diag.linhas_log():
             log_cb(linha_log)
+    if (aviso := aviso_datas_com_texto(datas_com_texto)):
+        log_cb(aviso)
 
     # Hierarquia: uma coluna só (PREDECESSOR), dois níveis.
     log_cb("Calculando predecessores...")

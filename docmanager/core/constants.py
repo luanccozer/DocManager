@@ -41,6 +41,10 @@ STATUS_ANULACAO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT", "VOID")
 # Rótulo CANÔNICO do status real de um documento anulado - um só, para o
 # dashboard não ter que conhecer os sinônimos do Aconex.
 STATUS_CANCELADO = "Cancelado"
+# Rótulos (case do Aconex) que o código ESCREVE ao traduzir os status próprios
+# das planilhas de comissionamento - ver core/comissionamento.py.
+STATUS_PARA_ASSINATURA = "Para Assinatura"
+STATUS_NAO_APROVADO = "Não Aprovado"
 
 # Fantasmas de integração/internos - case ORIGINAL (legado: data_manager L23-26).
 # O consolidado legado faz `status in STATUS_EM_INTEGRACAO` sem normalizar.

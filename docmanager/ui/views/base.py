@@ -72,3 +72,11 @@ class BaseView(ctk.CTkFrame):
 
     def montar(self, body):  # override
         raise NotImplementedError
+
+    def ao_exibir(self):  # override
+        """Chamado TODA vez que a view volta para a tela.
+
+        As views são criadas uma vez e ficam guardadas; o que muda por fora
+        delas (credenciais cadastradas em outra tela, uma opção das
+        Configurações) só aparece se ela se atualizar aqui.
+        """

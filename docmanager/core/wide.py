@@ -43,6 +43,7 @@ from .constants import (
     SLA_ITAIPU_DEMAIS,
     SLA_ITAIPU_REV_0A,
 )
+from .comissionamento import traduzir_historico
 from .normalize import normalizar_revisao
 
 # Colunas internas do wide (sem "de"); a exportação Excel renomeia.
@@ -84,6 +85,12 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     df = df_bruto.copy()
+
+    # 0. Rótulos próprios das planilhas de comissionamento viram o status a que
+    # equivalem ('Aguardando Editável' → 'Para Assinatura', 'Reviewed with No
+    # Comments' → 'Não Aprovado'). Tem que ser ANTES do filtro de status
+    # válidos, que não os conhece e apagaria o retorno da revisão.
+    df = traduzir_historico(df)
 
     # 1. Filtros grossos: Terminated, status válidos, tipos válidos.
     if "Status da Revisão" in df.columns:

@@ -20,9 +20,13 @@ from ..core.doclist import (
     LinhaDocList,
 )
 from ..core.normalize import remover_acentos
-from .excel_io import celula_para_date
-
-FORMATO_DATA = "DD/MM/YYYY"
+from .excel_io import (
+    FORMATO_DATA,
+    celula_para_date,
+    gravar_data,
+    gravar_data_ou_texto,
+    normalizar_celula_data,
+)
 
 
 def _norm_cabecalho(v) -> str:
@@ -110,16 +114,29 @@ class DocListSheet:
         return _para_date(self.ws.cell(row=row, column=col).value)
 
     def set_data(self, chave: str, row: int, valor: date | None) -> bool:
-        """Grava DATA NATIVA (com formato dd/mm/aaaa) - nunca texto, senão o
-        dashboard não consegue agrupar por período."""
+        """Grava DATA NATIVA com o formato de Data do Excel - nunca texto, senão
+        o dashboard não consegue agrupar por período (ver `gravar_data`)."""
         col = self._col_por_chave.get(chave)
         if not col:
             return False
-        cell = self.ws.cell(row=row, column=col)
-        cell.value = valor
-        if valor is not None:
-            cell.number_format = FORMATO_DATA
+        gravar_data(self.ws.cell(row=row, column=col), valor)
         return True
+
+    def set_data_ou_texto(self, chave: str, row: int, valor) -> bool:
+        """Ver `gravar_data_ou_texto` (data que chega como texto, do Aconex)."""
+        col = self._col_por_chave.get(chave)
+        if not col:
+            return False
+        gravar_data_ou_texto(self.ws.cell(row=row, column=col), valor)
+        return True
+
+    def normalizar_data(self, chave: str, row: int) -> str | None:
+        """Ver `normalizar_celula_data`: regrava como data o que for data em outra
+        forma e devolve o texto que não é data. Também mata a célula zumbi."""
+        col = self._col_por_chave.get(chave)
+        if not col:
+            return None
+        return normalizar_celula_data(self.ws.cell(row=row, column=col))
 
     def renomear_cabecalhos_legados(self) -> list[tuple[str, str]]:
         """Atualiza no arquivo os cabeçalhos antigos para o nome oficial
@@ -138,15 +155,6 @@ class DocListSheet:
             self.headers, _ = self._find_headers(self.ws)
             self._col_por_chave = self._mapear_colunas()
         return trocas
-
-    def matar_zumbi(self, chave: str, row: int) -> None:
-        """String vazia → None (célula zumbi vira nula de verdade)."""
-        col = self._col_por_chave.get(chave)
-        if not col:
-            return
-        cell = self.ws.cell(row=row, column=col)
-        if cell.value is not None and str(cell.value).strip() == "":
-            cell.value = None
 
     # ------------------------------------------------------------------
     def ler_linhas(self) -> list[LinhaDocList]:

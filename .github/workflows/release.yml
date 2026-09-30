@@ -193,13 +193,10 @@ jobs:
           echo "─── publicado ───"
           gh release view "$TAG"
 
-      # Guardado por 30 dias: se alguém precisar do build sem passar pelo
-      # instalador (teste rápido, diagnóstico), está aqui.
-      - name: Guardar os artefatos do build
-        uses: actions/upload-artifact@v4
-        with:
-          name: DocManager-${{ steps.versao.outputs.versao }}
-          path: |
-            installer/Output/*.exe
-            latest.json
-          retention-days: 30
+      # Sem upload-artifact de propósito. Até a 3.1.1-rc.1 havia aqui um passo
+      # que guardava o instalador e o latest.json como artefato do Actions por
+      # 30 dias: os mesmos arquivos que o Release já tem, só que contando na
+      # cota de armazenamento da conta (~54 MB por run). A cota encheu, o passo
+      # falhou com "Artifact storage quota has been hit" e o run da rc.1 ficou
+      # vermelho com o Release publicado e correto. Para baixar um build, use o
+      # Release; pré-lançamento também fica lá.

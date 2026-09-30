@@ -90,8 +90,12 @@ A prioridade da `DESCRIÇÃO DO DOCUMENTO`, nessa ordem:
 > As duas regras de data valem também para o **Mapa dos Planos** desde 2026-07-28
 > (KB §24.13) — a implementação é uma só, em `core/planejamento.py`.
 
-Todas gravadas como **data nativa** do Excel (`dd/mm/aaaa`), não texto — é o que
-permite o dashboard agrupar por período.
+Todas gravadas como **data nativa** do Excel, no formato **Data** (e não
+"Personalizado"), que aparece como dd/mm/aaaa e que o Power BI lê como data: é o
+que permite o dashboard agrupar por período. Data digitada como texto nas
+colunas de planejamento vira data na próxima atualização; texto que não é data
+(ex.: "A DEFINIR") fica, mas o log aponta a coluna e a linha, porque ele impede
+o Power BI de ler a coluna como data.
 
 > Sem o Controle de Documentos o módulo roda normalmente: apenas as datas de
 > planejamento e o resgate da descrição não acontecem.

@@ -208,3 +208,104 @@ def test_resumo_plano_comissionamento_sem_toggle_mantem_plano_aprovado():
     planos = identificar_planos_comissionamento(linhas)
     resumo = calcular_resumo_quantidades(linhas, hier, estrito=False, planos_comiss=planos)
     assert resumo[2] == "Plano Aprovado"
+
+
+# ---------------------------------------------------------------------------
+# Datas como DATA do Excel, igual ao Doc List (pedido de 2026-09-30, KB §27.6)
+# ---------------------------------------------------------------------------
+FORMATO_DATA_EXCEL = "mm-dd-yy"   # numFmtId 14: categoria "Data" no Excel
+
+
+def _mapa_com_datas(tmp_path, *, prevista=None, reprog=None, extras=(), controle=None,
+                    doc_no_aconex=True):
+    """Roda o Mapa com uma linha (#IT-1). `extras`: colunas (nome, valor) ao fim,
+    para as etapas 2 a 4. Devolve (planilha relida, {cabeçalho: coluna}, logs)."""
+    from docmanager.services.controle_docs import ler_controle
+
+    hist = (HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC A") if doc_no_aconex
+            else HistoricoBuilder("T9", "#OUTRO", "CMI-OUTRO", "OUTRO DOC"))
+    b = base(hist.evento("0A", 1, "Em Processo", "01/03/2026")
+             .evento("0A", 2, "Aprovado", "20/03/2026", current=True))
+    base_path = tmp_path / "base.xlsx"
+    b.to_excel(base_path, index=False)
+
+    cols = _COLS_MAPA_REPROG + [nome for nome, _v in extras]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for c, nome in enumerate(cols, 1):
+        ws.cell(1, c, nome)
+    for c, valor in enumerate(("SALAS", "CMI-1", "#IT-1", "DOC A", "4"), 1):
+        ws.cell(3, c, valor)
+    if prevista is not None:
+        ws.cell(3, 6, prevista)
+    if reprog is not None:
+        ws.cell(3, 7, reprog)
+    for c, (_nome, valor) in enumerate(extras, len(_COLS_MAPA_REPROG) + 1):
+        ws.cell(3, c, valor)
+    mapa_path = tmp_path / "mapa.xlsx"
+    wb.save(mapa_path)
+
+    ctrl = None
+    if controle is not None:
+        from builders import escrever_controle_xlsx
+        ctrl = ler_controle(escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [controle]), 0,
+                            log_cb=lambda _m: None)
+    logs = []
+    r = atualizar_mapeamento(str(base_path), str(mapa_path), controle=ctrl, hoje=HOJE,
+                             log_cb=logs.append)
+    assert r.ok, r.mensagem
+    ws2 = openpyxl.load_workbook(mapa_path).active
+    col = {}
+    for c in ws2[1]:
+        col.setdefault(str(c.value), c.column)   # a 1ª DATA REPROGRAMADA é a da etapa 1
+    return ws2, col, logs
+
+
+def test_mapa_grava_as_datas_no_formato_de_data_do_excel(tmp_path):
+    ws, col, _ = _mapa_com_datas(tmp_path, controle={
+        "itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "01-02-2026", "reprog": "9/15/2026"})
+    for titulo, esperado in (("DATA ÚLTIMA EMISSÃO", date(2026, 3, 20)),
+                             ("DATA PREVISTA EMISSÃO ETAPA 1", date(2026, 2, 1)),
+                             ("DATA REPROGRAMADA", date(2026, 9, 15))):
+        cell = ws.cell(3, col[titulo])
+        # Até a v3.1.0: DATA ÚLTIMA EMISSÃO era TEXTO e as do Controle saíam 'yyyy-mm-dd'.
+        assert cell.is_date and cell.value.date() == esperado, titulo
+        assert cell.number_format == FORMATO_DATA_EXCEL, titulo
+
+
+def test_mapa_converte_data_digitada_como_texto_e_aponta_o_resto(tmp_path):
+    ws, col, logs = _mapa_com_datas(tmp_path, prevista="15/10/2026", reprog="A DEFINIR")
+    prevista = ws.cell(3, col["DATA PREVISTA EMISSÃO ETAPA 1"])
+    assert prevista.is_date and prevista.value.date() == date(2026, 10, 15)
+    assert prevista.number_format == FORMATO_DATA_EXCEL
+    assert ws.cell(3, col["DATA REPROGRAMADA"]).value == "A DEFINIR"    # não some
+    aviso = [m for m in logs if "texto nas colunas de data" in m]
+    assert aviso and "DATA REPROGRAMADA (etapa 1) linha 3: 'A DEFINIR'" in aviso[0]
+
+
+def test_mapa_corrige_formato_personalizado_de_rodada_anterior(tmp_path):
+    """Quem já rodou a v3.1.0 tem a DATA PREVISTA em 'yyyy-mm-dd' (Personalizado)."""
+    ws, col, _ = _mapa_com_datas(tmp_path, prevista=date(2026, 5, 4), reprog=date(2026, 6, 7))
+    for titulo in ("DATA PREVISTA EMISSÃO ETAPA 1", "DATA REPROGRAMADA"):
+        assert ws.cell(3, col[titulo]).number_format == FORMATO_DATA_EXCEL, titulo
+
+
+def test_mapa_sem_controle_usa_a_data_da_planilha_no_atraso(tmp_path):
+    """Sem Controle, o atraso lê a DATA PREVISTA da planilha - agora pela data
+    de verdade (`get_data`), e não pelo texto da célula."""
+    import datetime as dt
+
+    ws, col, _ = _mapa_com_datas(tmp_path, prevista=dt.datetime(2024, 12, 1),
+                                 extras=(("DIAS DE ATRASO", None),), doc_no_aconex=False)
+    assert ws.cell(3, col["STATUS REAL"]).value == "NÃO EMITIDO"
+    assert ws.cell(3, col["DIAS DE ATRASO"]).value == 30     # 01/12 → 31/12 (HOJE)
+
+
+def test_mapa_nao_mexe_nas_datas_das_etapas_2_a_4(tmp_path):
+    """Só a etapa 1 é preenchida pelo app; as outras são input manual e as
+    REPROGRAMADAS nem são endereçáveis por nome (§21.1). Ficam como estão."""
+    ws, col, _ = _mapa_com_datas(tmp_path, extras=(
+        ("DATA PREVISTA EMISSÃO ETAPA 2", "10/10/2026"), ("DATA REPROGRAMADA", "11/11/2026")))
+    ultima = ws.max_column
+    assert ws.cell(3, ultima - 1).value == "10/10/2026"
+    assert ws.cell(3, ultima).value == "11/11/2026"

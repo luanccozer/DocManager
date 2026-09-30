@@ -116,7 +116,7 @@ tocado.
 ## 3. Pipeline de atualização, passo a passo
 
 `atualizar_doclist` em
-[`services/doclist_update.py:137`](../docmanager/services/doclist_update.py#L137):
+[`services/doclist_update.py:148`](../docmanager/services/doclist_update.py#L148):
 
 1. Abre a planilha, renomeia cabeçalhos legados, avisa sobre colunas ausentes.
 2. Para cada linha:
@@ -125,14 +125,14 @@ tocado.
      `df_tracking` (histórico completo daquele documento no Aconex) e chama
      `processar_documento`.
 3. `processar_documento`
-   ([`core/mapping.py:154`](../docmanager/core/mapping.py#L154)) devolve um
+   ([`core/mapping.py:162`](../docmanager/core/mapping.py#L162)) devolve um
    `ResultadoDocumento`.
 4. `_escrever_documento`
-   ([`services/doclist_update.py:119`](../docmanager/services/doclist_update.py#L119))
+   ([`services/doclist_update.py:129`](../docmanager/services/doclist_update.py#L129))
    grava o resultado nas células.
 5. Calcula predecessores e `RESUMO QUANTIDADES` dos grupos.
 
-### `ResultadoDocumento` ([`core/mapping.py:29`](../docmanager/core/mapping.py#L29))
+### `ResultadoDocumento` ([`core/mapping.py:33`](../docmanager/core/mapping.py#L33))
 
 ```python
 revisao, data_ultimo_status, status_emissao,
@@ -143,14 +143,14 @@ atrasos: dict,   # calculado; o Doc List não usa
 data_primeira_emissao: date | None,   # <-- a régua de aderência (§7)
 ```
 
-### `DocListSheet` ([`services/doclist_io.py:43`](../docmanager/services/doclist_io.py#L43))
+### `DocListSheet` ([`services/doclist_io.py:47`](../docmanager/services/doclist_io.py#L47))
 
 | Método | Uso |
 |---|---|
 | `get_val(chave, row)` / `set_val(chave, row, valor)` | texto |
 | `get_data(chave, row)` / `set_data(chave, row, date)` | **data nativa** com `number_format` |
+| `normalizar_data(chave, row)` | regrava como data o que for data em outra forma; devolve o texto que não é data |
 | `colunas_ausentes` | colunas de `COLUNAS_DOCLIST` que não existem na planilha |
-| `matar_zumbi(chave, row)` | limpa célula |
 
 > 🔑 **Retrocompatibilidade de graça**: `set_val`/`set_data` retornam `False`
 > quando a coluna não existe na planilha, e `atualizar_doclist` apenas **loga um
@@ -158,9 +158,11 @@ data_primeira_emissao: date | None,   # <-- a régua de aderência (§7)
 > em `COLUNAS_DOCLIST` **não quebra planilhas antigas**. Quem ainda não criou as
 > colunas continua rodando; quem criou passa a receber os valores.
 
-> 🔑 **Data nativa é obrigatório**: `set_data` grava `datetime.date` com formato
-> `dd/mm/aaaa`. Se gravar texto, o Power BI não consegue agrupar por período —
-> era exatamente para isso que `DATA-ALVO EMISSÃO` foi feita assim.
+> 🔑 **Data nativa é obrigatório**: `set_data` grava `datetime.date` (sem hora)
+> com o formato de **Data** do próprio Excel (numFmtId 14, exibido como
+> dd/mm/aaaa no Windows em português). Se gravar texto, o Power BI não consegue
+> agrupar por período. Até a v3.1.0 o formato era o personalizado `DD/MM/YYYY`,
+> que o Excel lista como "Personalizado" (KB §27.6).
 
 ---
 
@@ -261,7 +263,7 @@ em que a CMI entregou o documento pela primeira vez — é isso que se compara c
 
 ## 7. A régua: a informação já existia no histórico
 
-Em [`core/kpis.py:130`](../docmanager/core/kpis.py#L130), dentro de
+Em [`core/kpis.py:195`](../docmanager/core/kpis.py#L195), dentro de
 `calcular_atrasos_acumulados`, existe o bloco **"Momento A: nascedouro"**:
 
 ```python
@@ -559,4 +561,4 @@ não mentir, e o gráfico o exclui por **filtro do visual** (§10, passo 4).
 | Reconciliação de datas | `docmanager/core/planejamento.py` (KB §24.13) |
 | Linha da verdade / Terminated | [`core/truth_line.py:84`](../docmanager/core/truth_line.py#L84) (KB §8.9, §21.8) |
 | KPIs e atrasos | [`core/kpis.py`](../docmanager/core/kpis.py) (KB §14, §15) |
-| Nascedouro (Momento A) | [`core/kpis.py:130`](../docmanager/core/kpis.py#L130) |
+| Nascedouro (Momento A) | [`core/kpis.py:195`](../docmanager/core/kpis.py#L195) |

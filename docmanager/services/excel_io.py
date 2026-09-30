@@ -7,9 +7,12 @@ ao FIM, sem perturbar quem já lê o arquivo.
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 import pandas as pd
 from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles.numbers import FORMAT_DATE_XLSX14
 from openpyxl.utils import get_column_letter
 
 from ..core.constants import COL_REVISAO, COLS_STRIP_CARGA, MAPA_ANCORA_ITAIPU
@@ -110,6 +113,72 @@ def preparar_para_exportar(df_wide: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===========================================================================
+# Datas nas planilhas de acompanhamento (Mapa dos Planos e Doc List, KB §27.6)
+# ===========================================================================
+# O formato de DATA do próprio Excel (numFmtId 14, "Data abreviada"): o Excel o
+# lista na categoria "Data" e o exibe no padrão do Windows (dd/mm/aaaa no
+# Brasil), e o Power BI tipa a coluna como data. Até a v3.1.0 o Doc List usava
+# "DD/MM/YYYY" (Excel: "Personalizado") e o Mapa gravava texto ou "yyyy-mm-dd".
+FORMATO_DATA = FORMAT_DATE_XLSX14
+
+
+def gravar_data(cell, valor) -> None:
+    """Grava DATA NATIVA com o formato de Data do Excel; `None` limpa a célula.
+    Nunca texto: o dashboard não consegue agrupar texto por período."""
+    if isinstance(valor, datetime):
+        valor = valor.date()      # só o dia: com hora, o Power BI lê data/hora
+    cell.value = valor
+    if valor is not None:
+        cell.number_format = FORMATO_DATA
+
+
+def gravar_data_ou_texto(cell, valor) -> None:
+    """Para datas que chegam como texto (a 'Data de Alteração' do Aconex):
+    grava a data nativa; o que não se reconhecer como data vai como texto, para
+    não sumir informação."""
+    if valor is None or str(valor).strip() == "":
+        cell.value = None
+        return
+    d = celula_para_date(valor)
+    if d is not None:
+        gravar_data(cell, d)
+    else:
+        cell.value = str(valor)
+
+
+def normalizar_celula_data(cell) -> str | None:
+    """Regrava como DATA do Excel a célula que guarda uma data em outra forma:
+    texto ('15/10/2026'), número serial ou data com formato personalizado.
+    Vazio e fórmula ficam como estão.
+
+    Devolve o conteúdo quando a célula tem algo que NÃO é data ('A DEFINIR',
+    '-'). Não apaga - é o que alguém digitou -, mas quem chama avisa: enquanto
+    houver texto na coluna, o Power BI não a lê como data.
+    """
+    if cell.value is None or cell.data_type == "f":
+        return None
+    if isinstance(cell.value, str) and not cell.value.strip():
+        cell.value = None         # célula zumbi
+        return None
+    d = celula_para_date(cell.value)
+    if d is None:
+        return str(cell.value).strip()
+    gravar_data(cell, d)
+    return None
+
+
+def aviso_datas_com_texto(celulas: list[str], limite: int = 15) -> str | None:
+    """Mensagem de log para as células de data que ficaram com texto, ou None."""
+    if not celulas:
+        return None
+    amostra = "; ".join(celulas[:limite])
+    resto = "" if len(celulas) <= limite else f" (+{len(celulas) - limite} outras)"
+    return (f"Aviso: {len(celulas)} célula(s) com texto nas colunas de data, que ficaram "
+            f"como estão: {amostra}{resto}. Enquanto houver texto nessas colunas, o Power "
+            f"BI não as lê como data - troque por uma data ou apague.")
+
+
+# ===========================================================================
 # MappingSheet - I/O da planilha de Mapeamento de Planos (KB §4, §21.1)
 # ===========================================================================
 
@@ -176,13 +245,24 @@ class MappingSheet:
         if col:
             self.ws.cell(row=row, column=col).value = valor
 
-    def matar_zumbi(self, chave: str, row: int) -> None:
-        """Converte string vazia '' em None (célula zumbi → nula de verdade)."""
+    def set_data(self, chave: str, row: int, valor) -> None:
+        """Grava DATA NATIVA com o formato de Data do Excel (ver `gravar_data`)."""
         col = self._col(chave)
         if col:
-            cell = self.ws.cell(row=row, column=col)
-            if cell.value is not None and str(cell.value).strip() == "":
-                cell.value = None
+            gravar_data(self.ws.cell(row=row, column=col), valor)
+
+    def set_data_ou_texto(self, chave: str, row: int, valor) -> None:
+        """Ver `gravar_data_ou_texto` (data que chega como texto, do Aconex)."""
+        col = self._col(chave)
+        if col:
+            gravar_data_ou_texto(self.ws.cell(row=row, column=col), valor)
+
+    def normalizar_data(self, chave: str, row: int) -> str | None:
+        """Ver `normalizar_celula_data`. Também mata a célula zumbi ('' → None)."""
+        col = self._col(chave)
+        if not col:
+            return None
+        return normalizar_celula_data(self.ws.cell(row=row, column=col))
 
     def get_data(self, chave: str, row: int):
         """Valor da célula como `date` (ou None) - datetime nativo, texto ou
@@ -218,13 +298,21 @@ class MappingSheet:
         return celula_para_date(self.ws.cell(row=row, column=col).value)
 
     def set_reprogramada_etapa1(self, row: int, valor) -> bool:
-        """Escreve a REPROGRAMAÇÃO na coluna DATA REPROGRAMADA da ETAPA 1.
-        Devolve False, sem tocar em nada, se a coluna não existir (§21.1)."""
+        """Escreve a REPROGRAMAÇÃO (data nativa) na coluna DATA REPROGRAMADA da
+        ETAPA 1. Devolve False, sem tocar em nada, se a coluna não existir (§21.1)."""
         col = self._col_reprogramada_etapa1()
         if col is None:
             return False
-        self.ws.cell(row=row, column=col).value = valor
+        gravar_data(self.ws.cell(row=row, column=col), valor)
         return True
+
+    def normalizar_reprogramada_etapa1(self, row: int) -> str | None:
+        """`normalizar_data` da DATA REPROGRAMADA da etapa 1 (endereçada por
+        posição, §21.1). As das etapas 2 a 4 são só input manual: não são tocadas."""
+        col = self._col_reprogramada_etapa1()
+        if col is None:
+            return None
+        return normalizar_celula_data(self.ws.cell(row=row, column=col))
 
     @property
     def max_row(self) -> int:

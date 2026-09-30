@@ -11,6 +11,7 @@ import re
 import numpy as np
 import pandas as pd
 
+from ...core.comissionamento import traduzir_historico
 from ...core.normalize import remover_acentos
 
 _COLS_OBRIGATORIAS = ["No. do Documento", "Revisão", "Status", "Tipo do Documento", "Current",
@@ -29,7 +30,10 @@ def _norm(t):
 def gerar_relatorio_avanco(df: pd.DataFrame) -> tuple[bool, object]:
     if not all(c in df.columns for c in _COLS_OBRIGATORIAS):
         return False, "Colunas obrigatórias faltando ('Tracking ID' e 'Versão' incluídas)."
-    df = df.copy()
+    # Planilha de comissionamento em 'Aguardando Editável' ou 'Reviewed with No
+    # Comments' sairia do relatório no filtro de status válidos (Fase 2): entra
+    # com o status equivalente, como nos demais módulos.
+    df = traduzir_historico(df).copy()
 
     # Fase 0: mata revisões Current+Terminated inteiras (chave Tracking_Revisão).
     mask_current = df["Current"].astype(str).str.strip().str.lower() == "true"

@@ -11,6 +11,7 @@ from datetime import date
 
 import pandas as pd
 
+from .comissionamento import historico_e_planilha, traduzir_historico
 from .constants import (
     COL_DATA,
     COL_REVISAO,
@@ -32,8 +33,12 @@ def _hoje(hoje: date | None) -> pd.Timestamp:
 
 def _preparar_historico(df_tracking: pd.DataFrame) -> pd.DataFrame:
     """Limpeza padrão dos KPIs (§14.1): normaliza revisão, extermina ciclos
-    internos (len > 2), aplica o limiar de Terminated, ordena por data."""
-    df = df_tracking.copy()
+    internos (len > 2), aplica o limiar de Terminated, ordena por data.
+
+    Numa planilha de comissionamento, os rótulos próprios do fluxo dela já saem
+    traduzidos ('Aguardando Editável' conta como sucesso, 'Reviewed with No
+    Comments' como falha) - a mesma leitura do motor de status."""
+    df = traduzir_historico(df_tracking, planilha=historico_e_planilha(df_tracking)).copy()
     df[COL_REVISAO] = df[COL_REVISAO].astype(str).str.upper().str.replace("R", "", regex=False).str.strip()
     df = df[df[COL_REVISAO].str.len() <= 2]
     df = limpar_terminated_por_limiar(df)

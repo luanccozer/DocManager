@@ -12,7 +12,10 @@ Alterações vs legado:
     numérica para os documentos publicados com a revisão errada.
 
 A exceção §8.2 (Para Aprovação em planilhas de comissionamento) permanece
-SEMPRE ativa, independente do toggle VIP.
+SEMPRE ativa, independente do toggle VIP. Nas mesmas planilhas, os rótulos
+próprios do fluxo de comissionamento ('Aguardando Editável', 'Reviewed with No
+Comments') entram na batalha já traduzidos para o status a que equivalem -
+ver core/comissionamento.py.
 """
 from __future__ import annotations
 
@@ -22,7 +25,6 @@ from .constants import (
     COL_DATA,
     COL_REVISAO,
     COL_STATUS,
-    COL_TITULO,
     COL_VERSAO,
     NAO_EMITIDO,
     PARA_ANALISE_UPPER,
@@ -34,6 +36,7 @@ from .constants import (
     STATUS_REPROVACAO_UPPER,
     is_regime_novo,
 )
+from .comissionamento import historico_e_planilha, traduzir_historico
 from .excecoes import reprovacao_numerica_vale
 
 
@@ -43,11 +46,7 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
         return NAO_EMITIDO
 
     # --- IDENTIFICAÇÃO DE TIPOLOGIA (EXCEÇÃO PLANILHAS §8.2, sempre ativa) ---
-    is_planilha = False
-    if COL_TITULO in df_tracking.columns:
-        titulo_doc = str(df_tracking[COL_TITULO].iloc[0]).strip().upper()
-        if "PLANILHA" in titulo_doc and "COMISSIONAMENTO" in titulo_doc:
-            is_planilha = True
+    is_planilha = historico_e_planilha(df_tracking)
 
     # --- LISTAS ESTRITAS (cópias mutáveis) ---
     status_aprovacao = list(STATUS_APROVACAO_UPPER)
@@ -75,6 +74,10 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
             lista_integracao_upper.remove("PARA APROVAÇÃO")
 
     df = df_tracking.copy()
+    if is_planilha:
+        # 'Aguardando Editável' → 'Para Assinatura', 'Reviewed with No Comments'
+        # → 'Não Aprovado': a partir daqui o motor só enxerga o equivalente.
+        df = traduzir_historico(df, planilha=True)
     df["Versão_Int"] = pd.to_numeric(df[COL_VERSAO], errors="coerce").fillna(0)
 
     # 2. STATUS ATUAL (LINHA DA VERDADE dentro da revisão vigente)

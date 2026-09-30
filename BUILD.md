@@ -126,9 +126,12 @@ saída de emergência - o certo é publicar uma versão nova.
 Ao abrir, o app consulta o último Release (no máximo uma vez a cada 6 horas),
 compara com a própria versão e, se houver novidade, mostra o aviso. Ao clicar em
 **Atualizar agora**: baixa o instalador, confere o SHA256, executa em modo
-silencioso e fecha o app para que os arquivos possam ser trocados.
+silencioso, espera o instalador ficar pronto e fecha o app para que os arquivos
+possam ser trocados; no fim o instalador reabre o app. Enquanto o app fica
+aberto, a checagem se repete (o intervalo de 6 horas continua valendo), e o
+botão **🔄 Procurar atualizações** da barra lateral verifica na hora.
 
-Quatro armadilhas foram tratadas explicitamente - são as que costumam fazer um
+Cinco armadilhas foram tratadas explicitamente - são as que costumam fazer um
 auto-update "existir mas não funcionar":
 
 1. **Repositório privado + `browser_download_url`.** Em repo privado, aquela URL
@@ -153,9 +156,38 @@ auto-update "existir mas não funcionar":
 4. **Instalar por cima de si mesmo.** O Windows não deixa sobrescrever um `.exe`
    em execução. O app cria um **mutex nomeado** (`NOME_MUTEX` em
    `ui/main_app.py`) e o instalador o declara em `AppMutex` (`installer/docmanager.iss`):
-   é assim que o Inno descobre o app aberto e o fecha. **Os dois nomes têm que
-   ser iguais** - se alguém mudar um, a atualização passa a falhar com "arquivo
-   em uso".
+   é assim que o Inno descobre que o app está aberto. **Os dois nomes têm que
+   ser iguais** - há teste travando isso.
+
+5. **A corrida com o app fechando.** O `AppMutex` não fecha o app: numa
+   instalação feita na mão ele mostra "feche o aplicativo"; em modo silencioso
+   responde **Cancelar** sozinho e **aborta**. Até a v3.1.0 o app disparava o
+   instalador e só fechava depois, e o instalador chegava à checagem com o app
+   ainda saindo: a atualização abortava em meio segundo (reproduzido no Wine,
+   com um app falso segurando o mutex). Agora:
+   - o `InitializeSetup` do `.iss`, que roda **antes** da checagem, espera o
+     app sair (até 60 s) quando o instalador está em modo silencioso. Isso já
+     vale para quem atualiza a partir da v3.1.0, porque quem roda é o
+     instalador NOVO;
+   - o app passa `/SINAL=<arquivo>`: o instalador cria o arquivo quando já
+     passou pelo UAC e está esperando, e só então o app fecha. Se o instalador
+     terminar antes (UAC recusado, antivírus), o app continua aberto e avisa;
+   - o app dispara o instalador **sem elevar** (o Inno é `asInvoker` e pede o
+     UAC sozinho) e passa `/REABRIR`: a entrada do `[Run]` com
+     `runasoriginaluser` reabre o app **na conta de quem o usava**, e não na do
+     administrador que digitou a senha. O app 3.1.0 não passa `/REABRIR`; para
+     ele, a reabertura só acontece na instalação "somente para mim".
+
+   `/SINAL` e `/REABRIR` não são do Inno, são do nosso `[Code]`: os testes de
+   `tests/test_empacotamento.py` travam o acordo entre o `updater.py` e o `.iss`.
+
+#### Testar o instalador sem Windows
+
+O `.iss` compila e roda no Wine (Linux), o que basta para validar o `[Code]`:
+Inno Setup 6.4 do pacote npm `innosetup`, `wine32` e um "app" de teste
+compilado com o MinGW que só segura o mutex por alguns segundos. O modo
+"somente para mim" não roda no Wine (`{autopf}` não é suportado lá); o modo
+"para todos os usuários" roda.
 
 ### Escopo da instalação e o UAC
 
@@ -220,10 +252,35 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 | Abertura | **Instantânea** | Descompacta tudo no `%TEMP%` a **cada** execução (lento) |
 | Antivírus / EDR | **Bem tolerado** | O auto-extrair é heurística clássica de malware → **bloqueio/quarentena** |
 | AppLocker / política | Pasta comum, assinável | Executar do `%TEMP%` costuma ser **proibido** por política |
-| Atualizar | Troca só os arquivos alterados | Reenviar o exe inteiro |
+| Atualizar | Permitiria trocar só os arquivos alterados (hoje não é usado, ver abaixo) | Reenviar o exe inteiro |
 | Diagnóstico | Dá para ver os arquivos | Caixa-preta |
 
 **UPX está desligado** no `.spec` - compressão UPX é outro gatilho comum de antivírus.
+
+### Por que a atualização baixa o instalador inteiro
+
+A atualização baixa o instalador completo e o roda em modo silencioso, em vez
+de trocar só os arquivos que mudaram. Foi uma escolha, e o motivo é o que
+estaria em jogo:
+
+- **O ganho seria menor do que parece.** O nosso código não fica num arquivo
+  separado: o PyInstaller o embute no `DocManager.exe`, junto com a parte em
+  Python de todas as bibliotecas (pandas, plotly, dash...). Esse arquivo tem
+  cerca de 30 MB, já comprimido por dentro (medido num build de teste em
+  2026-09-30), e é regravado a cada versão. Um pacote "só com o que mudou"
+  ficaria perto da metade do instalador de 54 MB. Além disso, qualquer versão
+  nova de biblioteca que o `pip` traga no build muda outros arquivos.
+- **O risco seria maior.** Trocar arquivos por conta própria exige refazer o
+  que o Inno já resolve: pedir o UAC, esperar o app fechar, não deixar a pasta
+  pela metade se algo falhar e manter a desinstalação e a versão do "Aplicativos
+  instalados" coerentes. Uma atualização quebrada deixa a pessoa sem o app.
+
+Se o tamanho do download virar problema (VPN lenta), o caminho seria: tirar o
+nosso pacote de dentro do `.exe` (`module_collection_mode` no `.spec`),
+publicar junto de cada Release a lista de arquivos com SHA256 e gerar, no
+workflow, um segundo instalador do Inno só com o que mudou em relação à versão
+anterior. O app escolheria esse instalador menor quando estivesse exatamente na
+versão anterior, e o completo nos demais casos.
 
 ### A tela de carregamento (splash)
 
@@ -254,15 +311,27 @@ dbc, plotly, customtkinter, truststore, certifi, openpyxl, xlsxwriter, PIL.)
 
 **O app não avisa de versão nova** - nesta ordem: (1) o build tem token? As
 Configurações dizem *"este build não tem atualização automática"* quando não
-tem; (2) o `UPDATE_TOKEN` venceu? (3) rede: clique em **Procurar atualizações
-agora** nas Configurações - ao contrário da checagem automática, esse botão
-**mostra o erro**.
+tem; (2) o `UPDATE_TOKEN` venceu? (3) rede: clique em **🔄 Procurar
+atualizações** na barra lateral - ao contrário da checagem automática, esse
+botão **mostra o erro**.
+
+**O app fechou e a versão continuou a mesma** - o instalador desistiu. O log
+dele fica em `%TEMP%\DocManager_Update\instalacao.log`: procure por
+*"currently running"* / *"Defaulting to Cancel"* (o app não saiu em 60 s -
+havia outra janela do DocManager aberta?) ou por um erro de permissão.
 
 **"Arquivo em uso" ao atualizar** - o `AppMutex` do `.iss` e o `NOME_MUTEX` do
 `ui/main_app.py` estão diferentes.
 
 **Antivírus bloqueou** - é onedir sem UPX, o cenário mais amigável. Se persistir,
 peça ao TI para liberar a pasta ou assine digitalmente o executável (abaixo).
+
+**O run do Release ficou vermelho, mas o Release saiu** - abra o run e veja qual
+passo falhou. Se foi o último, *Guardar os artefatos do build*, com *"Artifact
+storage quota has been hit"*, o run é da `3.1.1-rc.1` ou anterior: o workflow
+ainda guardava uma cópia do instalador como artefato do Actions, e a cota de
+armazenamento da conta encheu. O Release publicado está certo. Esse passo saiu
+do workflow; o build fica só no Release.
 
 ---
 

@@ -22,6 +22,12 @@ class ConfigView(BaseView):
         self._regra_vip(body, linha=2)
         self._base_atraso(body, linha=3)
 
+    def ao_exibir(self):
+        # Cadastro feito pela tela da Extração, ou atualização achada depois que
+        # esta tela foi criada, têm de aparecer aqui também.
+        self._atualizar_lista_cred()
+        self._descrever_versao()
+
     # ─────────────────────────── credenciais do Aconex ──────────────────────
     def _credenciais(self, body, linha: int):
         """Lista dos usuários cadastrados - o que substituiu editar o `.env`."""
@@ -56,20 +62,21 @@ class ConfigView(BaseView):
         card.add(botoes, pady=(0, 14))
         self._atualizar_lista_cred()
 
-    def _atualizar_lista_cred(self):
+    def _atualizar_lista_cred(self, selecionar: str | None = None):
         nomes = cofre().listar()
         self._lista_cred.configure(
             text=("Cadastrados: " + ", ".join(nomes)) if nomes
             else "Nenhum usuário cadastrado. A Extração Aconex só funciona depois "
                  "que você cadastrar um.")
         self._opt_cred.configure(values=nomes or ["(nenhum)"])
-        self._opt_cred.set(nomes[0] if nomes else "(nenhum)")
+        alvo = selecionar or self._opt_cred.get()
+        self._opt_cred.set(alvo if alvo in nomes else (nomes[0] if nomes else "(nenhum)"))
 
     def _cadastrar(self, nome: str | None):
         from .credenciais_dialog import cadastrar
 
         if (salvo := cadastrar(self.winfo_toplevel(), nome)):
-            self._atualizar_lista_cred()
+            self._atualizar_lista_cred(salvo)
             self.log.log(f"Credenciais de '{salvo}' salvas nesta máquina.")
 
     def _editar(self):
@@ -114,10 +121,11 @@ class ConfigView(BaseView):
         card.add(botoes, pady=(0, 6))
 
         card.add(ctk.CTkLabel(
-            card, text="A verificação roda em segundo plano quando o app abre, no máximo uma "
-                       "vez a cada 6 horas, e funciona com o Zscaler e a VPN ligados. Suas "
-                       "configurações e credenciais ficam fora da pasta do programa, então "
-                       "a atualização não apaga nada.",
+            card, text="A verificação roda em segundo plano quando o app abre e enquanto ele "
+                       "fica aberto, no máximo uma vez a cada 6 horas, e funciona com o Zscaler "
+                       "e a VPN ligados. O botão 'Procurar atualizações', também na barra "
+                       "lateral, verifica na hora. Suas configurações e credenciais ficam fora "
+                       "da pasta do programa, então a atualização não apaga nada.",
             font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680),
             pady=(0, 14))
 

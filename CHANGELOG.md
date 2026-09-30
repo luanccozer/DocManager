@@ -5,6 +5,16 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.1.1 - 2026-09-30
+
+- Planilhas de comissionamento (nível 3): os status "Aguardando Editável" e "Reviewed with No Comments" passam a ser reconhecidos. "Aguardando Editável" vale como Para Assinatura (consolidado APROVADO) e "Reviewed with No Comments" como Não Aprovado (consolidado NÃO APROVADO), no Mapa, no Doc List, no Status Documentos, no Histórico, no Dashboard e nos Relatórios. A coluna STATUS continua mostrando o rótulo do Aconex.
+- Doc List e Mapa dos Planos: as datas saem no formato Data do Excel, e não mais como texto ou Personalizado, e o Power BI as lê como data. No Doc List, as cinco colunas de data (inclusive a DATA-ALVO EMISSÃO); no Mapa, a DATA ÚLTIMA EMISSÃO, que era texto, e a DATA PREVISTA e a DATA REPROGRAMADA da etapa 1. Data digitada como texto vira data, e texto que não é data é apontado no log.
+- Mapa dos Planos rodado sem o Controle de Documentos: o atraso trocava o dia e o mês da DATA PREVISTA quando o dia era até 12 (1º de dezembro virava 12 de janeiro). Corrigido.
+- Atualização automática corrigida: o instalador desistia quando o app ainda estava fechando, e a versão antiga ficava. Agora ele espera o app sair e, no fim, reabre o DocManager já atualizado.
+- Se o Windows pedir permissão de administrador para atualizar e ela for recusada, o app continua aberto e avisa, em vez de fechar sem atualizar.
+- Botão "Procurar atualizações" na barra lateral, em qualquer tela. A checagem automática também passa a rodar enquanto o app fica aberto, e não só ao abrir.
+- O usuário do Aconex cadastrado nas Configurações passa a aparecer na Extração Aconex. Antes só funcionava cadastrando pela própria Extração.
+
 ## 3.1.0 - 2026-09-18
 
 - Instalador oficial: o DocManager passa a ser gerado e publicado pelo GitHub, com instalador próprio. Acabou o passo a passo manual de compilar o executável e zipar a pasta.

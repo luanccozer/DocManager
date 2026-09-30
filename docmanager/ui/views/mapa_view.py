@@ -63,6 +63,9 @@ class MapaView(BaseView):
         estado = "Ligada" if self.ctx.config.settings.regra_estrita_vip else "Desligada"
         self.lbl_vip.configure(text=f"Regra da Aprovação Intermediária: {estado}  (altere em Configurações)")
 
+    def ao_exibir(self):
+        self._atualizar_vip()   # o toggle mora nas Configurações
+
     def _tarefa(self, run: RunBar):
         self._atualizar_vip()
         if not self.sel_aconex.path or not self.sel_mapa.path:
