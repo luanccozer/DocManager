@@ -13,6 +13,7 @@ config; quem decide ligar o pente-fino é o orquestrador (toggle VIP).
 """
 from __future__ import annotations
 
+from .comissionamento import equivalente
 from .constants import (
     CONS_APROVACAO_INTERMEDIARIA,
     CONS_APROVADO,
@@ -42,7 +43,13 @@ def calcular_emitido_nao_emitido(status_consolidado) -> str:
 
 def calcula_status_consolidado(status_real, status_emissao, emitido_nao_emitido) -> str:
     sr = status_real if status_real else ""
-    se = status_emissao if status_emissao else ""
+    # O bruto chega com o rótulo cru do Aconex. Numa planilha de comissionamento
+    # o motor já traduziu 'Reviewed with No Comments' para 'Não Aprovado' no
+    # status real; aqui o bruto recebe a mesma tradução, senão o par (Não
+    # Aprovado, Reviewed with No Comments) cairia em ERRO. Dispensa o título:
+    # o par só se forma quando o motor tratou o rótulo como reprovação, e aí
+    # NÃO APROVADO é a leitura certa (core/comissionamento.py).
+    se = equivalente(status_emissao) if status_emissao else ""
     ene = emitido_nao_emitido if emitido_nao_emitido else ""
 
     if sr in _APROVADOS_CONS:
