@@ -14,6 +14,15 @@ def app(monkeypatch):
         if k.startswith(("SECRET_", "CLIENTID_", "USERID_")):
             monkeypatch.delenv(k, raising=False)
     tk = pytest.importorskip("tkinter")
+    from tkinter import messagebox
+
+    # Nenhuma caixa de mensagem de verdade: no Windows (o Release roda estes
+    # testes lá) ela é nativa e modal, e um erro de callback - que a MainApp
+    # mostra numa caixa "Erro inesperado" - travaria a suíte até o job estourar
+    # o tempo. Os testes que olham as mensagens as substituem de novo.
+    caixas = []
+    for nome in ("showerror", "showwarning", "showinfo", "askyesno"):
+        monkeypatch.setattr(messagebox, nome, lambda *a, _n=nome, **_k: caixas.append((_n, a)))
     try:
         from docmanager.ui.main_app import MainApp
         janela = MainApp()
@@ -25,6 +34,8 @@ def app(monkeypatch):
         janela.destroy()
     except tk.TclError:
         pass   # o teste já fechou a janela (ex.: saída para atualizar)
+    inesperados = [a for n, a in caixas if n == "showerror" and a and a[0] == "Erro inesperado"]
+    assert not inesperados, f"erro num callback da interface: {inesperados}"
 
 
 def test_cadastro_nas_configuracoes_aparece_na_extracao(app):
