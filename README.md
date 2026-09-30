@@ -66,7 +66,8 @@ porque a cifragem é atrelada à sua conta do Windows. Na máquina nova, cadastr
 de novo.
 
 Para trocar o secret, ver quem está cadastrado ou remover alguém:
-**⚙️ Configurações → Credenciais do Aconex**.
+**⚙️ Configurações → Credenciais do Aconex**. O cadastro feito por lá aparece na
+Extração Aconex assim que você volta para ela.
 
 > **Se você já usava o DocManager com um arquivo `.env`:** não precisa fazer
 > nada. Na primeira abertura depois de atualizar, o app **importa sozinho** as
@@ -75,24 +76,31 @@ Para trocar o secret, ver quem está cadastrado ou remover alguém:
 
 ### Atualizações
 
-**Automáticas.** Ao abrir, o app verifica em segundo plano se saiu versão nova
-(no máximo uma vez a cada 6 horas). Quando há, aparece:
+**Automáticas.** O app verifica em segundo plano se saiu versão nova ao abrir e
+enquanto fica aberto (no máximo uma vez a cada 6 horas). Quando há, aparece:
 
 - uma faixa na tela inicial com o que mudou, e
 - o aviso `✨ v3.x.x disponível` no rodapé da barra lateral.
 
 Clique e depois em **Atualizar agora**: o app baixa o instalador, confere a
 integridade do arquivo (SHA256), fecha sozinho e reabre já atualizado. Quem
-instalou em *Program Files* verá o pedido de administrador do Windows.
+instalou em *Program Files* verá o pedido de administrador do Windows; se ele
+for recusado, o app continua aberto e avisa.
+
+Para procurar na hora, use o botão **🔄 Procurar atualizações** no rodapé da
+barra lateral (ou em **⚙️ Configurações → Atualizações**). Ao contrário da
+checagem automática, ele **mostra o erro** se algo falhar, e é por onde começar
+a diagnosticar. Nas Configurações também dá para desligar o aviso automático.
 
 A verificação funciona **com o Zscaler e a VPN ligados**. Ela usa os certificados
 do Windows, obedece o arquivo PAC da rede e ainda testa as rotas em cascata
 (proxy do sistema, variáveis de ambiente, conexão direta).
 
-Em **⚙️ Configurações → Atualizações** dá para desligar o aviso automático ou
-forçar uma verificação na hora com **Procurar atualizações agora**. Esse botão,
-ao contrário da checagem automática, **mostra o erro** se algo falhar, e é por
-onde começar a diagnosticar.
+> **Vindo da v3.1.0:** a primeira atualização é feita pelo código da versão que
+> está instalada. Numa instalação *para todos os usuários* (Program Files), o
+> app fecha e **não reabre sozinho** dessa vez: espere a janelinha de progresso
+> sumir e abra o DocManager pelo atalho. A partir da v3.2.0 ele reabre sozinho
+> nos dois tipos de instalação.
 
 ---
 
@@ -177,6 +185,9 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   `PREDECESSOR`. Do **Controle de Documentos** vêm as datas de planejamento,
   consolidadas na coluna `DATA-ALVO EMISSÃO` (reprogramada > prevista) que o
   dashboard lê, e a descrição dos documentos que o Aconex ainda não conhece.
+  Todas as colunas de data saem no formato **Data** do Excel (não
+  "Personalizado"), que o Power BI lê como data; texto digitado numa coluna de
+  data é apontado no log, porque impede essa leitura.
   Duas análises que se complementam: **🗓️ Analisar Período** lista o que está
   previsto para emitir (atalhos: vencidos, próximos 7/30/90 dias, mês que vem),
   e **⏳ Analisar Mudanças por Período (Delta)** mostra o que aconteceu entre
