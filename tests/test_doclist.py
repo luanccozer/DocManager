@@ -554,3 +554,126 @@ def test_planilha_sem_as_colunas_novas_continua_rodando(tmp_path):
     ws = openpyxl.load_workbook(path_dl).active
     col = {str(c.value): c.column for c in ws[1]}
     assert ws.cell(2, col["STATUS CONSOLIDADO"]).value == "APROVADO"
+
+
+# ---------------------------------------------------------------------------
+# Datas como DATA do Excel - o que o Power BI precisa (pedido de 2026-09-30)
+# ---------------------------------------------------------------------------
+# numFmtId 14 do Excel ("Data abreviada"): categoria "Data" no Formatar Células,
+# exibida no padrão do Windows. O "DD/MM/YYYY" antigo aparecia como
+# "Personalizado".
+FORMATO_DATA_EXCEL = "mm-dd-yy"
+COLUNAS_DE_DATA = ("DATA PREVISTA EMISSÃO", "DATA REPROGRAMADA", "DATA-ALVO EMISSÃO",
+                   "DATA ÚLTIMA EMISSÃO", "DATA 1ª EMISSÃO")
+
+
+def _rodar_doclist(tmp_path, linhas, *, preparar=None, controle=None):
+    """Base mínima + Doc List → (planilha relida, logs). `preparar(ws, col)`
+    mexe nas células antes da atualização (texto, formato antigo...)."""
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC APROVADO")
+             .evento("0A", 1, "Em Processo", "01/03/2026")
+             .evento("0A", 2, "Aprovado", "20/03/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx", linhas)
+    if preparar is not None:
+        wb = openpyxl.load_workbook(path_dl)
+        ws = wb.active
+        preparar(ws, {str(c.value): c.column for c in ws[1]})
+        wb.save(path_dl)
+    logs: list[str] = []
+    r = atualizar_doclist(path_base, path_dl, controle=controle, hoje=HOJE, log_cb=logs.append)
+    assert r.ok, r.mensagem
+    ws = openpyxl.load_workbook(path_dl).active
+    return ws, {str(c.value): c.column for c in ws[1]}, logs
+
+
+def test_datas_gravadas_no_formato_de_data_do_excel(tmp_path):
+    path_ctrl = escrever_controle_xlsx(
+        tmp_path / "ctrl.xlsx",
+        [{"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "01-02-2026", "reprog": "9/15/2026"}])
+    ws, col, _ = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC APROVADO", "2", None, None)],
+        controle=ler_controle(path_ctrl, 0, log_cb=lambda _m: None))
+    for titulo in COLUNAS_DE_DATA:
+        cell = ws.cell(2, col[titulo])
+        assert cell.number_format == FORMATO_DATA_EXCEL, titulo
+        assert cell.is_date, titulo
+        assert cell.value.time() == pd.Timestamp(0).time(), titulo   # sem hora
+    assert ws.cell(2, col["DATA-ALVO EMISSÃO"]).value.date() == date(2026, 9, 15)
+
+
+def test_planilha_antiga_com_formato_personalizado_e_corrigida(tmp_path):
+    """Quem já rodou a v3.1.0 tem as células no formato personalizado - uma
+    atualização basta para trocá-las, inclusive as digitadas à mão."""
+    def preparar(ws, col):
+        for titulo in ("DATA PREVISTA EMISSÃO", "DATA REPROGRAMADA"):
+            ws.cell(2, col[titulo]).number_format = "DD/MM/YYYY"
+
+    ws, col, _ = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2",
+                    date(2026, 5, 4), date(2026, 6, 7))], preparar=preparar)
+    for titulo in ("DATA PREVISTA EMISSÃO", "DATA REPROGRAMADA", "DATA-ALVO EMISSÃO"):
+        assert ws.cell(2, col[titulo]).number_format == FORMATO_DATA_EXCEL, titulo
+    assert ws.cell(2, col["DATA-ALVO EMISSÃO"]).value.date() == date(2026, 6, 7)
+
+
+def test_data_digitada_como_texto_vira_data(tmp_path):
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", "15/10/2026", " 20/11/2026 ")])
+    for titulo, esperado in (("DATA PREVISTA EMISSÃO", date(2026, 10, 15)),
+                             ("DATA REPROGRAMADA", date(2026, 11, 20)),
+                             ("DATA-ALVO EMISSÃO", date(2026, 11, 20))):
+        cell = ws.cell(2, col[titulo])
+        assert cell.is_date and cell.value.date() == esperado, titulo
+        assert cell.number_format == FORMATO_DATA_EXCEL, titulo
+    assert not any("texto nas colunas de data" in m for m in logs)
+
+
+def test_texto_que_nao_e_data_fica_e_e_avisado(tmp_path):
+    """'A DEFINIR' é input de alguém: não some, mas o log diz onde está - é
+    ele que impede o Power BI de ler a coluna como data."""
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", "A DEFINIR", None)])
+    assert ws.cell(2, col["DATA PREVISTA EMISSÃO"]).value == "A DEFINIR"
+    assert ws.cell(2, col["DATA-ALVO EMISSÃO"]).value is None
+    aviso = [m for m in logs if "texto nas colunas de data" in m]
+    assert aviso and "DATA PREVISTA EMISSÃO linha 2: 'A DEFINIR'" in aviso[0]
+
+
+def test_formula_na_coluna_de_data_nao_e_mexida(tmp_path):
+    def preparar(ws, col):
+        ws.cell(2, col["DATA REPROGRAMADA"]).value = "=DATE(2026,12,1)"
+
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", None, None)], preparar=preparar)
+    assert ws.cell(2, col["DATA REPROGRAMADA"]).value == "=DATE(2026,12,1)"
+    assert not any("texto nas colunas de data" in m for m in logs)
+
+
+def test_grupo_fica_sem_data_alvo(tmp_path):
+    """A célula do grupo nunca era reescrita e podia guardar texto (ex.: sobra
+    da antiga coluna TROCAR) no meio da coluna de data."""
+    def preparar(ws, col):
+        ws.cell(2, col["DATA-ALVO EMISSÃO"]).value = "VER ABA 2"
+
+    ws, col, _ = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "", "GRUPO-1", "AGRUPAMENTO", "1", None, None),
+                   ("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", date(2026, 8, 1), None)],
+        preparar=preparar)
+    assert ws.cell(2, col["DATA-ALVO EMISSÃO"]).value is None
+    assert ws.cell(3, col["DATA-ALVO EMISSÃO"]).value.date() == date(2026, 8, 1)
+
+
+def test_exportacao_da_analise_por_periodo_usa_o_formato_de_data(tmp_path):
+    from docmanager.services.doclist_io import exportar_analise_periodo
+
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx", [
+        ("UNIT", "SDSC", "CMI-1", "IT-1", "PROXIMO", "2", date(2026, 8, 10), None)])
+    itens = analisar_periodo(ler_linhas_doclist(path_dl), inicio=None, fim=None, hoje=HOJE)
+    saida = tmp_path / "periodo.xlsx"
+    ok, _ = exportar_analise_periodo(itens, resumo(itens), saida, titulo_janela="Tudo", hoje=HOJE)
+    assert ok
+    ws = openpyxl.load_workbook(saida).active
+    celulas = [c for linha in ws.iter_rows() for c in linha if c.is_date]
+    assert celulas and all(c.number_format == FORMATO_DATA_EXCEL for c in celulas)

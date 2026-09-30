@@ -8,9 +8,10 @@ Duas responsabilidades:
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles.numbers import FORMAT_DATE_XLSX14
 from openpyxl.utils import get_column_letter
 
 from ..core.doclist import (
@@ -22,7 +23,11 @@ from ..core.doclist import (
 from ..core.normalize import remover_acentos
 from .excel_io import celula_para_date
 
-FORMATO_DATA = "DD/MM/YYYY"
+# O formato de DATA do próprio Excel (numFmtId 14, "Data abreviada"): o Excel o
+# lista na categoria "Data" e o exibe no padrão do Windows (dd/mm/aaaa no
+# Brasil), e o Power BI tipa a coluna como data. Até a v3.1.0 era "DD/MM/YYYY",
+# um formato PERSONALIZADO - o Excel mostrava a coluna como "Personalizado".
+FORMATO_DATA = FORMAT_DATE_XLSX14
 
 
 def _norm_cabecalho(v) -> str:
@@ -110,16 +115,42 @@ class DocListSheet:
         return _para_date(self.ws.cell(row=row, column=col).value)
 
     def set_data(self, chave: str, row: int, valor: date | None) -> bool:
-        """Grava DATA NATIVA (com formato dd/mm/aaaa) - nunca texto, senão o
-        dashboard não consegue agrupar por período."""
+        """Grava DATA NATIVA com o formato de Data do Excel - nunca texto, senão
+        o dashboard não consegue agrupar por período."""
         col = self._col_por_chave.get(chave)
         if not col:
             return False
         cell = self.ws.cell(row=row, column=col)
+        if isinstance(valor, datetime):
+            valor = valor.date()      # só o dia: com hora, o Power BI lê data/hora
         cell.value = valor
         if valor is not None:
             cell.number_format = FORMATO_DATA
         return True
+
+    def normalizar_data(self, chave: str, row: int) -> str | None:
+        """Regrava a célula como DATA do Excel quando ela guarda uma data em
+        outra forma: texto ('15/10/2026'), número serial ou data com formato
+        personalizado. Vazio e fórmula ficam como estão.
+
+        Devolve o conteúdo quando a célula tem algo que NÃO é data ('A DEFINIR',
+        '-'). Não apaga - é o que alguém digitou -, mas quem chama avisa:
+        enquanto houver texto na coluna, o Power BI não a lê como data.
+        """
+        col = self._col_por_chave.get(chave)
+        if not col:
+            return None
+        cell = self.ws.cell(row=row, column=col)
+        if cell.value is None or cell.data_type == "f":
+            return None
+        if isinstance(cell.value, str) and not cell.value.strip():
+            cell.value = None         # célula zumbi
+            return None
+        d = _para_date(cell.value)
+        if d is None:
+            return str(cell.value).strip()
+        self.set_data(chave, row, d)
+        return None
 
     def renomear_cabecalhos_legados(self) -> list[tuple[str, str]]:
         """Atualiza no arquivo os cabeçalhos antigos para o nome oficial
@@ -138,15 +169,6 @@ class DocListSheet:
             self.headers, _ = self._find_headers(self.ws)
             self._col_por_chave = self._mapear_colunas()
         return trocas
-
-    def matar_zumbi(self, chave: str, row: int) -> None:
-        """String vazia → None (célula zumbi vira nula de verdade)."""
-        col = self._col_por_chave.get(chave)
-        if not col:
-            return
-        cell = self.ws.cell(row=row, column=col)
-        if cell.value is not None and str(cell.value).strip() == "":
-            cell.value = None
 
     # ------------------------------------------------------------------
     def ler_linhas(self) -> list[LinhaDocList]:
