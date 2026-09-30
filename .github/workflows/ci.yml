@@ -34,8 +34,16 @@ jobs:
       - name: Lint (ruff)
         run: ruff check .
 
+      # Com o Xvfb (tela virtual) os testes que abrem a janela de verdade
+      # (tests/test_ui_telas.py) também rodam aqui, e não só no Windows do
+      # Release. Sem ele, esses testes são pulados e o resto roda igual.
       - name: Testes (pytest)
-        run: pytest -q
+        run: |
+          if command -v xvfb-run >/dev/null; then
+            xvfb-run -a pytest -q
+          else
+            pytest -q
+          fi
 
       # Erro de digitação num .iss ou num CHANGELOG mal formatado só apareceria
       # na hora de publicar, com a tag já criada. Aqui aparece no commit.

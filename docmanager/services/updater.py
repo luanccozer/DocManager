@@ -24,8 +24,13 @@ o instalador possa substituir os arquivos.
    atualização para sempre. Por isso a versão vem do BUILD (`_build_info.py`).
 
 4. **Instalar por cima de si mesmo.** O Windows não deixa sobrescrever um `.exe`
-   em execução. Por isso o instalador é disparado com `/CLOSEAPPLICATIONS` (o
-   Inno acha o app pelo `AppMutex` do .iss) e o app se encerra logo em seguida.
+   em execução, então o app dispara o instalador e se fecha. Até a v3.1.0 isso
+   era uma CORRIDA: o Inno checa o `AppMutex` logo ao abrir e, em modo
+   silencioso, responde "Cancelar" sozinho à caixa "feche o aplicativo" - se o
+   app ainda estivesse saindo, a atualização abortava em meio segundo e a
+   versão antiga ficava (reproduzido no Wine). Agora o instalador espera o app
+   sair (`InitializeSetup` no .iss) e avisa quando está pronto (`/SINAL`); só
+   então o app se fecha - ver `instalar()`.
 
 ═══ Sobre o token ═══
 O repositório é privado, então a consulta exige autenticação. O token é embutido
@@ -44,6 +49,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -359,9 +365,10 @@ def pasta_instalacao() -> Path | None:
 def precisa_elevacao() -> bool:
     """True se a pasta de instalação exigir administrador para ser sobrescrita.
 
-    Testa ESCREVENDO de verdade: no Windows, `os.access(..., W_OK)` mente para
-    Program Files (devolve True mesmo sem permissão) por causa da virtualização
-    de arquivos herdada do XP.
+    Serve só para AVISAR que o Windows vai pedir a permissão - quem a pede é o
+    próprio instalador. Testa ESCREVENDO de verdade: no Windows,
+    `os.access(..., W_OK)` mente para Program Files (devolve True mesmo sem
+    permissão) por causa da virtualização de arquivos herdada do XP.
     """
     pasta = pasta_instalacao()
     if pasta is None:
@@ -375,43 +382,73 @@ def precisa_elevacao() -> bool:
         return True
 
 
-# /SILENT mostra só a barra de progresso; /CLOSEAPPLICATIONS faz o Inno fechar o
-# app pelo AppMutex e /RESTARTAPPLICATIONS reabre o DocManager já atualizado.
+# /SILENT mostra só a barra de progresso. /CLOSEAPPLICATIONS deixa o Restart
+# Manager fechar o que ainda estiver usando os arquivos. /REABRIR (do nosso .iss)
+# reabre o DocManager no fim; /RESTARTAPPLICATIONS fica pelo mesmo motivo, é o
+# sinal que o instalador entende vindo do app 3.1.0.
 ARGS_INSTALADOR = ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
-                   "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"]
+                   "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS", "/REABRIR"]
+
+# Quanto esperar o instalador ficar pronto. Cobre o tempo de a pessoa ler e
+# confirmar o pedido de permissão do Windows (UAC).
+ESPERA_INSTALADOR_S = 15 * 60
 
 
-def instalar(caminho: Path, *, log_cb: Log = _nada) -> None:
-    """Dispara o instalador e volta - quem chama deve FECHAR o app em seguida.
+class InstaladorNaoIniciou(RuntimeError):
+    """O instalador terminou (ou não respondeu) antes de ficar pronto - a
+    atualização não aconteceu e o app deve continuar aberto para avisar."""
 
-    Com elevação (instalação em Program Files) usa `ShellExecuteW` com o verbo
-    `runas`, que é o único jeito de fazer o Windows mostrar o UAC: um
-    `subprocess` comum simplesmente falharia com "acesso negado".
+
+def instalar(caminho: Path, *, log_cb: Log = _nada,
+             espera_s: float = ESPERA_INSTALADOR_S) -> None:
+    """Dispara o instalador e ESPERA ele ficar pronto; então quem chama FECHA o app.
+
+    O instalador é disparado SEM elevação: quando a instalação é para todos os
+    usuários, ele mesmo pede a permissão de administrador (o Inno é `asInvoker`
+    e se reabre elevado). Isso deixa o app reaberto no fim rodar na conta de
+    quem o usava - com "Executar como administrador" feito pelo app, a conta
+    podia ser a do administrador que digitou a senha.
+
+    "Pronto" é o instalador ter criado o arquivo passado em `/SINAL`: ele já
+    passou pelo UAC e está esperando o DocManager sair para trocar os arquivos.
+    Se o instalador terminar antes disso - permissão recusada, antivírus - ou
+    não responder em `espera_s`, levanta `InstaladorNaoIniciou`, e o app segue
+    aberto. Fechar o app ANTES de o instalador estar pronto era a corrida que
+    abortava a atualização da v3.1.0.
     """
     caminho = Path(caminho)
-    log_inst = pasta_download() / "instalacao.log"
-    args = [*ARGS_INSTALADOR, f'/LOG={log_inst}']
-
+    pasta = pasta_download()
+    sinal = pasta / "instalador_pronto.txt"
+    sinal.unlink(missing_ok=True)
+    args = [str(caminho), *ARGS_INSTALADOR,
+            f"/LOG={pasta / 'instalacao.log'}", f"/SINAL={sinal}"]
+    flags = 0
+    if os.name == "nt":
+        # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP: o instalador sobrevive
+        # ao fechamento do app.
+        flags = 0x00000008 | 0x00000200
     if precisa_elevacao():
-        log_cb("A instalação vai pedir permissão de administrador (o app está em "
-               "Program Files). Confirme na janela do Windows.")
-        import ctypes
-        rc = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", str(caminho), subprocess.list2cmdline(args), None, 1)
-        if rc <= 32:   # <=32 é erro em ShellExecute; 5 = o usuário recusou o UAC
-            raise RuntimeError(
-                "Não foi possível iniciar o instalador com privilégios de "
-                f"administrador (código {rc}). "
-                + ("Você recusou o pedido do Windows." if rc == 5 else
-                   f"Rode manualmente: {caminho}"))
-    else:
-        flags = 0
-        if os.name == "nt":
-            # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP: o instalador sobrevive
-            # ao fechamento do app, que acontece logo depois desta chamada.
-            flags = 0x00000008 | 0x00000200
-        subprocess.Popen([str(caminho), *args], close_fds=True, creationflags=flags)
-    log_cb("Instalador iniciado. O DocManager vai fechar e reabrir atualizado.")
+        log_cb("O Windows vai pedir permissão de administrador (o DocManager está "
+               "instalado para todos os usuários). Confirme na janela dele.")
+    try:
+        processo = subprocess.Popen(args, close_fds=True, creationflags=flags)
+    except OSError as e:
+        raise InstaladorNaoIniciou(
+            f"O Windows não deixou abrir o instalador ({e}). Rode manualmente: {caminho}") from e
+
+    inicio = time.monotonic()
+    while not sinal.exists():
+        if (codigo := processo.poll()) is not None:
+            raise InstaladorNaoIniciou(
+                f"O instalador terminou antes de começar (código {codigo}). Se o "
+                f"Windows pediu permissão de administrador, ela precisa ser "
+                f"confirmada. Detalhes em {pasta / 'instalacao.log'}.")
+        if time.monotonic() - inicio > espera_s:
+            raise InstaladorNaoIniciou(
+                "O instalador não respondeu a tempo. Se a janela de permissão do "
+                "Windows ficou aberta, confirme-a e feche o DocManager.")
+        time.sleep(0.2)
+    log_cb("Instalador pronto. O DocManager vai fechar e abrir de novo já atualizado.")
 
 
 # ─────────────────────── política: quando checar, o que pular ───────────────

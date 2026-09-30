@@ -142,3 +142,44 @@ def test_erro_de_secret_vazio_diz_o_que_fazer(monkeypatch):
     _env_limpo(monkeypatch)
     with pytest.raises(ValueError, match="Cadastre o Client Secret|SECRET_LUAN"):
         ab.AconexConfig.para_usuario("Luan Cozer")
+
+
+# --------------------------------------------------------------------------
+# Cadastro feito nas Configurações com a Extração já aberta (2026-09-30)
+# --------------------------------------------------------------------------
+# A tela da Extração é criada uma vez e fica guardada. O cadastro nas
+# Configurações não aparecia nela: a lista só era lida quando a tela nascia.
+# Agora ela relê a lista ao voltar para a tela, e `escolher_usuario` decide
+# quem fica selecionado.
+OUTRO = ab.OUTRO_USUARIO
+
+
+def test_cadastro_novo_substitui_a_entrada_manual():
+    assert ab.escolher_usuario(["Fulano"], atual=OUTRO, conhecidos=[]) == "Fulano"
+
+
+def test_entrada_manual_ja_digitada_e_respeitada():
+    assert ab.escolher_usuario(["Fulano"], atual=OUTRO, conhecidos=[],
+                               manual_preenchido=True) == OUTRO
+
+
+def test_escolha_da_pessoa_e_mantida_quando_chega_outro_usuario():
+    assert ab.escolher_usuario(["Beltrano", "Fulano"], atual="Fulano",
+                               conhecidos=["Fulano"]) == "Fulano"
+
+
+def test_renomeado_nas_configuracoes_continua_selecionado():
+    """Renomear = salvar com o nome novo e apagar o antigo."""
+    assert ab.escolher_usuario(["Beltrano", "Fulano Silva"], atual="Fulano",
+                               conhecidos=["Beltrano", "Fulano"]) == "Fulano Silva"
+
+
+def test_removido_cai_no_primeiro_ou_na_entrada_manual():
+    assert ab.escolher_usuario(["Beltrano"], atual="Fulano",
+                               conhecidos=["Beltrano", "Fulano"]) == "Beltrano"
+    assert ab.escolher_usuario([], atual="Fulano", conhecidos=["Fulano"]) == OUTRO
+
+
+def test_manual_sem_ninguem_novo_continua_manual():
+    """Quem escolheu 'Outro' de propósito, com usuários já conhecidos, fica lá."""
+    assert ab.escolher_usuario(["Fulano"], atual=OUTRO, conhecidos=["Fulano"]) == OUTRO

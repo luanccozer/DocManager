@@ -125,6 +125,27 @@ def usuarios_disponiveis() -> list[str]:
     return list(perfis_disponiveis())
 
 
+def escolher_usuario(disponiveis: list[str], *, atual: str, conhecidos: list[str],
+                     manual_preenchido: bool = False) -> str:
+    """Quem fica selecionado na Extração depois que a lista de usuários muda.
+
+    O cadastro também acontece nas Configurações, com a tela da Extração já
+    aberta, então a lista é relida sempre que ela volta a aparecer:
+      - quem acabou de ser cadastrado substitui a entrada manual, a não ser que
+        a pessoa já tenha começado a digitar nela;
+      - o escolhido que sumiu (removido, ou renomeado - que chega como novo) dá
+        lugar ao novo, senão ao primeiro da lista;
+      - sem ninguém cadastrado, sobra a entrada manual.
+    """
+    novos = [n for n in disponiveis if n not in conhecidos]
+    alvo = atual
+    if alvo == OUTRO_USUARIO and novos and not manual_preenchido:
+        alvo = novos[0]
+    if alvo != OUTRO_USUARIO and alvo not in disponiveis:
+        alvo = novos[0] if novos else (disponiveis[0] if disponiveis else OUTRO_USUARIO)
+    return alvo
+
+
 def migrar_env_para_cofre(log_cb=None) -> list[str]:
     """Importa para o cofre os usuários que ainda só existem no `.env`.
 

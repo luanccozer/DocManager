@@ -71,6 +71,8 @@ class MainApp(ctk.CTk):
         self.ctx.verificar_atualizacao = self.verificar_atualizacao
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
+        self._procurando = False              # checagem manual em andamento
+        self._saindo_para_atualizar = False   # ver main()
 
         self._montar_sidebar()
         self._views: dict[str, ctk.CTkFrame] = {}
@@ -80,7 +82,7 @@ class MainApp(ctk.CTk):
 
         # Checagem automática: em thread, e só depois de a janela estar montada -
         # nada disso pode atrasar a abertura do app.
-        self.after(1200, lambda: self.verificar_atualizacao(False))
+        self.after(1200, self._verificacao_periodica)
 
     def _montar_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=240, corner_radius=0, fg_color=t.SIDEBAR)
@@ -120,12 +122,20 @@ class MainApp(ctk.CTk):
             item.grid(row=i, column=0, sticky="ew", padx=12, pady=2)
             self._botoes[spec.key] = item
 
+        # Procurar atualização na hora, de qualquer tela - antes o botão só
+        # existia dentro das Configurações. Mostra o resultado, inclusive o erro.
+        self._btn_procurar = ctk.CTkButton(
+            self.sidebar, text=self.TEXTO_PROCURAR, height=30, font=t.corpo(11),
+            fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO, text_color=t.TEXTO,
+            command=lambda: self.verificar_atualizacao(True))
+        self._btn_procurar.grid(row=100, column=0, sticky="ew", padx=16, pady=(8, 0))
+
         # Rodapé: a versão instalada. Quando sai uma nova, este mesmo rótulo
         # vira o aviso - é o canto da tela onde a pessoa já olha para conferir
         # em que versão está, então é onde a novidade faz mais sentido.
         self._rodape = ctk.CTkLabel(self.sidebar, text=f"v{__version__}", font=t.corpo(10),
                                     text_color=t.TEXTO_FRACO, cursor="hand2")
-        self._rodape.grid(row=100, column=0, sticky="w", padx=24, pady=16)
+        self._rodape.grid(row=101, column=0, sticky="w", padx=24, pady=(6, 16))
         self._rodape.bind("<Button-1>", lambda _e: self.abrir_atualizacao())
         self.ctx.ao_achar_atualizacao(
             lambda info: self.after(0, lambda: self._marcar_rodape(info)))
@@ -138,9 +148,21 @@ class MainApp(ctk.CTk):
             pass
 
     # ------------------------------------------------------------------ update
+    TEXTO_PROCURAR = "🔄  Procurar atualizações"
+
+    # A checagem automática se repete enquanto o app fica aberto: quem deixa o
+    # DocManager aberto a semana inteira também precisa ser avisado. Aqui só se
+    # PERGUNTA de hora em hora; quem decide se é hora de ir ao GitHub é
+    # `updater.deve_verificar` (no máximo a cada 6 h).
+    VERIFICAR_A_CADA_MS = 60 * 60 * 1000
+
+    def _verificacao_periodica(self):
+        self.verificar_atualizacao(False)
+        self.after(self.VERIFICAR_A_CADA_MS, self._verificacao_periodica)
+
     def verificar_atualizacao(self, manual: bool = False):
-        """Procura uma versão nova. `manual=True` (botão nas Configurações)
-        ignora o intervalo e a versão pulada, e mostra o erro na tela."""
+        """Procura uma versão nova. `manual=True` (botão da barra lateral ou das
+        Configurações) ignora o intervalo e a versão pulada, e mostra o erro."""
         if manual:
             self._verificar_agora()
             return
@@ -153,20 +175,29 @@ class MainApp(ctk.CTk):
         import threading
         from tkinter import messagebox
 
+        if self._procurando:
+            return   # clique repetido enquanto a primeira ainda responde
+        self._procurando = True
+        self._btn_procurar.configure(state="disabled", text="Procurando...")
+
+        def _fim():
+            self._procurando = False
+            self._btn_procurar.configure(state="normal", text=self.TEXTO_PROCURAR)
+
         def _trabalho():
             try:
                 info = updater.checar(__version__)
             except Exception as e:  # noqa: BLE001 - aqui o erro É a resposta
-                self.after(0, lambda erro=e: messagebox.showwarning(
+                self.after(0, lambda erro=e: (_fim(), messagebox.showwarning(
                     "Não foi possível verificar",
-                    f"{erro}\n\nVocê pode continuar usando o DocManager normalmente."))
+                    f"{erro}\n\nVocê pode continuar usando o DocManager normalmente.")))
                 return
             updater.registrar_verificacao(self.ctx.config)
             if info is None:
-                self.after(0, lambda: messagebox.showinfo(
-                    "Tudo em dia", f"Você já está na versão mais recente (v{__version__})."))
+                self.after(0, lambda: (_fim(), messagebox.showinfo(
+                    "Tudo em dia", f"Você já está na versão mais recente (v{__version__}).")))
                 return
-            self.after(0, lambda: (self.ctx.anunciar_atualizacao(info),
+            self.after(0, lambda: (_fim(), self.ctx.anunciar_atualizacao(info),
                                    self.abrir_atualizacao()))
 
         threading.Thread(target=_trabalho, daemon=True).start()
@@ -184,7 +215,9 @@ class MainApp(ctk.CTk):
 
     def _fechar_para_instalar(self):
         """Sai de cena para o instalador poder sobrescrever os arquivos - o
-        Windows não deixa regravar um .exe que está rodando."""
+        Windows não deixa regravar um .exe que está rodando. O `main()` encerra
+        o processo em seguida (ver lá)."""
+        self._saindo_para_atualizar = True
         try:
             self.quit()
             self.destroy()
@@ -201,9 +234,12 @@ class MainApp(ctk.CTk):
             self._views[key] = spec.factory(self, self.ctx)
         self._views[key].grid(row=0, column=1, sticky="nsew")
         self._key_ativa = key
-        # Reavalia estado dependente de config (ex.: rótulo do toggle VIP no Mapa)
-        if hasattr(self._views[key], "_atualizar_vip"):
-            self._views[key]._atualizar_vip()
+        # A view foi criada antes e ficou guardada: ela relê o que pode ter
+        # mudado enquanto estava fora da tela (ex.: usuário do Aconex cadastrado
+        # nas Configurações, que tem de aparecer na Extração). A Home não herda
+        # de BaseView, daí o getattr.
+        if (ao_exibir := getattr(self._views[key], "ao_exibir", None)) is not None:
+            ao_exibir()
 
     def report_callback_exception(self, exc, val, tb):
         """Erros em callbacks (main thread) vão para o log da view ativa + popup,
@@ -265,6 +301,11 @@ def main():
     from .splash import mostrar_splash
     mostrar_splash(app, ms=1600, ao_fechar=lambda: (app.deiconify(), app.lift()))
     app.mainloop()
+    if app._saindo_para_atualizar:
+        # O instalador está esperando o mutex sumir, e ele só some com o fim do
+        # PROCESSO. Sair na hora: uma thread de biblioteca ou um finalizador
+        # lento segurando o processo faria a atualização desistir.
+        os._exit(0)
 
 
 if __name__ == "__main__":

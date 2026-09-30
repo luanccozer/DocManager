@@ -27,6 +27,7 @@ class AconexView(BaseView):
         # A lista sai do CADASTRO feito no app (antes vinha do .env, que ninguém
         # mais recebe: desde a v3.1.0 o app é instalado, não descompactado).
         disponiveis = usuarios_disponiveis()
+        self._usuarios_conhecidos = list(disponiveis)
         linha = ctk.CTkFrame(card, fg_color="transparent")
         ctk.CTkLabel(linha, text="Usuário", width=170, anchor="w", font=t.corpo(12),
                      text_color=t.TEXTO).grid(row=0, column=0, sticky="w")
@@ -266,14 +267,23 @@ class AconexView(BaseView):
         self._aviso_cadastro.grid()
 
     # --- cadastro das credenciais -------------------------------------------
+    def ao_exibir(self):
+        # O cadastro também é feito nas Configurações, com esta tela já criada:
+        # sem reler aqui, o usuário novo não aparecia na lista da Extração.
+        self._recarregar_usuarios()
+
+    def _manual_preenchido(self) -> bool:
+        return any(w.get().strip() for w in (self.entry_client, self.entry_userid, self.entry_secret))
+
     def _recarregar_usuarios(self, selecionar: str | None = None):
-        from ...aconex_backend import usuarios_disponiveis
+        from ...aconex_backend import escolher_usuario, usuarios_disponiveis
 
         disponiveis = usuarios_disponiveis()
+        alvo = escolher_usuario(disponiveis, atual=selecionar or self.opt_user.get(),
+                                conhecidos=self._usuarios_conhecidos,
+                                manual_preenchido=self._manual_preenchido())
+        self._usuarios_conhecidos = list(disponiveis)
         self.opt_user.configure(values=disponiveis + [self._OUTRO])
-        alvo = selecionar or self.opt_user.get()
-        if alvo not in disponiveis + [self._OUTRO]:
-            alvo = disponiveis[0] if disponiveis else self._OUTRO
         self.opt_user.set(alvo)
         self._on_user(alvo)
 

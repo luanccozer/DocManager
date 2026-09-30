@@ -19,13 +19,64 @@ def _ler(rel: str) -> str:
     return (RAIZ / rel).read_text(encoding="utf-8")
 
 
+def _mutex_do_instalador() -> str:
+    """O nome do AppMutex no .iss, resolvendo o `#define` que ele usa."""
+    iss = _ler("installer/docmanager.iss")
+    valor = re.search(r"^AppMutex=(.+)$", iss, re.M)
+    assert valor, "AppMutex sumiu do .iss"
+    valor = valor.group(1).strip()
+    if (ref := re.fullmatch(r"\{#(\w+)\}", valor)):
+        define = re.search(rf'^#define {ref.group(1)} "(.+?)"', iss, re.M)
+        assert define, f"#define {ref.group(1)} sumiu do .iss"
+        valor = define.group(1)
+    return valor
+
+
 def test_mutex_do_app_bate_com_o_do_instalador():
-    """O Inno Setup acha o app aberto pelo AppMutex para fechá-lo antes de trocar
-    os arquivos. Nomes diferentes = atualização falha com 'arquivo em uso'."""
+    """O Inno Setup acha o app aberto pelo AppMutex (e a atualização espera ele
+    sumir). Nomes diferentes = o instalador troca arquivos com o app aberto."""
     do_app = re.search(r'^NOME_MUTEX = "(.+?)"', _ler("docmanager/ui/main_app.py"), re.M)
-    do_iss = re.search(r"^AppMutex=(.+)$", _ler("installer/docmanager.iss"), re.M)
-    assert do_app and do_iss, "NOME_MUTEX ou AppMutex sumiram"
-    assert do_app.group(1) == do_iss.group(1).strip()
+    assert do_app, "NOME_MUTEX sumiu"
+    assert do_app.group(1) == _mutex_do_instalador()
+
+
+def _code_do_iss() -> str:
+    iss = _ler("installer/docmanager.iss")
+    assert "[Code]" in iss, "o [Code] do instalador sumiu"
+    return iss.split("[Code]", 1)[1]
+
+
+def test_atualizacao_silenciosa_espera_o_app_sair():
+    """Em modo silencioso o Inno ABORTA se o mutex do app existir na checagem do
+    AppMutex - e o app leva segundos para sair depois de disparar o instalador.
+    A espera tem de estar no InitializeSetup, que roda ANTES da checagem."""
+    code = _code_do_iss()
+    inicio = code.index("function InitializeSetup")
+    corpo = code[inicio:code.index("\nend;", inicio)]
+    assert "CheckForMutexes('{#AppMutexName}')" in corpo
+    assert "Sleep(" in corpo and "WizardSilent" in corpo
+
+
+def test_instalador_entende_os_parametros_que_o_app_passa():
+    """/SINAL e /REABRIR não são do Inno: são do nosso [Code]. Se um lado mudar
+    sem o outro, o app espera um sinal que nunca vem (ou o app não reabre)."""
+    from docmanager.services import updater
+
+    code = _code_do_iss()
+    assert "{param:SINAL|}" in code
+    assert "/REABRIR" in updater.ARGS_INSTALADOR and "'/REABRIR'" in code
+    # O app 3.1.0 só passa /RESTARTAPPLICATIONS: o instalador tem de entendê-lo.
+    assert "/RESTARTAPPLICATIONS" in updater.ARGS_INSTALADOR
+    assert "'/RESTARTAPPLICATIONS'" in code
+
+
+def test_instalador_reabre_o_app_depois_da_atualizacao():
+    """O Restart Manager não reabre o app (ele sai sozinho antes): quem reabre
+    é a entrada do [Run] - na conta de quem usava o app, não na do admin."""
+    run = _ler("installer/docmanager.iss").split("[Run]", 1)[1].split("\n[", 1)[0]
+    reabrir = [ln for ln in run.splitlines() if "ReabrirAposAtualizar" in ln]
+    assert reabrir and "runasoriginaluser" in reabrir[0] and "nowait" in reabrir[0]
+    assert "function ReabrirAposAtualizar" in _code_do_iss()
 
 
 def test_changelog_vai_para_dentro_do_executavel():
