@@ -326,6 +326,13 @@ havia outra janela do DocManager aberta?) ou por um erro de permissão.
 **Antivírus bloqueou** - é onedir sem UPX, o cenário mais amigável. Se persistir,
 peça ao TI para liberar a pasta ou assine digitalmente o executável (abaixo).
 
+**O run do Release ficou vermelho, mas o Release saiu** - abra o run e veja qual
+passo falhou. Se foi o último, *Guardar os artefatos do build*, com *"Artifact
+storage quota has been hit"*, o run é da `3.1.1-rc.1` ou anterior: o workflow
+ainda guardava uma cópia do instalador como artefato do Actions, e a cota de
+armazenamento da conta encheu. O Release publicado está certo. Esse passo saiu
+do workflow; o build fica só no Release.
+
 ---
 
 ## Assinatura digital (o aviso do SmartScreen)
