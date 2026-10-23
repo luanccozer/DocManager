@@ -8,6 +8,11 @@
 #  monta o instalador com o Inno Setup, calcula o SHA256 e publica o Release.
 #  Os apps já instalados avisam sozinhos na próxima abertura.
 #
+#  Desde a 3.2.0 o Release também traz a atualização "só do que mudou": o
+#  arquivos.json (cada arquivo instalado, com SHA256 - a base da versão
+#  seguinte) e um instalador PEQUENO para cada versão de origem recente, com só
+#  os arquivos que mudaram desde ela. Ver tools/gerar_atualizacao.py.
+#
 #  Segredo necessário (Settings → Secrets and variables → Actions):
 #     UPDATE_TOKEN - PAT fine-grained, SOMENTE LEITURA (Contents: Read-only),
 #                    restrito a ESTE repositório. É ele que o app embute para
@@ -82,9 +87,12 @@ jobs:
       - name: Instalar dependências
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          pip install "pyinstaller>=6,<7"
+          # Versões FIXAS no build (constraints-build.txt): com os ranges do
+          # requirements.txt cada build pegava a biblioteca mais nova, e o
+          # pacote "só do que mudou" levava a biblioteca inteira de novo.
+          pip install -r requirements.txt -c constraints-build.txt
+          pip install -r requirements-dev.txt -c constraints-build.txt
+          pip install "pyinstaller>=6,<7" -c constraints-build.txt
 
       # Portão rápido: 2 minutos de teste antes de gastar 10 no empacotamento.
       # Uma versão publicada quebrada é muito mais cara de desfazer.
@@ -114,7 +122,16 @@ jobs:
         run: |
           echo "::warning title=Sem UPDATE_TOKEN::O segredo UPDATE_TOKEN nao esta definido. Este build NAO tera atualizacao automatica - quem instalar precisara baixar as proximas versoes a mao. Veja a secao 'Rotacao do token' do BUILD.md."
 
+      # Build reprodutível: sem estes dois, arquivos que não mudaram saem
+      # diferentes a cada build e o pacote pequeno leva tudo de novo.
+      #   PYTHONHASHSEED=0   o base_library.zip mudava por causa da ordem de um set;
+      #   SOURCE_DATE_EPOCH  o PyInstaller grava a hora do build no cabeçalho PE
+      #                      do .exe. Valor FIXO de propósito: a data do commit
+      #                      muda a cada versão e o .exe "mudaria" inteiro.
       - name: Gerar o executável (PyInstaller)
+        env:
+          PYTHONHASHSEED: "0"
+          SOURCE_DATE_EPOCH: "1792368000"
         run: pyinstaller docmanager.spec --noconfirm
 
       - name: Conferir que o .exe saiu
@@ -163,6 +180,64 @@ jobs:
             --versao "${{ steps.versao.outputs.versao }}" \
             --tag "${{ steps.versao.outputs.tag }}"
 
+      # ─── Atualização "só do que mudou" ──────────────────────────────────
+      # Nada daqui derruba o Release: sem base, sem pacote ou com o ISCC
+      # falhando, quem estiver na versão anterior recebe o completo.
+      - name: Listar os arquivos instalados (arquivos.json)
+        shell: bash
+        run: |
+          python tools/gerar_atualizacao.py manifesto \
+            --dist dist/DocManager --extra CHANGELOG.md=CHANGELOG.md \
+            --versao "${{ steps.versao.outputs.versao }}" --saida arquivos.json
+
+      - name: Baixar os arquivos.json das versões de origem
+        continue-on-error: true   # sem isto, sai só o completo, como antes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p bases
+          gh api "repos/${{ github.repository }}/releases?per_page=50" > releases.json
+          python tools/gerar_atualizacao.py escolher-bases \
+            --releases releases.json --versao "${{ steps.versao.outputs.versao }}" > bases.txt
+          # O script grava só "\n"; o tr é a segunda trava contra o "\r" do
+          # Windows, que grudava na tag e dava "release not found".
+          for tag in $(tr -d '\r' < bases.txt); do
+            if gh release download "$tag" -p arquivos.json -O "bases/$tag.json" --clobber; then
+              echo "base: $tag"
+            else
+              echo "::warning::Nao deu para baixar o arquivos.json da $tag; sem pacote pequeno a partir dela."
+            fi
+          done
+          [ -s bases.txt ] || echo "Nenhuma versão anterior com arquivos.json: este Release sai só com o completo."
+          anterior="$(head -n1 bases.txt | tr -d '\r')"
+          if [ -n "$anterior" ]; then
+            gh release download "$anterior" -p conteudo_exe.json -O conteudo_exe_anterior.json --clobber \
+              || echo "(a $anterior não publicou conteudo_exe.json)"
+          fi
+
+      # Diagnóstico: o que vai dentro do DocManager.exe, entrada por entrada,
+      # e o que mudou em relação à versão anterior. É assim que se descobre
+      # POR QUE o .exe mudou (e entrou no pacote pequeno).
+      - name: Diagnóstico do conteúdo do .exe
+        continue-on-error: true   # sem isto, sai só o completo, como antes
+        shell: bash
+        run: |
+          python tools/gerar_atualizacao.py conteudo-exe \
+            --exe dist/DocManager/DocManager.exe --saida conteudo_exe.json \
+            --anterior conteudo_exe_anterior.json
+
+      - name: Montar os instaladores pequenos
+        continue-on-error: true   # sem isto, sai só o completo, como antes
+        shell: bash
+        run: |
+          python tools/gerar_atualizacao.py pacotes \
+            --manifesto arquivos.json --bases bases \
+            --dist dist/DocManager --extra CHANGELOG.md=CHANGELOG.md \
+            --versao "${{ steps.versao.outputs.versao }}" \
+            --versao-info "${{ steps.versao.outputs.numerica }}" \
+            --iscc "$ISCC" --latest latest.json --lista pacotes.txt
+
       - name: Publicar o Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -171,8 +246,20 @@ jobs:
           PRERELEASE: ${{ steps.versao.outputs.prerelease }}
         shell: bash
         run: |
+          # O completo vai PRIMEIRO, e os pequenos num upload separado depois:
+          # o app até a 3.1.1 pega "o primeiro .exe do Release". Pela ordem de
+          # envio e pela ordem alfabética (Setup < Update), é sempre o completo.
           ativos=("$INSTALADOR#Instalador do DocManager Itaipu"
-                  "latest.json#Manifesto (versão + SHA256)")
+                  "latest.json#Manifesto (versão + SHA256)"
+                  "arquivos.json#Arquivos instalados (base da próxima atualização)")
+          [ -f conteudo_exe.json ] && ativos+=("conteudo_exe.json#Diagnóstico: conteúdo do DocManager.exe")
+          pequenos=()
+          if [ -f pacotes.txt ]; then
+            while IFS= read -r arq || [ -n "$arq" ]; do
+              arq="${arq%$'\r'}"
+              [ -n "$arq" ] && pequenos+=("$arq")
+            done < pacotes.txt
+          fi
           if [ "$PRERELEASE" = "true" ]; then sinal="--prerelease"; else sinal="--prerelease=false"; fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -189,6 +276,10 @@ jobs:
               --target "${{ github.sha }}" \
               --title "DocManager Itaipu v$VERSAO" \
               --notes-file notas_release.md "$sinal"
+          fi
+          if [ ${#pequenos[@]} -gt 0 ]; then
+            echo "Anexando ${#pequenos[@]} arquivo(s) da atualização pequena."
+            gh release upload "$TAG" "${pequenos[@]}" --clobber
           fi
           echo "─── publicado ───"
           gh release view "$TAG"

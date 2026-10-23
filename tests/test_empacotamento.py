@@ -177,3 +177,99 @@ def test_corte_do_sufixo_do_workflow_produz_versao_numerica():
         assert obtido == esperado, f"{entrada} virou {obtido}, esperado {esperado}"
         assert all(p.isdigit() for p in obtido.split(".")), \
             f"'{obtido}' tem parte não numérica - o Inno recusaria"
+
+
+# ─────────────── instalador pequeno (modo atualização) ───────────────────────
+
+def _secao(nome: str) -> str:
+    """A seção `[nome]` de verdade (os comentários do .iss citam "[Code]" e
+    "[Setup]" antes delas)."""
+    return _ler("installer/docmanager.iss").split(f"\n[{nome}]\n", 1)[1].split("\n[", 1)[0] \
+        if nome != "Code" else _ler("installer/docmanager.iss").split("\n[Code]\n", 1)[1]
+
+
+def _bloco(iss: str, inicio: str, fim: str) -> str:
+    a = iss.index(inicio)
+    return iss[a:iss.index(fim, a)]
+
+
+def test_modo_atualizacao_nao_apaga_o_internal():
+    """O pequeno só traz o que mudou: apagar o _internal levaria o resto junto."""
+    iss = _ler("installer/docmanager.iss")
+    atualizacao = _bloco(iss, "#ifdef Atualizacao\n[InstallDelete]", "#else\n[InstallDelete]")
+    assert '#include "atualizacao_remover.iss"' in atualizacao
+    assert '#include "atualizacao_arquivos.iss"' in atualizacao
+    assert "filesandordirs" not in atualizacao and "recursesubdirs" not in atualizacao
+    completo = _bloco(iss, "#else\n[InstallDelete]", "#endif")
+    assert 'Type: filesandordirs; Name: "{app}\\_internal"' in completo
+
+
+def test_modo_atualizacao_exige_a_versao_de_origem():
+    iss = _ler("installer/docmanager.iss")
+    assert re.search(r"#ifdef Atualizacao\s+#ifndef VersaoDe\s+#error", iss)
+
+
+def test_trava_de_versao_confere_o_registro_antes_de_copiar():
+    trava = _bloco(_secao("Code"), "#ifdef Atualizacao", "#endif")
+    assert "function PrepareToInstall" in trava
+    assert "'{#VersaoDe}'" in trava and "DisplayVersion" in trava
+    assert "IsAdminInstallMode" in trava and "HKLM64" in trava and "HKCU" in trava
+    assert "_is1" in trava and "ReabrirApp" in trava
+
+
+def test_appid_do_app_bate_com_o_do_instalador():
+    """O app lê a versão instalada na mesma chave que o pequeno confere."""
+    from docmanager.services.updater import APP_ID
+
+    appid = re.search(r"^AppId=(.+)$", _ler("installer/docmanager.iss"), re.M).group(1).strip()
+    assert appid.startswith("{{")
+    assert APP_ID == appid[1:]      # "{{" é o escape do Inno para "{"
+
+
+def test_pequeno_mantem_o_fechamento_e_a_reabertura_do_completo():
+    """Mesmo [Setup] e mesmo [Code] dos dois modos: CloseApplications, AppMutex,
+    a espera do InitializeSetup e a entrada de reabrir não ficam dentro de #ifdef."""
+    iss = _ler("installer/docmanager.iss")
+    setup = _secao("Setup")
+    assert "CloseApplications=yes" in setup and "AppMutex=" in setup
+    for trecho in re.findall(r"#ifdef Atualizacao.*?#endif", iss, re.S):
+        assert "CloseApplications" not in trecho and "ReabrirAposAtualizar" not in trecho
+        assert "InitializeSetup" not in trecho
+
+
+def test_nome_do_pequeno_e_o_mesmo_no_iss_no_gerador_e_no_app():
+    from docmanager.services import updater
+    from tools import gerar_atualizacao as g
+
+    iss = _ler("installer/docmanager.iss")
+    assert "OutputBaseFilename=DocManager_Itaipu_Update_{#VersaoDe}_para_{#MyAppVersion}" in iss
+    assert g.nome_pequeno("3.2.0", "3.3.0") == "DocManager_Itaipu_Update_3.2.0_para_3.3.0"
+    assert g.PREFIXO_PEQUENO == updater.PREFIXO_PEQUENO
+    assert g.PREFIXO_COMPLETO == updater.PREFIXO_COMPLETO
+    wf = _ler(".github/workflows/release.yml")
+    assert "DocManager_Itaipu_Setup_${{ steps.versao.outputs.versao }}.exe" in wf
+
+
+def test_reabrir_tem_o_mesmo_nome_dos_dois_lados():
+    """O app passa /REABRIR (sem valor) e o [Code] procura exatamente isso."""
+    from docmanager.services import updater
+
+    assert "/REABRIR" in updater.ARGS_INSTALADOR
+    assert not any(a.startswith("/REABRIR=") for a in updater.ARGS_INSTALADOR)
+    assert _code_do_iss().count("TemParametro('/REABRIR')") >= 2   # [Run] e trava
+
+
+def test_build_reprodutivel_no_workflow():
+    """Sem estes dois, o .exe e o base_library.zip mudam a cada build e o pequeno
+    leva tudo de novo."""
+    wf = _ler(".github/workflows/release.yml")
+    passo = wf.split("name: Gerar o executável (PyInstaller)", 1)[1].split("- name:", 1)[0]
+    assert 'PYTHONHASHSEED: "0"' in passo
+    epoch = re.search(r'SOURCE_DATE_EPOCH: "(\d+)"', passo)
+    assert epoch, "SOURCE_DATE_EPOCH tem de ser um valor FIXO (não a data do commit)"
+    assert "-c constraints-build.txt" in wf
+
+
+def test_nosso_codigo_fica_fora_do_exe():
+    """Com o código dentro do .exe, ele muda inteiro a cada versão (~30 MB)."""
+    assert 'module_collection_mode={"docmanager": "pyc"}' in _ler("docmanager.spec")

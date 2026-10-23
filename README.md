@@ -76,21 +76,29 @@ Extração Aconex assim que você volta para ela.
 
 ### Atualizações
 
-**Automáticas.** O app verifica em segundo plano se saiu versão nova ao abrir e
-enquanto fica aberto (no máximo uma vez a cada 6 horas). Quando há, aparece:
+**Automáticas.** O app verifica em segundo plano se saiu versão nova **toda vez
+que abre** (e, aberto, a cada 6 horas). Quando há, abre a janela de aviso com o
+que mudou e o tamanho do download, e aparecem também:
 
 - uma faixa na tela inicial com o que mudou, e
 - o aviso `✨ v3.x.x disponível` no rodapé da barra lateral.
 
-Clique e depois em **Atualizar agora**: o app baixa o instalador, confere a
-integridade do arquivo (SHA256), fecha sozinho e reabre já atualizado. Quem
+Clique em **Atualizar agora**: o app baixa, confere a integridade do arquivo
+(SHA256), fecha sozinho e reabre já atualizado. **Agora não** fecha o aviso, que
+volta na próxima abertura. A partir da v3.2.0 o download traz **só os arquivos
+que mudaram** desde a versão instalada (poucos MB, em vez do instalador inteiro);
+quando não dá (versão muito antiga, ou o pacote pequeno não chega inteiro pela
+rede), vai o instalador completo, sozinho. Quem
 instalou em *Program Files* verá o pedido de administrador do Windows; se ele
 for recusado, o app continua aberto e avisa.
 
 Para procurar na hora, use o botão **🔄 Procurar atualizações** no rodapé da
-barra lateral (ou em **⚙️ Configurações → Atualizações**). Ao contrário da
-checagem automática, ele **mostra o erro** se algo falhar, e é por onde começar
-a diagnosticar. Nas Configurações também dá para desligar o aviso automático.
+barra lateral, em **⚙️ Configurações → Atualizações** ou com **Ctrl+K**. Ao
+contrário da checagem automática, ele **sempre responde**: "já está na versão
+mais recente", o erro, ou por que esta cópia não se atualiza por ali (rodando
+pelo código-fonte, ou uma pasta copiada sem o instalador). Nas Configurações
+também dá para desligar o aviso automático e ligar as **Versões de teste**, que
+passam a oferecer os pré-lançamentos (rc).
 
 A verificação funciona **com o Zscaler e a VPN ligados**. Ela usa os certificados
 do Windows, obedece o arquivo PAC da rede e ainda testa as rotas em cascata

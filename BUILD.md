@@ -64,6 +64,11 @@ Rode o **Run workflow** com uma versão como `3.1.1-rc.1` e *Pré-lançamento*
 atualização: dá para conferir que o build e o instalador saíram certos, e baixar
 para testar, sem queimar a versão de verdade.
 
+Para testar a **atualização** em si (inclusive a pequena), ligue
+**Configurações → Atualizações → Versões de teste** no app de quem vai testar:
+com ela ligada, o app também oferece os pré-lançamentos. Todo mundo que não
+ligou continua sem ver a rc.
+
 ---
 
 ## O que o workflow faz
@@ -75,7 +80,14 @@ para testar, sem queimar a versão de verdade.
 | `pyinstaller docmanager.spec` | Gera `dist\DocManager\` (onedir - ver abaixo). |
 | `ISCC installer\docmanager.iss` | Monta o `DocManager_Itaipu_Setup_<versão>.exe`. |
 | SHA256 + `latest.json` | O app confere o hash do instalador **antes** de executá-lo. |
-| `gh release create` | Publica o Release com o instalador, o manifesto e as notas do CHANGELOG. |
+| `gerar_atualizacao.py manifesto` | Grava o `arquivos.json`: cada arquivo instalado, com SHA256. É a base da próxima versão. |
+| `gerar_atualizacao.py escolher-bases` + `gh release download` | Baixa o `arquivos.json` das versões de origem (as 3 mais recentes e a última normal). |
+| `gerar_atualizacao.py conteudo-exe` | Diagnóstico: lista o que vai dentro do `.exe` e o que mudou desde a versão anterior. |
+| `gerar_atualizacao.py pacotes` | Um instalador pequeno por base (`ISCC /DAtualizacao=1`), em `.zip` e `.exe`, e a lista `atualizacoes` no `latest.json`. |
+| `gh release create` | Publica o Release com o instalador, os manifestos e as notas do CHANGELOG; os pequenos sobem depois, num envio separado. |
+
+Os passos da atualização pequena têm `continue-on-error`: se um deles falhar, o
+Release sai só com o completo, como antes, e o run mostra o aviso.
 
 O `.github/workflows/ci.yml` roda lint + testes em **todo commit** (em Linux,
 mais rápido). O de Release só dispara em tag.
@@ -123,9 +135,13 @@ saída de emergência - o certo é publicar uma versão nova.
 
 ## Como a atualização funciona (e por que essa costuma quebrar)
 
-Ao abrir, o app consulta o último Release (no máximo uma vez a cada 6 horas),
-compara com a própria versão e, se houver novidade, mostra o aviso. Ao clicar em
-**Atualizar agora**: baixa o instalador, confere o SHA256, executa em modo
+Ao abrir, o app consulta o último Release (toda abertura, sem intervalo: uma
+requisição por abertura fica muito abaixo do limite do token), compara com a
+própria versão e, se houver novidade, abre o aviso. Só consulta se for o
+programa **instalado pelo instalador** (há um `unins000.exe` ao lado do `.exe`)
+e tiver token; o botão diz por que não, quando não. Ao clicar em
+**Atualizar agora**: baixa o instalador (o pequeno, quando há um para a versão
+instalada - ver "Atualização só do que mudou"), confere o SHA256, executa em modo
 silencioso, espera o instalador ficar pronto e fecha o app para que os arquivos
 possam ser trocados; no fim o instalador reabre o app. Enquanto o app fica
 aberto, a checagem se repete (o intervalo de 6 horas continua valendo), e o
@@ -252,35 +268,80 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 | Abertura | **Instantânea** | Descompacta tudo no `%TEMP%` a **cada** execução (lento) |
 | Antivírus / EDR | **Bem tolerado** | O auto-extrair é heurística clássica de malware → **bloqueio/quarentena** |
 | AppLocker / política | Pasta comum, assinável | Executar do `%TEMP%` costuma ser **proibido** por política |
-| Atualizar | Permitiria trocar só os arquivos alterados (hoje não é usado, ver abaixo) | Reenviar o exe inteiro |
+| Atualizar | **Só os arquivos alterados** (ver abaixo) | Reenviar o exe inteiro |
 | Diagnóstico | Dá para ver os arquivos | Caixa-preta |
 
 **UPX está desligado** no `.spec` - compressão UPX é outro gatilho comum de antivírus.
 
-### Por que a atualização baixa o instalador inteiro
+### Atualização só do que mudou
 
-A atualização baixa o instalador completo e o roda em modo silencioso, em vez
-de trocar só os arquivos que mudaram. Foi uma escolha, e o motivo é o que
-estaria em jogo:
+Desde a **v3.2.0**, cada Release publica, além do instalador completo:
 
-- **O ganho seria menor do que parece.** O nosso código não fica num arquivo
-  separado: o PyInstaller o embute no `DocManager.exe`, junto com a parte em
-  Python de todas as bibliotecas (pandas, plotly, dash...). Esse arquivo tem
-  cerca de 30 MB, já comprimido por dentro (medido num build de teste em
-  2026-09-30), e é regravado a cada versão. Um pacote "só com o que mudou"
-  ficaria perto da metade do instalador de 54 MB. Além disso, qualquer versão
-  nova de biblioteca que o `pip` traga no build muda outros arquivos.
-- **O risco seria maior.** Trocar arquivos por conta própria exige refazer o
-  que o Inno já resolve: pedir o UAC, esperar o app fechar, não deixar a pasta
-  pela metade se algo falhar e manter a desinstalação e a versão do "Aplicativos
-  instalados" coerentes. Uma atualização quebrada deixa a pessoa sem o app.
+| Arquivo | O que é |
+|---|---|
+| `DocManager_Itaipu_Setup_<versão>.exe` | O instalador completo. Serve para qualquer versão; é o plano B. |
+| `DocManager_Itaipu_Update_<de>_para_<versão>.zip` / `.exe` | O instalador **pequeno**: só os arquivos que mudaram desde a `<de>`. O mesmo pacote em dois formatos. |
+| `arquivos.json` | Cada arquivo instalado, com SHA256 e tamanho. É a **base** da diferença da versão seguinte. |
+| `latest.json` | Versão, SHA256 do completo, notas e a lista `atualizacoes` (qual pequeno serve para qual versão instalada). |
+| `conteudo_exe.json` | Diagnóstico: o que vai dentro do `.exe`, entrada por entrada. |
 
-Se o tamanho do download virar problema (VPN lenta), o caminho seria: tirar o
-nosso pacote de dentro do `.exe` (`module_collection_mode` no `.spec`),
-publicar junto de cada Release a lista de arquivos com SHA256 e gerar, no
-workflow, um segundo instalador do Inno só com o que mudou em relação à versão
-anterior. O app escolheria esse instalador menor quando estivesse exatamente na
-versão anterior, e o completo nos demais casos.
+O app instalado lê o `latest.json`. Se existe uma entrada com `de` igual à versão
+dele, baixa o pequeno; senão, o completo. Não há diff binário: o arquivo que
+mudou vai inteiro.
+
+**De quais versões sai um pequeno:** das 3 mais recentes que publicaram
+`arquivos.json` (pré-lançamentos inclusive) e, sempre, da última versão normal,
+porque é nela que está quase todo mundo. O pequeno é pulado (com aviso no run)
+quando nada mudou ou quando ele copiaria mais de 60% do total: aí o completo,
+comprimido inteiro, sai quase do mesmo tamanho.
+
+**Por que dois formatos:** na rede da empresa, o proxy cortava o fim de um
+formato e deixava passar outro. O app tenta **zip → exe → completo**: confere o
+SHA256 do zip, extrai (recusa mais de um arquivo dentro ou nome com pasta) e
+confere o SHA256 do `.exe` de dentro. Se um falha (cortado, hash errado, rede),
+vai o próximo, e a janela avisa quando caiu no completo. Erro de disco não troca
+de arquivo.
+
+**Por que o app até a 3.1.1 não se confunde:** ele pega "o primeiro `.exe` do
+Release". O workflow sobe o completo antes dos pequenos, e `Setup` vem antes de
+`Update` na ordem alfabética. O app novo escolhe o completo pelo nome.
+
+**O instalador pequeno** é o mesmo `installer/docmanager.iss`, compilado com
+`ISCC /DAtualizacao=1 /DVersaoDe=<de> /DMyAppVersion=<versão>`. O `[Files]` e o
+`[InstallDelete]` vêm dos includes que o `gerar_atualizacao.py` grava (UTF-8 com
+BOM). O pequeno **nunca** apaga `{app}` nem `{app}\_internal` inteiros; o
+completo apaga o `_internal` antes de copiar, para a pasta ficar igual ao
+`arquivos.json`. O resto (AppId, `AppMutex`, a espera do `InitializeSetup`,
+`/SINAL`, `/REABRIR`, UAC) é o mesmo do completo. Antes de copiar, o pequeno
+confere a `DisplayVersion` da chave `Uninstall\<AppId>_is1`: se não for a
+`<de>`, não copia nada e reabre o app. Sem essa trava, um pequeno aplicado sobre
+a versão errada deixaria uma mistura das duas.
+
+**O que faz o pacote ser pequeno de verdade** (sem isto ele levaria quase tudo):
+
+- O nosso código **não** vai dentro do `DocManager.exe`:
+  `module_collection_mode={"docmanager": "pyc"}` no `.spec` o deixa em
+  `_internal\docmanager\*.pyc`. Dentro do `.exe` ficava junto com a parte em
+  Python de pandas/plotly/dash (~30 MB), e como a versão está no código, o `.exe`
+  mudava inteiro a cada Release.
+- As bibliotecas do build são fixas (`constraints-build.txt`). Atualizar uma é
+  uma decisão, num commit próprio: a versão seguinte sai com um pacote maior.
+- `PYTHONHASHSEED=0` (o `base_library.zip` mudava pela ordem de um `set`) e
+  `SOURCE_DATE_EPOCH` **fixo** (o PyInstaller grava a hora do build no cabeçalho
+  do `.exe`; a data do commit mudaria a cada versão).
+
+Se o `.exe` entrar no pacote sem motivo, o passo *Diagnóstico do conteúdo do
+.exe* do run lista o que mudou lá dentro.
+
+**Quando a economia começa:** na versão **seguinte** à 3.2.0, porque quem escolhe
+o arquivo é o app já instalado. Roteiro para validar:
+
+1. Instale à mão a primeira rc com o mecanismo (pelo completo). Ela publica só o
+   `arquivos.json`, sem pequeno.
+2. No app, ligue **Versões de teste**.
+3. Publique a rc seguinte. Ela já traz o pequeno `de` a anterior.
+4. Abra o app: o aviso mostra o tamanho pequeno ("X MB: só o que mudou").
+   **Atualizar agora** deve trocar só o que mudou e reabrir na versão nova.
 
 ### A tela de carregamento (splash)
 
