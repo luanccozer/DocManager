@@ -13,12 +13,14 @@ import pandas as pd
 
 from ...core.comissionamento import traduzir_historico
 from ...core.normalize import remover_acentos
+from ...core.sobressalentes import descartar_fora_da_lista, normalizar_historico
 
 _COLS_OBRIGATORIAS = ["No. do Documento", "Revisão", "Status", "Tipo do Documento", "Current",
                       "Data de Alteração", "Título", "Status da Revisão", "Tracking ID", "Versão"]
 _STATUS_VALIDOS = ["Anulado", "Aprovado", "Aprovado com Comentários", "Cancelado", "VOID",
                    "Em Processo", "Informativo", "Não Aprovado", "Para Análise",
-                   "Para Assinatura", "Para Informação"]
+                   "Para Assinatura", "Para Informação",
+                   "For Partial Handover"]     # só na Lista de Sobressalentes com Preço
 _DOCS_LIXO = ["ESCRITÓRIO CMI", "FORNECEDOR ZEI-GE ITP", "NEE-CF-U1_U18A-A_D-EL06125-M3-TEL"]
 _TIPOS_EXCLUIR = ["MODELO", "DOCUMENTO DE REFERENCIA", "CONTRACTOR DOCUMENTS", "INSPECAO", "DISPOSICAO DE CAMPO"]
 
@@ -33,7 +35,9 @@ def gerar_relatorio_avanco(df: pd.DataFrame) -> tuple[bool, object]:
     # Planilha de comissionamento em 'Aguardando Editável' ou 'Reviewed with No
     # Comments' sairia do relatório no filtro de status válidos (Fase 2): entra
     # com o status equivalente, como nos demais módulos.
-    df = traduzir_historico(df).copy()
+    # Idem 'For Partial Handover' da Lista de Sobressalentes (padronizado aqui;
+    # fora da lista sai no filtro da Fase 2, como qualquer status inválido).
+    df = normalizar_historico(traduzir_historico(df)).copy()
 
     # Fase 0: mata revisões Current+Terminated inteiras (chave Tracking_Revisão).
     mask_current = df["Current"].astype(str).str.strip().str.lower() == "true"
@@ -56,6 +60,7 @@ def gerar_relatorio_avanco(df: pd.DataFrame) -> tuple[bool, object]:
         return not (re.search(r"[A-Z]{2}", rev) or re.search(r"[^A-Z0-9]", rev))
     df = df[df["Revisão"].apply(revisao_valida)]
     df = df[df["Status"].str.strip().isin(_STATUS_VALIDOS)]
+    df = descartar_fora_da_lista(df)
     df = df[~df["No. do Documento"].str.strip().str.upper().str.startswith("RDI")]
     df = df[~df["No. do Documento"].str.strip().str.upper().isin(_DOCS_LIXO)]
     df = df[~df["Tipo do Documento"].apply(_norm).isin(_TIPOS_EXCLUIR)]

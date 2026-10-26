@@ -24,6 +24,7 @@ from .constants import (
     CONS_NAO_EMITIDO,
     NAO_EMITIDO,
     STATUS_EM_INTEGRACAO,
+    STATUS_FOR_PARTIAL_HANDOVER,
 )
 
 _APROVADOS_CONS = ("Aprovado com Comentários", "Aprovado", "Para Assinatura", "Informativo", "Para Aprovação")
@@ -52,6 +53,10 @@ def calcula_status_consolidado(status_real, status_emissao, emitido_nao_emitido)
     se = equivalente(status_emissao) if status_emissao else ""
     ene = emitido_nao_emitido if emitido_nao_emitido else ""
 
+    if sr == STATUS_FOR_PARTIAL_HANDOVER:
+        # Lista de Sobressalentes com Preço: aprovação PARCIAL. O motor só
+        # devolve este status real para a lista (core/sobressalentes.py).
+        return CONS_APROVACAO_INTERMEDIARIA
     if sr in _APROVADOS_CONS:
         return CONS_APROVADO
     elif sr == "Não Aprovado" and se == "Não Aprovado":
@@ -75,7 +80,7 @@ def calcula_status_consolidado(status_real, status_emissao, emitido_nao_emitido)
 def calcula_status_consolidado_estrito(status_real, status_consolidado_atual) -> str:
     """Regra estrita das planilhas VIP (KB §10). Só 'Aprovado' seco vira APROVADO;
     aprovações parciais viram APROVAÇÃO INTERMEDIÁRIA; o resto mantém o
-    consolidado já calculado."""
+    consolidado já calculado (o 'For Partial Handover' já é intermediário)."""
     sr = status_real if status_real else ""
     if sr == "Aprovado":
         return CONS_APROVADO

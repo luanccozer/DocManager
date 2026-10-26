@@ -23,12 +23,18 @@ from .constants import (
     SLA_CMI_REEMISSAO,
     SLA_ITAIPU_DEMAIS,
     SLA_ITAIPU_REV_0A,
+    STATUS_FOR_PARTIAL_HANDOVER,
 )
+from .sobressalentes import historico_e_lista, normalizar_historico
 from .truth_line import limpar_terminated_por_limiar
 
 
 def _hoje(hoje: date | None) -> pd.Timestamp:
     return pd.Timestamp(hoje) if hoje is not None else pd.Timestamp.now().normalize()
+
+
+_FPH_UPPER = STATUS_FOR_PARTIAL_HANDOVER.upper()
+_FPH_FORA_DA_LISTA = _FPH_UPPER + " (FORA DA LISTA DE SOBRESSALENTES)"
 
 
 def _preparar_historico(df_tracking: pd.DataFrame) -> pd.DataFrame:
@@ -37,8 +43,12 @@ def _preparar_historico(df_tracking: pd.DataFrame) -> pd.DataFrame:
 
     Numa planilha de comissionamento, os rótulos próprios do fluxo dela já saem
     traduzidos ('Aguardando Editável' conta como sucesso, 'Reviewed with No
-    Comments' como falha) - a mesma leitura do motor de status."""
-    df = traduzir_historico(df_tracking, planilha=historico_e_planilha(df_tracking)).copy()
+    Comments' como falha) - a mesma leitura do motor de status. Na Lista de
+    Sobressalentes com Preço, 'For Partial Handover' conta como sucesso; fora
+    dela o rótulo segue desconhecido, como sempre foi (core/sobressalentes.py)."""
+    lista = historico_e_lista(df_tracking)
+    df = traduzir_historico(df_tracking, planilha=historico_e_planilha(df_tracking))
+    df = normalizar_historico(df, lista=lista).copy()
     df[COL_REVISAO] = df[COL_REVISAO].astype(str).str.upper().str.replace("R", "", regex=False).str.strip()
     df = df[df[COL_REVISAO].str.len() <= 2]
     df = limpar_terminated_por_limiar(df)
@@ -47,6 +57,10 @@ def _preparar_historico(df_tracking: pd.DataFrame) -> pd.DataFrame:
     df["Data_Obj"] = pd.to_datetime(df[COL_DATA], errors="coerce", dayfirst=True)
     df = df.dropna(subset=["Data_Obj"]).sort_values("Data_Obj")
     df["Status_Upper"] = df[COL_STATUS].astype(str).str.strip().str.upper()
+    if not lista:
+        # O rótulo está na lista de sucesso dos KPIs, mas só vale na Lista de
+        # Sobressalentes: fora dela fica fora de toda lista, como antes.
+        df.loc[df["Status_Upper"] == _FPH_UPPER, "Status_Upper"] = _FPH_FORA_DA_LISTA
     return df
 
 

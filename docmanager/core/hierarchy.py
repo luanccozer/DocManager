@@ -154,7 +154,9 @@ def calcular_resumo_quantidades(linhas: list[LinhaPlano], predecessores: dict[in
                 proc += 1
         if qtd == 0:
             continue
-        if (pai.nivel == "3" and estrito) or comiss_estrito:
+        # Sem o toggle, a linha da Aprovação Intermediária só aparece quando
+        # há alguma - hoje, só a Lista de Sobressalentes ('For Partial Handover').
+        if (pai.nivel == "3" and estrito) or comiss_estrito or aprov_int:
             resumo[pai.row] = (f"Total: {qtd}\nAprovados: {aprov}\nAprovação Intermediária: {aprov_int}"
                                f"\nEm Processo: {proc}\nNão Aprovados: {nao_aprov}\nNão Emitidos: {nao_emit}")
         else:

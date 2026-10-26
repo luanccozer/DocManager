@@ -16,6 +16,9 @@ SEMPRE ativa, independente do toggle VIP. Nas mesmas planilhas, os rótulos
 próprios do fluxo de comissionamento ('Aguardando Editável', 'Reviewed with No
 Comments') entram na batalha já traduzidos para o status a que equivalem -
 ver core/comissionamento.py.
+
+Na Lista de Sobressalentes com Preço, 'For Partial Handover' entra no grupo das
+aprovações - ver core/sobressalentes.py.
 """
 from __future__ import annotations
 
@@ -38,6 +41,7 @@ from .constants import (
 )
 from .comissionamento import historico_e_planilha, traduzir_historico
 from .excecoes import reprovacao_numerica_vale
+from .sobressalentes import historico_e_lista, normalizar_historico
 
 
 def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
@@ -47,6 +51,7 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
 
     # --- IDENTIFICAÇÃO DE TIPOLOGIA (EXCEÇÃO PLANILHAS §8.2, sempre ativa) ---
     is_planilha = historico_e_planilha(df_tracking)
+    is_lista_sobressalentes = historico_e_lista(df_tracking)
 
     # --- LISTAS ESTRITAS (cópias mutáveis) ---
     status_aprovacao = list(STATUS_APROVACAO_UPPER)
@@ -78,6 +83,10 @@ def calcular_status_real(df_tracking: pd.DataFrame, revisao_current) -> str:
         # 'Aguardando Editável' → 'Para Assinatura', 'Reviewed with No Comments'
         # → 'Não Aprovado': a partir daqui o motor só enxerga o equivalente.
         df = traduzir_historico(df, planilha=True)
+    if is_lista_sobressalentes:
+        # 'For Partial Handover' é veredito de aprovação (parcial) da Itaipu.
+        status_aprovacao.append("FOR PARTIAL HANDOVER")
+        df = normalizar_historico(df, lista=True)
     df["Versão_Int"] = pd.to_numeric(df[COL_VERSAO], errors="coerce").fillna(0)
 
     # 2. STATUS ATUAL (LINHA DA VERDADE dentro da revisão vigente)

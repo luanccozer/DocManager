@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from .constants import (
+    CONS_APROVACAO_INTERMEDIARIA,
     CONS_APROVADO,
     CONS_CANCELADO,
     CONS_EM_PROCESSO,
@@ -233,7 +234,10 @@ _BUCKETS_RESUMO: tuple[tuple[str, str], ...] = (
     ("Não Emitidos", CONS_NAO_EMITIDO),
 )
 # Baldes raros: só entram no texto quando existem, para não poluir a célula.
-_BUCKETS_OPCIONAIS: tuple[tuple[str, str], ...] = (("Cancelados", CONS_CANCELADO),)
+_BUCKETS_OPCIONAIS: tuple[tuple[str, str], ...] = (
+    ("Aprovação Intermediária", CONS_APROVACAO_INTERMEDIARIA),   # 'For Partial Handover'
+    ("Cancelados", CONS_CANCELADO),
+)
 
 
 def calcular_resumo_quantidades(linhas: list[LinhaDocList],
