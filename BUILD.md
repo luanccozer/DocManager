@@ -365,7 +365,10 @@ depois rebuilde.
 
 **`ModuleNotFoundError` ao abrir o .exe** - falta um *hidden import*. Acrescente
 o módulo na lista `_hidden` do `docmanager.spec` e rebuilde. (Já cobrimos dash,
-dbc, plotly, customtkinter, truststore, certifi, openpyxl, xlsxwriter, PIL.)
+dbc, plotly, truststore, certifi, openpyxl, xlsxwriter e o `PySide6.QtSvg`.)
+
+**Botões sem ícone ou fonte diferente no .exe** - a pasta `docmanager/ui/recursos`
+(ícones SVG e o Roboto) precisa estar nos `datas` do `docmanager.spec`. Já está.
 
 **A seção "O que há de novo" some no .exe** - o `CHANGELOG.md` precisa estar nos
 `datas` do `docmanager.spec` (`("CHANGELOG.md", ".")`). Já está.

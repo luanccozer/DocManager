@@ -1,26 +1,26 @@
 """Janela "há uma nova versão" - aviso, download com progresso e instalação.
 
 O download roda numa thread separada; todo toque na interface volta para a
-thread do Tk via `self.after`, porque widgets do Tkinter só podem ser mexidos
-pela thread que criou a janela (mexer de fora trava ou derruba o app).
+thread da janela pela `ponte` (no Qt, widget só pode ser mexido pela thread que
+o criou).
 
 Os textos vêm de `ui/atualizacao_textos.py`; a rede, de `services/updater.py`.
 """
 from __future__ import annotations
 
 import threading
-import tkinter as tk
-from tkinter import messagebox
 
-import customtkinter as ctk
+from PySide6.QtCore import QTimer, Signal
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPlainTextEdit, QProgressBar, QVBoxLayout, QWidget
 
 from ...services import updater
 from .. import atualizacao_textos as txt
-from .. import theme as t
+from .. import dialogos, icones
+from ..components import botao, rotulo
 
 
-class AtualizacaoDialog(ctk.CTkToplevel):
-    """Modal do aviso de atualização.
+class AtualizacaoDialog(QDialog):
+    """Aviso de atualização (modal à janela principal).
 
     `fechar_app` é chamada quando o instalador está pronto: o Windows não deixa
     sobrescrever um `.exe` em execução, então o DocManager precisa sair de cena.
@@ -28,124 +28,110 @@ class AtualizacaoDialog(ctk.CTkToplevel):
     janela pergunta antes de fechar o app.
     """
 
-    def __init__(self, master, info: updater.Atualizacao, versao_atual: str,
+    _status = Signal(str)
+    _progresso = Signal(float)
+    _resumo = Signal(str)
+    _falha = Signal(object)
+    _pronto = Signal()
+
+    # O instalador espera o app sair; a pausa é só para dar tempo de ler.
+    PAUSA_ANTES_DE_FECHAR_MS = 1500
+
+    def __init__(self, parent, info: updater.Atualizacao, versao_atual: str,
                  *, fechar_app=None, ao_pular=None, tarefa_em_andamento=None):
-        super().__init__(master)
+        super().__init__(parent)
         self.info = info
         self._fechar_app = fechar_app
         self._ao_pular = ao_pular
         self._tarefa_em_andamento = tarefa_em_andamento or (lambda: False)
         self._baixando = False
+        self.setWindowTitle("Atualização disponível")
+        self.setModal(True)
+        self.setMinimumWidth(620)
 
-        self.title("Atualização disponível")
-        self.configure(fg_color=t.FUNDO)
-        self.resizable(False, False)
-        self.transient(master)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(24, 20, 24, 20)
+        lay.setSpacing(8)
+        ic = QLabel()
+        icones.aplicar(ic, "sparkles", papel_cor="primaria", tamanho=22)
+        topo = QHBoxLayout()
+        topo.addWidget(ic)
+        topo.addWidget(rotulo(txt.titulo(info), "titulo"), 1)
+        lay.addLayout(topo)
+        self.lbl_resumo = rotulo(txt.resumo(info, versao_atual), "suave", quebra=True)
+        lay.addWidget(self.lbl_resumo)
 
-        quadro = ctk.CTkFrame(self, fg_color="transparent")
-        quadro.pack(fill="both", expand=True, padx=24, pady=20)
+        notas = QPlainTextEdit(info.notas or "(esta versão não trouxe notas)")
+        notas.setObjectName("notas")
+        notas.setReadOnly(True)
+        notas.setMinimumHeight(200)
+        lay.addWidget(notas, 1)
 
-        ctk.CTkLabel(quadro, text="✨ " + txt.titulo(info), font=t.titulo(18),
-                     text_color=t.TEXTO).pack(anchor="w")
-        self.lbl_resumo = ctk.CTkLabel(quadro, text=txt.resumo(info, versao_atual),
-                                       font=t.corpo(12), text_color=t.TEXTO_FRACO,
-                                       justify="left", wraplength=560)
-        self.lbl_resumo.pack(anchor="w", pady=(4, 12))
-
-        notas = ctk.CTkTextbox(quadro, width=560, height=200, font=t.corpo(12),
-                               fg_color=t.CARD, border_width=1, border_color=t.CARD_BORDA)
-        notas.pack(fill="both", expand=True)
-        notas.insert("1.0", info.notas or "(esta versão não trouxe notas)")
-        notas.configure(state="disabled")
-
-        ctk.CTkLabel(quadro, text=txt.TEXTO_REABRE, font=t.corpo(11),
-                     text_color=t.TEXTO_FRACO, justify="left",
-                     wraplength=560).pack(anchor="w", pady=(10, 0))
+        lay.addWidget(rotulo(txt.TEXTO_REABRE, "legenda", quebra=True))
         if updater.precisa_elevacao():
-            ctk.CTkLabel(quadro, text="ℹ️ " + txt.TEXTO_UAC,
-                         font=t.corpo(11), text_color=t.TEXTO_FRACO, justify="left",
-                         wraplength=560).pack(anchor="w", pady=(6, 0))
+            lay.addWidget(rotulo(txt.TEXTO_UAC, "legenda", quebra=True))
 
-        self.barra = ctk.CTkProgressBar(quadro, progress_color=t.ACENTO)
-        self.barra.set(0)
-        self.status = ctk.CTkLabel(quadro, text="", font=t.corpo(11), text_color=t.TEXTO_FRACO,
-                                   justify="left", wraplength=560)
+        self.barra = QProgressBar()
+        self.barra.setRange(0, 1000)
+        self.barra.setTextVisible(False)
+        self.barra.hide()
+        self.status = rotulo("", "legenda", quebra=True)
+        self.status.hide()
+        lay.addWidget(self.barra)
+        lay.addWidget(self.status)
 
-        botoes = ctk.CTkFrame(quadro, fg_color="transparent")
-        botoes.pack(fill="x", pady=(14, 0))
-        self.btn_depois = ctk.CTkButton(botoes, text="Agora não", width=110, font=t.corpo(12),
-                                        fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                                        command=self._fechar)
-        self.btn_depois.pack(side="right")
-        self.btn_atualizar = ctk.CTkButton(botoes, text="Atualizar agora", width=150,
-                                           font=t.corpo(12, "bold"), fg_color=t.ACENTO,
-                                           hover_color=t.ACENTO_HOVER, command=self._atualizar)
-        self.btn_atualizar.pack(side="right", padx=(0, 8))
-        self.btn_pular = ctk.CTkButton(botoes, text=f"Pular a v{info.versao}", width=130,
-                                       font=t.corpo(11), fg_color="transparent",
-                                       hover_color=t.SIDEBAR_HOVER, text_color=t.TEXTO_FRACO,
-                                       command=self._pular)
-        self.btn_pular.pack(side="left")
+        self.btn_pular = botao(f"Pular a v{info.versao}", variante="fantasma", ao_clicar=self._pular)
+        self.btn_atualizar = botao("Atualizar agora", variante="primario", icone="download",
+                                   ao_clicar=self._atualizar)
+        self.btn_depois = botao("Agora não", ao_clicar=self._fechar)
+        rod = QWidget()
+        rl = QHBoxLayout(rod)
+        rl.setContentsMargins(0, 10, 0, 0)
+        rl.addWidget(self.btn_pular)
+        rl.addStretch(1)
+        rl.addWidget(self.btn_atualizar)
+        rl.addWidget(self.btn_depois)
+        lay.addWidget(rod)
+        self.btn_atualizar.setDefault(True)
 
-        # "X" e Esc fecham - menos durante o download (ver `_fechar`).
-        self.protocol("WM_DELETE_WINDOW", self._fechar)
-        self.bind("<Escape>", lambda _e: self._fechar())
-        self._centralizar(master)
-        self.after(60, self._tornar_modal)
-
-    # --- montagem ---
-    def _centralizar(self, master):
-        self.update_idletasks()
-        try:
-            x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-            y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-            self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
-        except Exception:  # noqa: BLE001
-            pass
-
-    def _tornar_modal(self):
-        try:
-            self.grab_set()
-            self.lift()
-        except tk.TclError:
-            pass
+        self._status.connect(self.status.setText)
+        self._progresso.connect(lambda f: self.barra.setValue(int(max(0.0, min(f, 1.0)) * 1000)))
+        self._resumo.connect(self.lbl_resumo.setText)
+        self._falha.connect(self._falhou)
+        self._pronto.connect(lambda: QTimer.singleShot(self.PAUSA_ANTES_DE_FECHAR_MS,
+                                                       self._encerrar_para_instalar))
 
     def trazer_para_frente(self):
         """A checagem da abertura e o botão manual responderam juntos: em vez de
         um segundo aviso, este volta para a frente."""
-        try:
-            self.deiconify()
-            self.lift()
-            self.focus_force()
-        except tk.TclError:
-            pass
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     # --- ações ---
     def _dizer(self, msg: str):
         """Escreve no rótulo de status - seguro para chamar de outra thread."""
-        self.after(0, lambda: self.status.configure(text=msg))
-
-    def _progresso(self, fracao: float):
-        self.after(0, lambda: self.barra.set(fracao))
+        self._status.emit(msg)
 
     def _atualizar(self):
         if self._baixando:
             return
-        if self._tarefa_em_andamento() and not messagebox.askyesno(
-                "Tarefa em andamento", txt.PERGUNTA_TAREFA, default="no", parent=self):
+        if self._tarefa_em_andamento() and not dialogos.perguntar(
+                "Tarefa em andamento", txt.PERGUNTA_TAREFA, padrao_nao=True, parent=self):
             return
         self._baixando = True
-        self.btn_atualizar.configure(state="disabled", text="Baixando...")
-        self.btn_pular.configure(state="disabled")
-        self.btn_depois.configure(state="disabled")
-        self.barra.set(0)
-        self.barra.pack(fill="x", pady=(12, 4))
-        self.status.pack(anchor="w")
+        self.btn_atualizar.setEnabled(False)
+        self.btn_atualizar.setText("Baixando...")
+        self.btn_pular.setEnabled(False)
+        self.btn_depois.setEnabled(False)
+        self.barra.setValue(0)
+        self.barra.show()
+        self.status.show()
         self._dizer("Baixando o instalador...")
         threading.Thread(target=self._trabalho, daemon=True).start()
 
     def _caiu_no_completo(self, completo, _erro):
-        self.after(0, lambda: self.lbl_resumo.configure(text=txt.caiu_no_completo(completo)))
+        self._resumo.emit(txt.caiu_no_completo(completo))
 
     def _trabalho(self):
         """Roda FORA da thread da interface: baixa, confere e dispara o instalador.
@@ -155,39 +141,33 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         `_falhou` e o app segue aberto - fechar antes era o que abortava a
         atualização na v3.1.0."""
         try:
-            caminho = updater.baixar(self.info, progresso_cb=self._progresso,
-                                     log_cb=self._dizer,
-                                     ao_cair_no_completo=self._caiu_no_completo)
+            caminho = updater.baixar(self.info, progresso_cb=self._progresso.emit,
+                                     log_cb=self._dizer, ao_cair_no_completo=self._caiu_no_completo)
             self._dizer(txt.TEXTO_CONFERIDO)
             updater.instalar(caminho, log_cb=self._dizer)
         except Exception as e:  # noqa: BLE001 - qualquer falha vira aviso na tela
-            self.after(0, lambda erro=e: self._falhou(erro))
+            self._falha.emit(e)
             return
-        # O instalador espera o app sair; a pausa é só para dar tempo de ler.
-        self.after(1500, self._encerrar_para_instalar)
+        self._pronto.emit()
 
     def _falhou(self, erro: Exception):
         self._baixando = False
-        self.barra.pack_forget()
-        self.btn_atualizar.configure(state="normal", text="Tentar de novo")
-        self.btn_pular.configure(state="normal")
-        self.btn_depois.configure(state="normal")
+        self.barra.hide()
+        self.btn_atualizar.setEnabled(True)
+        self.btn_atualizar.setText("Tentar de novo")
+        self.btn_pular.setEnabled(True)
+        self.btn_depois.setEnabled(True)
         self._dizer("")
-        messagebox.showerror(
-            "Não foi possível atualizar",
-            f"{erro}\n\nVocê pode seguir usando esta versão normalmente. Para baixar a "
-            f"nova à mão:\n{self.info.url_pagina}", parent=self)
+        dialogos.erro("Não foi possível atualizar",
+                      f"{erro}\n\nVocê pode seguir usando esta versão normalmente. Para baixar a nova "
+                      f"à mão:\n{self.info.url_pagina}", self)
 
     def _encerrar_para_instalar(self):
         self._dizer("O DocManager vai fechar e abrir de novo, já atualizado.")
-        try:
-            self.grab_release()
-        except tk.TclError:
-            pass
         if self._fechar_app:
             self._fechar_app()
         else:
-            self.destroy()
+            self.done(QDialog.DialogCode.Accepted)
 
     def _pular(self):
         if self._ao_pular:
@@ -197,8 +177,14 @@ class AtualizacaoDialog(ctk.CTkToplevel):
     def _fechar(self):
         if self._baixando:
             return   # não some no meio do download
-        try:
-            self.grab_release()
-        except tk.TclError:
-            pass
-        self.destroy()
+        self.done(QDialog.DialogCode.Rejected)
+
+    # "X" e Esc fecham - menos durante o download.
+    def reject(self):
+        self._fechar()
+
+    def closeEvent(self, evento):  # noqa: N802 - nome do Qt
+        if self._baixando:
+            evento.ignore()
+        else:
+            super().closeEvent(evento)

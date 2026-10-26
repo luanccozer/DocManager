@@ -1,269 +1,402 @@
 """Componentes reutilizáveis da UI: cartão, seletor de arquivo, console de log,
-barra de execução. Todos com o visual do theme."""
+abas e barra de execução. Todos pintados pela folha de `ui/estilo.py`."""
 from __future__ import annotations
 
 import os
 import threading
-from tkinter import filedialog
+import traceback
+from datetime import datetime
 
-import customtkinter as ctk
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QButtonGroup,
+    QComboBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
-from . import theme as t
+from . import dialogos, icones
+from .dialogos import pedir_salvar  # noqa: F401 - reexportado para as telas
+from .ponte import na_ui
 
 
-class Card(ctk.CTkFrame):
-    """Bloco visual com título opcional."""
+# ─────────────────────────────── peças miúdas ────────────────────────────────
 
-    def __init__(self, master, titulo: str | None = None, **kw):
-        super().__init__(master, fg_color=t.CARD, corner_radius=12, border_width=1,
-                         border_color=t.CARD_BORDA, **kw)
-        self.grid_columnconfigure(0, weight=1)
-        self._linha = 0
+def rotulo(texto: str = "", papel: str | None = None, *, quebra: bool = False,
+           nome: str | None = None) -> QLabel:
+    """QLabel com `papel` de cor (`QLabel[papel=...]` da folha) e quebra de linha."""
+    lbl = QLabel(texto)
+    if papel:
+        lbl.setProperty("papel", papel)
+    if nome:
+        lbl.setObjectName(nome)
+    if quebra:
+        lbl.setWordWrap(True)
+    lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+    return lbl
+
+
+def botao(texto: str, *, variante: str | None = None, icone: str | None = None,
+          ao_clicar=None, acao: bool = False, dica: str | None = None) -> QPushButton:
+    """QPushButton com `variante` (primario, perigo, fantasma; sem = secundário),
+    ícone Lucide opcional e `acao=True` para o botão alto das ações principais."""
+    b = QPushButton(texto)
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
+    if variante:
+        b.setProperty("variante", variante)
+    if acao:
+        b.setProperty("acao", True)
+    if icone:
+        icones.aplicar(b, icone)
+    if ao_clicar is not None:
+        b.clicked.connect(lambda _=False: ao_clicar())
+    if dica:
+        b.setToolTip(dica)
+    return b
+
+
+def linha(*widgets, esticar: int | None = None, espaco: int = 8) -> QWidget:
+    """Widgets lado a lado. `esticar`: índice do que ocupa a sobra; sem ele, a
+    sobra fica no fim (tudo encostado à esquerda)."""
+    w = QWidget()
+    lay = QHBoxLayout(w)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lay.setSpacing(espaco)
+    for i, item in enumerate(widgets):
+        lay.addWidget(item, 1 if i == esticar else 0)
+    if esticar is None:
+        lay.addStretch(1)
+    return w
+
+
+def rodape(*botoes) -> QWidget:
+    """Botões de diálogo encostados à direita; o primeiro fica mais à direita."""
+    w = QWidget()
+    lay = QHBoxLayout(w)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lay.setSpacing(8)
+    lay.addStretch(1)
+    for b in reversed(botoes):
+        lay.addWidget(b)
+    return w
+
+
+class Seletor(QComboBox):
+    """Lista de escolha que a roda do mouse NÃO troca sem foco.
+
+    As telas rolam: a roda passando por cima de um QComboBox cru trocava a aba
+    do Excel ou o usuário do Aconex sem ninguém perceber (o mesmo defeito que o
+    Corella Suite achou no seletor de lote). Com foco - a pessoa clicou nele -
+    a roda vale."""
+
+    def __init__(self, itens=(), parent=None):
+        super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.addItems(list(itens))
+
+    def wheelEvent(self, evento):  # noqa: N802 - nome do Qt
+        if self.hasFocus():
+            super().wheelEvent(evento)
+        else:
+            evento.ignore()
+
+    def get(self) -> str:
+        return self.currentText()
+
+    def definir_itens(self, itens, escolhido: str | None = None) -> None:
+        """Troca os itens sem disparar `currentTextChanged` no meio."""
+        self.blockSignals(True)
+        self.clear()
+        self.addItems(list(itens))
+        if escolhido is not None and escolhido in itens:
+            self.setCurrentText(escolhido)
+        self.blockSignals(False)
+
+
+def _emitir(sinal, *args) -> None:
+    """Emite sem levantar: a janela pode ter fechado com a tarefa rodando, e
+    um sinal de objeto já destruído levanta RuntimeError NA THREAD da tarefa -
+    que morreria no meio do trabalho por causa de um log."""
+    try:
+        sinal.emit(*args)
+    except RuntimeError:
+        pass
+
+
+class Card(QFrame):
+    """Bloco visual (#card) com título opcional. `add(widget)` empilha."""
+
+    def __init__(self, titulo: str | None = None, parent=None):
+        super().__init__(parent)
+        self.setObjectName("card")
+        self._lay = QVBoxLayout(self)
+        self._lay.setContentsMargins(18, 14, 18, 16)
+        self._lay.setSpacing(8)
         if titulo:
-            lbl = ctk.CTkLabel(self, text=titulo, font=t.corpo(13, "bold"), text_color=t.TEXTO_FRACO)
-            lbl.grid(row=0, column=0, sticky="w", padx=16, pady=(14, 6))
-            self._linha = 1
+            self._lay.addWidget(rotulo(titulo, nome="card_titulo"))
 
-    def add(self, widget, **grid):
-        grid.setdefault("padx", 16)
-        grid.setdefault("pady", 6)
-        grid.setdefault("sticky", "ew")
-        widget.grid(row=self._linha, column=0, **grid)
-        self._linha += 1
+    def add(self, widget: QWidget, *, esticar: int = 0) -> QWidget:
+        self._lay.addWidget(widget, esticar)
         return widget
 
+
+# ─────────────────────────────── seletor de arquivo ──────────────────────────
 
 def _listar_abas(caminho: str) -> list[str]:
     """Nomes das abas do Excel (rápido, sem ler os dados)."""
     try:
         import pandas as pd
         return list(pd.ExcelFile(caminho).sheet_names)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return []
 
 
 _PLACEHOLDER_ABA = "Selecione o arquivo primeiro"
+LARGURA_ROTULO = 220
 
 
-def pedir_salvar(config, tipo: str, nome_inicial: str,
-                 filetypes=(("Excel", "*.xlsx"),), titulo: str = "Salvar como",
-                 parent=None) -> str:
-    """`asksaveasfilename` que abre no ÚLTIMO diretório usado e o memoriza (item 4).
-
-    `config` = ConfigManager (ou None). `tipo` = chave de memória (ex.: 'saida').
-    Retorna o caminho escolhido, ou '' se o usuário cancelar."""
-    inicial = config.ultimo_dir(tipo) if config else None
-    ext = os.path.splitext(nome_inicial)[1] or ".xlsx"
-    kw = {"parent": parent} if parent is not None else {}
-    caminho = filedialog.asksaveasfilename(
-        title=titulo, initialdir=inicial, initialfile=nome_inicial,
-        defaultextension=ext, filetypes=list(filetypes), **kw)
-    if caminho and config:
-        config.lembrar_dir(tipo, caminho)
-    return caminho
-
-
-class FileSelector(ctk.CTkFrame):
+class FileSelector(QWidget):
     """Rótulo + caminho + botão 'Selecionar' + seletor de aba (sempre visível).
 
-    O seletor de aba fica sempre à mostra (como no app antigo): exibe um
-    placeholder até um arquivo ser escolhido e então lista as abas reais,
-    permitindo trocar a qualquer momento. Expõe `.path` e `.sheet`."""
+    O seletor de aba exibe um placeholder até um arquivo ser escolhido e então
+    lista as abas reais, permitindo trocar a qualquer momento. Expõe `.path` e
+    `.sheet` (nome da aba, ou 0 = a primeira)."""
 
-    def __init__(self, master, label: str, config=None, tipo: str = "arquivo",
-                 filetypes=(("Excel", "*.xlsx *.xlsm *.xls"), ("Todos", "*.*")),
-                 on_change=None, escolher_aba=True, aba_padrao: str | None = None):
-        super().__init__(master, fg_color="transparent")
-        self.grid_columnconfigure(1, weight=1)
+    def __init__(self, label: str, config=None, tipo: str = "arquivo",
+                 filtro: str = dialogos.FILTRO_EXCEL, on_change=None,
+                 escolher_aba: bool = True, aba_padrao: str | None = None, parent=None):
+        super().__init__(parent)
         self.config_mgr = config
         self.tipo = tipo
-        self.filetypes = filetypes
+        self.filtro = filtro
         self.on_change = on_change
         self.escolher_aba = escolher_aba
         self.aba_padrao = aba_padrao
         self.path: str | None = None
         self.sheet = 0
 
-        ctk.CTkLabel(self, text=label, width=170, anchor="w", font=t.corpo(12),
-                     text_color=t.TEXTO).grid(row=0, column=0, padx=(0, 8), pady=4, sticky="w")
-        self.lbl = ctk.CTkLabel(self, text="Nenhum arquivo", anchor="w", font=t.corpo(11),
-                                text_color=t.TEXTO_FRACO)
-        self.lbl.grid(row=0, column=1, sticky="ew", padx=8)
-        ctk.CTkButton(self, text="Selecionar", width=100, font=t.corpo(12),
-                      fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=self._escolher).grid(row=0, column=2, padx=(8, 0), pady=4)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 2, 0, 2)
+        lay.setSpacing(4)
+        nome = QLabel(label)
+        nome.setFixedWidth(LARGURA_ROTULO)
+        self.lbl = rotulo("Nenhum arquivo", "suave")
+        self.lbl.setMinimumWidth(120)
+        self.btn = botao("Selecionar", icone="folder-open", ao_clicar=self._escolher)
+        lay.addWidget(linha(nome, self.lbl, self.btn, esticar=1))
 
-        if self.escolher_aba:
-            self._aba_frame = ctk.CTkFrame(self, fg_color="transparent")
-            self._aba_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(2, 4))
-            ctk.CTkLabel(self._aba_frame, text="Aba (Sheet):", font=t.corpo(11), text_color=t.TEXTO_FRACO,
-                         width=170, anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 8))
-            self.opt_aba = ctk.CTkOptionMenu(self._aba_frame, values=[_PLACEHOLDER_ABA], width=280,
-                                             font=t.corpo(11), fg_color=t.SIDEBAR_HOVER,
-                                             button_color=t.SIDEBAR_ATIVO, command=self._set_aba)
-            self.opt_aba.grid(row=0, column=1, sticky="w")
+        if escolher_aba:
+            aba = rotulo("Aba (Sheet):", "legenda")
+            aba.setFixedWidth(LARGURA_ROTULO)
+            self.opt_aba = Seletor([_PLACEHOLDER_ABA])
+            self.opt_aba.setMinimumWidth(280)
+            self.opt_aba.currentTextChanged.connect(self._set_aba)
+            lay.addWidget(linha(aba, self.opt_aba))
 
-    def _set_aba(self, nome):
-        self.sheet = nome if nome != _PLACEHOLDER_ABA else 0
+    def _set_aba(self, nome: str) -> None:
+        self.sheet = nome if nome and nome != _PLACEHOLDER_ABA else 0
 
-    def _escolher(self):
-        inicial = self.config_mgr.ultimo_dir(self.tipo) if self.config_mgr else None
-        caminho = filedialog.askopenfilename(title="Selecionar arquivo", initialdir=inicial,
-                                             filetypes=self.filetypes)
-        if not caminho:
-            return
+    def _escolher(self) -> None:
+        caminho = dialogos.escolher_arquivo(self.config_mgr, self.tipo, self.filtro, parent=self)
+        if caminho:
+            self.definir(caminho)
+
+    def definir(self, caminho: str) -> None:
+        """Escolhe `caminho` como se viesse do diálogo (lista as abas)."""
         self.path = caminho
-        self.lbl.configure(text=os.path.basename(caminho), text_color=t.TEXTO)
-        if self.config_mgr:
-            self.config_mgr.lembrar_dir(self.tipo, caminho)
+        self.lbl.setText(os.path.basename(caminho))
+        self.lbl.setToolTip(caminho)
+        self.lbl.setProperty("papel", None)
+        self.lbl.style().unpolish(self.lbl)
+        self.lbl.style().polish(self.lbl)
         if self.escolher_aba:
             abas = _listar_abas(caminho)
             if abas:
-                escolhida = self.aba_padrao if (self.aba_padrao and self.aba_padrao in abas) else abas[0]
-                self.opt_aba.configure(values=abas)
-                self.opt_aba.set(escolhida)
+                escolhida = self.aba_padrao if self.aba_padrao in abas else abas[0]
+                self.opt_aba.definir_itens(abas, escolhida)
                 self.sheet = escolhida
             else:
-                self.opt_aba.configure(values=[_PLACEHOLDER_ABA])
-                self.opt_aba.set(_PLACEHOLDER_ABA)
+                self.opt_aba.definir_itens([_PLACEHOLDER_ABA])
                 self.sheet = 0
         if self.on_change:
             self.on_change(caminho)
 
 
-class LogConsole(ctk.CTkTextbox):
+# ─────────────────────────────── console de log ──────────────────────────────
+
+class LogConsole(QPlainTextEdit):
     """Console de log thread-safe (use .log() de qualquer thread). Carimba a hora
-    de cada linha e faz auto-scroll; `clear()` esvazia."""
+    de cada linha e rola sozinho até o fim; `clear()` esvazia."""
 
-    def __init__(self, master, **kw):
-        super().__init__(master, fg_color="#0B1119", text_color=t.TEXTO_FRACO,
-                         font=t.mono(11), corner_radius=8, **kw)
-        self.configure(state="disabled")
+    _linha = Signal(str)
+    _limpar = Signal()
 
-    def log(self, msg: str):
-        from datetime import datetime
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("console")
+        self.setReadOnly(True)
+        self.setMaximumBlockCount(5000)
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self._linha.connect(self._inserir)
+        self._limpar.connect(super().clear)
+
+    def log(self, msg) -> None:
         carimbo = datetime.now().strftime("%H:%M:%S")
-        self.after(0, self._inserir, carimbo, str(msg))
-
-    def _inserir(self, carimbo: str, msg: str):
-        self.configure(state="normal")
+        msg = str(msg)
         # Preserva linhas em branco iniciais (mensagens que começam com \n).
         prefixo = "\n" * (len(msg) - len(msg.lstrip("\n")))
-        self.insert("end", f"{prefixo}[{carimbo}] {msg.lstrip(chr(10))}\n")
-        self.see("end")
-        self.configure(state="disabled")
+        _emitir(self._linha, f"{prefixo}[{carimbo}] {msg.lstrip(chr(10))}")
 
-    def clear(self):
-        self.after(0, self._clear)
+    def _inserir(self, texto: str) -> None:
+        self.appendPlainText(texto)
+        barra = self.verticalScrollBar()
+        barra.setValue(barra.maximum())
 
-    def _clear(self):
-        self.configure(state="normal")
-        self.delete("1.0", "end")
-        self.configure(state="disabled")
+    def clear(self) -> None:  # noqa: D102 - thread-safe
+        _emitir(self._limpar)
 
-
-class NavItem(ctk.CTkFrame):
-    """Item da barra lateral: ícone numa CÉLULA de largura travada + rótulo.
-
-    Por que a célula travada: os emojis têm métricas diferentes entre si (alguns
-    caem em fonte de fallback do Windows). Se o rótulo do ícone dimensionar a
-    coluna, o glifo mais largo empurra o texto e aquele item fica DESLOCADO em
-    relação aos outros. Com `grid_propagate(False)` numa célula de tamanho fixo,
-    o glifo é centralizado dentro dela e nunca altera a largura - todos os
-    rótulos começam no mesmo x, qualquer que seja o emoji."""
-
-    LARGURA_ICONE = 26
-
-    def __init__(self, master, icone: str, label: str, command):
-        super().__init__(master, fg_color="transparent", corner_radius=8, height=44)
-        self.command = command
-        self._ativo = False
-        self.grid_propagate(False)
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-
-        cel = ctk.CTkFrame(self, fg_color="transparent", width=self.LARGURA_ICONE, height=44)
-        cel.grid(row=0, column=0, padx=(14, 8))
-        cel.grid_propagate(False)
-        cel.pack_propagate(False)
-        self._ic = ctk.CTkLabel(cel, text=icone, font=t.corpo(16),
-                                text_color=t.TEXTO, fg_color="transparent")
-        self._ic.place(relx=0.5, rely=0.5, anchor="center")
-
-        self._lb = ctk.CTkLabel(self, text=label, anchor="w", font=t.corpo(14),
-                                text_color=t.TEXTO, fg_color="transparent")
-        self._lb.grid(row=0, column=1, sticky="w")
-        for w in (self, cel, self._ic, self._lb):
-            w.bind("<Button-1>", lambda _e: self.command())
-            w.bind("<Enter>", self._enter)
-            w.bind("<Leave>", self._leave)
-
-    def _enter(self, _e):
-        if not self._ativo:
-            self.configure(fg_color=t.SIDEBAR_HOVER)
-
-    def _leave(self, _e):
-        if not self._ativo:
-            self.configure(fg_color="transparent")
-
-    def set_ativo(self, ativo: bool):
-        self._ativo = ativo
-        self.configure(fg_color=t.SIDEBAR_ATIVO if ativo else "transparent")
+    def texto(self) -> str:
+        return self.toPlainText()
 
 
-class RunBar(ctk.CTkFrame):
-    """Botão de ação + barra de progresso. Roda a tarefa numa thread."""
+# ─────────────────────────────── abas ────────────────────────────────────────
+
+class Abas(QWidget):
+    """Abas no estilo do SIG-FT: uma barra de botões (#barra_abas) sobre as
+    páginas. `add(nome)` devolve a página (com um QVBoxLayout); `get()` é o
+    nome da aba ativa, como o `CTkTabview.get()` que as telas já usavam."""
+
+    mudou = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(10)
+        self._barra = QFrame()
+        self._barra.setObjectName("barra_abas")
+        self._barra_lay = QHBoxLayout(self._barra)
+        self._barra_lay.setContentsMargins(4, 4, 4, 4)
+        self._barra_lay.setSpacing(4)
+        self._barra_lay.addStretch(1)
+        self._grupo = QButtonGroup(self)
+        self._grupo.setExclusive(True)
+        self._pilha = QStackedWidget()
+        lay.addWidget(self._barra)
+        lay.addWidget(self._pilha)
+        self._nomes: list[str] = []
+        self._botoes: dict[str, QPushButton] = {}
+
+    def add(self, nome: str, icone: str | None = None) -> QWidget:
+        b = QPushButton(nome)
+        b.setCheckable(True)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        if icone:
+            icones.aplicar(b, icone, tamanho=16)
+        indice = len(self._nomes)
+        b.clicked.connect(lambda _=False, n=nome: self.set(n))
+        self._grupo.addButton(b)
+        self._barra_lay.insertWidget(indice, b)
+        pagina = QWidget()
+        pl = QVBoxLayout(pagina)
+        pl.setContentsMargins(2, 0, 2, 0)
+        pl.setSpacing(8)
+        self._pilha.addWidget(pagina)
+        self._nomes.append(nome)
+        self._botoes[nome] = b
+        if indice == 0:
+            b.setChecked(True)
+        return pagina
+
+    def get(self) -> str:
+        return self._nomes[self._pilha.currentIndex()] if self._nomes else ""
+
+    def set(self, nome: str) -> None:
+        i = self._nomes.index(nome)
+        self._botoes[nome].setChecked(True)
+        self._pilha.setCurrentIndex(i)
+        self.mudou.emit(nome)
+
+
+# ─────────────────────────────── barra de execução ───────────────────────────
+
+class RunBar(QWidget):
+    """Barra de progresso + botão de ação. Roda a tarefa numa thread.
+
+    A tarefa recebe a própria RunBar (`run.set_progress(0.5)` de qualquer
+    thread). Exceção vira "ERRO: ..." no log; o botão volta ao normal no fim."""
 
     # As que estão processando agora, em qualquer tela. A atualização pergunta
     # antes de fechar o app se houver alguma (ver `MainApp.tarefa_em_andamento`).
     em_andamento: set = set()
 
-    def __init__(self, master, texto: str, tarefa, log: LogConsole | None = None):
-        super().__init__(master, fg_color="transparent")
-        self.grid_columnconfigure(0, weight=1)
+    _progresso = Signal(float)
+    terminou = Signal()
+
+    def __init__(self, texto: str, tarefa, log: LogConsole | None = None, parent=None):
+        super().__init__(parent)
         self.tarefa = tarefa
         self.log = log
-        self._texto = texto          # rótulo original (restaurado ao terminar)
+        self._texto = texto
         self._rodando = False
         self._desabilitado = False
-        self.progress = ctk.CTkProgressBar(self, height=10, progress_color=t.ACENTO)
-        self.progress.set(0)
-        self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 12), pady=8)
-        self.btn = ctk.CTkButton(self, text=texto, width=180, height=40, font=t.corpo(14, "bold"),
-                                 fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER, command=self._run)
-        self.btn.grid(row=0, column=1, pady=8)
 
-    def set_progress(self, v: float):
-        self.after(0, self.progress.set, v)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 4, 0, 4)
+        lay.setSpacing(12)
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 1000)
+        self.progress.setTextVisible(False)
+        self.btn = botao(texto, variante="primario", icone="play", acao=True, ao_clicar=self._run)
+        self.btn.setMinimumWidth(200)
+        lay.addWidget(self.progress, 1)
+        lay.addWidget(self.btn)
+        self._progresso.connect(lambda v: self.progress.setValue(int(max(0.0, min(v, 1.0)) * 1000)))
 
-    def desabilitar(self, texto: str | None = None):
+    def set_progress(self, v: float) -> None:
+        _emitir(self._progresso, float(v))
+
+    def rodando(self) -> bool:
+        return self._rodando
+
+    def desabilitar(self, texto: str | None = None) -> None:
         """Deixa o botão visível porém inativo (funcionalidade em desenvolvimento)."""
         self._desabilitado = True
-        self.btn.configure(state="disabled", fg_color=t.SIDEBAR_HOVER,
-                           text=texto or self._texto)
+        self.btn.setEnabled(False)
+        self.btn.setText(texto or self._texto)
+        icones.reaplicar(self.btn)
 
-    def _run(self):
+    def _run(self) -> None:
         if self._desabilitado or self._rodando:   # inativo ou já processando
             return
         self._rodando = True
         RunBar.em_andamento.add(self)
-        self.btn.configure(state="disabled", text="Processando...")
-        self.progress.set(0)
+        self.btn.setEnabled(False)
+        self.btn.setText("Processando...")
+        self.progress.setValue(0)
         threading.Thread(target=self._worker, daemon=True).start()
 
-    def _worker(self):
+    def _worker(self) -> None:
         try:
             self.tarefa(self)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 - a falha vai para o log da tela
             if self.log:
                 self.log.log(f"ERRO: {e}")
+                self.log.log(traceback.format_exc().rstrip())
         finally:
-            self.after(0, self._finalizar)
+            na_ui(self._finalizar)
 
-    def _finalizar(self):
+    def _finalizar(self) -> None:
         self._rodando = False
         RunBar.em_andamento.discard(self)
-        if not self.winfo_exists():
-            return
-        self.btn.configure(state="normal", text=self._texto)   # volta ao rótulo original
-        self.progress.set(0)
+        self.btn.setEnabled(True)
+        self.btn.setText(self._texto)   # volta ao rótulo original
+        self.progress.setValue(0)
+        self.terminou.emit()

@@ -5,6 +5,15 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.3.0 - 2026-10-26
+
+- Interface nova, em Qt, com o mesmo visual do SIG-FT: barra lateral com ícones, cartões, abas e tabelas redesenhados. Todas as telas e funções continuam as mesmas.
+- Tema escuro, claro ou o do Windows, escolhido em Configurações → Aparência e trocado na hora, sem reabrir o app. "Do Windows" acompanha o sistema mesmo com o app aberto.
+- Telas mais nítidas em monitores com escala de 125% ou 150%, e a tela de abertura não "pula" mais de tamanho.
+- As listas de escolha não mudam mais sozinhas quando a roda do mouse passa por cima delas ao rolar a tela.
+- Fechar o DocManager com uma tarefa rodando agora pergunta antes. O padrão é não fechar.
+- Diário do app (Documentos\DocManager_Itaipu\diario.log): registra abertura, fechamento e erros. Se o app fechar sozinho, é nele que se vê o que aconteceu.
+
 ## 3.2.0 - 2026-10-23
 
 - Atualização mais leve: a partir da próxima versão, o app baixa só os arquivos que mudaram desde a versão instalada (alguns MB), em vez do instalador inteiro. Quando não dá, baixa o instalador completo sozinho, sem precisar fazer nada.

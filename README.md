@@ -233,7 +233,7 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
 ## Arquitetura (visão rápida)
 
 ```
-ui/            interface (CustomTkinter) - uma view por módulo
+ui/            interface (Qt/PySide6, sistema visual do SIG-FT) - uma view por módulo
   ↓ importa só de
 *_backend.py   backend público de cada módulo (na raiz do pacote):
                mapa_backend · doclist_backend · status_backend ·

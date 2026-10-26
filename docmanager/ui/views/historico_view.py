@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from tkinter import messagebox
 
-import customtkinter as ctk
+from PySide6.QtWidgets import QPlainTextEdit
 
-from .. import theme as t
-from ..components import Card, FileSelector, RunBar, pedir_salvar
+from .. import dialogos
+from ..components import Abas, Card, FileSelector, RunBar, rotulo
+from ..ponte import na_ui_e_esperar
 from .base import BaseView
 
 
@@ -14,48 +14,45 @@ class HistoricoView(BaseView):
     titulo_view = "Histórico Consolidado"
     subtitulo_view = "Gera a planilha detalhada ou o dashboard executivo, a partir da mesma base"
 
-    def __init__(self, master, ctx):
+    def __init__(self, ctx, parent=None):
         self._server = None
-        super().__init__(master, ctx)
+        super().__init__(ctx, parent)
 
     def montar(self, body):
         cfg = self.ctx.config
-        card = Card(body, "Arquivos")
-        card.grid(row=0, column=0, sticky="ew", pady=(0, 12))
-        self.sel_aconex = card.add(FileSelector(card, "Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
-        self.sel_ctrl = card.add(FileSelector(card, "Controle de Documentos (obrigatório)", cfg, "controle"))
+        card = Card("Arquivos")
+        self.sel_aconex = card.add(FileSelector("Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
+        self.sel_ctrl = card.add(FileSelector("Controle de Documentos (obrigatório)", cfg, "controle"))
+        body.addWidget(card)
 
-        rem = Card(body, "Remover documentos (opcional)")
-        rem.grid(row=1, column=0, sticky="ew", pady=(0, 12))
-        rem.add(ctk.CTkLabel(
-            rem, text="Cole os códigos Itaipu dos documentos que não devem entrar no histórico, "
-            "um por linha (copie do Excel). Também aceita código CMI. Vale para a Planilha e o Dashboard.",
-            font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700),
-            sticky="w", pady=(0, 4))
-        self.txt_excluir = rem.add(ctk.CTkTextbox(rem, height=90, font=t.mono(11), fg_color="#0B1119"),
-                                   pady=(0, 12))
+        rem = Card("Remover documentos (opcional)")
+        rem.add(rotulo("Cole os códigos Itaipu dos documentos que não devem entrar no histórico, um por "
+                       "linha (copie do Excel). Também aceita código CMI. Vale para a Planilha e o Dashboard.",
+                       "suave", quebra=True))
+        self.txt_excluir = QPlainTextEdit()
+        self.txt_excluir.setObjectName("caixa_texto")
+        self.txt_excluir.setFixedHeight(96)
+        rem.add(self.txt_excluir)
+        body.addWidget(rem)
 
-        self.tabs = ctk.CTkTabview(body, fg_color=t.CARD, segmented_button_selected_color=t.ACENTO,
-                                   segmented_button_selected_hover_color=t.ACENTO_HOVER)
-        self.tabs.grid(row=2, column=0, sticky="ew", pady=(0, 8))
-        aba_plan = self.tabs.add("📄 Planilha")
-        aba_dash = self.tabs.add("📈 Dashboard")
-        aba_plan.grid_columnconfigure(0, weight=1)
-        aba_dash.grid_columnconfigure(0, weight=1)
+        abas_card = Card()
+        self.tabs = Abas()
+        aba_plan = self.tabs.add("Planilha", "file-spreadsheet")
+        aba_dash = self.tabs.add("Dashboard", "chart-column")
+        abas_card.add(self.tabs)
+        body.addWidget(abas_card)
 
-        ctk.CTkLabel(aba_plan, text="Excel com 1 linha por revisão + colunas de atraso (Itaipu e CMI).",
-                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700).grid(
-            row=0, column=0, sticky="w", pady=8, padx=6)
-        RunBar(aba_plan, "Gerar Planilha", self._gerar_planilha, self.log).grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+        aba_plan.layout().addWidget(rotulo(
+            "Excel com 1 linha por revisão + colunas de atraso (Itaipu e CMI).", "suave", quebra=True))
+        aba_plan.layout().addWidget(RunBar("Gerar Planilha", self._gerar_planilha, self.log))
 
-        ctk.CTkLabel(aba_dash, text="Dashboard web: First Time Right, ciclo de aprovação, status vigente, "
-                     "fluxo de envios/retornos, evolução do atraso no tempo e gargalos por especialidade.\n"
-                     "Em desenvolvimento. Será liberado em breve.",
-                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=700).grid(
-            row=0, column=0, sticky="w", pady=8, padx=6)
-        run_dash = RunBar(aba_dash, "Gerar e Abrir Dashboard", self._abrir_dashboard, self.log)
-        run_dash.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+        aba_dash.layout().addWidget(rotulo(
+            "Dashboard web: First Time Right, ciclo de aprovação, status vigente, fluxo de envios/retornos, "
+            "evolução do atraso no tempo e gargalos por especialidade.\nEm desenvolvimento. Será liberado "
+            "em breve.", "suave", quebra=True))
+        run_dash = RunBar("Gerar e Abrir Dashboard", self._abrir_dashboard, self.log)
         run_dash.desabilitar("Dashboard (em desenvolvimento)")
+        aba_dash.layout().addWidget(run_dash)
 
     def _base(self, run):
         from ...common import carregar_base_aconex
@@ -79,7 +76,7 @@ class HistoricoView(BaseView):
 
     def _codigos_excluir(self):
         """Códigos colados para remoção manual (um por linha), como a Via Lista Rápida."""
-        return [c.strip() for c in self.txt_excluir.get("1.0", "end").splitlines() if c.strip()]
+        return [c.strip() for c in self.txt_excluir.toPlainText().splitlines() if c.strip()]
 
     def _gerar_planilha(self, run: RunBar):
         base, controle = self._base(run)
@@ -87,9 +84,9 @@ class HistoricoView(BaseView):
             return
         from ...historico_backend import exportar_historico, gerar_historico
         wide = gerar_historico(base, controle, self._policy(),
-                               excluir_codigos=self._codigos_excluir(), log_cb=self.log.log)
+                               excluir_codigos=na_ui_e_esperar(self._codigos_excluir), log_cb=self.log.log)
         nome = f"Historico_Consolidado_{datetime.now().strftime('%d.%m.%y_%Hh%Mm')}.xlsx"
-        saida = pedir_salvar(self.ctx.config, "saida", nome)
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida", nome)
         if not saida:
             self.log.log("Salvamento cancelado.")
             return
@@ -97,7 +94,7 @@ class HistoricoView(BaseView):
         run.set_progress(1.0)
         self.log.log(msg)
         if ok:
-            self.after(0, lambda: messagebox.showinfo("Histórico", f"{len(wide)} revisões geradas."))
+            dialogos.info("Histórico", f"{len(wide)} revisões geradas.")
 
     def _abrir_dashboard(self, run: RunBar):
         base, controle = self._base(run)
@@ -107,7 +104,7 @@ class HistoricoView(BaseView):
         self.log.log("Consolidando...")
         run.set_progress(0.7)
         wide = gerar_historico(base, controle, self._policy(),
-                               excluir_codigos=self._codigos_excluir(), log_cb=self.log.log)
+                               excluir_codigos=na_ui_e_esperar(self._codigos_excluir), log_cb=self.log.log)
         if self._server is None:
             self._server = DashboardServer(porta=self.ctx.config.settings.dash_port)
         url = self._server.iniciar(wide)
