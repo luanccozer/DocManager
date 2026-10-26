@@ -12,6 +12,8 @@ dela aqui **antes** de criar a tag.
 - Telas mais nítidas em monitores com escala de 125% ou 150%, e a tela de abertura não "pula" mais de tamanho.
 - As listas de escolha não mudam mais sozinhas quando a roda do mouse passa por cima delas ao rolar a tela.
 - Fechar o DocManager com uma tarefa rodando agora pergunta antes. O padrão é não fechar.
+- Extração Aconex → Consulta Rápida: cole uma lista de códigos (Itaipu ou CMI) e veja em segundos o status real e a revisão de cada um, direto da API, sem baixar a base completa. Dá para exportar o resultado no mesmo Excel do Status Documentos.
+- Extração Aconex → Baixar por Lista: agora dá para escolher o arquivo. "Com os comentários do Aconex" é o de sempre. "Original, sem comentários" traz a última revisão como o emitente a enviou, sem as marcações da análise.
 - Diário do app (Documentos\DocManager_Itaipu\diario.log): registra abertura, fechamento e erros. Se o app fechar sozinho, é nele que se vê o que aconteceu.
 
 ## 3.2.0 - 2026-10-23
