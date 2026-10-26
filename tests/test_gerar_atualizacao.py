@@ -75,17 +75,23 @@ def test_fracao_copiada_conta_bytes_da_versao_nova():
 # ─────────────────────────── includes do Inno ───────────────────────────────
 
 def test_include_de_arquivos_escapa_e_aponta_o_destdir(tmp_path):
+    # Só '{' no nome: '"' é inválido em nome de arquivo no Windows (onde o
+    # Release roda estes testes) - o escape dele é conferido logo abaixo, em texto.
     iss_dir = tmp_path / "installer"
     iss_dir.mkdir()
     dist = _arvore(tmp_path / "dist" / "DocManager",
-                   {"DocManager.exe": b"e", '_internal/pasta {x}/a"b.txt': b"t"})
+                   {"DocManager.exe": b"e", "_internal/pasta {x}/ab.txt": b"t"})
     origens = g.fontes(dist, {})
-    d = g.Diferenca(copiar=["DocManager.exe", '_internal/pasta {x}/a"b.txt'])
+    d = g.Diferenca(copiar=["DocManager.exe", "_internal/pasta {x}/ab.txt"])
     linhas = g.linhas_arquivos(d, origens, iss_dir)
     assert linhas[0] == ('Source: "..\\dist\\DocManager\\DocManager.exe"; '
                          'DestDir: "{app}"; Flags: ignoreversion')
-    assert linhas[1] == ('Source: "..\\dist\\DocManager\\_internal\\pasta {{x}\\a""b.txt"; '
+    assert linhas[1] == ('Source: "..\\dist\\DocManager\\_internal\\pasta {{x}\\ab.txt"; '
                          'DestDir: "{app}\\_internal\\pasta {{x}"; Flags: ignoreversion')
+
+
+def test_escape_do_inno_dobra_chave_e_aspas():
+    assert g.escapar_inno('pasta {x}/a"b.txt') == 'pasta {{x}/a""b.txt'
 
 
 def test_include_de_remocao_tem_arquivos_e_dirifempty():
