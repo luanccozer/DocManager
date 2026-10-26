@@ -46,6 +46,13 @@ a = Analysis(
     runtime_hooks=[],
     excludes=["tkinter.test", "test", "tests", "pytest", "_pytest"],
     noarchive=False,
+    # O NOSSO código fica fora do DocManager.exe, como .pyc soltos em
+    # _internal\docmanager\. Sem isto ele ia para dentro do .exe junto com a
+    # parte em Python de pandas/plotly/dash (~30 MB), e como a versão está no
+    # código o .exe mudava inteiro a cada Release: a atualização "só do que
+    # mudou" levaria esses 30 MB sempre. Assim, mudar uma tela troca um .pyc;
+    # o .exe só muda quando muda uma biblioteca (ver constraints-build.txt).
+    module_collection_mode={"docmanager": "pyc"},
 )
 pyz = PYZ(a.pure)
 

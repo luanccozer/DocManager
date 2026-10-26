@@ -5,6 +5,14 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.2.0 - 2026-10-23
+
+- Atualização mais leve: a partir da próxima versão, o app baixa só os arquivos que mudaram desde a versão instalada (alguns MB), em vez do instalador inteiro. Quando não dá, baixa o instalador completo sozinho, sem precisar fazer nada.
+- O aviso de versão nova abre sozinho ao abrir o app, com o que mudou e o tamanho do download. "Agora não" fecha o aviso, que volta na próxima abertura.
+- Se uma tarefa estiver em andamento, o app pergunta antes de fechar para atualizar.
+- "Procurar atualizações" ganha o atalho Ctrl+K e sempre responde: se está em dia, o erro, ou por que esta cópia não se atualiza por ali.
+- Nas Configurações, a opção "Versões de teste" passa a oferecer também as versões em teste.
+
 ## 3.1.1 - 2026-09-30
 
 - Planilhas de comissionamento (nível 3): os status "Aguardando Editável" e "Reviewed with No Comments" passam a ser reconhecidos. "Aguardando Editável" vale como Para Assinatura (consolidado APROVADO) e "Reviewed with No Comments" como Não Aprovado (consolidado NÃO APROVADO), no Mapa, no Doc List, no Status Documentos, no Histórico, no Dashboard e nos Relatórios. A coluna STATUS continua mostrando o rótulo do Aconex.

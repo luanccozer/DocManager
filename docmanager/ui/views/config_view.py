@@ -115,17 +115,27 @@ class ConfigView(BaseView):
         card.add(self._sw_auto, pady=(2, 8))
 
         botoes = ctk.CTkFrame(card, fg_color="transparent")
-        ctk.CTkButton(botoes, text="Procurar atualizações agora", width=220, font=t.corpo(12),
-                      fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
+        ctk.CTkButton(botoes, text="Procurar atualizações agora  (Ctrl+K)", width=260,
+                      font=t.corpo(12), fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
                       command=self._procurar).pack(side="left")
+        # Canal de testes: também oferece os pré-lançamentos (rc). É assim que
+        # se testa a atualização pequena antes de todo mundo receber.
+        self._chk_teste = ctk.CTkCheckBox(
+            botoes, text="Versões de teste", font=t.corpo(12), fg_color=t.ACENTO,
+            hover_color=t.ACENTO_HOVER, command=self._toggle_teste)
+        if self.ctx.config.settings.versoes_de_teste:
+            self._chk_teste.select()
+        self._chk_teste.pack(side="left", padx=(16, 0))
         card.add(botoes, pady=(0, 6))
 
         card.add(ctk.CTkLabel(
-            card, text="A verificação roda em segundo plano quando o app abre e enquanto ele "
-                       "fica aberto, no máximo uma vez a cada 6 horas, e funciona com o Zscaler "
-                       "e a VPN ligados. O botão 'Procurar atualizações', também na barra "
-                       "lateral, verifica na hora. Suas configurações e credenciais ficam fora "
-                       "da pasta do programa, então a atualização não apaga nada.",
+            card, text="A verificação roda em segundo plano toda vez que o app abre (e, com "
+                       "ele aberto, a cada 6 horas) e funciona com o Zscaler e a VPN ligados. "
+                       "Quando dá, o download traz só o que mudou desde a sua versão. O botão "
+                       "'Procurar atualizações', também na barra lateral, verifica na hora. "
+                       "'Versões de teste' oferece também as versões ainda em teste. Suas "
+                       "configurações e credenciais ficam fora da pasta do programa, então a "
+                       "atualização não apaga nada.",
             font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680),
             pady=(0, 14))
 
@@ -139,9 +149,8 @@ class ConfigView(BaseView):
             texto = (f"Versão instalada: v{__version__}   ·   "
                      f"✨ disponível: v{info.versao}. Clique em 'Procurar atualizações "
                      f"agora' para instalar.")
-        elif not updater.token():
-            texto = (f"Versão instalada: v{__version__}   ·   este build não tem "
-                     f"atualização automática (foi gerado localmente).")
+        elif (motivo := updater.motivo_para_nao_verificar()):
+            texto = f"Versão instalada: v{__version__}   ·   {motivo}"
         else:
             texto = f"Versão instalada: v{__version__}"
         self._lbl_versao.configure(text=texto)
@@ -153,6 +162,11 @@ class ConfigView(BaseView):
             # Voltar a ligar limpa a versão pulada: quem religa quer ser avisado.
             self.ctx.config.set_setting("versao_ignorada", "")
         self.log.log(f"Aviso automático de atualização {'ligado' if ligado else 'desligado'}.")
+
+    def _toggle_teste(self):
+        ligado = bool(self._chk_teste.get())
+        self.ctx.config.set_setting("versoes_de_teste", ligado)
+        self.log.log(f"Versões de teste {'ligadas' if ligado else 'desligadas'}.")
 
     def _procurar(self):
         self.log.log("Procurando atualizações...")

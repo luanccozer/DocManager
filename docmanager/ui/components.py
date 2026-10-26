@@ -214,6 +214,10 @@ class NavItem(ctk.CTkFrame):
 class RunBar(ctk.CTkFrame):
     """Botão de ação + barra de progresso. Roda a tarefa numa thread."""
 
+    # As que estão processando agora, em qualquer tela. A atualização pergunta
+    # antes de fechar o app se houver alguma (ver `MainApp.tarefa_em_andamento`).
+    em_andamento: set = set()
+
     def __init__(self, master, texto: str, tarefa, log: LogConsole | None = None):
         super().__init__(master, fg_color="transparent")
         self.grid_columnconfigure(0, weight=1)
@@ -242,6 +246,7 @@ class RunBar(ctk.CTkFrame):
         if self._desabilitado or self._rodando:   # inativo ou já processando
             return
         self._rodando = True
+        RunBar.em_andamento.add(self)
         self.btn.configure(state="disabled", text="Processando...")
         self.progress.set(0)
         threading.Thread(target=self._worker, daemon=True).start()
@@ -257,6 +262,7 @@ class RunBar(ctk.CTkFrame):
 
     def _finalizar(self):
         self._rodando = False
+        RunBar.em_andamento.discard(self)
         if not self.winfo_exists():
             return
         self.btn.configure(state="normal", text=self._texto)   # volta ao rótulo original

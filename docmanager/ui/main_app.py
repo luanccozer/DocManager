@@ -12,9 +12,10 @@ import customtkinter as ctk
 from .. import __version__
 from ..services import updater
 from ..services.config import ConfigManager, resource_path
+from . import atualizacao_textos as txt
 from . import theme as t
 from .app_context import AppContext
-from .components import NavItem
+from .components import NavItem, RunBar
 from .views.aconex_view import AconexView
 from .views.config_view import ConfigView
 from .views.doclist_view import DocListView
@@ -73,6 +74,7 @@ class MainApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
         self._procurando = False              # checagem manual em andamento
         self._saindo_para_atualizar = False   # ver main()
+        self._dialogo_atualizacao = None      # um aviso só, ver abrir_atualizacao
 
         self._montar_sidebar()
         self._views: dict[str, ctk.CTkFrame] = {}
@@ -82,7 +84,10 @@ class MainApp(ctk.CTk):
 
         # Checagem automática: em thread, e só depois de a janela estar montada -
         # nada disso pode atrasar a abertura do app.
-        self.after(1200, self._verificacao_periodica)
+        self.after(1200, self.verificar_na_abertura)
+        # Ctrl+K: "Procurar atualizações" de qualquer tela.
+        self.bind_all("<Control-k>", lambda _e: self.verificar_atualizacao(True))
+        self.bind_all("<Control-K>", lambda _e: self.verificar_atualizacao(True))
 
     def _montar_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=240, corner_radius=0, fg_color=t.SIDEBAR)
@@ -153,22 +158,45 @@ class MainApp(ctk.CTk):
     # A checagem automática se repete enquanto o app fica aberto: quem deixa o
     # DocManager aberto a semana inteira também precisa ser avisado. Aqui só se
     # PERGUNTA de hora em hora; quem decide se é hora de ir ao GitHub é
-    # `updater.deve_verificar` (no máximo a cada 6 h).
+    # `updater.deve_verificar` (no máximo a cada 6 h com o app aberto).
     VERIFICAR_A_CADA_MS = 60 * 60 * 1000
+    # Atraso da janela de aviso depois que a checagem da abertura responde: a
+    # splash (ver main) ainda está na tela no primeiro segundo e meio.
+    AVISO_APOS_MS = 2500
+
+    def verificar_na_abertura(self):
+        """Toda abertura pergunta ao GitHub, sem intervalo mínimo (uma requisição
+        por abertura fica muito abaixo do limite do token), e abre o aviso se
+        houver versão nova. Erros vão para o log e somem: a abertura do app não
+        pode depender do GitHub."""
+        def achou(info):
+            self.after(0, lambda: self._anunciar_e_avisar(info))
+
+        updater.verificar_em_segundo_plano(self.ctx.config, __version__, achou,
+                                           intervalo_horas=0)
+        self.after(self.VERIFICAR_A_CADA_MS, self._verificacao_periodica)
+
+    def _anunciar_e_avisar(self, info):
+        self.ctx.anunciar_atualizacao(info)
+        self.after(self.AVISO_APOS_MS, self.abrir_atualizacao)
 
     def _verificacao_periodica(self):
         self.verificar_atualizacao(False)
         self.after(self.VERIFICAR_A_CADA_MS, self._verificacao_periodica)
 
     def verificar_atualizacao(self, manual: bool = False):
-        """Procura uma versão nova. `manual=True` (botão da barra lateral ou das
-        Configurações) ignora o intervalo e a versão pulada, e mostra o erro."""
+        """Procura uma versão nova. `manual=True` (botão da barra lateral, das
+        Configurações ou Ctrl+K) ignora o intervalo e a versão pulada, e SEMPRE
+        responde: em dia, o erro, ou por que esta cópia não se atualiza."""
         if manual:
             self._verificar_agora()
             return
         updater.verificar_em_segundo_plano(
             self.ctx.config, __version__,
             lambda info: self.after(0, lambda: self.ctx.anunciar_atualizacao(info)))
+
+    def tarefa_em_andamento(self) -> bool:
+        return any(rb.winfo_exists() for rb in list(RunBar.em_andamento))
 
     def _verificar_agora(self):
         """Checagem pedida pela pessoa: roda em thread mas fala o resultado."""
@@ -177,6 +205,9 @@ class MainApp(ctk.CTk):
 
         if self._procurando:
             return   # clique repetido enquanto a primeira ainda responde
+        if (motivo := updater.motivo_para_nao_verificar()):
+            messagebox.showinfo("Atualização automática", motivo)
+            return
         self._procurando = True
         self._btn_procurar.configure(state="disabled", text="Procurando...")
 
@@ -186,7 +217,8 @@ class MainApp(ctk.CTk):
 
         def _trabalho():
             try:
-                info = updater.checar(__version__)
+                info = updater.checar(__version__,
+                                      canal_testes=updater.canal_de_testes(self.ctx.config))
             except Exception as e:  # noqa: BLE001 - aqui o erro É a resposta
                 self.after(0, lambda erro=e: (_fim(), messagebox.showwarning(
                     "Não foi possível verificar",
@@ -195,7 +227,7 @@ class MainApp(ctk.CTk):
             updater.registrar_verificacao(self.ctx.config)
             if info is None:
                 self.after(0, lambda: (_fim(), messagebox.showinfo(
-                    "Tudo em dia", f"Você já está na versão mais recente (v{__version__}).")))
+                    "Tudo em dia", txt.em_dia(__version__))))
                 return
             self.after(0, lambda: (_fim(), self.ctx.anunciar_atualizacao(info),
                                    self.abrir_atualizacao()))
@@ -208,10 +240,16 @@ class MainApp(ctk.CTk):
         if info is None:
             self.verificar_atualizacao(True)
             return
+        aberto = self._dialogo_atualizacao
+        if aberto is not None and aberto.winfo_exists():
+            aberto.trazer_para_frente()   # nunca dois avisos
+            return
         from .views.update_dialog import AtualizacaoDialog
-        AtualizacaoDialog(self, info, __version__,
-                          fechar_app=self._fechar_para_instalar,
-                          ao_pular=lambda v: updater.ignorar_versao(self.ctx.config, v))
+        self._dialogo_atualizacao = AtualizacaoDialog(
+            self, info, __version__, fechar_app=self._fechar_para_instalar,
+            ao_pular=lambda v: updater.ignorar_versao(self.ctx.config, v),
+            tarefa_em_andamento=self.tarefa_em_andamento)
+        return self._dialogo_atualizacao
 
     def _fechar_para_instalar(self):
         """Sai de cena para o instalador poder sobrescrever os arquivos - o

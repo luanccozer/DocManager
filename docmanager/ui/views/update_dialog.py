@@ -3,6 +3,8 @@
 O download roda numa thread separada; todo toque na interface volta para a
 thread do Tk via `self.after`, porque widgets do Tkinter só podem ser mexidos
 pela thread que criou a janela (mexer de fora trava ou derruba o app).
+
+Os textos vêm de `ui/atualizacao_textos.py`; a rede, de `services/updater.py`.
 """
 from __future__ import annotations
 
@@ -13,22 +15,26 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from ...services import updater
+from .. import atualizacao_textos as txt
 from .. import theme as t
 
 
 class AtualizacaoDialog(ctk.CTkToplevel):
     """Modal do aviso de atualização.
 
-    `fechar_app` é chamada quando o instalador é disparado: o Windows não deixa
+    `fechar_app` é chamada quando o instalador está pronto: o Windows não deixa
     sobrescrever um `.exe` em execução, então o DocManager precisa sair de cena.
+    `tarefa_em_andamento()` diz se há um processamento rodando - se houver, a
+    janela pergunta antes de fechar o app.
     """
 
     def __init__(self, master, info: updater.Atualizacao, versao_atual: str,
-                 *, fechar_app=None, ao_pular=None):
+                 *, fechar_app=None, ao_pular=None, tarefa_em_andamento=None):
         super().__init__(master)
         self.info = info
         self._fechar_app = fechar_app
         self._ao_pular = ao_pular
+        self._tarefa_em_andamento = tarefa_em_andamento or (lambda: False)
         self._baixando = False
 
         self.title("Atualização disponível")
@@ -39,15 +45,12 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         quadro = ctk.CTkFrame(self, fg_color="transparent")
         quadro.pack(fill="both", expand=True, padx=24, pady=20)
 
-        ctk.CTkLabel(quadro, text="✨ Nova versão do DocManager", font=t.titulo(18),
+        ctk.CTkLabel(quadro, text="✨ " + txt.titulo(info), font=t.titulo(18),
                      text_color=t.TEXTO).pack(anchor="w")
-        linha = f"Você está na v{versao_atual}  →  disponível: v{info.versao}"
-        if info.tamanho_mb:
-            linha += f"   ·   {info.tamanho_mb} MB"
-        if info.publicado_em:
-            linha += f"   ·   {info.publicado_em}"
-        ctk.CTkLabel(quadro, text=linha, font=t.corpo(12), text_color=t.TEXTO_FRACO).pack(
-            anchor="w", pady=(4, 12))
+        self.lbl_resumo = ctk.CTkLabel(quadro, text=txt.resumo(info, versao_atual),
+                                       font=t.corpo(12), text_color=t.TEXTO_FRACO,
+                                       justify="left", wraplength=560)
+        self.lbl_resumo.pack(anchor="w", pady=(4, 12))
 
         notas = ctk.CTkTextbox(quadro, width=560, height=200, font=t.corpo(12),
                                fg_color=t.CARD, border_width=1, border_color=t.CARD_BORDA)
@@ -55,12 +58,13 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         notas.insert("1.0", info.notas or "(esta versão não trouxe notas)")
         notas.configure(state="disabled")
 
+        ctk.CTkLabel(quadro, text=txt.TEXTO_REABRE, font=t.corpo(11),
+                     text_color=t.TEXTO_FRACO, justify="left",
+                     wraplength=560).pack(anchor="w", pady=(10, 0))
         if updater.precisa_elevacao():
-            ctk.CTkLabel(quadro, text="ℹ️ O DocManager está instalado para todos os usuários "
-                         "(Program Files), então o Windows vai pedir permissão de "
-                         "administrador para concluir.",
+            ctk.CTkLabel(quadro, text="ℹ️ " + txt.TEXTO_UAC,
                          font=t.corpo(11), text_color=t.TEXTO_FRACO, justify="left",
-                         wraplength=560).pack(anchor="w", pady=(10, 0))
+                         wraplength=560).pack(anchor="w", pady=(6, 0))
 
         self.barra = ctk.CTkProgressBar(quadro, progress_color=t.ACENTO)
         self.barra.set(0)
@@ -83,7 +87,9 @@ class AtualizacaoDialog(ctk.CTkToplevel):
                                        command=self._pular)
         self.btn_pular.pack(side="left")
 
+        # "X" e Esc fecham - menos durante o download (ver `_fechar`).
         self.protocol("WM_DELETE_WINDOW", self._fechar)
+        self.bind("<Escape>", lambda _e: self._fechar())
         self._centralizar(master)
         self.after(60, self._tornar_modal)
 
@@ -104,6 +110,16 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         except tk.TclError:
             pass
 
+    def trazer_para_frente(self):
+        """A checagem da abertura e o botão manual responderam juntos: em vez de
+        um segundo aviso, este volta para a frente."""
+        try:
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+        except tk.TclError:
+            pass
+
     # --- ações ---
     def _dizer(self, msg: str):
         """Escreve no rótulo de status - seguro para chamar de outra thread."""
@@ -115,14 +131,21 @@ class AtualizacaoDialog(ctk.CTkToplevel):
     def _atualizar(self):
         if self._baixando:
             return
+        if self._tarefa_em_andamento() and not messagebox.askyesno(
+                "Tarefa em andamento", txt.PERGUNTA_TAREFA, default="no", parent=self):
+            return
         self._baixando = True
         self.btn_atualizar.configure(state="disabled", text="Baixando...")
         self.btn_pular.configure(state="disabled")
         self.btn_depois.configure(state="disabled")
+        self.barra.set(0)
         self.barra.pack(fill="x", pady=(12, 4))
         self.status.pack(anchor="w")
         self._dizer("Baixando o instalador...")
         threading.Thread(target=self._trabalho, daemon=True).start()
+
+    def _caiu_no_completo(self, completo, _erro):
+        self.after(0, lambda: self.lbl_resumo.configure(text=txt.caiu_no_completo(completo)))
 
     def _trabalho(self):
         """Roda FORA da thread da interface: baixa, confere e dispara o instalador.
@@ -133,8 +156,9 @@ class AtualizacaoDialog(ctk.CTkToplevel):
         atualização na v3.1.0."""
         try:
             caminho = updater.baixar(self.info, progresso_cb=self._progresso,
-                                     log_cb=self._dizer)
-            self._dizer("Iniciando a instalação...")
+                                     log_cb=self._dizer,
+                                     ao_cair_no_completo=self._caiu_no_completo)
+            self._dizer(txt.TEXTO_CONFERIDO)
             updater.instalar(caminho, log_cb=self._dizer)
         except Exception as e:  # noqa: BLE001 - qualquer falha vira aviso na tela
             self.after(0, lambda erro=e: self._falhou(erro))

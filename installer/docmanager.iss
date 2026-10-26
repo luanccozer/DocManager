@@ -7,7 +7,19 @@
 ;  Compilar localmente (precisa do dist\DocManager\ pronto pelo build.bat):
 ;      iscc /DMyAppVersion=3.1.0 installer\docmanager.iss
 ;  Saida: installer\Output\DocManager_Itaipu_Setup.exe
+;
+;  MODO ATUALIZACAO (instalador pequeno, so com o que mudou):
+;      iscc /DAtualizacao=1 /DVersaoDe=3.2.0 /DMyAppVersion=3.3.0 installer\docmanager.iss
+;  E o MESMO script: o que muda e so o [Files] e o [InstallDelete], que vem
+;  dos includes que tools/gerar_atualizacao.py grava ao lado deste arquivo.
+;  Saida: installer\Output\DocManager_Itaipu_Update_<de>_para_<nova>.exe
 ; ============================================================
+
+#ifdef Atualizacao
+  #ifndef VersaoDe
+    #error "Modo atualizacao (/DAtualizacao=1) precisa de /DVersaoDe=<versao de origem>"
+  #endif
+#endif
 
 ; A versao vem do build (`iscc /DMyAppVersion=...`). O valor abaixo e so o
 ; padrao de quem compila na mao sem passar nada.
@@ -43,7 +55,12 @@ DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=Output
+#ifdef Atualizacao
+; O prefixo e um acordo com o app (updater.PREFIXO_PEQUENO) e com o gerador.
+OutputBaseFilename=DocManager_Itaipu_Update_{#VersaoDe}_para_{#MyAppVersion}
+#else
 OutputBaseFilename=DocManager_Itaipu_Setup
+#endif
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -77,10 +94,28 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 [Tasks]
 Name: "desktopicon"; Description: "Criar atalho na Area de Trabalho"; GroupDescription: "Atalhos:"; Flags: checkedonce
 
+#ifdef Atualizacao
+[InstallDelete]
+; So o que sumiu desde a {#VersaoDe}, arquivo por arquivo. O pequeno NUNCA
+; apaga {app} nem {app}\_internal inteiros: ele so traz o que mudou, e o resto
+; da pasta e justamente o que ele reaproveita.
+#include "atualizacao_remover.iss"
+
+[Files]
+; So os arquivos novos ou alterados desde a {#VersaoDe}.
+#include "atualizacao_arquivos.iss"
+#else
+[InstallDelete]
+; O completo limpa o _internal antes de copiar: assim a pasta instalada fica
+; IGUAL ao arquivos.json desta versao, que e a base do pequeno da proxima.
+; Sem isto sobrariam arquivos de versoes antigas que nenhum manifesto conhece.
+Type: filesandordirs; Name: "{app}\_internal"
+
 [Files]
 ; Toda a pasta onedir gerada pelo PyInstaller.
 Source: "..\dist\DocManager\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
+#endif
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
@@ -164,6 +199,59 @@ begin
   if Esperado > 0 then
     Log(Format('DocManager: esperou %d ms o app fechar.', [Esperado]));
 end;
+
+procedure ReabrirApp();
+var
+  Codigo: Integer;
+begin
+  // Mesma regra do [Run]: so quando o proprio app disparou o instalador.
+  if WizardSilent and TemParametro('/REABRIR') then
+    ExecAsOriginalUser(ExpandConstant('{app}\{#AppExe}'), '', '', SW_SHOWNORMAL,
+      ewNoWait, Codigo);
+end;
+
+#ifdef Atualizacao
+// ==========================================================================
+//  Trava de versao do instalador pequeno
+// ==========================================================================
+// O pequeno so traz o que mudou desde a {#VersaoDe}. Aplicado sobre outra
+// versao, deixaria a pasta com uma mistura das duas. Por isso, antes de copiar
+// qualquer coisa, confere a versao registrada pelo instalador anterior (a que
+// aparece em "Aplicativos instalados") e, se nao for a {#VersaoDe}, desiste e
+// reabre o app como estava.
+function VersaoInstalada(): String;
+var
+  Chave: String;
+begin
+  Result := '';
+  Chave := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' +
+    ExpandConstant('{#SetupSetting("AppId")}') + '_is1';
+  if IsAdminInstallMode then
+  begin
+    // HKLM64 so existe em Windows 64-bit (em 32-bit, le-lo levanta excecao).
+    if not (IsWin64 and RegQueryStringValue(HKLM64, Chave, 'DisplayVersion', Result)) then
+      RegQueryStringValue(HKLM32, Chave, 'DisplayVersion', Result);
+  end
+  else
+    RegQueryStringValue(HKCU, Chave, 'DisplayVersion', Result);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Instalada: String;
+begin
+  Result := '';
+  Instalada := VersaoInstalada();
+  if Instalada <> '{#VersaoDe}' then
+  begin
+    Result := 'Este pacote atualiza somente a partir da versao {#VersaoDe}, e a ' +
+      'instalada e "' + Instalada + '". Nada foi alterado. Baixe o instalador ' +
+      'completo (DocManager_Itaipu_Setup) na pagina de Releases.';
+    Log('DocManager: ' + Result);
+    ReabrirApp();
+  end;
+end;
+#endif
 
 function ReabrirAposAtualizar(): Boolean;
 begin
