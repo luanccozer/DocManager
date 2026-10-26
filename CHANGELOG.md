@@ -12,6 +12,8 @@ dela aqui **antes** de criar a tag.
 - Se uma tarefa estiver em andamento, o app pergunta antes de fechar para atualizar.
 - "Procurar atualizações" ganha o atalho Ctrl+K e sempre responde: se está em dia, o erro, ou por que esta cópia não se atualiza por ali.
 - Nas Configurações, a opção "Versões de teste" passa a oferecer também as versões em teste.
+- Lista de Sobressalentes com Preço: o status "For Partial Handover" passa a ser reconhecido como aprovação parcial. O STATUS REAL mostra o rótulo do Aconex e o consolidado sai APROVAÇÃO INTERMEDIÁRIA, no Mapa, no Doc List, no Status Documentos, no Histórico, no Dashboard e nos Relatórios; nos indicadores conta como resposta aprovada da Itaipu. A lista é reconhecida pelo título (sobressalentes com preço) ou pelo código terminado em PB021.
+- Resumo de quantidades do Mapa e do Doc List: a linha "Aprovação Intermediária" aparece sempre que houver algum documento nessa situação.
 
 ## 3.1.1 - 2026-09-30
 
