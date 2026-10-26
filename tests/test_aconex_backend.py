@@ -9,11 +9,12 @@ import os
 
 from docmanager.aconex_backend import (
     AconexConfig,
-    _buscar_doc_atual,
+    _versoes_do_codigo,
     _caminho_unico,
     _nome_seguro,
     _parse_pagina,
     classificar_fonte,
+    escolher_versao,
     montar_dataframe,
     usuarios_disponiveis,
 )
@@ -189,7 +190,7 @@ def test_caminho_unico_nao_sobrescreve(tmp_path):
     assert _caminho_unico(str(p)) == str(tmp_path / "doc (2).pdf")
 
 
-def test_buscar_doc_atual_pega_versao_current_e_busca_com_aspas():
+def test_busca_do_download_pega_versao_current_e_busca_com_aspas():
     xml = ('<RegisterSearch><SearchResults>'
            '<Document DocumentId="111"><DocumentNumber>#IT-1</DocumentNumber>'
            '<Current>false</Current><Filename>old.pdf</Filename></Document>'
@@ -197,11 +198,13 @@ def test_buscar_doc_atual_pega_versao_current_e_busca_com_aspas():
            '<Current>true</Current><Filename>novo.pdf</Filename></Document>'
            '</SearchResults></RegisterSearch>')
     sess = _FakeSession(xml)
-    did, filename, _rev = _buscar_doc_atual(sess, "http://base", {}, "#IT-1")
-    assert did == "222" and filename == "novo.pdf"         # vence a versão current
+    escolhida, _ = escolher_versao(_versoes_do_codigo(sess, "http://base", {}, "#IT-1",
+                                                      historico=False), "marcado")
+    assert escolhida.document_id == "222" and escolhida.filename == "novo.pdf"   # vence a current
     assert sess.calls[0][1]["search_query"] == '"#IT-1"'   # casamento exato por aspas
+    assert "show_document_history" not in sess.calls[0][1]
 
 
-def test_buscar_doc_atual_nao_encontrado():
+def test_busca_do_download_nao_encontrado():
     sess = _FakeSession("<RegisterSearch><SearchResults/></RegisterSearch>")
-    assert _buscar_doc_atual(sess, "http://base", {}, "#XYZ") is None
+    assert escolher_versao(_versoes_do_codigo(sess, "http://base", {}, "#XYZ"), "marcado") == (None, "")

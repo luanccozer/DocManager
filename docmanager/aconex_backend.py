@@ -645,13 +645,38 @@ def salvar_excel(df: pd.DataFrame, caminho) -> None:
 
 
 # ==========================================================================
-# Download de arquivos por lista de códigos (versão CURRENT) - KB Feature
+# Download de arquivos por lista de códigos
 # ==========================================================================
 # Comprovado ao vivo (2026-07-29): a busca EXATA por código usa search_query com
-# o código ENTRE ASPAS ('"<codigo>"'); o arquivo da versão vigente sai de
-# GET /register/{DocumentId}/markedup (application/octet-stream, ex.: %PDF).
+# o código ENTRE ASPAS ('"<codigo>"'); sem as aspas o register devolve 0.
+#
+# DUAS VERSÕES DO ARQUIVO (melhoria trazida do Corella Suite, onde a regra foi
+# validada em produção na v1.4.1 - `aconex_api/register.py` de lá):
+#
+#  * COM os comentários (`MODO_MARCADO`, o padrão de sempre): a versão VIGENTE,
+#    por GET /register/{DocumentId}/markedup - um PDF com as marcações do Aconex
+#    aplicadas. É o que serve para ler o que a Itaipu comentou.
+#  * ORIGINAL (`MODO_ORIGINAL`): o arquivo como o emitente subiu. São duas fontes
+#    de comentário, e as duas saem:
+#      1. o endpoint - GET /register/{DocumentId}, SEM o "/markedup", devolve o
+#         arquivo original, no formato em que subiu;
+#      2. a versão - a análise devolve o documento como uma VERSÃO NOVA da mesma
+#         revisão ("Aprovado com Comentários"), e é ela que fica vigente; a que o
+#         emitente enviou ("Em Processo") continua no histórico.
+#    Então: o histórico do código, a revisão da versão vigente e, dentro dela, a
+#    versão mais nova cujo status NÃO fala de comentário. A revisão nunca recua.
 DOWNLOAD_TIMEOUT = 180
 _RESERVADOS_ARQ = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+MODO_MARCADO = "marcado"
+MODO_ORIGINAL = "original"
+
+# Os campos do histórico que a escolha da versão precisa.
+CAMPOS_VERSOES = ("docno,current,filename,revision,versionnumber,statusid,"
+                  "reviewstatus,trackingId")
+# Página do histórico: um documento com 40+ versões não cabe em 25.
+PAGE_SIZE_VERSOES = 100
+MAX_PAGINAS_VERSOES = 5
 
 
 def _tag_local(tag: str) -> str:
@@ -684,48 +709,167 @@ class ResultadoDownload:
     nao_encontrados: list = field(default_factory=list)
     sem_arquivo: list = field(default_factory=list)
     erros: list = field(default_factory=list)   # (codigo, motivo)
+    versoes: dict = field(default_factory=dict)  # codigo -> VersaoAconex baixada
 
 
-def _buscar_doc_atual(session, base_url, headers, codigo: str):
-    """(DocumentId, filename, revisão) da versão vigente do código, ou None.
+@dataclass
+class VersaoAconex:
+    """Uma versão de um documento no register (uma linha do histórico)."""
+    document_id: str
+    filename: str = ""
+    revisao: str = ""
+    versao: int = 0
+    status: str = ""
+    status_revisao: str = ""
+    tracking_id: str = ""
+    corrente: bool = False
 
-    Busca EXATA: `search_query='"<codigo>"'` (as aspas fazem o casamento exato -
-    sem elas o register devolve 0). Sem `show_document_history`, o register já
-    devolve só a versão corrente."""
-    params = {"search_query": f'"{codigo}"',
-              "return_fields": "docno,current,filename,revision,versionnumber",
-              "search_type": "PAGED", "page_size": 25, "page_number": 1}
-    r = session.get(base_url, headers=headers, params=params, timeout=60)
-    if r.status_code != 200:
-        return None
-    root = ET.fromstring(r.content)
-    melhor = None
+    @property
+    def tem_comentarios(self) -> bool:
+        """O status diz que esta versão é a que voltou da análise com
+        comentários ("Aprovado com Comentários", "Approved with comments")."""
+        return _fala_de_comentario(self.status) or _fala_de_comentario(self.status_revisao)
+
+    def descricao(self) -> str:
+        partes = [f"versão {self.versao}" if self.versao else "versão ?"]
+        if self.status:
+            partes.append(f"“{self.status}”")
+        return " ".join(partes)
+
+
+def _fala_de_comentario(status: str) -> bool:
+    from .core.normalize import remover_acentos
+
+    s = remover_acentos(str(status or "")).lower()
+    return "coment" in s or "comment" in s
+
+
+def _para_int(valor) -> int:
+    try:
+        return int(str(valor).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def parse_versoes(conteudo: bytes) -> list[VersaoAconex]:
+    """XML do register → as versões (função PURA, sem rede)."""
+    root = ET.fromstring(conteudo)
+    versoes = []
     for d in root.iter():
         if _tag_local(d.tag) != "Document":
             continue
         did = d.attrib.get("DocumentId") or d.attrib.get("documentId")
         if not did:
             continue
-        campos = {_tag_local(c.tag): (c.text or "") for c in d}
-        item = (did, campos.get("Filename", "").strip(), campos.get("Revision", "").strip())
-        if str(campos.get("Current", "")).lower() == "true":
-            return item
-        if melhor is None:
-            melhor = item
-    return melhor
+        campos = {_tag_local(c.tag): (c.text or "").strip() for c in d}
+        versoes.append(VersaoAconex(
+            document_id=did,
+            filename=campos.get("Filename", ""),
+            revisao=campos.get("Revision", ""),
+            versao=_para_int(campos.get("VersionNumber")),
+            status=campos.get("DocumentStatus", ""),
+            status_revisao=campos.get("ReviewStatus", ""),
+            tracking_id=campos.get("TrackingId", ""),
+            corrente=campos.get("Current", "").lower() in ("true", "1"),
+        ))
+    return versoes
 
 
-def baixar_documentos(config: AconexConfig, codigos, pasta_destino, *,
-                      log_cb=print, progress_cb=None, cancelado_cb=None) -> ResultadoDownload:
-    """Baixa a versão VIGENTE (current) de cada código numa pasta (pedido do
-    usuário). Para cada código: busca exata → DocumentId → GET .../markedup →
-    grava com o nome de arquivo do Aconex (sem sobrescrever)."""
+def _vigente(versoes: list[VersaoAconex]) -> VersaoAconex:
+    correntes = [v for v in versoes if v.corrente]
+    return max(correntes or versoes, key=lambda v: v.versao)
+
+
+def escolher_versao_sem_comentarios(versoes: list[VersaoAconex]):
+    """(versão a baixar, aviso) - a ÚLTIMA revisão, na versão sem comentários.
+
+    Função PURA. A revisão é a da versão vigente (`Current`) e nunca recua.
+    Dentro dela, com o mesmo Tracking ID, vale a versão mais nova cujo status
+    não fala de comentário. Quando a revisão só tem versões comentadas, sai a
+    vigente mesmo - baixada sem as marcações do Aconex -, com aviso.
+    Devolve (None, "") quando não há versão nenhuma.
+    """
+    if not versoes:
+        return None, ""
+    vigente = _vigente(versoes)
+    mesma_revisao = [
+        v for v in versoes
+        if v.revisao == vigente.revisao
+        and (not vigente.tracking_id or v.tracking_id == vigente.tracking_id)
+        and v.filename
+    ]
+    for v in sorted(mesma_revisao, key=lambda v: v.versao, reverse=True):
+        if not v.tem_comentarios:
+            if v.document_id == vigente.document_id:
+                return v, ""
+            return v, (f"a vigente é a {vigente.descricao()}; baixada a "
+                       f"{v.descricao()}, da mesma revisão, sem os comentários")
+    if vigente.tem_comentarios:
+        return vigente, (f"a revisão {vigente.revisao or '?'} só tem versão com "
+                         f"comentários ({vigente.descricao()}); baixado o "
+                         f"arquivo sem as marcações do Aconex")
+    return vigente, ""
+
+
+def escolher_versao(versoes: list[VersaoAconex], modo: str):
+    """(versão a baixar, aviso) conforme o `modo`: no marcado, a vigente; no
+    original, a da regra acima."""
+    if modo == MODO_ORIGINAL:
+        return escolher_versao_sem_comentarios(versoes)
+    return (_vigente(versoes), "") if versoes else (None, "")
+
+
+def url_do_arquivo(base_url: str, versao: VersaoAconex, modo: str) -> str:
+    """GET do arquivo: com "/markedup" no modo marcado, sem ele no original."""
+    sufixo = "" if modo == MODO_ORIGINAL else "/markedup"
+    return f"{base_url}/{versao.document_id}{sufixo}"
+
+
+def _versoes_do_codigo(session, base_url, headers, codigo: str, *, historico: bool = True):
+    """As versões do código, por busca EXATA. `historico=True` traz o histórico
+    inteiro (`show_document_history`); sem ele, o register devolve só a
+    vigente. Fim da paginação = 400 ou página curta."""
+    versoes: list[VersaoAconex] = []
+    for pagina in range(1, MAX_PAGINAS_VERSOES + 1):
+        params = {"search_query": f'"{codigo}"', "return_fields": CAMPOS_VERSOES,
+                  "search_type": "PAGED", "page_size": PAGE_SIZE_VERSOES, "page_number": pagina}
+        if historico:
+            params["show_document_history"] = "true"
+        r = session.get(base_url, headers=headers, params=params, timeout=60)
+        if r.status_code == 400 and pagina > 1:
+            break
+        if r.status_code != 200:
+            raise RuntimeError(f"register HTTP {r.status_code}")
+        lote = parse_versoes(r.content)
+        versoes.extend(lote)
+        if len(lote) < PAGE_SIZE_VERSOES:
+            break
+    return versoes
+
+
+def _parece_xml_de_erro(conteudo: bytes, filename: str) -> bool:
+    """O register respondeu metadados/erro em vez do arquivo?"""
+    inicio = conteudo[:64].lstrip().lower()
+    return (inicio.startswith(b"<?xml") or inicio.startswith(b"<html")) \
+        and not filename.lower().endswith((".xml", ".htm", ".html"))
+
+
+def _injetar_certificados(log_cb) -> None:
     try:
         import truststore
         truststore.inject_into_ssl()
     except Exception as e:  # noqa: BLE001
         log_cb(f"(truststore indisponível: {e})")
 
+
+def baixar_documentos(config: AconexConfig, codigos, pasta_destino, *, modo: str = MODO_MARCADO,
+                      log_cb=print, progress_cb=None, cancelado_cb=None) -> ResultadoDownload:
+    """Baixa um arquivo por código numa pasta (sem sobrescrever).
+
+    `modo=MODO_MARCADO` (padrão, o de sempre): a versão VIGENTE, com as
+    marcações/comentários do Aconex (`/markedup`). `modo=MODO_ORIGINAL`: a
+    última revisão, na versão sem comentários, como o emitente a subiu."""
+    _injetar_certificados(log_cb)
     lista = [str(c).strip() for c in codigos if str(c).strip()]
     res = ResultadoDownload(total=len(lista), pasta=str(pasta_destino))
     if not lista:
@@ -736,7 +880,9 @@ def baixar_documentos(config: AconexConfig, codigos, pasta_destino, *,
     session, token = _estabelecer_sessao(config, log_cb)
     base_url = f"{config.instance}/api/projects/{config.project_id}/register"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/xml"}
-    log_cb(f"Baixando {len(lista)} documento(s) para {pasta_destino}...")
+    qual = ("o arquivo ORIGINAL (sem comentários)" if modo == MODO_ORIGINAL
+            else "a versão vigente COM os comentários do Aconex")
+    log_cb(f"Baixando {len(lista)} documento(s) para {pasta_destino} - {qual}...")
 
     for i, cod in enumerate(lista):
         if cancelado_cb is not None and cancelado_cb():
@@ -745,33 +891,43 @@ def baixar_documentos(config: AconexConfig, codigos, pasta_destino, *,
         if progress_cb and res.total:
             progress_cb(min(0.05 + i / res.total * 0.9, 0.95))
         try:
-            info = _buscar_doc_atual(session, base_url, headers, cod)
+            # O marcado só precisa da vigente; o original, do histórico inteiro.
+            versoes = _versoes_do_codigo(session, base_url, headers, cod,
+                                         historico=modo == MODO_ORIGINAL)
         except Exception as e:  # noqa: BLE001
             res.erros.append((cod, f"busca: {e}"))
             log_cb(f"  ✗ {cod}: erro na busca ({e})")
             continue
-        if info is None:
+        escolhida, aviso = escolher_versao(versoes, modo)
+        if escolhida is None:
             res.nao_encontrados.append(cod)
             log_cb(f"  ✗ {cod}: não encontrado")
             continue
-        did, filename, _rev = info
-        if not filename:
+        if not escolhida.filename:
             res.sem_arquivo.append(cod)
             log_cb(f"  ✗ {cod}: documento sem arquivo")
             continue
         try:
-            r = session.get(f"{base_url}/{did}/markedup",
+            r = session.get(url_do_arquivo(base_url, escolhida, modo),
                             headers={"Authorization": headers["Authorization"]},
                             timeout=DOWNLOAD_TIMEOUT)
             if r.status_code != 200 or not r.content:
                 res.erros.append((cod, f"download HTTP {r.status_code}"))
                 log_cb(f"  ✗ {cod}: download falhou (HTTP {r.status_code})")
                 continue
-            destino = _caminho_unico(os.path.join(pasta_destino, _nome_seguro(filename)))
+            if _parece_xml_de_erro(r.content, escolhida.filename):
+                res.erros.append((cod, "o Aconex respondeu XML em vez do arquivo"))
+                log_cb(f"  ✗ {cod}: o Aconex respondeu XML em vez do arquivo")
+                continue
+            destino = _caminho_unico(os.path.join(pasta_destino, _nome_seguro(escolhida.filename)))
             with open(destino, "wb") as f:
                 f.write(r.content)
             res.baixados += 1
-            log_cb(f"  ✓ {cod} → {os.path.basename(destino)}")
+            res.versoes[cod] = escolhida
+            log_cb(f"  ✓ {cod} → {os.path.basename(destino)} "
+                   f"(revisão {escolhida.revisao or '?'}, {escolhida.descricao()})")
+            if aviso:
+                log_cb(f"    {cod}: {aviso}.")
         except Exception as e:  # noqa: BLE001
             res.erros.append((cod, str(e)))
             log_cb(f"  ✗ {cod}: erro ao baixar ({e})")
@@ -789,3 +945,116 @@ def baixar_documentos(config: AconexConfig, codigos, pasta_destino, *,
         log_cb(f"  {len(res.erros)} com erro: "
                + ", ".join(f"{c} ({m})" for c, m in res.erros[:10]))
     return res
+
+
+# ==========================================================================
+# Consulta rápida por lista de códigos (melhoria trazida do Corella Suite)
+# ==========================================================================
+# A extração completa pagina o projeto inteiro (~30 min). Para saber o status
+# de 10 ou 50 documentos, isso é desproporcional: a consulta busca CADA código
+# (busca exata, entre aspas) com o histórico, numa sessão só, e monta uma
+# mini-base no MESMO formato da extração - os mesmos campos (`config.campos`),
+# as mesmas colunas (`montar_dataframe`). Sobre ela roda o mesmo motor de
+# status do módulo Status Documentos (`analisar_status_pares`).
+#
+# Limite conhecido: a busca é pelo código. Se o documento TROCOU de código ao
+# longo do histórico, as versões antigas (com o código antigo) não vêm - para
+# o status oficial de um relatório, a base completa continua sendo a fonte.
+MAX_PAGINAS_CONSULTA = 5
+
+
+@dataclass
+class ResultadoConsulta:
+    """Desfecho da consulta rápida."""
+    base: pd.DataFrame
+    total: int = 0
+    nao_encontrados: list = field(default_factory=list)
+    erros: list = field(default_factory=list)   # (codigo, motivo)
+
+
+def _historico_do_codigo(session, base_url, headers, campos: str, codigo: str) -> list[dict]:
+    registros: list[dict] = []
+    for pagina in range(1, MAX_PAGINAS_CONSULTA + 1):
+        params = {"search_query": f'"{codigo}"', "return_fields": campos,
+                  "search_type": "PAGED", "page_size": PAGE_SIZE, "page_number": pagina,
+                  "show_document_history": "true",
+                  "sort_field": SORT_FIELD, "sort_direction": SORT_DIRECTION}
+        r = session.get(base_url, headers=headers, params=params, timeout=60)
+        if r.status_code == 400 and pagina > 1:
+            break
+        if r.status_code != 200:
+            raise RuntimeError(f"register HTTP {r.status_code}")
+        lote = _parse_pagina(r.content)
+        registros.extend(lote)
+        if len(lote) < PAGE_SIZE:
+            break
+    return registros
+
+
+def consultar_codigos(config: AconexConfig, codigos, *, log_cb=print, progress_cb=None,
+                      cancelado_cb=None) -> ResultadoConsulta:
+    """Histórico completo de cada código, direto da API, numa mini-base no
+    formato da extração. Aceita código Itaipu ou CMI (a busca casa os dois)."""
+    _injetar_certificados(log_cb)
+    vistos: set[str] = set()
+    lista = [c for c in (str(c).strip() for c in codigos) if c and not (c in vistos or vistos.add(c))]
+    if not lista:
+        log_cb("Nenhum código informado.")
+        return ResultadoConsulta(pd.DataFrame())
+    session, token = _estabelecer_sessao(config, log_cb)
+    base_url = f"{config.instance}/api/projects/{config.project_id}/register"
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/xml",
+               "Accept-Encoding": "gzip, deflate"}
+    log_cb(f"Consultando {len(lista)} código(s) no Aconex...")
+    registros: list[dict] = []
+    res = ResultadoConsulta(pd.DataFrame(), total=len(lista))
+    for i, cod in enumerate(lista):
+        if cancelado_cb is not None and cancelado_cb():
+            log_cb("Consulta cancelada pelo usuário.")
+            break
+        if progress_cb:
+            progress_cb(min(0.1 + i / len(lista) * 0.8, 0.9))
+        try:
+            achados = _historico_do_codigo(session, base_url, headers, config.campos, cod)
+        except Exception as e:  # noqa: BLE001
+            res.erros.append((cod, str(e)))
+            log_cb(f"  ✗ {cod}: erro na consulta ({e})")
+            continue
+        if not achados:
+            res.nao_encontrados.append(cod)
+            log_cb(f"  ✗ {cod}: não encontrado")
+            continue
+        registros.extend(achados)
+        log_cb(f"  ✓ {cod}: {len(achados)} versão(ões) no histórico")
+    df = montar_dataframe(registros)
+    if not df.empty:
+        # Uma versão casa com dois códigos da lista (o Itaipu e o CMI do mesmo
+        # documento) e viria duas vezes.
+        df = df.drop_duplicates().fillna("").astype(str)
+        # O XML do Aconex OMITE o campo vazio: numa base de 50 mil linhas sempre
+        # há alguma com cada campo, numa de 10 pode não haver - e a coluna
+        # sumiria (o motor de status precisa de "Status da Revisão").
+        for col in ORDEM_COLUNAS:
+            if col not in df.columns:
+                df[col] = ""
+        for col in ("No. do Documento", "Controle do Emissor", "Tracking ID", "Current",
+                    "Status da Revisão", "Revisão", "Status", "Versão"):
+            if col in df.columns:
+                df[col] = df[col].str.strip()
+    res.base = df
+    if progress_cb:
+        progress_cb(1.0)
+    return res
+
+
+def pares_da_consulta(base: pd.DataFrame, codigos) -> list[tuple[str, str]]:
+    """(código Itaipu, código CMI) para o motor de status: o código digitado vai
+    na coluna onde ele aparece na base (Itaipu, se aparece nas duas)."""
+    itaipu = set(base.get("No. do Documento", pd.Series(dtype=str)).astype(str).str.strip())
+    pares, vistos = [], set()
+    for c in (str(c).strip() for c in codigos):
+        if not c or c in vistos:
+            continue
+        vistos.add(c)
+        pares.append((c, "") if c in itaipu else ("", c))
+    return pares

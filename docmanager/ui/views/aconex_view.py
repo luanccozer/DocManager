@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLineEdit, QPlainTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHeaderView, QLineEdit, QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 
 from .. import dialogos
 from ..components import Abas, Card, RunBar, Seletor, botao, linha, rotulo
@@ -20,6 +20,14 @@ class AconexView(BaseView):
         "Últimos 12 meses": 365,
     }
 
+    # Qual arquivo a "Baixar por Lista" traz: rótulo → modo do backend.
+    MODOS_DOWNLOAD = {
+        "Com os comentários do Aconex (versão vigente)": "marcado",
+        "Original, sem comentários (como o emitente subiu)": "original",
+    }
+    COLUNAS_CONSULTA = ("Código Itaipu", "Código CMI", "Título", "Revisão", "Data",
+                        "Status Aconex", "Status Real")
+
     def montar(self, body):
         from dotenv import load_dotenv
         load_dotenv()
@@ -27,7 +35,7 @@ class AconexView(BaseView):
         self._OUTRO = OUTRO_USUARIO
         self._pasta_download: str | None = None
 
-        card = Card("Credenciais (valem para as três abas)")
+        card = Card("Credenciais (valem para todas as abas)")
         # A lista sai do CADASTRO feito no app (antes vinha do .env, que ninguém
         # mais recebe: desde a v3.1.0 o app é instalado, não descompactado).
         disponiveis = usuarios_disponiveis()
@@ -68,12 +76,43 @@ class AconexView(BaseView):
         # Guias do módulo: extração completa, fluxos de trabalho e download por lista.
         abas_card = Card()
         self.tabs = Abas()
+        self._montar_aba_consulta(self.tabs.add("Consulta Rápida", "search"))
         self._montar_aba_extracao(self.tabs.add("Extração Completa", "download"))
         self._montar_aba_fluxos(self.tabs.add("Fluxos de Trabalho", "workflow"))
         self._montar_aba_download(self.tabs.add("Baixar por Lista", "file"))
         abas_card.add(self.tabs)
         body.addWidget(abas_card)
         self._on_user(self.opt_user.get())   # visibilidade, dica e aviso iniciais
+
+    def _montar_aba_consulta(self, aba):
+        """Status e histórico de uma lista de códigos em segundos, direto da API
+        - sem baixar a base completa (melhoria trazida do Corella Suite)."""
+        lay = aba.layout()
+        lay.addWidget(rotulo(
+            "Cole os códigos (Itaipu ou CMI), um por linha. O app consulta só esses documentos na API, "
+            "com o histórico, e mostra o status real - sem baixar a base completa. Para relatórios "
+            "oficiais, use a base completa: se um documento trocou de código, as versões com o código "
+            "antigo não entram na consulta.", "suave", quebra=True))
+        self.txt_consulta = QPlainTextEdit()
+        self.txt_consulta.setObjectName("caixa_texto")
+        self.txt_consulta.setFixedHeight(110)
+        lay.addWidget(self.txt_consulta)
+        lay.addWidget(RunBar("Consultar", self._tarefa_consulta, self.log))
+        self.tabela_consulta = QTreeWidget()
+        self.tabela_consulta.setRootIsDecorated(False)
+        self.tabela_consulta.setAlternatingRowColors(True)
+        self.tabela_consulta.setHeaderLabels(list(self.COLUNAS_CONSULTA))
+        self.tabela_consulta.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        for i, largura in enumerate((200, 200, 260, 70, 90, 160)):
+            self.tabela_consulta.setColumnWidth(i, largura)
+        self.tabela_consulta.setMinimumHeight(220)
+        self.tabela_consulta.hide()
+        lay.addWidget(self.tabela_consulta)
+        self.btn_exportar_consulta = botao("Exportar Excel", icone="file-spreadsheet",
+                                           ao_clicar=self._exportar_consulta)
+        self.btn_exportar_consulta.setEnabled(False)
+        lay.addWidget(linha(self.btn_exportar_consulta))
+        self._consulta = None   # (linhas, contador, tem_modelos) da última consulta
 
     def _montar_aba_extracao(self, aba):
         aba.layout().addWidget(rotulo(
@@ -97,12 +136,22 @@ class AconexView(BaseView):
 
     def _montar_aba_download(self, aba):
         lay = aba.layout()
-        lay.addWidget(rotulo("Cole os códigos Itaipu, um por linha. Baixa a versão atual (current) de "
-                             "cada documento para a pasta escolhida.", "suave", quebra=True))
+        lay.addWidget(rotulo("Cole os códigos Itaipu, um por linha. Baixa um arquivo de cada documento "
+                             "para a pasta escolhida.", "suave", quebra=True))
         self.txt_codigos = QPlainTextEdit()
         self.txt_codigos.setObjectName("caixa_texto")
         self.txt_codigos.setFixedHeight(140)
         lay.addWidget(self.txt_codigos)
+        self.opt_modo_download = Seletor(list(self.MODOS_DOWNLOAD))
+        self.opt_modo_download.setMinimumWidth(380)
+        arquivo = rotulo("Arquivo")
+        arquivo.setFixedWidth(120)
+        lay.addWidget(linha(arquivo, self.opt_modo_download))
+        lay.addWidget(rotulo(
+            "Com comentários: a versão vigente, com as marcações da análise aplicadas (o de sempre). "
+            "Original: a última revisão na versão que o emitente enviou, sem as marcações - quando a "
+            "revisão só tem versão comentada, vem a vigente sem as marcações, e o log avisa.",
+            "legenda", quebra=True))
         self.lbl_pasta = rotulo("Nenhuma pasta escolhida", "suave")
         lay.addWidget(linha(botao("Escolher pasta", icone="folder-open", ao_clicar=self._escolher_pasta),
                             self.lbl_pasta, esticar=1))
@@ -121,7 +170,9 @@ class AconexView(BaseView):
         return {"usuario": self.opt_user.get(), "proxy": self.entry_proxy.text().strip(),
                 "client_id": self.entry_client.text().strip(), "user_id": self.entry_userid.text().strip(),
                 "secret": self.entry_secret.text().strip(), "periodo": self.opt_periodo_fluxo.get(),
-                "codigos": self.txt_codigos.toPlainText()}
+                "codigos": self.txt_codigos.toPlainText(),
+                "modo_download": self.MODOS_DOWNLOAD[self.opt_modo_download.get()],
+                "consulta": self.txt_consulta.toPlainText()}
 
     def _on_user(self, escolha: str):
         """Mostra os campos manuais só na opção 'Outro'; ajusta a dica."""
@@ -282,7 +333,7 @@ class AconexView(BaseView):
             self.log.log("Escolha a pasta de destino.")
             return
         run.set_progress(0.05)
-        res = baixar_documentos(config, codigos, self._pasta_download,
+        res = baixar_documentos(config, codigos, self._pasta_download, modo=estado["modo_download"],
                                 log_cb=self.log.log, progress_cb=run.set_progress)
         run.set_progress(1.0)
         resumo = f"{res.baixados}/{res.total} documento(s) baixado(s) em:\n{res.pasta}"
@@ -291,6 +342,61 @@ class AconexView(BaseView):
         if res.sem_arquivo or res.erros:
             resumo += f"\n{len(res.sem_arquivo)} sem arquivo, {len(res.erros)} com erro."
         dialogos.info("Download Aconex", resumo)
+
+    def _tarefa_consulta(self, run: RunBar):
+        if (prep := self._preparar()) is None:
+            return
+        estado, config = prep
+        from ...aconex_backend import consultar_codigos, pares_da_consulta
+        from ...status_backend import analisar_status_pares
+        codigos = [c.strip() for c in estado["consulta"].splitlines() if c.strip()]
+        if not codigos:
+            self.log.log("Cole ao menos um código na aba 'Consulta Rápida'.")
+            return
+        run.set_progress(0.05)
+        r = consultar_codigos(config, codigos, log_cb=self.log.log, progress_cb=run.set_progress)
+        if r.base.empty:
+            self.log.log("Nenhum dos códigos foi encontrado no Aconex.")
+            na_ui(self._mostrar_consulta, None)
+            return
+        linhas, contador, tem_modelos = analisar_status_pares(r.base, pares_da_consulta(r.base, codigos))
+        for st, n in contador.most_common():
+            self.log.log(f"  {st}: {n}")
+        self.log.log(f"Consulta concluída: {len(linhas)} documento(s).")
+        na_ui(self._mostrar_consulta, (linhas, contador, tem_modelos))
+
+    def _mostrar_consulta(self, resultado):
+        self._consulta = resultado
+        self.tabela_consulta.clear()
+        self.btn_exportar_consulta.setEnabled(bool(resultado))
+        if not resultado:
+            self.tabela_consulta.hide()
+            return
+        for d in resultado[0]:
+            self.tabela_consulta.addTopLevelItem(
+                QTreeWidgetItem([str(d.get(c, "")) for c in self.COLUNAS_CONSULTA]))
+        self.tabela_consulta.show()
+
+    def linhas_da_consulta(self) -> list[list[str]]:
+        t = self.tabela_consulta
+        return [[t.topLevelItem(i).text(c) for c in range(t.columnCount())]
+                for i in range(t.topLevelItemCount())]
+
+    def _exportar_consulta(self):
+        if not self._consulta:
+            return
+        from datetime import datetime
+
+        from ...status_backend import exportar_status_documentos
+        linhas, contador, tem_modelos = self._consulta
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida",
+                                      f"Consulta_Aconex_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                                      parent=self)
+        if not saida:
+            return
+        ok, msg = exportar_status_documentos(linhas, contador, saida, tem_modelos=tem_modelos)
+        self.log.log(msg)
+        (dialogos.info if ok else dialogos.erro)("Consulta Rápida", msg, self)
 
     def _tarefa(self, run: RunBar):
         if (prep := self._preparar()) is None:

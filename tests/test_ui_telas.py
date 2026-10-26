@@ -371,3 +371,36 @@ def test_dialogos_de_arvore_abrem_e_mostram_documentos(app, qtbot):
     assert dlg.tree.isColumnHidden(1)                 # visão Efetiva: sem Rev/Data
     dlg.opt_visao.setCurrentText("Bruta")
     assert not dlg.tree.isColumnHidden(1)
+
+
+def test_consulta_rapida_mostra_o_status_na_tela(app, qtbot, monkeypatch):
+    """Cola os códigos, consulta (API falsa) e a tabela mostra o status real."""
+    from docmanager import aconex_backend as ab
+    from test_aconex_consulta import HISTORICO_IT1, _Sessao
+
+    sessao = _Sessao({"IT-1": HISTORICO_IT1})
+    monkeypatch.setattr(ab, "_estabelecer_sessao", lambda cfg, log=None: (sessao, "tok"))
+    monkeypatch.setattr(ab, "_injetar_certificados", lambda log=None: None)
+    cofre().salvar("Fulano", "SCP_F_client_APPID", "123", "segredo")
+    app.selecionar("aconex")
+    tela = app._views["aconex"]
+    assert tela.tabs.get() == "Consulta Rápida"          # a primeira aba
+    tela.txt_consulta.setPlainText("IT-1\nNADA")
+    run = tela.tabs._pilha.currentWidget().findChild(__import__(
+        "docmanager.ui.components", fromlist=["RunBar"]).RunBar)
+    with qtbot.waitSignal(run.terminou, timeout=10000):
+        run.btn.click()
+    qtbot.waitUntil(lambda: bool(tela.linhas_da_consulta()), timeout=5000)
+    linhas = tela.linhas_da_consulta()
+    assert linhas[0][0] == "IT-1" and linhas[0][-1] == "Aprovado"
+    assert linhas[1][-1] == "NÃO EMITIDO"
+    assert tela.btn_exportar_consulta.isEnabled()
+
+
+def test_download_oferece_o_original_sem_comentarios(app):
+    app.selecionar("aconex")
+    tela = app._views["aconex"]
+    assert set(tela.MODOS_DOWNLOAD.values()) == {"marcado", "original"}
+    assert tela._estado()["modo_download"] == "marcado"     # o padrão de sempre
+    tela.opt_modo_download.setCurrentIndex(1)
+    assert tela._estado()["modo_download"] == "original"
