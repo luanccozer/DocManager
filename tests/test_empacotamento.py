@@ -3,7 +3,8 @@
 São acordos entre arquivos DIFERENTES, que nenhum teste de unidade pegaria e que
 nada no dia a dia lembra de conferir: quebram calados e só aparecem quando a
 atualização falha na máquina de alguém. Ler texto com regex, em vez de importar,
-é de propósito - o `ui/main_app.py` precisa de tkinter, que não existe no CI.
+é de propósito - importar o `ui/main_app.py` carregaria o Qt inteiro só para ler
+uma constante.
 """
 import functools
 import re

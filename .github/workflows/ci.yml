@@ -34,16 +34,14 @@ jobs:
       - name: Lint (ruff)
         run: ruff check .
 
-      # Com o Xvfb (tela virtual) os testes que abrem a janela de verdade
-      # (tests/test_ui_telas.py) também rodam aqui, e não só no Windows do
-      # Release. Sem ele, esses testes são pulados e o resto roda igual.
+      # O Qt precisa destas bibliotecas do sistema para carregar, mesmo sem
+      # monitor: os testes das telas (tests/test_ui_telas.py) rodam com
+      # QT_QPA_PLATFORM=offscreen (posto no conftest), que desenha em memória.
+      - name: Bibliotecas do Qt
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+
       - name: Testes (pytest)
-        run: |
-          if command -v xvfb-run >/dev/null; then
-            xvfb-run -a pytest -q
-          else
-            pytest -q
-          fi
+        run: pytest -q
 
       # Erro de digitação num .iss ou num CHANGELOG mal formatado só apareceria
       # na hora de publicar, com a tag já criada. Aqui aparece no commit.

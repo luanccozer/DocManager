@@ -13,11 +13,11 @@ empacotado no executável.
 """
 from PyInstaller.utils.hooks import collect_all
 
-# dash/dbc/plotly/customtkinter/truststore trazem dados e submódulos que o
-# PyInstaller não descobre sozinho - collect_all pega datas + binaries + imports.
+# dash/dbc/plotly/truststore trazem dados e submódulos que o PyInstaller não
+# descobre sozinho - collect_all pega datas + binaries + imports. O PySide6 tem
+# hook próprio no PyInstaller (leva só os módulos do Qt que o app importa).
 _datas, _binaries, _hidden = [], [], []
-for _pkg in ("dash", "dash_bootstrap_components", "plotly",
-             "customtkinter", "truststore", "certifi"):
+for _pkg in ("dash", "dash_bootstrap_components", "plotly", "truststore", "certifi"):
     d, b, h = collect_all(_pkg)
     _datas += d
     _binaries += b
@@ -28,11 +28,16 @@ _datas += [("assets", "assets")]
 # CHANGELOG na raiz do bundle: é dele que a Home tira "O que há de novo"
 # (services/novidades.py) - sem isto a seção some no executável.
 _datas += [("CHANGELOG.md", ".")]
+# Ícones SVG e a fonte Roboto da interface Qt: ficam ao lado dos .pyc da UI
+# (`ui/estilo.py` os acha pelo próprio caminho do módulo).
+_datas += [("docmanager/ui/recursos", "docmanager/ui/recursos")]
 
 # Reforço de imports que costumam escapar da análise estática.
 _hidden += [
-    "truststore", "openpyxl", "xlsxwriter", "PIL", "PIL._tkinter_finder",
+    "truststore", "openpyxl", "xlsxwriter",
     "pandas", "dash_bootstrap_components", "plotly.graph_objs",
+    # QtSvg desenha os ícones; é importado dentro de ui/icones.py.
+    "PySide6.QtSvg",
 ]
 
 a = Analysis(

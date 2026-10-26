@@ -5,7 +5,13 @@ suíte leria (e escreveria!) o cofre real de quem está rodando os testes - e o
 resultado mudaria de máquina para máquina. `DOCMANAGER_DADOS_DIR` redireciona a
 pasta inteira para um diretório temporário por teste.
 """
+import os
+
 import pytest
+
+# Telas Qt sem monitor (CI do Linux, Release do Windows): o pytest-qt cria o
+# QApplication com esta plataforma, que desenha em memória.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from docmanager.services import credenciais
 

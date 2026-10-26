@@ -40,6 +40,8 @@ class AppSettings:
     ultima_verificacao: str = ""
     # Canal de testes: também oferece pré-lançamentos (rc). Desligado por padrão.
     versoes_de_teste: bool = False
+    # Aparência: "escuro", "claro" ou "sistema" (segue o Windows).
+    tema: str = "escuro"
 
 
 class ConfigManager:
@@ -95,6 +97,7 @@ class ConfigManager:
             versao_ignorada=str(s.get("versao_ignorada", "")),
             ultima_verificacao=str(s.get("ultima_verificacao", "")),
             versoes_de_teste=bool(s.get("versoes_de_teste", False)),
+            tema=str(s.get("tema", "escuro")),
         )
 
     def set_setting(self, chave: str, valor) -> None:

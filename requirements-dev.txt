@@ -2,3 +2,7 @@
 pytest>=8
 pytest-cov>=5
 ruff>=0.6
+# Testes das telas Qt (janela de verdade, sem monitor: QT_QPA_PLATFORM=offscreen).
+pytest-qt>=4.4
+# tools/gerar_splash.py desenha a tela de carregamento nativa do .exe com ele.
+Pillow>=10

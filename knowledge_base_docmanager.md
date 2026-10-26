@@ -9,7 +9,7 @@
 
 ## 1. Visão Geral
 
-O DocManager é um app desktop (CustomTkinter) usado pelo time de engenharia da CMI para controlar a documentação do projeto de modernização de Itaipu. Ele consome extrações da base **Aconex** (sistema de gestão documental do cliente) e cruza com planilhas internas (Mapeamento de Planos, Controle de Documentos, Kaizen, P6, Backlog, Corella).
+O DocManager é um app desktop (Qt/PySide6 desde a v3.3.0; antes CustomTkinter) usado pelo time de engenharia da CMI para controlar a documentação do projeto de modernização de Itaipu. Ele consome extrações da base **Aconex** (sistema de gestão documental do cliente) e cruza com planilhas internas (Mapeamento de Planos, Controle de Documentos, Kaizen, P6, Backlog, Corella).
 
 A pergunta central que o sistema responde é: **"qual é o status REAL de cada documento?"** — porque o status bruto que o Aconex exibe na linha vigente frequentemente **não** representa a situação real do documento (revisões canceladas, status internos de integração, mudanças de fluxo do cliente, ciclos internos da CMI). Todo o valor do sistema está nos motores de interpretação descritos nas seções 8 a 16.
 
