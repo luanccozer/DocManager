@@ -44,6 +44,7 @@ from .constants import (
     SLA_ITAIPU_REV_0A,
 )
 from .comissionamento import traduzir_historico
+from .sobressalentes import descartar_fora_da_lista, normalizar_historico
 from .normalize import normalizar_revisao
 
 # Colunas internas do wide (sem "de"); a exportação Excel renomeia.
@@ -91,6 +92,9 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
     # Comments' → 'Não Aprovado'). Tem que ser ANTES do filtro de status
     # válidos, que não os conhece e apagaria o retorno da revisão.
     df = traduzir_historico(df)
+    # Idem 'For Partial Handover' da Lista de Sobressalentes com Preço: rótulo
+    # padronizado na lista e descartado fora dela (core/sobressalentes.py).
+    df = descartar_fora_da_lista(normalizar_historico(df))
 
     # 1. Filtros grossos: Terminated, status válidos, tipos válidos.
     if "Status da Revisão" in df.columns:

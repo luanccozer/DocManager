@@ -1096,7 +1096,13 @@ Correção nos dois lados (detalhes em `BUILD.md`, armadilha 5):
 - **instalador** (`[Code]` do `.iss`): `InitializeSetup`, que roda antes da checagem, espera o app sair (até 60 s) em modo silencioso; uma entrada do `[Run]` reabre o app no fim. Por rodar o instalador NOVO, isso já vale para quem está na 3.1.0;
 - **app** (`updater.instalar`): dispara o instalador sem elevar, com `/SINAL` e `/REABRIR`, e só fecha quando o instalador cria o arquivo-sinal (já passou pelo UAC). Se ele terminar antes, o app segue aberto e avisa. Depois do `mainloop`, `os._exit(0)` garante que o processo (e o mutex) some na hora.
 
-Também: botão **Procurar atualizações** na barra lateral e checagem automática repetida enquanto o app fica aberto (a de hora em hora só pergunta; quem limita a 6 h é `updater.deve_verificar`). A atualização continua baixando o **instalador inteiro**; o porquê (e o caminho, se um dia o tamanho do download pesar) está em `BUILD.md`, "Por que a atualização baixa o instalador inteiro".
+Também: botão **Procurar atualizações** na barra lateral e checagem automática repetida enquanto o app fica aberto (a de hora em hora só pergunta; quem limita a 6 h é `updater.deve_verificar`).
+
+### 29.3 Atualização "só do que mudou" (v3.2.0)
+
+Cada Release passa a publicar, além do instalador completo, o `arquivos.json` (cada arquivo instalado com SHA256 e tamanho, base da versão seguinte) e um instalador **pequeno** por versão de origem (as 3 mais recentes com `arquivos.json` e sempre a última normal), só com os arquivos que mudaram. O app escolhe o pequeno quando o `latest.json` tem uma entrada com `de` igual à versão instalada; senão, o completo. O pequeno sai em `.zip` e `.exe` e o app tenta zip → exe → completo (o proxy da empresa cortava um formato e deixava passar outro). Detalhes em `BUILD.md`, "Atualização só do que mudou".
+
+Decisões: (1) o código do `docmanager` sai do `.exe` (`module_collection_mode` → `.pyc` em `_internal\docmanager\`), senão o `.exe` de ~30 MB mudava a cada versão; (2) as bibliotecas do build ficam fixas em `constraints-build.txt`; (3) o `AppMutex` + `/SINAL` + `/REABRIR` da 3.1.1 continuam, porque o app instalado conversa por eles; (4) o instalador pequeno é o mesmo `.iss` com `/DAtualizacao=1`, com trava de versão (`DisplayVersion` do registro tem de ser a `VersaoDe`); (5) a abertura do app consulta sempre, sem intervalo; (6) cópia que não foi instalada pelo instalador (sem `unins*.exe`) não se atualiza sozinha.
 
 ---
 

@@ -38,6 +38,8 @@ class AppSettings:
     versao_ignorada: str = ""
     # ISO da última consulta ao GitHub - evita bater no servidor a cada abertura.
     ultima_verificacao: str = ""
+    # Canal de testes: também oferece pré-lançamentos (rc). Desligado por padrão.
+    versoes_de_teste: bool = False
 
 
 class ConfigManager:
@@ -92,6 +94,7 @@ class ConfigManager:
             verificar_atualizacoes=bool(s.get("verificar_atualizacoes", True)),
             versao_ignorada=str(s.get("versao_ignorada", "")),
             ultima_verificacao=str(s.get("ultima_verificacao", "")),
+            versoes_de_teste=bool(s.get("versoes_de_teste", False)),
         )
 
     def set_setting(self, chave: str, valor) -> None:

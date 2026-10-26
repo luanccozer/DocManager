@@ -45,6 +45,9 @@ STATUS_CANCELADO = "Cancelado"
 # das planilhas de comissionamento - ver core/comissionamento.py.
 STATUS_PARA_ASSINATURA = "Para Assinatura"
 STATUS_NAO_APROVADO = "Não Aprovado"
+# Status próprio da Lista de Sobressalentes com Preço: aprovação PARCIAL
+# (consolidado APROVAÇÃO INTERMEDIÁRIA) - ver core/sobressalentes.py.
+STATUS_FOR_PARTIAL_HANDOVER = "For Partial Handover"
 
 # Fantasmas de integração/internos - case ORIGINAL (legado: data_manager L23-26).
 # O consolidado legado faz `status in STATUS_EM_INTEGRACAO` sem normalizar.
@@ -67,6 +70,8 @@ KPI_STATUS_SUCESSO_UPPER = (
     "APROVADO", "APROVADO COM COMENTÁRIOS", "PARA ASSINATURA",
     "APPROVED", "APPROVED WITH COMMENTS", "INFORMATIVO", "PARA INFORMAÇÃO",
     "APTO PARA FIRMA",
+    # Só existe na Lista de Sobressalentes com Preço (core/sobressalentes.py).
+    "FOR PARTIAL HANDOVER",
 )
 KPI_STATUS_FALHA_UPPER = ("NÃO APROVADO",)
 KPI_STATUS_CANCELADO_UPPER = ("CANCELADO", "ANULADO", "ISSUED FOR ANNULMENT", "VOID")
@@ -80,6 +85,8 @@ HIST_STATUS_VALIDOS = (
     "Anulado", "Aprovado", "Aprovado com Comentários", "Cancelado", "VOID",
     "Em Processo", "Informativo", "Não Aprovado", "Para Análise",
     "Para Aprovação", "Para Assinatura", "Para Informação",
+    # Só vale na Lista de Sobressalentes com Preço: wide.py descarta os demais.
+    "For Partial Handover",
 )
 HIST_TIPOS_VALIDOS = ("Documento Técnico", "Management Document")
 

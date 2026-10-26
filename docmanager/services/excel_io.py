@@ -526,7 +526,7 @@ def exportar_delta_arvore(arvore, caminho_saida, *, agrupador="Grupo", visao="Ef
 
 
 # Cores do gráfico de status (porta do legado: VERDE/AZUL/VERMELHO/CINZA).
-_STATUS_ORDEM = ["Aprovado", "Para Assinatura", "Para Aprovação", "Aprovado com Comentários",
+_STATUS_ORDEM = ["Aprovado", "Para Assinatura", "Para Aprovação", "Aprovado com Comentários", "For Partial Handover",
                  "Em Processo", "Não Aprovado", "NÃO EMITIDO"]
 _STATUS_ORDEM_MODELO = [
     "Aprovado - LOD 350", "Aprovado - LOD 300", "Aprovado - Fase Preliminar",
@@ -538,7 +538,8 @@ _STATUS_ORDEM_MODELO = [
 
 def _cor_status(status: str) -> str:
     st = status.upper()
-    if st in ("APROVADO", "APROVADO COM COMENTÁRIOS", "PARA ASSINATURA", "PARA APROVAÇÃO") or st.startswith("APROVADO -"):
+    if st in ("APROVADO", "APROVADO COM COMENTÁRIOS", "PARA ASSINATURA", "PARA APROVAÇÃO",
+              "FOR PARTIAL HANDOVER") or st.startswith("APROVADO -"):
         return "16B63C"          # verde
     if "NÃO" in st or "NAO" in st:
         return "C00000"          # vermelho
@@ -628,7 +629,8 @@ def exportar_status_documentos(linhas: list[dict], contador, caminho_saida, *,
                 cell.fill = banda
         s = str(d.get("Status Real", ""))
         cell = ws.cell(r, 7)
-        if s in ("Aprovado", "Aprovado com Comentários", "Para Assinatura") or s.startswith("Aprovado -"):
+        if (s in ("Aprovado", "Aprovado com Comentários", "Para Assinatura", "For Partial Handover")
+                or s.startswith("Aprovado -")):
             cell.font = Font(color="006100", name="Segoe UI", size=10)
             cell.fill = PatternFill("solid", fgColor="C6EFCE")
         elif s == "Em Processo" or s.startswith("Em Análise -") or s.startswith("Emissão Inicial -"):

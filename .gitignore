@@ -22,6 +22,8 @@ build/
 dist/
 *.spec.bak
 installer/Output/
+# Includes do instalador pequeno (gerados por tools/gerar_atualizacao.py no build)
+installer/atualizacao_*.iss
 
 # Saídas de teste manual (planilhas geradas localmente)
 saidas_teste/

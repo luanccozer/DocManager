@@ -1,0 +1,60 @@
+# Versões FIXAS do build de Release (pip install -r requirements.txt -c constraints-build.txt).
+#
+# Por que existe: a atualização pequena leva só os arquivos que mudaram entre
+# duas versões. Com os ranges do requirements.txt, cada build pegava a versão
+# mais nova de cada biblioteca que o pip achasse, e uma biblioteca atualizada
+# muda dezenas de arquivos de _internal\ (e o DocManager.exe, que leva a parte
+# em Python delas). O pacote "pequeno" deixava de ser pequeno sem ninguém
+# ter mexido em nada.
+#
+# O requirements.txt continua com ranges: ele serve também ao run.bat do
+# notebook, que pode ter versões mais antigas. Isto aqui vale só para o build.
+#
+# Para atualizar uma biblioteca: troque a versão aqui, num commit próprio. A
+# versão seguinte vai sair com um pacote maior (é esperado) e as próximas
+# voltam ao normal. Inclui o PyInstaller: um bootloader novo muda o .exe.
+altgraph==0.17.5
+blinker==1.9.0
+certifi==2026.10.23
+charset-normalizer==3.5.2
+click==8.5.0
+customtkinter==5.2.2
+darkdetect==0.8.0
+dash==2.18.2
+dash-bootstrap-components==1.7.1
+dash-core-components==2.0.0
+dash-html-components==2.0.0
+dash-table==5.0.0
+et_xmlfile==2.0.0
+Flask==3.0.3
+idna==3.20
+importlib_metadata==10.0.0
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+nest-asyncio==1.6.0
+numpy==2.5.4
+openpyxl==3.1.5
+packaging==26.3
+pandas==3.1.0
+pillow==13.0.0
+plotly==5.24.1
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.9
+python-dateutil==3.0.0
+python-dotenv==1.2.4
+requests==2.34.2
+retrying==1.4.2
+six==1.17.0
+tenacity==9.2.1
+truststore==0.10.5
+typing_extensions==4.16.0
+tzdata==2026.5
+urllib3==2.8.0
+Werkzeug==3.0.6
+xlsxwriter==3.3.0
+zipp==4.1.2
+# Só no Windows (dependências do PyInstaller e do click):
+pefile==2024.8.26
+pywin32-ctypes==0.2.3
+colorama==0.4.6
