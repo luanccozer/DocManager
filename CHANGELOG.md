@@ -5,6 +5,11 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.6.0 - 2026-10-27
+
+- O instalador passa a instalar sempre "somente para mim", na pasta do usuário, sem pedir senha de administrador e sem perguntar. É o jeito em que a atualização pequena funciona: as próximas versões chegam em segundos, sem pedir nada ao Windows.
+- Quem instalou "para todos os usuários" (Program Files) é passado para "somente para mim" na primeira atualização: o Windows pede a permissão de administrador uma vez, para remover a instalação antiga. Preferências e credenciais continuam.
+
 ## 3.5.1 - 2026-10-27
 
 - Versão para conferir a atualização pequena: quem está na 3.5.0 (instalada "somente para mim") deve receber só o que mudou, em segundos, e o DocManager abre de novo sozinho, já na 3.5.1. Nada muda no uso.

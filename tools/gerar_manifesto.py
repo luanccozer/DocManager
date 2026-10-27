@@ -42,9 +42,9 @@ COMO_INSTALAR = """
 
 ### Como instalar
 
-Baixe o `DocManager_Itaipu_Setup_*.exe` abaixo e execute. O instalador pergunta
-se quer instalar **para todos os usuários**, que pede senha de administrador, ou
-**somente para você**, que não pede e deixa as atualizações silenciosas.
+Baixe o `DocManager_Itaipu_Setup_*.exe` abaixo e execute. Ele instala **somente
+para você** (na sua pasta de usuário), sem pedir senha de administrador, e as
+atualizações chegam sozinhas, sem pedir nada ao Windows.
 
 > ### ⚠️ "O Windows protegeu o computador"
 >

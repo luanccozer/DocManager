@@ -14,14 +14,10 @@ relatórios.
 
 1. Abra a página de [**Releases**](https://github.com/luanccozer/DocManager/releases)
    e baixe o `DocManager_Itaipu_Setup_<versão>.exe` mais recente.
-2. Execute. O instalador pergunta onde instalar:
-   - **Para todos os usuários** - vai para `C:\Program Files`, **precisa de senha
-     de administrador** (na instalação e a cada atualização);
-   - **Somente para mim** - vai para a sua pasta de usuário, **não precisa de
-     administrador** e as atualizações são silenciosas.
-
-   > Se você não tem senha de administrador na máquina da empresa, escolha
-   > **"somente para mim"**.
+2. Execute. Ele instala **somente para você**, na sua pasta de usuário
+   (`%LOCALAPPDATA%\Programs\DocManager Itaipu`): **não precisa de senha de
+   administrador** e as atualizações são silenciosas. Desde a v3.6.0 não há mais
+   a opção "para todos os usuários".
 3. Abra o **DocManager** pelo atalho.
 
 > ### ⚠️ "O Windows protegeu o computador"
@@ -89,8 +85,9 @@ volta na próxima abertura. A partir da v3.2.0 o download traz **só os arquivos
 que mudaram** desde a versão instalada (poucos MB, em vez do instalador inteiro);
 quando não dá (versão muito antiga, ou o pacote pequeno não chega inteiro pela
 rede), vai o instalador completo, sozinho. Quem
-instalou em *Program Files* verá o pedido de administrador do Windows; se ele
-for recusado, o app continua aberto e avisa.
+ainda está em *Program Files* (instalação "para todos os usuários", até a
+v3.5.x) é passado para "somente para mim" na primeira atualização: o Windows
+pede a permissão de administrador uma vez, para remover a instalação antiga.
 
 Para procurar na hora, use o botão **🔄 Procurar atualizações** no rodapé da
 barra lateral, em **⚙️ Configurações → Atualizações** ou com **Ctrl+K**. Ao

@@ -8,8 +8,10 @@ from __future__ import annotations
 TEXTO_REABRE = ("Ao atualizar, o DocManager fecha, instala e abre de novo sozinho. Suas "
                 "preferências e credenciais continuam.")
 
-TEXTO_UAC = ("O DocManager está instalado para todos os usuários (Program Files), então "
-             "o Windows vai pedir permissão de administrador para concluir.")
+TEXTO_UAC = ("O DocManager está instalado para todos os usuários (Program Files). Esta "
+             "atualização o passa para \"somente para você\", como os outros: o Windows "
+             "vai pedir permissão de administrador uma vez, para remover a instalação "
+             "antiga. Depois disso as atualizações não pedem mais nada.")
 
 TEXTO_CONFERIDO = "Download conferido. Abrindo o instalador..."
 

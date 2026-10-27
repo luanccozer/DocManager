@@ -695,8 +695,8 @@ def instalar(caminho: Path, *, log_cb: Log = _nada,
         # ao fechamento do app.
         flags = 0x00000008 | 0x00000200
     if precisa_elevacao():
-        log_cb("O Windows vai pedir permissão de administrador (o DocManager está "
-               "instalado para todos os usuários). Confirme na janela dele.")
+        log_cb("O Windows vai pedir permissão de administrador uma vez, para remover a "
+               "instalação antiga (para todos os usuários). Confirme na janela dele.")
     try:
         processo = subprocess.Popen(args, close_fds=True, creationflags=flags)
     except OSError as e:
