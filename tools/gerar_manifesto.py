@@ -59,7 +59,7 @@ se quer instalar **para todos os usuários**, que pede senha de administrador, o
 > **"Desbloquear"** no rodapé e clique em *Aplicar*.
 
 Quem já tem o DocManager instalado **não precisa baixar nada**: o app avisa
-sozinho e se atualiza com um clique. Os arquivos `DocManager_Itaipu_Update_*`
+sozinho e se atualiza com um clique. Os `DocManager_Itaipu_Atualizacao_*.zip`
 e os `.json` são dessa atualização automática (ela baixa só o que mudou desde a
 versão instalada); para instalar à mão, use sempre o `DocManager_Itaipu_Setup_*.exe`.
 
