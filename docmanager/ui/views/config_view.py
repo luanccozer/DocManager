@@ -1,15 +1,50 @@
 from __future__ import annotations
 
-from tkinter import messagebox
-
-import customtkinter as ctk
+from PySide6.QtWidgets import QApplication, QButtonGroup, QCheckBox, QFrame, QHBoxLayout, QPushButton
 
 from ... import __version__
 from ...services import updater
 from ...services.credenciais import cofre
-from .. import theme as t
-from ..components import Card
+from .. import dialogos, estilo, icones, tema
+from ..components import Card, Seletor, botao, linha, rotulo
+from ..ponte import na_ui
+from ..propriedades import ler
 from .base import BaseView
+
+# (escolha, rótulo, ícone) do seletor de tema - os mesmos três do SIG-FT.
+TEMAS = (("escuro", "Escuro", "moon"), ("claro", "Claro", "sun"), ("sistema", "Do Windows", "monitor"))
+BASES_CMI = {"reprogramacao": "Reprogramação (quando houver)", "prevista": "Data prevista (base)"}
+
+
+class _Segmentado(QFrame):
+    """Botões lado a lado, um escolhido (`ativo`) - o seletor do SIG-FT."""
+
+    def __init__(self, opcoes, atual, ao_escolher):
+        super().__init__()
+        self.setObjectName("seletor")
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(6)
+        self._grupo = QButtonGroup(self)
+        self.botoes: dict[str, QPushButton] = {}
+        for valor, texto, icone in opcoes:
+            b = QPushButton(texto)
+            if icone:
+                icones.aplicar(b, icone, papel_cor_ativo=estilo.PAPEL_MENU_ESCOLHIDO)
+            b.clicked.connect(lambda _=False, v=valor: (self.marcar(v), ao_escolher(v)))
+            self._grupo.addButton(b)
+            lay.addWidget(b)
+            self.botoes[valor] = b
+        lay.addStretch(1)
+        self.marcar(atual)
+
+    def marcar(self, valor) -> None:
+        for v, b in self.botoes.items():
+            estilo.definir_propriedade(b, "ativo", v == valor)
+            icones.reaplicar(b)
+
+    def escolhido(self) -> str:
+        return next((v for v, b in self.botoes.items() if ler(b, "ativo")), "")
 
 
 class ConfigView(BaseView):
@@ -17,10 +52,11 @@ class ConfigView(BaseView):
     subtitulo_view = "Ajustes que valem para todos os módulos"
 
     def montar(self, body):
-        self._credenciais(body, linha=0)
-        self._atualizacoes(body, linha=1)
-        self._regra_vip(body, linha=2)
-        self._base_atraso(body, linha=3)
+        self._aparencia(body)
+        self._credenciais(body)
+        self._atualizacoes(body)
+        self._regra_vip(body)
+        self._base_atraso(body)
 
     def ao_exibir(self):
         # Cadastro feito pela tela da Extração, ou atualização achada depois que
@@ -28,54 +64,51 @@ class ConfigView(BaseView):
         self._atualizar_lista_cred()
         self._descrever_versao()
 
+    # ───────────────────────────────── aparência ────────────────────────────
+    def _aparencia(self, body):
+        card = Card("Aparência")
+        self.seletor_tema = _Segmentado(TEMAS, tema.valida(self.ctx.config.settings.tema), self._set_tema)
+        card.add(self.seletor_tema)
+        card.add(rotulo("'Do Windows' acompanha o tema claro ou escuro do sistema, inclusive se ele "
+                        "mudar com o app aberto.", "legenda", quebra=True))
+        body.addWidget(card)
+
+    def _set_tema(self, escolha: str):
+        tema.aplicar(QApplication.instance(), escolha, self.ctx.config)
+        self.log.log(f"Tema: {dict((v, t) for v, t, _ in TEMAS)[escolha]}.")
+
     # ─────────────────────────── credenciais do Aconex ──────────────────────
-    def _credenciais(self, body, linha: int):
+    def _credenciais(self, body):
         """Lista dos usuários cadastrados - o que substituiu editar o `.env`."""
-        card = Card(body, "Credenciais do Aconex")
-        card.grid(row=linha, column=0, sticky="ew", pady=(0, 16))
-
-        card.add(ctk.CTkLabel(
-            card, text="Cada pessoa usa a própria credencial do Aconex: Client ID, User ID "
-                       "e Client Secret. O segredo fica só nesta máquina, cifrado pelo "
-                       "Windows na sua conta de usuário. Ele não vai para o GitHub e "
-                       "continua valendo depois das atualizações.",
-            font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680),
-            pady=(0, 8))
-
-        self._lista_cred = ctk.CTkLabel(card, text="", font=t.corpo(12), text_color=t.TEXTO,
-                                        justify="left", anchor="w", wraplength=680)
-        card.add(self._lista_cred, pady=(0, 8))
-
-        botoes = ctk.CTkFrame(card, fg_color="transparent")
-        ctk.CTkButton(botoes, text="Cadastrar novo", width=150, font=t.corpo(12),
-                      fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
-                      command=lambda: self._cadastrar(None)).pack(side="left")
-        self._opt_cred = ctk.CTkOptionMenu(botoes, values=["(nenhum)"], width=200, font=t.corpo(12),
-                                           fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
-        self._opt_cred.pack(side="left", padx=8)
-        ctk.CTkButton(botoes, text="Editar", width=90, font=t.corpo(12),
-                      fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=self._editar).pack(side="left")
-        ctk.CTkButton(botoes, text="Remover", width=90, font=t.corpo(12),
-                      fg_color=t.PERIGO, hover_color=t.PERIGO_HOVER,
-                      command=self._remover).pack(side="left", padx=8)
-        card.add(botoes, pady=(0, 14))
+        card = Card("Credenciais do Aconex")
+        card.add(rotulo("Cada pessoa usa a própria credencial do Aconex: Client ID, User ID e Client "
+                        "Secret. O segredo fica só nesta máquina, cifrado pelo Windows na sua conta de "
+                        "usuário. Ele não vai para o GitHub e continua valendo depois das atualizações.",
+                        "suave", quebra=True))
+        self._lista_cred = card.add(rotulo("", quebra=True))
+        self._opt_cred = Seletor(["(nenhum)"])
+        self._opt_cred.setMinimumWidth(220)
+        card.add(linha(botao("Cadastrar novo", variante="primario", icone="user-plus",
+                             ao_clicar=lambda: self._cadastrar(None)),
+                       self._opt_cred,
+                       botao("Editar", icone="pencil", ao_clicar=self._editar),
+                       botao("Remover", variante="perigo", icone="trash-2", ao_clicar=self._remover)))
+        body.addWidget(card)
         self._atualizar_lista_cred()
 
     def _atualizar_lista_cred(self, selecionar: str | None = None):
         nomes = cofre().listar()
-        self._lista_cred.configure(
-            text=("Cadastrados: " + ", ".join(nomes)) if nomes
-            else "Nenhum usuário cadastrado. A Extração Aconex só funciona depois "
-                 "que você cadastrar um.")
-        self._opt_cred.configure(values=nomes or ["(nenhum)"])
+        self._lista_cred.setText(
+            ("Cadastrados: " + ", ".join(nomes)) if nomes
+            else "Nenhum usuário cadastrado. A Extração Aconex só funciona depois que você cadastrar um.")
         alvo = selecionar or self._opt_cred.get()
-        self._opt_cred.set(alvo if alvo in nomes else (nomes[0] if nomes else "(nenhum)"))
+        self._opt_cred.definir_itens(nomes or ["(nenhum)"],
+                                     alvo if alvo in nomes else (nomes[0] if nomes else "(nenhum)"))
 
     def _cadastrar(self, nome: str | None):
         from .credenciais_dialog import cadastrar
 
-        if (salvo := cadastrar(self.winfo_toplevel(), nome)):
+        if (salvo := cadastrar(self.window(), nome)):
             self._atualizar_lista_cred(salvo)
             self.log.log(f"Credenciais de '{salvo}' salvas nesta máquina.")
 
@@ -88,83 +121,64 @@ class ConfigView(BaseView):
         nome = self._opt_cred.get()
         if not nome or nome == "(nenhum)":
             return
-        if not messagebox.askyesno(
+        if not dialogos.perguntar(
                 "Remover credencial",
                 f"Apagar as credenciais de '{nome}' desta máquina?\n\n"
-                "O usuário some da lista da Extração Aconex. No Aconex nada muda."):
+                "O usuário some da lista da Extração Aconex. No Aconex nada muda.", padrao_nao=True,
+                parent=self):
             return
         cofre().remover(nome)
         self._atualizar_lista_cred()
         self.log.log(f"Credenciais de '{nome}' removidas.")
 
     # ───────────────────────────── atualizações ─────────────────────────────
-    def _atualizacoes(self, body, linha: int):
-        card = Card(body, "Atualizações do DocManager")
-        card.grid(row=linha, column=0, sticky="ew", pady=(0, 16))
-
-        self._lbl_versao = ctk.CTkLabel(card, text="", font=t.corpo(13), text_color=t.TEXTO,
-                                        anchor="w", justify="left", wraplength=680)
-        card.add(self._lbl_versao, pady=(0, 6))
+    def _atualizacoes(self, body):
+        card = Card("Atualizações do DocManager")
+        self._lbl_versao = card.add(rotulo("", quebra=True))
         self._descrever_versao()
 
-        self._sw_auto = ctk.CTkSwitch(
-            card, text="  Avisar automaticamente quando sair uma versão nova",
-            font=t.corpo(13), progress_color=t.ACENTO, command=self._toggle_auto)
-        if self.ctx.config.settings.verificar_atualizacoes:
-            self._sw_auto.select()
-        card.add(self._sw_auto, pady=(2, 8))
+        self._sw_auto = QCheckBox("Avisar automaticamente quando sair uma versão nova")
+        self._sw_auto.setChecked(self.ctx.config.settings.verificar_atualizacoes)
+        self._sw_auto.toggled.connect(self._toggle_auto)
+        card.add(self._sw_auto)
 
-        botoes = ctk.CTkFrame(card, fg_color="transparent")
-        ctk.CTkButton(botoes, text="Procurar atualizações agora  (Ctrl+K)", width=260,
-                      font=t.corpo(12), fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
-                      command=self._procurar).pack(side="left")
         # Canal de testes: também oferece os pré-lançamentos (rc). É assim que
         # se testa a atualização pequena antes de todo mundo receber.
-        self._chk_teste = ctk.CTkCheckBox(
-            botoes, text="Versões de teste", font=t.corpo(12), fg_color=t.ACENTO,
-            hover_color=t.ACENTO_HOVER, command=self._toggle_teste)
-        if self.ctx.config.settings.versoes_de_teste:
-            self._chk_teste.select()
-        self._chk_teste.pack(side="left", padx=(16, 0))
-        card.add(botoes, pady=(0, 6))
-
-        card.add(ctk.CTkLabel(
-            card, text="A verificação roda em segundo plano toda vez que o app abre (e, com "
-                       "ele aberto, a cada 6 horas) e funciona com o Zscaler e a VPN ligados. "
-                       "Quando dá, o download traz só o que mudou desde a sua versão. O botão "
-                       "'Procurar atualizações', também na barra lateral, verifica na hora. "
-                       "'Versões de teste' oferece também as versões ainda em teste. Suas "
-                       "configurações e credenciais ficam fora da pasta do programa, então a "
-                       "atualização não apaga nada.",
-            font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680),
-            pady=(0, 14))
-
+        self._chk_teste = QCheckBox("Versões de teste")
+        self._chk_teste.setChecked(self.ctx.config.settings.versoes_de_teste)
+        self._chk_teste.toggled.connect(self._toggle_teste)
+        card.add(linha(botao("Procurar atualizações agora  (Ctrl+K)", variante="primario",
+                             icone="refresh-cw", ao_clicar=self._procurar), self._chk_teste, espaco=16))
+        card.add(rotulo(
+            "A verificação roda em segundo plano toda vez que o app abre (e, com ele aberto, a cada 6 "
+            "horas) e funciona com o Zscaler e a VPN ligados. Quando dá, o download traz só o que mudou "
+            "desde a sua versão. O botão 'Procurar atualizações', também na barra lateral, verifica na "
+            "hora. 'Versões de teste' oferece também as versões ainda em teste. Suas configurações e "
+            "credenciais ficam fora da pasta do programa, então a atualização não apaga nada.",
+            "suave", quebra=True))
+        body.addWidget(card)
         # Se a checagem automática já achou algo (ou achar depois), reflete aqui.
-        self.ctx.ao_achar_atualizacao(
-            lambda _info: self.after(0, self._descrever_versao))
+        self.ctx.ao_achar_atualizacao(lambda _info: na_ui(self._descrever_versao))
 
     def _descrever_versao(self):
         info = self.ctx.atualizacao
         if info is not None:
-            texto = (f"Versão instalada: v{__version__}   ·   "
-                     f"✨ disponível: v{info.versao}. Clique em 'Procurar atualizações "
-                     f"agora' para instalar.")
+            texto = (f"Versão instalada: v{__version__}   ·   disponível: v{info.versao}. Clique em "
+                     f"'Procurar atualizações agora' para instalar.")
         elif (motivo := updater.motivo_para_nao_verificar()):
             texto = f"Versão instalada: v{__version__}   ·   {motivo}"
         else:
             texto = f"Versão instalada: v{__version__}"
-        self._lbl_versao.configure(text=texto)
+        self._lbl_versao.setText(texto)
 
-    def _toggle_auto(self):
-        ligado = bool(self._sw_auto.get())
+    def _toggle_auto(self, ligado: bool):
         self.ctx.config.set_setting("verificar_atualizacoes", ligado)
         if ligado:
             # Voltar a ligar limpa a versão pulada: quem religa quer ser avisado.
             self.ctx.config.set_setting("versao_ignorada", "")
         self.log.log(f"Aviso automático de atualização {'ligado' if ligado else 'desligado'}.")
 
-    def _toggle_teste(self):
-        ligado = bool(self._chk_teste.get())
+    def _toggle_teste(self, ligado: bool):
         self.ctx.config.set_setting("versoes_de_teste", ligado)
         self.log.log(f"Versões de teste {'ligadas' if ligado else 'desligadas'}.")
 
@@ -174,49 +188,31 @@ class ConfigView(BaseView):
             self.ctx.verificar_atualizacao(True)
 
     # ─────────────────────────── regras de negócio ──────────────────────────
-    def _regra_vip(self, body, linha: int):
-        card = Card(body, "Regra estrita das Planilhas VIP (pente fino)")
-        card.grid(row=linha, column=0, sticky="ew", pady=(0, 16))
+    def _regra_vip(self, body):
+        card = Card("Regra estrita das Planilhas VIP (pente fino)")
+        self.switch = QCheckBox("Ativar rebaixamento estrito (APROVAÇÃO INTERMEDIÁRIA)")
+        self.switch.setChecked(self.ctx.config.settings.regra_estrita_vip)
+        self.switch.toggled.connect(lambda v: self.ctx.config.set_setting("regra_estrita_vip", v))
+        card.add(self.switch)
+        card.add(rotulo(
+            "Desligado (padrão): fluxo normal - planilhas de comissionamento e seus documentos são "
+            "consolidados sem aprovação intermediária.\n\n"
+            "Ligado: documentos de nível 4 sob planilhas VIP só contam como APROVADO quando o status real "
+            "é 'Aprovado' seco; aprovações parciais viram APROVAÇÃO INTERMEDIÁRIA. Afeta o Mapa "
+            "(consolidado + resumo do nível 3) e o Delta. A exceção do 'Para Aprovação' em planilhas de "
+            "comissionamento permanece sempre ativa.", "suave", quebra=True))
+        body.addWidget(card)
 
-        self.switch = ctk.CTkSwitch(
-            card, text="  Ativar rebaixamento estrito (APROVAÇÃO INTERMEDIÁRIA)",
-            font=t.corpo(13), progress_color=t.ACENTO, command=self._toggle)
-        if self.ctx.config.settings.regra_estrita_vip:
-            self.switch.select()
-        card.add(self.switch, pady=(2, 8))
-
-        txt = ("Desligado (padrão): fluxo normal - planilhas de comissionamento e seus "
-               "documentos são consolidados sem aprovação intermediária.\n\n"
-               "Ligado: documentos de nível 4 sob planilhas VIP só contam como APROVADO "
-               "quando o status real é 'Aprovado' seco; aprovações parciais viram "
-               "APROVAÇÃO INTERMEDIÁRIA. Afeta o Mapa (consolidado + resumo do nível 3) "
-               "e o Delta. A exceção do 'Para Aprovação' em planilhas de comissionamento "
-               "permanece sempre ativa.")
-        card.add(ctk.CTkLabel(card, text=txt, font=t.corpo(12), text_color=t.TEXTO_FRACO,
-                              justify="left", wraplength=680), pady=(0, 14))
-
-    def _base_atraso(self, body, linha: int):
-        card2 = Card(body, "Base do atraso CMI na 1ª emissão (revisão 0A)")
-        card2.grid(row=linha, column=0, sticky="ew", pady=(0, 16))
-        self.base_cmi = ctk.CTkSegmentedButton(
-            card2, values=["Reprogramação (quando houver)", "Data prevista (base)"],
-            font=t.corpo(12), selected_color=t.ACENTO, selected_hover_color=t.ACENTO_HOVER,
-            command=self._set_base_cmi)
-        atual = self.ctx.config.settings.base_atraso_cmi_0a
-        self.base_cmi.set("Data prevista (base)" if atual == "prevista" else "Reprogramação (quando houver)")
-        card2.add(self.base_cmi, pady=(2, 8))
-        txt2 = ("Escolhe sobre qual data o atraso do CMI na revisão 0A é contado:\n\n"
-                "• Reprogramação (quando houver): usa a data reprogramada do Controle se "
-                "existir, senão a data prevista.\n"
-                "• Data prevista (base): usa sempre a data prevista original, ignorando a "
-                "reprogramação. Afeta o Histórico Consolidado e o Dashboard.")
-        card2.add(ctk.CTkLabel(card2, text=txt2, font=t.corpo(12), text_color=t.TEXTO_FRACO,
-                               justify="left", wraplength=680), pady=(0, 14))
-
-    def _toggle(self):
-        ligado = bool(self.switch.get())
-        self.ctx.config.set_setting("regra_estrita_vip", ligado)
-
-    def _set_base_cmi(self, valor):
-        base = "prevista" if valor.startswith("Data prevista") else "reprogramacao"
-        self.ctx.config.set_setting("base_atraso_cmi_0a", base)
+    def _base_atraso(self, body):
+        card = Card("Base do atraso CMI na 1ª emissão (revisão 0A)")
+        atual = "prevista" if self.ctx.config.settings.base_atraso_cmi_0a == "prevista" else "reprogramacao"
+        self.base_cmi = _Segmentado([(v, t, None) for v, t in BASES_CMI.items()], atual,
+                                    lambda v: self.ctx.config.set_setting("base_atraso_cmi_0a", v))
+        card.add(self.base_cmi)
+        card.add(rotulo(
+            "Escolhe sobre qual data o atraso do CMI na revisão 0A é contado:\n\n"
+            "• Reprogramação (quando houver): usa a data reprogramada do Controle se existir, senão a "
+            "data prevista.\n"
+            "• Data prevista (base): usa sempre a data prevista original, ignorando a reprogramação. "
+            "Afeta o Histórico Consolidado e o Dashboard.", "suave", quebra=True))
+        body.addWidget(card)

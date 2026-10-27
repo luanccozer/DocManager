@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from tkinter import messagebox
 
-import customtkinter as ctk
-
-from ..components import Card, FileSelector, RunBar, pedir_salvar
+from .. import dialogos
+from ..components import Card, FileSelector, RunBar
 from .base import BaseView
 
 
@@ -15,23 +13,19 @@ class ReportsView(BaseView):
                       "e Fluxos em Andamento (onde está e com quem)")
 
     def montar(self, body):
-        card = Card(body, "Base Aconex")
-        card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-        self.sel = card.add(FileSelector(card, "Base Aconex", self.ctx.config, "aconex", aba_padrao="Documentos"))
-
-        botoes = ctk.CTkFrame(body, fg_color="transparent")
-        botoes.grid(row=1, column=0, sticky="ew", pady=(0, 8))
-        RunBar(botoes, "Relatório de Avanço", self._avanco, self.log).pack(fill="x", pady=4)
-        RunBar(botoes, "Auditoria de Integração", self._integracao, self.log).pack(fill="x", pady=4)
+        card = Card("Base Aconex")
+        self.sel = card.add(FileSelector("Base Aconex", self.ctx.config, "aconex", aba_padrao="Documentos"))
+        card.add(RunBar("Relatório de Avanço", self._avanco, self.log))
+        card.add(RunBar("Auditoria de Integração", self._integracao, self.log))
+        body.addWidget(card)
 
         # Fluxos vêm de OUTRA base (a Workflows API), com seletor próprio - juntar
         # os dois seletores num só faria o usuário apontar o arquivo errado.
-        card_wf = Card(body, "Base de Fluxos de Trabalho (extraída na aba Extração Aconex)")
-        card_wf.grid(row=2, column=0, sticky="ew", pady=(14, 8))
-        self.sel_wf = card_wf.add(FileSelector(card_wf, "Base de Fluxos", self.ctx.config,
-                                               "fluxos", aba_padrao="Fluxos"))
-        RunBar(card_wf, "Fluxos em Andamento", self._fluxos, self.log).grid(
-            row=card_wf._linha, column=0, sticky="ew", padx=16, pady=(4, 12))
+        card_wf = Card("Base de Fluxos de Trabalho (extraída na aba Extração Aconex)")
+        self.sel_wf = card_wf.add(FileSelector("Base de Fluxos", self.ctx.config, "fluxos",
+                                               aba_padrao="Fluxos"))
+        card_wf.add(RunBar("Fluxos em Andamento", self._fluxos, self.log))
+        body.addWidget(card_wf)
 
     def _carregar(self):
         from ...common import carregar_base_aconex
@@ -49,7 +43,7 @@ class ReportsView(BaseView):
         if obj is None or obj.empty:
             self.log.log("Nenhuma linha no relatório.")
             return
-        saida = pedir_salvar(self.ctx.config, "saida", nome)
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida", nome)
         if not saida:
             self.log.log("Salvamento cancelado.")
             return
@@ -57,7 +51,7 @@ class ReportsView(BaseView):
         run.set_progress(1.0)
         self.log.log(msg)
         if ok2:
-            self.after(0, lambda: messagebox.showinfo("Relatórios", f"{len(obj)} linhas geradas."))
+            dialogos.info("Relatórios", f"{len(obj)} linhas geradas.")
 
     def _avanco(self, run: RunBar):
         base = self._carregar()
@@ -107,7 +101,7 @@ class ReportsView(BaseView):
         run.set_progress(0.8)
 
         nome = f"Fluxos_Andamento_{datetime.now().strftime('%d%m%y')}.xlsx"
-        saida = pedir_salvar(self.ctx.config, "saida", nome)
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida", nome)
         if not saida:
             self.log.log("Salvamento cancelado.")
             return
@@ -115,6 +109,4 @@ class ReportsView(BaseView):
         run.set_progress(1.0)
         self.log.log(msg)
         if ok:
-            self.after(0, lambda: messagebox.showinfo(
-                "Fluxos em Andamento",
-                f"{len(detalhe)} etapas em aberto ({atrasados} atrasadas)."))
+            dialogos.info("Fluxos em Andamento", f"{len(detalhe)} etapas em aberto ({atrasados} atrasadas).")

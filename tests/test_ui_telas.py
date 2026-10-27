@@ -1,41 +1,59 @@
-"""Telas de verdade (CustomTkinter), para o que só aparece com a janela aberta.
+"""Telas de verdade (Qt/PySide6), para o que só aparece com a janela aberta.
 
-Precisa de tela: roda no Windows de quem desenvolve e em Linux com Xvfb
-(`xvfb-run -a pytest`); sem display, os testes são pulados.
+Rodam sem monitor (`QT_QPA_PLATFORM=offscreen`, posto no conftest) - no CI do
+Linux e no Release do Windows. Sem o PySide6 instalado, são puladas.
 """
 import pytest
 
-from docmanager.services.credenciais import cofre
+pytest.importorskip("PySide6")
+pytest.importorskip("pytestqt")
+
+from docmanager.services.credenciais import cofre  # noqa: E402
+
+CAIXAS = ("info", "aviso", "erro", "perguntar", "tentar_de_novo")
 
 
 @pytest.fixture
-def app(monkeypatch):
+def caixas(monkeypatch):
+    """Nenhuma caixa de mensagem de verdade: modal, ela travaria a suíte
+    esperando um clique. Cada chamada fica anotada (nome, título, texto)."""
+    from docmanager.ui import dialogos
+
+    anotadas = []
+    for nome in CAIXAS:
+        monkeypatch.setattr(dialogos, nome,
+                            lambda titulo="", msg="", *a, _n=nome, **_k: anotadas.append((_n, titulo, msg)))
+    return anotadas
+
+
+@pytest.fixture
+def app(qtbot, monkeypatch, caixas):
     for k in list(__import__("os").environ):
         if k.startswith(("SECRET_", "CLIENTID_", "USERID_")):
             monkeypatch.delenv(k, raising=False)
-    tk = pytest.importorskip("tkinter")
-    from tkinter import messagebox
+    from docmanager.services import updater
+    from docmanager.ui import main_app
 
-    # Nenhuma caixa de mensagem de verdade: no Windows (o Release roda estes
-    # testes lá) ela é nativa e modal, e um erro de callback - que a MainApp
-    # mostra numa caixa "Erro inesperado" - travaria a suíte até o job estourar
-    # o tempo. Os testes que olham as mensagens as substituem de novo.
-    caixas = []
-    for nome in ("showerror", "showwarning", "showinfo", "askyesno"):
-        monkeypatch.setattr(messagebox, nome, lambda *a, _n=nome, **_k: caixas.append((_n, a)))
-    try:
-        from docmanager.ui.main_app import MainApp
-        janela = MainApp()
-    except (tk.TclError, ImportError) as e:
-        pytest.skip(f"sem display para abrir a janela: {e}")
-    janela.update()
+    # A checagem da abertura iria ao GitHub: aqui não pergunta nada.
+    monkeypatch.setattr(updater, "verificar_em_segundo_plano", lambda *a, **k: None)
+    main_app.criar_app()
+    janela = main_app.MainApp()
+    qtbot.addWidget(janela)
+    janela.show()
     yield janela
-    try:
-        janela.destroy()
-    except tk.TclError:
-        pass   # o teste já fechou a janela (ex.: saída para atualizar)
-    inesperados = [a for n, a in caixas if n == "showerror" and a and a[0] == "Erro inesperado"]
-    assert not inesperados, f"erro num callback da interface: {inesperados}"
+    janela._saindo_para_atualizar = True   # não pergunta nada ao fechar
+
+
+def test_todas_as_telas_abrem_nos_dois_temas(app, qtbot):
+    from PySide6.QtWidgets import QApplication
+
+    from docmanager.ui import main_app, tema
+
+    for escolha in ("claro", "escuro"):
+        tema.aplicar(QApplication.instance(), escolha)
+        for spec in main_app.VIEWS:
+            app.selecionar(spec.key)
+            assert app._pilha.currentWidget() is app._views[spec.key]
 
 
 def test_cadastro_nas_configuracoes_aparece_na_extracao(app):
@@ -48,11 +66,10 @@ def test_cadastro_nas_configuracoes_aparece_na_extracao(app):
     app.selecionar("config")
     cofre().salvar("Fulano Teste", "SCP_FULANO_client_APPID", "1234567890", "segredo")
     app.selecionar("aconex")
-    app.update()
 
-    assert "Fulano Teste" in extracao.opt_user.cget("values")
+    assert "Fulano Teste" in extracao.usuarios_na_lista()
     assert extracao.opt_user.get() == "Fulano Teste"
-    assert not extracao._manual.winfo_ismapped()               # campos manuais somem
+    assert not extracao.manual_visivel()                        # campos manuais somem
     cfg = extracao._montar_config()
     assert (cfg.client_id, cfg.user_id, cfg.client_secret) == \
         ("SCP_FULANO_client_APPID", "1234567890", "segredo")
@@ -64,48 +81,44 @@ def test_cadastro_na_extracao_aparece_nas_configuracoes(app):
     app.selecionar("aconex")
     cofre().salvar("Ciclano", "SCP_C_client_APPID", "42", "s")
     app.selecionar("config")
-    assert "Ciclano" in config._lista_cred.cget("text")
+    assert "Ciclano" in config._lista_cred.text()
     assert config._opt_cred.get() == "Ciclano"
 
 
-def _esperar(app, condicao, segundos=10.0):
-    """Roda o mainloop até `condicao()` ou o tempo acabar.
+def test_trocar_o_tema_nas_configuracoes_grava_e_repinta(app):
+    from docmanager.ui import estilo
 
-    Tem de ser o mainloop de verdade (e não `update()` em laço): as threads de
-    trabalho falam com a interface por `after`, e o Tk só aceita isso de outra
-    thread com o mainloop rodando - como no app."""
-    import time
-
-    limite = time.monotonic() + segundos
-
-    def checar():
-        if condicao() or time.monotonic() > limite:
-            app.quit()
-        else:
-            app.after(20, checar)
-
-    app.after(20, checar)
-    app.mainloop()
-    return condicao()
+    app.selecionar("config")
+    config = app._views["config"]
+    config.seletor_tema.botoes["claro"].click()
+    assert estilo.TEMA_ATUAL == "claro"
+    assert app.ctx.config.settings.tema == "claro"
+    assert config.seletor_tema.escolhido() == "claro"
+    config.seletor_tema.botoes["escuro"].click()
+    assert estilo.TEMA_ATUAL == "escuro"
 
 
-def test_botao_de_procurar_atualizacao_na_barra_lateral(app, monkeypatch):
-    """Visível em qualquer tela (antes só existia dentro das Configurações)."""
-    from tkinter import messagebox
-
+def test_botao_de_procurar_atualizacao_na_barra_lateral(app, qtbot, monkeypatch, caixas):
+    """Visível em qualquer tela; não aceita clique duplo e sempre responde."""
     from docmanager.services import updater
 
-    avisos = []
     monkeypatch.setattr(updater, "motivo_para_nao_verificar", lambda: "")
     monkeypatch.setattr(updater, "checar", lambda _v, **_k: None)
-    monkeypatch.setattr(messagebox, "showinfo", lambda *a, **_k: avisos.append(a))
-    assert app._btn_procurar.cget("text") == app.TEXTO_PROCURAR
+    assert app._btn_procurar.text() == app.TEXTO_PROCURAR
 
-    app._btn_procurar.invoke()
-    assert app._btn_procurar.cget("state") == "disabled"      # não aceita clique duplo
-    assert _esperar(app, lambda: avisos)
-    assert avisos[0][0] == "Tudo em dia"
-    assert app._btn_procurar.cget("state") == "normal"
+    app._btn_procurar.click()
+    assert not app._btn_procurar.isEnabled()                   # não aceita clique duplo
+    qtbot.waitUntil(lambda: bool(caixas), timeout=5000)
+    assert caixas[0][:2] == ("info", "Tudo em dia")
+    assert app._btn_procurar.isEnabled()
+
+
+def test_procurar_explica_por_que_esta_copia_nao_se_atualiza(app, monkeypatch, caixas):
+    from docmanager.services import updater
+
+    monkeypatch.setattr(updater, "checar", lambda *a, **k: pytest.fail("não devia consultar"))
+    app.verificar_atualizacao(True)                 # código-fonte: não está instalado
+    assert caixas and "código-fonte" in caixas[0][2]
 
 
 def _info_falsa():
@@ -115,50 +128,6 @@ def _info_falsa():
                                url_asset="https://api/x", tamanho=60_000_000, sha256="",
                                url_pagina="https://github.com/x")
 
-
-def test_app_so_fecha_quando_o_instalador_fica_pronto(app, monkeypatch, tmp_path):
-    from docmanager.services import updater
-    from docmanager.ui.views.update_dialog import AtualizacaoDialog
-
-    fechou = []
-    monkeypatch.setattr(updater, "baixar", lambda info, **_k: tmp_path / "Setup.exe")
-    monkeypatch.setattr(updater, "instalar", lambda caminho, **_k: None)
-    dlg = AtualizacaoDialog(app, _info_falsa(), "3.1.0", fechar_app=lambda: fechou.append(1))
-    dlg._atualizar()
-    assert _esperar(app, lambda: fechou)
-
-
-def test_app_continua_aberto_se_o_instalador_nao_ficar_pronto(app, monkeypatch, tmp_path):
-    """UAC recusado: a atualização não aconteceu, então o app não pode sumir."""
-    from tkinter import messagebox
-
-    from docmanager.services import updater
-    from docmanager.ui.views.update_dialog import AtualizacaoDialog
-
-    fechou, erros = [], []
-
-    def instalar_recusado(caminho, **_k):
-        raise updater.InstaladorNaoIniciou("O instalador terminou antes de começar (código 1).")
-
-    monkeypatch.setattr(updater, "baixar", lambda info, **_k: tmp_path / "Setup.exe")
-    monkeypatch.setattr(updater, "instalar", instalar_recusado)
-    monkeypatch.setattr(messagebox, "showerror", lambda *a, **_k: erros.append(a))
-    dlg = AtualizacaoDialog(app, _info_falsa(), "3.1.0", fechar_app=lambda: fechou.append(1))
-    dlg._atualizar()
-    assert _esperar(app, lambda: erros)
-    assert "código 1" in erros[0][1]
-    assert not fechou
-    assert dlg.btn_atualizar.cget("text") == "Tentar de novo"
-
-
-def test_fechar_para_instalar_marca_a_saida_do_processo(app):
-    """O main() encerra o processo na hora quando a saída é para atualizar."""
-    assert app._saindo_para_atualizar is False
-    app._fechar_para_instalar()
-    assert app._saindo_para_atualizar is True
-
-
-# ─────────────── atualização "só do que mudou": a parte visível ──────────────
 
 def _info_pequena():
     from docmanager.services import updater
@@ -173,89 +142,115 @@ def _info_pequena():
                            incremental=True, formato="zip", completo=completo, reserva=completo)
 
 
-def test_checagem_roda_na_abertura_e_abre_o_aviso(monkeypatch):
-    """Monta a janela principal DE VERDADE: a abertura pergunta ao GitHub (sem
-    intervalo mínimo) e, havendo versão nova, o aviso abre sozinho."""
-    tk = pytest.importorskip("tkinter")
-    from tkinter import messagebox
+def _dialogo(app, info, versao="3.1.0", **kw):
+    from docmanager.ui.views.update_dialog import AtualizacaoDialog
 
+    dlg = AtualizacaoDialog(app, info, versao, **kw)
+    dlg.PAUSA_ANTES_DE_FECHAR_MS = 10
+    dlg.show()
+    return dlg
+
+
+def test_app_so_fecha_quando_o_instalador_fica_pronto(app, qtbot, monkeypatch, tmp_path):
     from docmanager.services import updater
 
-    for nome in ("showerror", "showwarning", "showinfo", "askyesno"):
-        monkeypatch.setattr(messagebox, nome, lambda *a, **_k: None)
+    fechou = []
+    monkeypatch.setattr(updater, "baixar", lambda info, **_k: tmp_path / "Setup.exe")
+    monkeypatch.setattr(updater, "instalar", lambda caminho, **_k: None)
+    dlg = _dialogo(app, _info_falsa(), fechar_app=lambda: fechou.append(1))
+    dlg._atualizar()
+    qtbot.waitUntil(lambda: bool(fechou), timeout=5000)
+
+
+def test_app_continua_aberto_se_o_instalador_nao_ficar_pronto(app, qtbot, monkeypatch, tmp_path, caixas):
+    """UAC recusado: a atualização não aconteceu, então o app não pode sumir."""
+    from docmanager.services import updater
+
+    fechou = []
+
+    def instalar_recusado(caminho, **_k):
+        raise updater.InstaladorNaoIniciou("O instalador terminou antes de começar (código 1).")
+
+    monkeypatch.setattr(updater, "baixar", lambda info, **_k: tmp_path / "Setup.exe")
+    monkeypatch.setattr(updater, "instalar", instalar_recusado)
+    dlg = _dialogo(app, _info_falsa(), fechar_app=lambda: fechou.append(1))
+    dlg._atualizar()
+    qtbot.waitUntil(lambda: any(c[0] == "erro" for c in caixas), timeout=5000)
+    erro = next(c for c in caixas if c[0] == "erro")
+    assert "código 1" in erro[2]
+    assert not fechou
+    assert dlg.btn_atualizar.text() == "Tentar de novo"
+
+
+def test_fechar_para_instalar_marca_a_saida_do_processo(app):
+    """O main() encerra o processo na hora quando a saída é para atualizar."""
+    app._saindo_para_atualizar = False
+    app._fechar_para_instalar()
+    assert app._saindo_para_atualizar is True
+
+
+def test_checagem_roda_na_abertura_e_abre_o_aviso(qtbot, monkeypatch, caixas):
+    """Monta a janela principal DE VERDADE: a abertura pergunta ao GitHub (sem
+    intervalo mínimo) e, havendo versão nova, o aviso abre sozinho."""
+    from docmanager.services import updater
+    from docmanager.services.config import ConfigManager
+    from docmanager.ui import main_app
+
     perguntas = []
     monkeypatch.setattr(updater, "motivo_para_nao_verificar", lambda: "")
     monkeypatch.setattr(updater, "checar",
                         lambda v, **k: (perguntas.append(k.get("canal_testes")), _info_pequena())[1])
+    monkeypatch.setattr(main_app.MainApp, "CHECAR_APOS_MS", 10)
+    monkeypatch.setattr(main_app.MainApp, "AVISO_APOS_MS", 10)
+    # Verificou há 1 minuto: com o intervalo de 6 h, não perguntaria.
+    updater.registrar_verificacao(ConfigManager())
+    main_app.criar_app()
+    janela = main_app.MainApp()
+    qtbot.addWidget(janela)
     try:
-        from docmanager.ui.main_app import MainApp
-        # Verificou há 1 minuto: com o intervalo de 6 h, não perguntaria.
-        from docmanager.services.config import ConfigManager
-        updater.registrar_verificacao(ConfigManager())
-        janela = MainApp()
-    except (tk.TclError, ImportError) as e:
-        pytest.skip(f"sem display para abrir a janela: {e}")
-    janela.AVISO_APOS_MS = 10
-    try:
-        assert _esperar(janela, lambda: janela._dialogo_atualizacao is not None)
+        qtbot.waitUntil(lambda: janela._dialogo_atualizacao is not None, timeout=10000)
         assert perguntas == [False]                  # canal de testes desligado
         dlg = janela._dialogo_atualizacao
-        assert "só o que mudou" in dlg.lbl_resumo.cget("text")
-        assert "12,3 MB" in dlg.lbl_resumo.cget("text")
+        assert "só o que mudou" in dlg.lbl_resumo.text()
+        assert "12,3 MB" in dlg.lbl_resumo.text()
         # Um segundo pedido (botão manual respondendo junto) não abre outro aviso.
         assert janela.abrir_atualizacao() is None
         assert janela._dialogo_atualizacao is dlg
+        # A Home e o rodapé da barra também avisam.
+        assert janela._views["home"].faixa_visivel()
+        assert "9.9.9-rc.1" in janela._rodape.text()
     finally:
-        janela.destroy()
+        janela._saindo_para_atualizar = True
 
 
-def test_procurar_explica_por_que_esta_copia_nao_se_atualiza(app, monkeypatch):
-    from tkinter import messagebox
-
+def test_atualizar_com_tarefa_em_andamento_pergunta_antes(app, monkeypatch, caixas):
     from docmanager.services import updater
 
-    avisos = []
-    monkeypatch.setattr(messagebox, "showinfo", lambda *a, **_k: avisos.append(a))
-    monkeypatch.setattr(updater, "checar", lambda *a, **k: pytest.fail("não devia consultar"))
-    app.verificar_atualizacao(True)                 # código-fonte: não está instalado
-    assert avisos and "código-fonte" in avisos[0][1]
-
-
-def test_atualizar_com_tarefa_em_andamento_pergunta_antes(app, monkeypatch, tmp_path):
-    from tkinter import messagebox
-
-    from docmanager.services import updater
-    from docmanager.ui.views.update_dialog import AtualizacaoDialog
-
-    perguntas, baixou = [], []
-    monkeypatch.setattr(messagebox, "askyesno",
-                        lambda *a, **k: (perguntas.append(k.get("default")), False)[1])
+    baixou = []
     monkeypatch.setattr(updater, "baixar", lambda *a, **k: baixou.append(1))
-    dlg = AtualizacaoDialog(app, _info_pequena(), "9.9.8", tarefa_em_andamento=lambda: True)
+    dlg = _dialogo(app, _info_pequena(), "9.9.8", tarefa_em_andamento=lambda: True)
     dlg._atualizar()
-    assert perguntas == ["no"]                       # o padrão é "Não"
-    assert not baixou and dlg.btn_atualizar.cget("state") == "normal"
+    assert [c[0] for c in caixas] == ["perguntar"]   # perguntou (e a resposta foi não)
+    assert not baixou and dlg.btn_atualizar.isEnabled()
 
 
 def test_durante_o_download_x_e_esc_nao_fecham(app, monkeypatch):
     import threading
 
     from docmanager.services import updater
-    from docmanager.ui.views.update_dialog import AtualizacaoDialog
 
     liberar = threading.Event()
     monkeypatch.setattr(updater, "baixar", lambda *a, **k: (liberar.wait(5), 1 / 0))
-    dlg = AtualizacaoDialog(app, _info_pequena(), "9.9.8")
+    dlg = _dialogo(app, _info_pequena(), "9.9.8")
     dlg._atualizar()
-    dlg.event_generate("<Escape>")
-    dlg._fechar()
-    assert dlg.winfo_exists()
+    dlg.reject()          # o que o Esc faz
+    dlg.close()           # o "X"
+    assert dlg.isVisible()
     liberar.set()
 
 
-def test_caiu_no_completo_aparece_na_janela(app, monkeypatch, tmp_path):
+def test_caiu_no_completo_aparece_na_janela(app, qtbot, monkeypatch, tmp_path):
     from docmanager.services import updater
-    from docmanager.ui.views.update_dialog import AtualizacaoDialog
 
     info = _info_pequena()
 
@@ -266,7 +261,194 @@ def test_caiu_no_completo_aparece_na_janela(app, monkeypatch, tmp_path):
     fechou = []
     monkeypatch.setattr(updater, "baixar", baixar)
     monkeypatch.setattr(updater, "instalar", lambda caminho, **_k: None)
-    dlg = AtualizacaoDialog(app, info, "9.9.8", fechar_app=lambda: fechou.append(1))
+    dlg = _dialogo(app, info, "9.9.8", fechar_app=lambda: fechou.append(1))
     dlg._atualizar()
-    assert _esperar(app, lambda: "completo" in dlg.lbl_resumo.cget("text"))
-    assert _esperar(app, lambda: fechou)
+    qtbot.waitUntil(lambda: "completo" in dlg.lbl_resumo.text(), timeout=5000)
+    qtbot.waitUntil(lambda: bool(fechou), timeout=5000)
+
+
+# ─────────────────────────── componentes ────────────────────────────────────
+
+def test_runbar_roda_em_thread_e_volta_ao_normal(qtbot):
+    from docmanager.ui.components import LogConsole, RunBar
+
+    log = LogConsole()
+    feito = []
+
+    def tarefa(run):
+        run.set_progress(0.5)
+        log.log("trabalhando")
+        feito.append(1)
+
+    rb = RunBar("Rodar", tarefa, log)
+    qtbot.addWidget(rb)
+    with qtbot.waitSignal(rb.terminou, timeout=5000):
+        rb.btn.click()
+    assert feito and rb.btn.isEnabled() and rb.btn.text() == "Rodar"
+    assert not RunBar.em_andamento
+    qtbot.waitUntil(lambda: "trabalhando" in log.texto(), timeout=2000)
+
+
+def test_runbar_manda_o_erro_para_o_log(qtbot):
+    from docmanager.ui.components import LogConsole, RunBar
+
+    log = LogConsole()
+    rb = RunBar("Rodar", lambda run: 1 / 0, log)
+    qtbot.addWidget(rb)
+    with qtbot.waitSignal(rb.terminou, timeout=5000):
+        rb.btn.click()
+    qtbot.waitUntil(lambda: "ERRO: division by zero" in log.texto(), timeout=2000)
+
+
+def test_tarefa_em_thread_pergunta_e_recebe_a_resposta(qtbot, monkeypatch):
+    """A ponte: um diálogo pedido de outra thread abre na da interface e a
+    resposta volta para a tarefa (o "Salvar como" no meio da extração)."""
+    import threading
+
+    from docmanager.ui import ponte
+
+    respostas = []
+    thread_da_resposta = []
+
+    def perguntar():
+        thread_da_resposta.append(threading.current_thread() is threading.main_thread())
+        return "ok"
+
+    t = threading.Thread(target=lambda: respostas.append(ponte.na_ui_e_esperar(perguntar)))
+    t.start()
+    qtbot.waitUntil(lambda: bool(respostas), timeout=5000)
+    t.join()
+    assert respostas == ["ok"] and thread_da_resposta == [True]
+
+
+def test_seletor_ignora_a_roda_sem_foco(qtbot):
+    from PySide6.QtCore import QPoint, QPointF, Qt
+    from PySide6.QtGui import QWheelEvent
+
+    from docmanager.ui.components import Seletor
+
+    s = Seletor(["A", "B", "C"])
+    qtbot.addWidget(s)
+    evento = QWheelEvent(QPointF(5, 5), QPointF(5, 5), QPoint(0, 0), QPoint(0, -120),
+                         Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier,
+                         Qt.ScrollPhase.NoScrollPhase, False)
+    s.wheelEvent(evento)
+    assert s.get() == "A"
+
+
+def test_seletor_de_arquivo_lista_as_abas(qtbot, tmp_path):
+    import openpyxl
+
+    from docmanager.ui.components import FileSelector
+
+    caminho = tmp_path / "base.xlsx"
+    wb = openpyxl.Workbook()
+    wb.active.title = "Outra"
+    wb.create_sheet("Documentos")
+    wb.save(caminho)
+    sel = FileSelector("Base Aconex", aba_padrao="Documentos")
+    qtbot.addWidget(sel)
+    sel.definir(str(caminho))
+    assert sel.path == str(caminho)
+    assert sel.sheet == "Documentos"
+    sel.opt_aba.setCurrentText("Outra")
+    assert sel.sheet == "Outra"
+
+
+def test_dialogos_de_arvore_abrem_e_mostram_documentos(app, qtbot):
+    from docmanager.ui.views.delta_dialog import DeltaDialog
+
+    dlg = DeltaDialog(app, path_map="x", sheet_map="a", path_hist="y", sheet_hist="b", cols_config={})
+    qtbot.addWidget(dlg)
+    doc = {"doc": "IT-1", "raw_antes": "Em Processo", "real_antes": "Em Processo",
+           "raw_depois": "Aprovado", "real_depois": "Aprovado", "repetido_grupos": True}
+    dlg._concluir((True, {"G1": {"2": [doc]}}, 1))
+    grupo = dlg.tree.topLevelItem(0)
+    assert grupo.text(0) == "G1 (1)"
+    item = grupo.child(0).child(0)
+    assert item.text(0) == "IT-1" and item.text(7) == "Aprovado"
+    assert dlg.btn_exportar.isEnabled()
+    assert dlg.tree.isColumnHidden(1)                 # visão Efetiva: sem Rev/Data
+    dlg.opt_visao.setCurrentText("Bruta")
+    assert not dlg.tree.isColumnHidden(1)
+
+
+def test_consulta_rapida_mostra_o_status_na_tela(app, qtbot, monkeypatch):
+    """Cola os códigos, consulta (API falsa) e a tabela mostra o status real."""
+    from docmanager import aconex_backend as ab
+    from test_aconex_consulta import HISTORICO_IT1, _Sessao
+
+    sessao = _Sessao({"IT-1": HISTORICO_IT1})
+    monkeypatch.setattr(ab, "_estabelecer_sessao", lambda cfg, log=None: (sessao, "tok"))
+    monkeypatch.setattr(ab, "_injetar_certificados", lambda log=None: None)
+    cofre().salvar("Fulano", "SCP_F_client_APPID", "123", "segredo")
+    app.selecionar("aconex")
+    tela = app._views["aconex"]
+    assert tela.tabs.get() == "Consulta Rápida"          # a primeira aba
+    tela.txt_consulta.setPlainText("IT-1\nNADA")
+    run = tela.tabs._pilha.currentWidget().findChild(__import__(
+        "docmanager.ui.components", fromlist=["RunBar"]).RunBar)
+    with qtbot.waitSignal(run.terminou, timeout=10000):
+        run.btn.click()
+    qtbot.waitUntil(lambda: bool(tela.linhas_da_consulta()), timeout=5000)
+    linhas = tela.linhas_da_consulta()
+    assert linhas[0][0] == "IT-1" and linhas[0][-1] == "Aprovado"
+    assert linhas[1][-1] == "NÃO EMITIDO"
+    assert tela.btn_exportar_consulta.isEnabled()
+
+
+def test_download_oferece_o_original_sem_comentarios(app):
+    app.selecionar("aconex")
+    tela = app._views["aconex"]
+    assert set(tela.MODOS_DOWNLOAD.values()) == {"marcado", "original"}
+    assert tela._estado()["modo_download"] == "marcado"     # o padrão de sempre
+    tela.opt_modo_download.setCurrentIndex(1)
+    assert tela._estado()["modo_download"] == "original"
+
+
+# ─────────────────────────── abertura ───────────────────────────────────────
+
+def test_splash_mostra_a_mesma_imagem_da_nativa(qtbot):
+    """Uma tela só na abertura: a splash do Qt é a imagem que o bootloader do
+    .exe mostra (`assets/splash.png`, a do Splash no docmanager.spec)."""
+    from PySide6.QtGui import QImage
+
+    from docmanager.ui import main_app, splash
+
+    main_app.criar_app()
+    caminho = splash.caminho_da_imagem()
+    assert caminho.replace("\\", "/").endswith("assets/splash.png")
+    tela = splash.mostrar_splash()
+    assert tela is not None
+    qtbot.addWidget(tela)
+    assert tela.pixmap().toImage().convertToFormat(QImage.Format.Format_RGB32) == \
+        QImage(caminho).convertToFormat(QImage.Format.Format_RGB32)
+    assert '"assets/splash.png"' in open(
+        splash.os.path.join(splash.os.path.dirname(caminho), "..", "docmanager.spec"),
+        encoding="utf-8").read()
+
+
+def test_splash_sem_imagem_nao_impede_a_abertura(monkeypatch):
+    from docmanager.ui import main_app, splash
+
+    main_app.criar_app()
+    monkeypatch.setattr(splash, "caminho_da_imagem", lambda: "")
+    assert splash.mostrar_splash() is None
+
+
+def test_janela_abre_maximizada_e_a_splash_sai(qtbot, monkeypatch, caixas):
+    from docmanager.services import updater
+    from docmanager.ui import main_app, splash
+
+    monkeypatch.setattr(updater, "verificar_em_segundo_plano", lambda *a, **k: None)
+    abertas = []
+    original = splash.mostrar_splash
+    monkeypatch.setattr(splash, "mostrar_splash", lambda: abertas.append(original()) or abertas[-1])
+    app = main_app.criar_app()
+    janela = main_app.abrir(app)
+    qtbot.addWidget(janela)
+    try:
+        assert janela.isMaximized()
+        qtbot.waitUntil(lambda: not abertas[0].isVisible(), timeout=5000)
+    finally:
+        janela._saindo_para_atualizar = True

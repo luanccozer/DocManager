@@ -1,18 +1,32 @@
 from __future__ import annotations
 
-import os
-from tkinter import filedialog, messagebox
+from PySide6.QtWidgets import QHeaderView, QLineEdit, QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 
-import customtkinter as ctk
-
-from .. import theme as t
-from ..components import Card, RunBar, pedir_salvar
+from .. import dialogos
+from ..components import Abas, Card, RunBar, Seletor, botao, linha, rotulo
+from ..ponte import na_ui, na_ui_e_esperar
 from .base import BaseView
 
 
 class AconexView(BaseView):
     titulo_view = "Extração Aconex (API)"
     subtitulo_view = "Baixa o histórico completo do projeto direto da API do Aconex"
+
+    # Períodos da extração incremental de fluxos: rótulo → dias (None = tudo).
+    PERIODOS_FLUXO = {
+        "Tudo (~20 min)": None,
+        "Últimos 7 dias": 7,
+        "Últimos 30 dias": 30,
+        "Últimos 12 meses": 365,
+    }
+
+    # Qual arquivo a "Baixar por Lista" traz: rótulo → modo do backend.
+    MODOS_DOWNLOAD = {
+        "Com os comentários do Aconex (versão vigente)": "marcado",
+        "Original, sem comentários (como o emitente subiu)": "original",
+    }
+    COLUNAS_CONSULTA = ("Código Itaipu", "Código CMI", "Título", "Revisão", "Data",
+                        "Status Aconex", "Status Real")
 
     def montar(self, body):
         from dotenv import load_dotenv
@@ -21,250 +35,172 @@ class AconexView(BaseView):
         self._OUTRO = OUTRO_USUARIO
         self._pasta_download: str | None = None
 
-        card = Card(body, "Credenciais (valem para as duas abas)")
-        card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-
+        card = Card("Credenciais (valem para todas as abas)")
         # A lista sai do CADASTRO feito no app (antes vinha do .env, que ninguém
         # mais recebe: desde a v3.1.0 o app é instalado, não descompactado).
         disponiveis = usuarios_disponiveis()
         self._usuarios_conhecidos = list(disponiveis)
-        linha = ctk.CTkFrame(card, fg_color="transparent")
-        ctk.CTkLabel(linha, text="Usuário", width=170, anchor="w", font=t.corpo(12),
-                     text_color=t.TEXTO).grid(row=0, column=0, sticky="w")
-        self.opt_user = ctk.CTkOptionMenu(linha, values=disponiveis + [OUTRO_USUARIO],
-                                          command=self._on_user,
-                                          fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO,
-                                          font=t.corpo(12))
-        self.opt_user.set(disponiveis[0] if disponiveis else OUTRO_USUARIO)
-        self.opt_user.grid(row=0, column=1, sticky="w", padx=(0, 8))
-        ctk.CTkButton(linha, text="Cadastrar usuário", width=150, font=t.corpo(12),
-                      fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER,
-                      command=self._cadastrar).grid(row=0, column=2, sticky="e")
-        ctk.CTkButton(linha, text="Editar", width=80, font=t.corpo(12),
-                      fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=self._editar).grid(row=0, column=3, sticky="e", padx=(8, 0))
-        linha.grid_columnconfigure(1, weight=1)
-        card.add(linha)
+        self.opt_user = Seletor(disponiveis + [OUTRO_USUARIO])
+        self.opt_user.setMinimumWidth(260)
+        self.opt_user.setCurrentText(disponiveis[0] if disponiveis else OUTRO_USUARIO)
+        self.opt_user.currentTextChanged.connect(self._on_user)
+        usuario = rotulo("Usuário")
+        usuario.setFixedWidth(120)
+        card.add(linha(usuario, self.opt_user,
+                       botao("Cadastrar usuário", variante="primario", icone="user-plus",
+                             ao_clicar=self._cadastrar),
+                       botao("Editar", icone="pencil", ao_clicar=self._editar)))
 
         # Chamada para quem ainda não cadastrou nada: sem ela a tela fica com um
         # seletor vazio e nenhuma pista do que fazer.
-        self._aviso_cadastro = ctk.CTkLabel(
-            card, text="", font=t.corpo(12), text_color=t.TEXTO, justify="left",
-            wraplength=680, anchor="w")
-        card.add(self._aviso_cadastro, pady=(0, 4))
+        self._aviso_cadastro = card.add(rotulo("", "aviso", quebra=True))
 
         # Entrada manual (visível só quando "Outro" é escolhido) - não é salva.
-        self._manual = ctk.CTkFrame(card, fg_color="transparent")
-        self.entry_client = ctk.CTkEntry(self._manual, placeholder_text="Client ID (APP ID) do Aconex",
-                                         font=t.corpo(12))
-        self.entry_userid = ctk.CTkEntry(self._manual, placeholder_text="User ID (numérico) do Aconex",
-                                         font=t.corpo(12))
-        self.entry_secret = ctk.CTkEntry(self._manual, placeholder_text="Client Secret", show="*",
-                                         font=t.corpo(12))
+        self._manual = QWidget()
+        ml = QVBoxLayout(self._manual)
+        ml.setContentsMargins(0, 0, 0, 0)
+        ml.setSpacing(6)
+        self.entry_client = QLineEdit(placeholderText="Client ID (APP ID) do Aconex")
+        self.entry_userid = QLineEdit(placeholderText="User ID (numérico) do Aconex")
+        self.entry_secret = QLineEdit(placeholderText="Client Secret")
+        self.entry_secret.setEchoMode(QLineEdit.EchoMode.Password)
         for w in (self.entry_client, self.entry_userid, self.entry_secret):
-            w.pack(fill="x", pady=3)
+            ml.addWidget(w)
         card.add(self._manual)
 
-        self.entry_proxy = ctk.CTkEntry(card, placeholder_text="Proxy (opcional). Em branco, o app detecta sozinho.",
-                                        font=t.corpo(12))
-        card.add(self.entry_proxy)
-        self._dica = ctk.CTkLabel(card, text="", font=t.corpo(11), text_color=t.TEXTO_FRACO, anchor="w")
-        self._dica.grid(row=card._linha, column=0, sticky="w", padx=16, pady=(0, 12))
+        self.entry_proxy = card.add(QLineEdit(
+            placeholderText="Proxy (opcional). Em branco, o app detecta sozinho."))
+        self._dica = card.add(rotulo("", "legenda", quebra=True))
+        body.addWidget(card)
 
         # Guias do módulo: extração completa, fluxos de trabalho e download por lista.
-        self.tabs = ctk.CTkTabview(body, fg_color=t.CARD, segmented_button_selected_color=t.ACENTO,
-                                   segmented_button_selected_hover_color=t.ACENTO_HOVER)
-        self.tabs.grid(row=1, column=0, sticky="ew", pady=(0, 8))
-        self._montar_aba_extracao(self.tabs.add("📦 Extração Completa"))
-        self._montar_aba_fluxos(self.tabs.add("🔀 Fluxos de Trabalho"))
-        self._montar_aba_download(self.tabs.add("⬇️ Baixar por Lista"))
+        abas_card = Card()
+        self.tabs = Abas()
+        self._montar_aba_consulta(self.tabs.add("Consulta Rápida", "search"))
+        self._montar_aba_extracao(self.tabs.add("Extração Completa", "download"))
+        self._montar_aba_fluxos(self.tabs.add("Fluxos de Trabalho", "workflow"))
+        self._montar_aba_download(self.tabs.add("Baixar por Lista", "file"))
+        abas_card.add(self.tabs)
+        body.addWidget(abas_card)
         self._on_user(self.opt_user.get())   # visibilidade, dica e aviso iniciais
 
-    def _montar_aba_extracao(self, aba):
-        aba.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(aba, text="Baixa o histórico completo do projeto (todas as revisões, com "
-                     "Tracking ID) para um Excel. Leva vários minutos e retoma de onde parou "
-                     "se a conexão cair.",
-                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
-            row=0, column=0, sticky="w", padx=6, pady=(8, 2))
-        self.run = RunBar(aba, "Iniciar Extração", self._tarefa, self.log)
-        self.run.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 8))
+    def _montar_aba_consulta(self, aba):
+        """Status e histórico de uma lista de códigos em segundos, direto da API
+        - sem baixar a base completa (melhoria trazida do Corella Suite)."""
+        lay = aba.layout()
+        lay.addWidget(rotulo(
+            "Cole os códigos (Itaipu ou CMI), um por linha. O app consulta só esses documentos na API, "
+            "com o histórico, e mostra o status real - sem baixar a base completa. Para relatórios "
+            "oficiais, use a base completa: se um documento trocou de código, as versões com o código "
+            "antigo não entram na consulta.", "suave", quebra=True))
+        self.txt_consulta = QPlainTextEdit()
+        self.txt_consulta.setObjectName("caixa_texto")
+        self.txt_consulta.setFixedHeight(110)
+        lay.addWidget(self.txt_consulta)
+        lay.addWidget(RunBar("Consultar", self._tarefa_consulta, self.log))
+        self.tabela_consulta = QTreeWidget()
+        self.tabela_consulta.setRootIsDecorated(False)
+        self.tabela_consulta.setAlternatingRowColors(True)
+        self.tabela_consulta.setHeaderLabels(list(self.COLUNAS_CONSULTA))
+        self.tabela_consulta.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        for i, largura in enumerate((200, 200, 260, 70, 90, 160)):
+            self.tabela_consulta.setColumnWidth(i, largura)
+        self.tabela_consulta.setMinimumHeight(220)
+        self.tabela_consulta.hide()
+        lay.addWidget(self.tabela_consulta)
+        self.btn_exportar_consulta = botao("Exportar Excel", icone="file-spreadsheet",
+                                           ao_clicar=self._exportar_consulta)
+        self.btn_exportar_consulta.setEnabled(False)
+        lay.addWidget(linha(self.btn_exportar_consulta))
+        self._consulta = None   # (linhas, contador, tem_modelos) da última consulta
 
-    # Períodos da extração incremental: rótulo → dias (None = tudo).
-    PERIODOS_FLUXO = {
-        "Tudo (~20 min)": None,
-        "Últimos 7 dias": 7,
-        "Últimos 30 dias": 30,
-        "Últimos 12 meses": 365,
-    }
+    def _montar_aba_extracao(self, aba):
+        aba.layout().addWidget(rotulo(
+            "Baixa o histórico completo do projeto (todas as revisões, com Tracking ID) para um Excel. "
+            "Leva vários minutos e retoma de onde parou se a conexão cair.", "suave", quebra=True))
+        self.run = RunBar("Iniciar Extração", self._tarefa, self.log)
+        aba.layout().addWidget(self.run)
 
     def _montar_aba_fluxos(self, aba):
-        aba.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(aba, text="Baixa os FLUXOS DE TRABALHO (a aba 'Fluxos de Trabalho' do Aconex): "
-                     "etapa, prazo e a quem cada documento está atribuído. Um período curto "
-                     "atualiza rápido, porque baixa só o que mudou desde então.",
-                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
-            row=0, column=0, sticky="w", padx=6, pady=(8, 2))
-
-        linha = ctk.CTkFrame(aba, fg_color="transparent")
-        linha.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
-        ctk.CTkLabel(linha, text="Período", width=170, anchor="w", font=t.corpo(12),
-                     text_color=t.TEXTO).grid(row=0, column=0, sticky="w")
-        self.opt_periodo_fluxo = ctk.CTkOptionMenu(
-            linha, values=list(self.PERIODOS_FLUXO), font=t.corpo(12),
-            fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
-        self.opt_periodo_fluxo.set("Tudo (~20 min)")
-        self.opt_periodo_fluxo.grid(row=0, column=1, sticky="w")
-        linha.grid_columnconfigure(1, weight=1)
-
-        RunBar(aba, "Extrair Fluxos de Trabalho", self._tarefa_fluxos, self.log).grid(
-            row=2, column=0, sticky="ew", padx=6, pady=(0, 8))
-
-    def _tarefa_fluxos(self, run: RunBar):
-        if not self._garantir_credenciais():
-            return
-        from datetime import datetime, timedelta, timezone
-
-        from dotenv import load_dotenv
-        load_dotenv()
-        from ...workflows_backend import (
-            extrair_workflows,
-            limpar_checkpoint_wf,
-            nome_arquivo_padrao_wf,
-            salvar_excel_workflows,
-        )
-        try:
-            config = self._montar_config()
-        except (KeyError, ValueError) as e:
-            self.log.log(f"ERRO: {e}")
-            return
-
-        dias = self.PERIODOS_FLUXO.get(self.opt_periodo_fluxo.get())
-        updated_after = ""
-        if dias:
-            updated_after = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime(
-                "%Y-%m-%dT%H:%M:%SZ")
-            self.log.log(f"Extração incremental: fluxos alterados nos últimos {dias} dias.")
-        run.set_progress(0.05)
-        r = extrair_workflows(config, log_cb=self.log.log, updated_after=updated_after,
-                              progress_cb=run.set_progress)
-
-        if r.df.empty:
-            self.log.log("Nenhum fluxo retornado.")
-            return
-        if not r.completa:
-            self.log.log(f"ATENÇÃO: base PARCIAL ({r.motivo}).")
-            if not messagebox.askyesno(
-                    "Extração incompleta",
-                    f"A extração parou antes do fim ({r.motivo}).\n\n"
-                    f"{len(r.df)} linhas ficaram salvas para retomada - rode de novo que ela "
-                    f"continua da página {r.paginas + 1}.\n\n"
-                    "Quer salvar agora um Excel com o que já veio (base PARCIAL)?"):
-                self.log.log("Excel parcial não gerado. O progresso segue guardado para retomar.")
-                return
-
-        saida = pedir_salvar(self.ctx.config, "saida", nome_arquivo_padrao_wf())
-        if not saida:
-            self.log.log("Salvamento cancelado. O progresso da extração continua guardado.")
-            return
-        salvar_excel_workflows(r.df, saida)
-        run.set_progress(1.0)
-        if r.completa:
-            limpar_checkpoint_wf(config, updated_after=updated_after)
-            self.log.log(f"Concluído: {len(r.df)} fluxos salvos.")
-            self.after(0, lambda: messagebox.showinfo(
-                "Fluxos de Trabalho", f"{len(r.df)} linhas de fluxo salvas."))
+        lay = aba.layout()
+        lay.addWidget(rotulo(
+            "Baixa os FLUXOS DE TRABALHO (a aba 'Fluxos de Trabalho' do Aconex): etapa, prazo e a quem "
+            "cada documento está atribuído. Um período curto atualiza rápido, porque baixa só o que "
+            "mudou desde então.", "suave", quebra=True))
+        self.opt_periodo_fluxo = Seletor(list(self.PERIODOS_FLUXO))
+        self.opt_periodo_fluxo.setMinimumWidth(200)
+        periodo = rotulo("Período")
+        periodo.setFixedWidth(120)
+        lay.addWidget(linha(periodo, self.opt_periodo_fluxo))
+        lay.addWidget(RunBar("Extrair Fluxos de Trabalho", self._tarefa_fluxos, self.log))
 
     def _montar_aba_download(self, aba):
-        aba.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(aba, text="Cole os códigos Itaipu, um por linha. Baixa a versão atual "
-                     "(current) de cada documento para a pasta escolhida.",
-                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=720).grid(
-            row=0, column=0, sticky="w", padx=6, pady=(8, 2))
-        self.txt_codigos = ctk.CTkTextbox(aba, height=140, font=t.mono(11), fg_color="#0B1119")
-        self.txt_codigos.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
-
-        linha = ctk.CTkFrame(aba, fg_color="transparent")
-        linha.grid(row=2, column=0, sticky="ew", padx=6, pady=(0, 6))
-        linha.grid_columnconfigure(1, weight=1)
-        ctk.CTkButton(linha, text="Escolher pasta", width=130, font=t.corpo(12),
-                      fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=self._escolher_pasta).grid(row=0, column=0, sticky="w")
-        self.lbl_pasta = ctk.CTkLabel(linha, text="Nenhuma pasta escolhida", anchor="w",
-                                      font=t.corpo(11), text_color=t.TEXTO_FRACO)
-        self.lbl_pasta.grid(row=0, column=1, sticky="ew", padx=10)
-
-        RunBar(aba, "Baixar Documentos", self._tarefa_download, self.log).grid(
-            row=3, column=0, sticky="ew", padx=6, pady=(0, 8))
+        lay = aba.layout()
+        lay.addWidget(rotulo("Cole os códigos Itaipu, um por linha. Baixa um arquivo de cada documento "
+                             "para a pasta escolhida.", "suave", quebra=True))
+        self.txt_codigos = QPlainTextEdit()
+        self.txt_codigos.setObjectName("caixa_texto")
+        self.txt_codigos.setFixedHeight(140)
+        lay.addWidget(self.txt_codigos)
+        self.opt_modo_download = Seletor(list(self.MODOS_DOWNLOAD))
+        self.opt_modo_download.setMinimumWidth(380)
+        arquivo = rotulo("Arquivo")
+        arquivo.setFixedWidth(120)
+        lay.addWidget(linha(arquivo, self.opt_modo_download))
+        lay.addWidget(rotulo(
+            "Com comentários: a versão vigente, com as marcações da análise aplicadas (o de sempre). "
+            "Original: a última revisão na versão que o emitente enviou, sem as marcações - quando a "
+            "revisão só tem versão comentada, vem a vigente sem as marcações, e o log avisa.",
+            "legenda", quebra=True))
+        self.lbl_pasta = rotulo("Nenhuma pasta escolhida", "suave")
+        lay.addWidget(linha(botao("Escolher pasta", icone="folder-open", ao_clicar=self._escolher_pasta),
+                            self.lbl_pasta, esticar=1))
+        lay.addWidget(RunBar("Baixar Documentos", self._tarefa_download, self.log))
 
     def _escolher_pasta(self):
-        inicial = self.ctx.config.ultimo_dir("download") if self.ctx.config else None
-        pasta = filedialog.askdirectory(title="Pasta para salvar os documentos", initialdir=inicial)
-        if not pasta:
-            return
-        self._pasta_download = pasta
-        self.lbl_pasta.configure(text=pasta, text_color=t.TEXTO)
-        if self.ctx.config:
-            # lembrar_dir guarda o DIRNAME do caminho; passa um filho para
-            # memorizar a própria pasta escolhida.
-            self.ctx.config.lembrar_dir("download", os.path.join(pasta, "_"))
+        pasta = dialogos.escolher_pasta(self.ctx.config, "download",
+                                        "Pasta para salvar os documentos", parent=self)
+        if pasta:
+            self._pasta_download = pasta
+            self.lbl_pasta.setText(pasta)
 
-    def _tarefa_download(self, run: RunBar):
-        if not self._garantir_credenciais():
-            return
-        from dotenv import load_dotenv
-        load_dotenv()
-        from ...aconex_backend import baixar_documentos
-        try:
-            config = self._montar_config()
-        except (KeyError, ValueError) as e:
-            self.log.log(f"ERRO: {e}")
-            return
-        codigos = [c.strip() for c in self.txt_codigos.get("1.0", "end").splitlines() if c.strip()]
-        if not codigos:
-            self.log.log("Cole ao menos um código na aba 'Baixar por Lista'.")
-            return
-        if not self._pasta_download:
-            self.log.log("Escolha a pasta de destino.")
-            return
-        run.set_progress(0.05)
-        res = baixar_documentos(config, codigos, self._pasta_download,
-                                log_cb=self.log.log, progress_cb=run.set_progress)
-        run.set_progress(1.0)
-        resumo = (f"{res.baixados}/{res.total} documento(s) baixado(s) em:\n{res.pasta}")
-        if res.nao_encontrados:
-            resumo += f"\n\n{len(res.nao_encontrados)} não encontrado(s)."
-        if res.sem_arquivo or res.erros:
-            resumo += f"\n{len(res.sem_arquivo)} sem arquivo, {len(res.erros)} com erro."
-        self.after(0, lambda: messagebox.showinfo("Download Aconex", resumo))
+    # ------------------------------------------------------------------ estado
+    def _estado(self) -> dict:
+        """Foto da tela, lida na thread da interface (as tarefas rodam em outra)."""
+        return {"usuario": self.opt_user.get(), "proxy": self.entry_proxy.text().strip(),
+                "client_id": self.entry_client.text().strip(), "user_id": self.entry_userid.text().strip(),
+                "secret": self.entry_secret.text().strip(), "periodo": self.opt_periodo_fluxo.get(),
+                "codigos": self.txt_codigos.toPlainText(),
+                "modo_download": self.MODOS_DOWNLOAD[self.opt_modo_download.get()],
+                "consulta": self.txt_consulta.toPlainText()}
 
     def _on_user(self, escolha: str):
         """Mostra os campos manuais só na opção 'Outro'; ajusta a dica."""
         if escolha == self._OUTRO:
-            self._manual.grid()
-            self._dica.configure(text="Entrada manual: informe os 3 dados do usuário do Aconex. "
-                                      "Valem só para esta extração e não são salvos. Para "
-                                      "guardar de vez, use 'Cadastrar usuário'.")
+            self._manual.show()
+            self._dica.setText("Entrada manual: informe os 3 dados do usuário do Aconex. Valem só para "
+                               "esta extração e não são salvos. Para guardar de vez, use 'Cadastrar usuário'.")
         else:
-            self._manual.grid_remove()
-            self._dica.configure(text="O Client Secret está guardado nesta máquina, cifrado pelo "
-                                      "Windows. Para trocá-lo, use 'Editar'.")
+            self._manual.hide()
+            self._dica.setText("O Client Secret está guardado nesta máquina, cifrado pelo Windows. "
+                               "Para trocá-lo, use 'Editar'.")
         self._atualizar_aviso()
+
+    def manual_visivel(self) -> bool:
+        return not self._manual.isHidden()
 
     def _atualizar_aviso(self):
         """Texto de chamada quando ainda não há nenhum usuário cadastrado."""
         from ...aconex_backend import usuarios_disponiveis
 
         if usuarios_disponiveis():
-            self._aviso_cadastro.configure(text="")
-            self._aviso_cadastro.grid_remove()
+            self._aviso_cadastro.hide()
             return
-        self._aviso_cadastro.configure(
-            text="⚠️  Nenhum usuário cadastrado ainda. Clique em CADASTRAR USUÁRIO e "
-                 "informe o Client ID (APP ID), o User ID e o Client Secret que o "
-                 "administrador do Aconex passou para você. É uma vez só: fica guardado "
-                 "nesta máquina e continua valendo depois das atualizações.")
-        self._aviso_cadastro.grid()
+        self._aviso_cadastro.setText(
+            "Nenhum usuário cadastrado ainda. Clique em CADASTRAR USUÁRIO e informe o Client ID "
+            "(APP ID), o User ID e o Client Secret que o administrador do Aconex passou para você. "
+            "É uma vez só: fica guardado nesta máquina e continua valendo depois das atualizações.")
+        self._aviso_cadastro.show()
 
     # --- cadastro das credenciais -------------------------------------------
     def ao_exibir(self):
@@ -273,7 +209,7 @@ class AconexView(BaseView):
         self._recarregar_usuarios()
 
     def _manual_preenchido(self) -> bool:
-        return any(w.get().strip() for w in (self.entry_client, self.entry_userid, self.entry_secret))
+        return any(w.text().strip() for w in (self.entry_client, self.entry_userid, self.entry_secret))
 
     def _recarregar_usuarios(self, selecionar: str | None = None):
         from ...aconex_backend import escolher_usuario, usuarios_disponiveis
@@ -283,15 +219,17 @@ class AconexView(BaseView):
                                 conhecidos=self._usuarios_conhecidos,
                                 manual_preenchido=self._manual_preenchido())
         self._usuarios_conhecidos = list(disponiveis)
-        self.opt_user.configure(values=disponiveis + [self._OUTRO])
-        self.opt_user.set(alvo)
+        self.opt_user.definir_itens(disponiveis + [self._OUTRO], alvo)
         self._on_user(alvo)
+
+    def usuarios_na_lista(self) -> list[str]:
+        return [self.opt_user.itemText(i) for i in range(self.opt_user.count())]
 
     def _cadastrar(self, nome: str | None = None):
         """Abre o cadastro. Só pode ser chamado na thread da interface."""
         from .credenciais_dialog import cadastrar
 
-        salvo = cadastrar(self.winfo_toplevel(), nome)
+        salvo = cadastrar(self.window(), nome)
         if salvo:
             self._recarregar_usuarios(salvo)
             self.log.log(f"Credenciais de '{salvo}' salvas nesta máquina.")
@@ -299,44 +237,171 @@ class AconexView(BaseView):
 
     def _editar(self):
         escolha = self.opt_user.get()
-        if escolha == self._OUTRO:
-            self._cadastrar()
-            return
-        self._cadastrar(escolha)
+        self._cadastrar(None if escolha == self._OUTRO else escolha)
 
-    def _garantir_credenciais(self) -> bool:
-        """Checa, ANTES de gastar tempo, se há com o que autenticar.
-
-        Roda dentro da thread da tarefa, então o diálogo é agendado de volta na
-        thread da interface com `after` - abrir janela de outra thread trava o Tk.
-        """
+    def _garantir_credenciais(self, estado) -> bool:
+        """Checa, ANTES de gastar tempo, se há com o que autenticar. Roda na
+        thread da tarefa: o cadastro abre na thread da interface."""
         from ...aconex_backend import usuarios_disponiveis
 
-        if usuarios_disponiveis() or self.opt_user.get() == self._OUTRO:
+        if usuarios_disponiveis() or estado["usuario"] == self._OUTRO:
             return True
         self.log.log("Nenhum usuário do Aconex cadastrado - abrindo o cadastro.")
-        self.after(0, self._cadastrar)
+        na_ui(self._cadastrar)
         return False
 
-    def _montar_config(self):
+    def _montar_config(self, estado: dict | None = None):
         """Monta a AconexConfig conforme a escolha (conhecido ou manual)."""
         from ...aconex_backend import AconexConfig
-        proxy = self.entry_proxy.get().strip() or None
-        escolha = self.opt_user.get()
-        if escolha == self._OUTRO:
-            client_id = self.entry_client.get().strip()
-            user_id = self.entry_userid.get().strip()
-            secret = self.entry_secret.get().strip()
-            if not (client_id and user_id and secret):
+        estado = estado or self._estado()
+        proxy = estado["proxy"] or None
+        if estado["usuario"] == self._OUTRO:
+            if not (estado["client_id"] and estado["user_id"] and estado["secret"]):
                 raise ValueError("Preencha Client ID, User ID e Secret para o usuário manual.")
-            return AconexConfig(client_id=client_id, client_secret=secret, user_id=user_id, proxy=proxy)
-        return AconexConfig.para_usuario(escolha, proxy=proxy)
+            return AconexConfig(client_id=estado["client_id"], client_secret=estado["secret"],
+                                user_id=estado["user_id"], proxy=proxy)
+        return AconexConfig.para_usuario(estado["usuario"], proxy=proxy)
 
-    def _tarefa(self, run: RunBar):
-        if not self._garantir_credenciais():
-            return
+    def _preparar(self):
+        """(estado, config) para uma tarefa, ou None se faltar credencial."""
+        estado = na_ui_e_esperar(self._estado)
+        if not self._garantir_credenciais(estado):
+            return None
         from dotenv import load_dotenv
         load_dotenv()
+        try:
+            return estado, self._montar_config(estado)
+        except (KeyError, ValueError) as e:
+            self.log.log(f"ERRO: {e}")
+            return None
+
+    # ------------------------------------------------------------------ tarefas
+    def _tarefa_fluxos(self, run: RunBar):
+        if (prep := self._preparar()) is None:
+            return
+        estado, config = prep
+        from datetime import datetime, timedelta, timezone
+
+        from ...workflows_backend import (
+            extrair_workflows,
+            limpar_checkpoint_wf,
+            nome_arquivo_padrao_wf,
+            salvar_excel_workflows,
+        )
+        dias = self.PERIODOS_FLUXO.get(estado["periodo"])
+        updated_after = ""
+        if dias:
+            updated_after = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            self.log.log(f"Extração incremental: fluxos alterados nos últimos {dias} dias.")
+        run.set_progress(0.05)
+        r = extrair_workflows(config, log_cb=self.log.log, updated_after=updated_after,
+                              progress_cb=run.set_progress)
+        if r.df.empty:
+            self.log.log("Nenhum fluxo retornado.")
+            return
+        if not r.completa:
+            self.log.log(f"ATENÇÃO: base PARCIAL ({r.motivo}).")
+            if not dialogos.perguntar(
+                    "Extração incompleta",
+                    f"A extração parou antes do fim ({r.motivo}).\n\n"
+                    f"{len(r.df)} linhas ficaram salvas para retomada - rode de novo que ela "
+                    f"continua da página {r.paginas + 1}.\n\n"
+                    "Quer salvar agora um Excel com o que já veio (base PARCIAL)?"):
+                self.log.log("Excel parcial não gerado. O progresso segue guardado para retomar.")
+                return
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida", nome_arquivo_padrao_wf())
+        if not saida:
+            self.log.log("Salvamento cancelado. O progresso da extração continua guardado.")
+            return
+        salvar_excel_workflows(r.df, saida)
+        run.set_progress(1.0)
+        if r.completa:
+            limpar_checkpoint_wf(config, updated_after=updated_after)
+            self.log.log(f"Concluído: {len(r.df)} fluxos salvos.")
+            dialogos.info("Fluxos de Trabalho", f"{len(r.df)} linhas de fluxo salvas.")
+
+    def _tarefa_download(self, run: RunBar):
+        if (prep := self._preparar()) is None:
+            return
+        estado, config = prep
+        from ...aconex_backend import baixar_documentos
+        codigos = [c.strip() for c in estado["codigos"].splitlines() if c.strip()]
+        if not codigos:
+            self.log.log("Cole ao menos um código na aba 'Baixar por Lista'.")
+            return
+        if not self._pasta_download:
+            self.log.log("Escolha a pasta de destino.")
+            return
+        run.set_progress(0.05)
+        res = baixar_documentos(config, codigos, self._pasta_download, modo=estado["modo_download"],
+                                log_cb=self.log.log, progress_cb=run.set_progress)
+        run.set_progress(1.0)
+        resumo = f"{res.baixados}/{res.total} documento(s) baixado(s) em:\n{res.pasta}"
+        if res.nao_encontrados:
+            resumo += f"\n\n{len(res.nao_encontrados)} não encontrado(s)."
+        if res.sem_arquivo or res.erros:
+            resumo += f"\n{len(res.sem_arquivo)} sem arquivo, {len(res.erros)} com erro."
+        dialogos.info("Download Aconex", resumo)
+
+    def _tarefa_consulta(self, run: RunBar):
+        if (prep := self._preparar()) is None:
+            return
+        estado, config = prep
+        from ...aconex_backend import consultar_codigos, pares_da_consulta
+        from ...status_backend import analisar_status_pares
+        codigos = [c.strip() for c in estado["consulta"].splitlines() if c.strip()]
+        if not codigos:
+            self.log.log("Cole ao menos um código na aba 'Consulta Rápida'.")
+            return
+        run.set_progress(0.05)
+        r = consultar_codigos(config, codigos, log_cb=self.log.log, progress_cb=run.set_progress)
+        if r.base.empty:
+            self.log.log("Nenhum dos códigos foi encontrado no Aconex.")
+            na_ui(self._mostrar_consulta, None)
+            return
+        linhas, contador, tem_modelos = analisar_status_pares(r.base, pares_da_consulta(r.base, codigos))
+        for st, n in contador.most_common():
+            self.log.log(f"  {st}: {n}")
+        self.log.log(f"Consulta concluída: {len(linhas)} documento(s).")
+        na_ui(self._mostrar_consulta, (linhas, contador, tem_modelos))
+
+    def _mostrar_consulta(self, resultado):
+        self._consulta = resultado
+        self.tabela_consulta.clear()
+        self.btn_exportar_consulta.setEnabled(bool(resultado))
+        if not resultado:
+            self.tabela_consulta.hide()
+            return
+        for d in resultado[0]:
+            self.tabela_consulta.addTopLevelItem(
+                QTreeWidgetItem([str(d.get(c, "")) for c in self.COLUNAS_CONSULTA]))
+        self.tabela_consulta.show()
+
+    def linhas_da_consulta(self) -> list[list[str]]:
+        t = self.tabela_consulta
+        return [[t.topLevelItem(i).text(c) for c in range(t.columnCount())]
+                for i in range(t.topLevelItemCount())]
+
+    def _exportar_consulta(self):
+        if not self._consulta:
+            return
+        from datetime import datetime
+
+        from ...status_backend import exportar_status_documentos
+        linhas, contador, tem_modelos = self._consulta
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida",
+                                      f"Consulta_Aconex_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                                      parent=self)
+        if not saida:
+            return
+        ok, msg = exportar_status_documentos(linhas, contador, saida, tem_modelos=tem_modelos)
+        self.log.log(msg)
+        (dialogos.info if ok else dialogos.erro)("Consulta Rápida", msg, self)
+
+    def _tarefa(self, run: RunBar):
+        if (prep := self._preparar()) is None:
+            return
+        _estado, config = prep
         from ...aconex_backend import (
             checkpoint_pendente,
             extrair_base,
@@ -344,17 +409,10 @@ class AconexView(BaseView):
             nome_arquivo_padrao,
             salvar_excel,
         )
-        try:
-            config = self._montar_config()
-        except (KeyError, ValueError) as e:
-            self.log.log(f"ERRO: {e}")
-            return
-
         pendente = checkpoint_pendente(config)
         if pendente is not None:
             self.log.log(f"Há uma extração interrompida em {pendente.atualizado_em} com "
-                         f"{pendente.total} registros - será retomada da página "
-                         f"{pendente.proxima_pagina}.")
+                         f"{pendente.total} registros - será retomada da página {pendente.proxima_pagina}.")
         run.set_progress(0.05)
         self.log.log("Extração iniciada (pode levar vários minutos)...")
         r = extrair_base(config, log_cb=self.log.log, progress_cb=run.set_progress)
@@ -362,24 +420,20 @@ class AconexView(BaseView):
         if r.df.empty:
             self.log.log("Nenhum dado retornado.")
             if not r.completa:
-                self.after(0, lambda: messagebox.showwarning(
-                    "Extração Aconex", f"A extração não foi concluída ({r.motivo}).\n\n"
-                    "Rode de novo para continuar de onde parou."))
+                dialogos.aviso("Extração Aconex", f"A extração não foi concluída ({r.motivo}).\n\n"
+                               "Rode de novo para continuar de onde parou.")
             return
-
         if not r.completa:
             self.log.log(f"ATENÇÃO: base PARCIAL ({r.motivo}).")
-            salvar = messagebox.askyesno(
-                "Extração incompleta",
-                f"A extração parou antes do fim ({r.motivo}).\n\n"
-                f"{len(r.df)} linhas foram baixadas e ficaram salvas para retomada - "
-                f"basta rodar de novo que ela continua da página {r.paginas + 1}.\n\n"
-                "Quer salvar agora um Excel com o que já veio (base PARCIAL)?")
-            if not salvar:
+            if not dialogos.perguntar(
+                    "Extração incompleta",
+                    f"A extração parou antes do fim ({r.motivo}).\n\n"
+                    f"{len(r.df)} linhas foram baixadas e ficaram salvas para retomada - basta rodar de "
+                    f"novo que ela continua da página {r.paginas + 1}.\n\n"
+                    "Quer salvar agora um Excel com o que já veio (base PARCIAL)?"):
                 self.log.log("Excel parcial não gerado. O progresso segue guardado para retomar.")
                 return
-
-        saida = pedir_salvar(self.ctx.config, "saida", nome_arquivo_padrao())
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida", nome_arquivo_padrao())
         if not saida:
             self.log.log("Salvamento cancelado. O progresso da extração continua guardado.")
             return
@@ -389,8 +443,7 @@ class AconexView(BaseView):
             # Só descarta o checkpoint depois que o Excel está em disco.
             limpar_checkpoint(config)
             self.log.log(f"Concluído: {len(r.df)} linhas salvas.")
-            self.after(0, lambda: messagebox.showinfo(
-                "Extração Aconex", f"{len(r.df)} linhas extraídas."))
+            dialogos.info("Extração Aconex", f"{len(r.df)} linhas extraídas.")
         else:
             self.log.log(f"Excel PARCIAL salvo com {len(r.df)} linhas. "
                          f"Rode a extração de novo para completar.")

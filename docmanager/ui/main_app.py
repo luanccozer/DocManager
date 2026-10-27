@@ -1,21 +1,43 @@
-"""Janela principal: sidebar + roteador gerados por um REGISTRO declarativo de
-views. Adicionar um módulo futuro (ex.: 'Lista de Documentos') = criar a view e
-acrescentar um ViewSpec nesta lista."""
+"""Janela principal: barra lateral + pilha de telas gerados por um REGISTRO
+declarativo de views. Adicionar um módulo futuro = criar a view e acrescentar
+um ViewSpec nesta lista.
+
+Interface em Qt (PySide6) desde a 3.3.0, com o mesmo sistema visual do SIG-FT:
+tokens de cor por papel (`ui/tokens.py`), tema escuro/claro/do Windows trocado
+com o app aberto (`ui/tema.py`) e ícones SVG (`ui/icones.py`).
+"""
 from __future__ import annotations
 
 import os
+import sys
+import threading
+import traceback
 from dataclasses import dataclass
 from typing import Callable
 
-import customtkinter as ctk
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .. import __version__
 from ..services import updater
-from ..services.config import ConfigManager, resource_path
+from ..services.config import ConfigManager
 from . import atualizacao_textos as txt
-from . import theme as t
+from . import dialogos, estilo, icones, tema
 from .app_context import AppContext
-from .components import NavItem, RunBar
+from .components import RunBar, botao, rotulo
+from .logo import icone_do_app, pixmap_do_logo
+from .ponte import na_ui
 from .views.aconex_view import AconexView
 from .views.config_view import ConfigView
 from .views.doclist_view import DocListView
@@ -35,154 +57,164 @@ class ViewSpec:
 
 
 VIEWS = [
-    ViewSpec("home", "Início", "🏠", HomeView),
-    ViewSpec("mapa", "Mapa dos Planos", "🧭", MapaView),
-    ViewSpec("doclist", "Doc List Mapping", "📑", DocListView),
-    ViewSpec("status", "Status Documentos", "🔎", StatusDocsView),
-    ViewSpec("historico", "Histórico e Dashboard", "📊", HistoricoView),
-    ViewSpec("relatorios", "Relatórios", "📋", ReportsView),
-    # Use SEMPRE emojis de apresentação colorida nativa (blocos U+1F3xx+), de
-    # codepoint único. Símbolos "texto" com seletor U+FE0F (☁️ U+2601, ⚙️ U+2699)
-    # o Windows renderiza com outra fonte: ink menor e largura diferente (o ☁️
-    # media 47 px contra 27 px dos demais) → o item fica destoando na sidebar.
-    ViewSpec("aconex", "Extração Aconex", "📥", AconexView),
-    ViewSpec("config", "Configurações", "⚙️", ConfigView),
+    ViewSpec("home", "Início", "house", HomeView),
+    ViewSpec("mapa", "Mapa dos Planos", "compass", MapaView),
+    ViewSpec("doclist", "Doc List Mapping", "list-checks", DocListView),
+    ViewSpec("status", "Status Documentos", "search", StatusDocsView),
+    ViewSpec("historico", "Histórico e Dashboard", "chart-column", HistoricoView),
+    ViewSpec("relatorios", "Relatórios", "clipboard-list", ReportsView),
+    ViewSpec("aconex", "Extração Aconex", "download", AconexView),
+    ViewSpec("config", "Configurações", "settings", ConfigView),
 ]
 
 
-class MainApp(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        t.aplicar()
-        self.title(f"DocManager Itaipu - v{__version__}")
-        self.geometry("1180x740")
-        self.minsize(980, 640)
-        self.configure(fg_color=t.FUNDO)
+class _Rodape(QLabel):
+    """A versão instalada, no pé da barra. Clicável: abre a atualização."""
 
-        try:
-            ico = resource_path(os.path.join("assets", "logo_definitivo.ico"))
-            if os.path.exists(ico):
-                self.iconbitmap(ico)
-        except Exception:
-            pass
+    def __init__(self, texto, ao_clicar):
+        super().__init__(texto)
+        self.setObjectName("rodape_versao")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._ao_clicar = ao_clicar
 
-        self.ctx = AppContext(config=ConfigManager(), versao=__version__)
-        self.ctx.navegar = self.selecionar   # Home usa para abrir módulos ao clicar
-        self.ctx.abrir_atualizacao = self.abrir_atualizacao
-        self.ctx.verificar_atualizacao = self.verificar_atualizacao
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
-        self._procurando = False              # checagem manual em andamento
-        self._saindo_para_atualizar = False   # ver main()
-        self._dialogo_atualizacao = None      # um aviso só, ver abrir_atualizacao
+    def mouseReleaseEvent(self, evento):  # noqa: N802 - nome do Qt
+        if evento.button() == Qt.MouseButton.LeftButton:
+            self._ao_clicar()
+        super().mouseReleaseEvent(evento)
 
-        self._montar_sidebar()
-        self._views: dict[str, ctk.CTkFrame] = {}
-        self._botoes: dict[str, NavItem] = {}
-        self._montar_botoes()
-        self.selecionar(VIEWS[0].key)
 
-        # Checagem automática: em thread, e só depois de a janela estar montada -
-        # nada disso pode atrasar a abertura do app.
-        self.after(1200, self.verificar_na_abertura)
-        # Ctrl+K: "Procurar atualizações" de qualquer tela.
-        self.bind_all("<Control-k>", lambda _e: self.verificar_atualizacao(True))
-        self.bind_all("<Control-K>", lambda _e: self.verificar_atualizacao(True))
-
-    def _montar_sidebar(self):
-        self.sidebar = ctk.CTkFrame(self, width=240, corner_radius=0, fg_color=t.SIDEBAR)
-        self.sidebar.grid(row=0, column=0, sticky="nsw")
-        self.sidebar.grid_propagate(False)
-        self.sidebar.grid_rowconfigure(99, weight=1)
-
-        # Marca: logo definitivo do projeto + título.
-        marca = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        marca.grid(row=0, column=0, sticky="ew", padx=20, pady=(24, 20))
-        topo = ctk.CTkFrame(marca, fg_color="transparent")
-        topo.pack(anchor="w", fill="x")
-        logo = self._carregar_logo(44)
-        if logo is not None:
-            ctk.CTkLabel(topo, image=logo, text="").pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(topo, text="DocManager", font=t.titulo(20), text_color=t.TEXTO).pack(side="left")
-        ctk.CTkLabel(marca, text="Itaipu · Gestão Documental", font=t.corpo(11),
-                     text_color=t.TEXTO_FRACO).pack(anchor="w", pady=(6, 0))
-
-    def _carregar_logo(self, lado: int):
-        """CTkImage do logo definitivo (assets), ou None se indisponível."""
-        try:
-            from PIL import Image
-            caminho = resource_path(os.path.join("assets", "logo_definitivo.ico"))
-            if not os.path.exists(caminho):
-                return None
-            img = Image.open(caminho)
-            self._logo_ref = ctk.CTkImage(light_image=img, dark_image=img, size=(lado, lado))
-            return self._logo_ref
-        except Exception:
-            return None
-
-    def _montar_botoes(self):
-        for i, spec in enumerate(VIEWS, start=1):
-            item = NavItem(self.sidebar, spec.icone, spec.label,
-                           command=lambda k=spec.key: self.selecionar(k))
-            item.grid(row=i, column=0, sticky="ew", padx=12, pady=2)
-            self._botoes[spec.key] = item
-
-        # Procurar atualização na hora, de qualquer tela - antes o botão só
-        # existia dentro das Configurações. Mostra o resultado, inclusive o erro.
-        self._btn_procurar = ctk.CTkButton(
-            self.sidebar, text=self.TEXTO_PROCURAR, height=30, font=t.corpo(11),
-            fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO, text_color=t.TEXTO,
-            command=lambda: self.verificar_atualizacao(True))
-        self._btn_procurar.grid(row=100, column=0, sticky="ew", padx=16, pady=(8, 0))
-
-        # Rodapé: a versão instalada. Quando sai uma nova, este mesmo rótulo
-        # vira o aviso - é o canto da tela onde a pessoa já olha para conferir
-        # em que versão está, então é onde a novidade faz mais sentido.
-        self._rodape = ctk.CTkLabel(self.sidebar, text=f"v{__version__}", font=t.corpo(10),
-                                    text_color=t.TEXTO_FRACO, cursor="hand2")
-        self._rodape.grid(row=101, column=0, sticky="w", padx=24, pady=(6, 16))
-        self._rodape.bind("<Button-1>", lambda _e: self.abrir_atualizacao())
-        self.ctx.ao_achar_atualizacao(
-            lambda info: self.after(0, lambda: self._marcar_rodape(info)))
-
-    def _marcar_rodape(self, info):
-        try:
-            self._rodape.configure(text=f"✨ v{info.versao} disponível",
-                                   text_color=t.OK)
-        except Exception:  # noqa: BLE001
-            pass
-
-    # ------------------------------------------------------------------ update
-    TEXTO_PROCURAR = "🔄  Procurar atualizações"
+class MainApp(QMainWindow):
+    TEXTO_PROCURAR = "Procurar atualizações"
 
     # A checagem automática se repete enquanto o app fica aberto: quem deixa o
     # DocManager aberto a semana inteira também precisa ser avisado. Aqui só se
     # PERGUNTA de hora em hora; quem decide se é hora de ir ao GitHub é
     # `updater.deve_verificar` (no máximo a cada 6 h com o app aberto).
     VERIFICAR_A_CADA_MS = 60 * 60 * 1000
-    # Atraso da janela de aviso depois que a checagem da abertura responde: a
-    # splash (ver main) ainda está na tela no primeiro segundo e meio.
+    # Atraso da checagem e da janela de aviso: a splash ainda está na tela.
+    CHECAR_APOS_MS = 1200
     AVISO_APOS_MS = 2500
 
+    def __init__(self, config: ConfigManager | None = None):
+        super().__init__()
+        self.setWindowTitle(f"DocManager Itaipu - v{__version__}")
+        self.resize(1200, 760)
+        self.setMinimumSize(980, 640)
+        self.setWindowIcon(icone_do_app())
+
+        self.ctx = AppContext(config=config or ConfigManager(), versao=__version__)
+        self.ctx.navegar = self.selecionar   # Home usa para abrir módulos ao clicar
+        self.ctx.abrir_atualizacao = self.abrir_atualizacao
+        self.ctx.verificar_atualizacao = self.verificar_atualizacao
+        self._procurando = False              # checagem manual em andamento
+        self._saindo_para_atualizar = False   # ver main()
+        self._dialogo_atualizacao = None      # um aviso só, ver abrir_atualizacao
+        self._views: dict[str, QWidget] = {}
+        self._botoes: dict[str, QPushButton] = {}
+        self._key_ativa: str | None = None
+
+        central = QWidget()
+        central.setObjectName("conteudo")
+        lay = QHBoxLayout(central)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        lay.addWidget(self._montar_sidebar())
+        self._pilha = QStackedWidget()
+        lay.addWidget(self._pilha, 1)
+        self.setCentralWidget(central)
+        self.selecionar(VIEWS[0].key)
+
+        # Checagem automática: em thread, e só depois de a janela estar montada -
+        # nada disso pode atrasar a abertura do app.
+        QTimer.singleShot(self.CHECAR_APOS_MS, self.verificar_na_abertura)
+        self._periodica = QTimer(self)
+        self._periodica.setInterval(self.VERIFICAR_A_CADA_MS)
+        self._periodica.timeout.connect(lambda: self.verificar_atualizacao(False))
+        # Ctrl+K: "Procurar atualizações" de qualquer tela.
+        QShortcut(QKeySequence("Ctrl+K"), self, activated=lambda: self.verificar_atualizacao(True))
+
+    # ------------------------------------------------------------------ barra
+    def _montar_sidebar(self) -> QFrame:
+        barra = QFrame()
+        barra.setObjectName("sidebar")
+        barra.setFixedWidth(estilo.LARGURA_BARRA_LATERAL)
+        lay = QVBoxLayout(barra)
+        lay.setContentsMargins(14, 22, 14, 14)
+        lay.setSpacing(4)
+
+        # Marca: logo definitivo do projeto + título.
+        marca = QHBoxLayout()
+        marca.setSpacing(10)
+        logo = QLabel()
+        if not (pix := pixmap_do_logo(40)).isNull():
+            logo.setPixmap(pix)
+            marca.addWidget(logo)
+        marca.addWidget(rotulo("DocManager", nome="app_nome"), 1)
+        lay.addLayout(marca)
+        lay.addWidget(rotulo("Itaipu · Gestão Documental", nome="app_sub"))
+        lay.addSpacing(18)
+
+        for spec in VIEWS:
+            b = QPushButton(spec.label)
+            b.setProperty("menu", True)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            icones.aplicar(b, spec.icone, papel_cor="texto_suave",
+                           papel_cor_ativo=estilo.PAPEL_MENU_ESCOLHIDO)
+            b.clicked.connect(lambda _=False, k=spec.key: self.selecionar(k))
+            lay.addWidget(b)
+            self._botoes[spec.key] = b
+        lay.addStretch(1)
+
+        # Procurar atualização na hora, de qualquer tela.
+        self._btn_procurar = botao(self.TEXTO_PROCURAR, icone="refresh-cw",
+                                   ao_clicar=lambda: self.verificar_atualizacao(True),
+                                   dica="Também pelo atalho Ctrl+K")
+        lay.addWidget(self._btn_procurar)
+        # Rodapé: a versão instalada. Quando sai uma nova, este mesmo rótulo
+        # vira o aviso - é o canto onde a pessoa já olha para conferir a versão.
+        self._rodape = _Rodape(f"v{__version__}", self.abrir_atualizacao)
+        lay.addSpacing(4)
+        lay.addWidget(self._rodape)
+        self.ctx.ao_achar_atualizacao(lambda info: na_ui(self._marcar_rodape, info))
+        return barra
+
+    def _marcar_rodape(self, info):
+        self._rodape.setText(f"v{info.versao} disponível - clique para ver")
+        estilo.definir_propriedade(self._rodape, "novo", True)
+
+    def selecionar(self, key: str):
+        for k, b in self._botoes.items():
+            estilo.definir_propriedade(b, "ativo", k == key)
+            icones.reaplicar(b)
+        if key not in self._views:  # instanciação lazy
+            spec = next(s for s in VIEWS if s.key == key)
+            self._views[key] = spec.factory(self.ctx)
+            self._pilha.addWidget(self._views[key])
+        self._pilha.setCurrentWidget(self._views[key])
+        self._key_ativa = key
+        # A view foi criada antes e ficou guardada: ela relê o que pode ter
+        # mudado enquanto estava fora da tela (ex.: usuário do Aconex cadastrado
+        # nas Configurações, que tem de aparecer na Extração).
+        if (ao_exibir := getattr(self._views[key], "ao_exibir", None)) is not None:
+            ao_exibir()
+
+    def view_ativa(self):
+        return self._views.get(self._key_ativa)
+
+    # ------------------------------------------------------------------ update
     def verificar_na_abertura(self):
         """Toda abertura pergunta ao GitHub, sem intervalo mínimo (uma requisição
         por abertura fica muito abaixo do limite do token), e abre o aviso se
         houver versão nova. Erros vão para o log e somem: a abertura do app não
         pode depender do GitHub."""
-        def achou(info):
-            self.after(0, lambda: self._anunciar_e_avisar(info))
-
-        updater.verificar_em_segundo_plano(self.ctx.config, __version__, achou,
+        updater.verificar_em_segundo_plano(self.ctx.config, __version__,
+                                           lambda info: na_ui(self._anunciar_e_avisar, info),
                                            intervalo_horas=0)
-        self.after(self.VERIFICAR_A_CADA_MS, self._verificacao_periodica)
+        self._periodica.start()
 
     def _anunciar_e_avisar(self, info):
         self.ctx.anunciar_atualizacao(info)
-        self.after(self.AVISO_APOS_MS, self.abrir_atualizacao)
-
-    def _verificacao_periodica(self):
-        self.verificar_atualizacao(False)
-        self.after(self.VERIFICAR_A_CADA_MS, self._verificacao_periodica)
+        QTimer.singleShot(self.AVISO_APOS_MS, self.abrir_atualizacao)
 
     def verificar_atualizacao(self, manual: bool = False):
         """Procura uma versão nova. `manual=True` (botão da barra lateral, das
@@ -192,45 +224,49 @@ class MainApp(ctk.CTk):
             self._verificar_agora()
             return
         updater.verificar_em_segundo_plano(
-            self.ctx.config, __version__,
-            lambda info: self.after(0, lambda: self.ctx.anunciar_atualizacao(info)))
+            self.ctx.config, __version__, lambda info: na_ui(self.ctx.anunciar_atualizacao, info))
 
-    def tarefa_em_andamento(self) -> bool:
-        return any(rb.winfo_exists() for rb in list(RunBar.em_andamento))
+    @staticmethod
+    def tarefa_em_andamento() -> bool:
+        return any(rb.rodando() for rb in list(RunBar.em_andamento))
 
     def _verificar_agora(self):
         """Checagem pedida pela pessoa: roda em thread mas fala o resultado."""
-        import threading
-        from tkinter import messagebox
-
         if self._procurando:
             return   # clique repetido enquanto a primeira ainda responde
         if (motivo := updater.motivo_para_nao_verificar()):
-            messagebox.showinfo("Atualização automática", motivo)
+            dialogos.info("Atualização automática", motivo, self)
             return
         self._procurando = True
-        self._btn_procurar.configure(state="disabled", text="Procurando...")
+        self._btn_procurar.setEnabled(False)
+        self._btn_procurar.setText("Procurando...")
 
         def _fim():
             self._procurando = False
-            self._btn_procurar.configure(state="normal", text=self.TEXTO_PROCURAR)
+            self._btn_procurar.setEnabled(True)
+            self._btn_procurar.setText(self.TEXTO_PROCURAR)
+
+        def _erro(e):
+            _fim()
+            dialogos.aviso("Não foi possível verificar",
+                           f"{e}\n\nVocê pode continuar usando o DocManager normalmente.", self)
+
+        def _resposta(info):
+            _fim()
+            if info is None:
+                dialogos.info("Tudo em dia", txt.em_dia(__version__), self)
+                return
+            self.ctx.anunciar_atualizacao(info)
+            self.abrir_atualizacao()
 
         def _trabalho():
             try:
-                info = updater.checar(__version__,
-                                      canal_testes=updater.canal_de_testes(self.ctx.config))
+                info = updater.checar(__version__, canal_testes=updater.canal_de_testes(self.ctx.config))
             except Exception as e:  # noqa: BLE001 - aqui o erro É a resposta
-                self.after(0, lambda erro=e: (_fim(), messagebox.showwarning(
-                    "Não foi possível verificar",
-                    f"{erro}\n\nVocê pode continuar usando o DocManager normalmente.")))
+                na_ui(_erro, e)
                 return
             updater.registrar_verificacao(self.ctx.config)
-            if info is None:
-                self.after(0, lambda: (_fim(), messagebox.showinfo(
-                    "Tudo em dia", txt.em_dia(__version__))))
-                return
-            self.after(0, lambda: (_fim(), self.ctx.anunciar_atualizacao(info),
-                                   self.abrir_atualizacao()))
+            na_ui(_resposta, info)
 
         threading.Thread(target=_trabalho, daemon=True).start()
 
@@ -239,16 +275,17 @@ class MainApp(ctk.CTk):
         info = self.ctx.atualizacao
         if info is None:
             self.verificar_atualizacao(True)
-            return
+            return None
         aberto = self._dialogo_atualizacao
-        if aberto is not None and aberto.winfo_exists():
+        if aberto is not None and aberto.isVisible():
             aberto.trazer_para_frente()   # nunca dois avisos
-            return
+            return None
         from .views.update_dialog import AtualizacaoDialog
         self._dialogo_atualizacao = AtualizacaoDialog(
             self, info, __version__, fechar_app=self._fechar_para_instalar,
             ao_pular=lambda v: updater.ignorar_versao(self.ctx.config, v),
             tarefa_em_andamento=self.tarefa_em_andamento)
+        self._dialogo_atualizacao.show()
         return self._dialogo_atualizacao
 
     def _fechar_para_instalar(self):
@@ -256,45 +293,34 @@ class MainApp(ctk.CTk):
         Windows não deixa regravar um .exe que está rodando. O `main()` encerra
         o processo em seguida (ver lá)."""
         self._saindo_para_atualizar = True
-        try:
-            self.quit()
-            self.destroy()
-        except Exception:  # noqa: BLE001
-            pass
+        self.close()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
-    def selecionar(self, key: str):
-        for k, item in self._botoes.items():
-            item.set_ativo(k == key)
-        for k, v in self._views.items():
-            v.grid_forget()
-        if key not in self._views:  # instanciação lazy
-            spec = next(s for s in VIEWS if s.key == key)
-            self._views[key] = spec.factory(self, self.ctx)
-        self._views[key].grid(row=0, column=1, sticky="nsew")
-        self._key_ativa = key
-        # A view foi criada antes e ficou guardada: ela relê o que pode ter
-        # mudado enquanto estava fora da tela (ex.: usuário do Aconex cadastrado
-        # nas Configurações, que tem de aparecer na Extração). A Home não herda
-        # de BaseView, daí o getattr.
-        if (ao_exibir := getattr(self._views[key], "ao_exibir", None)) is not None:
-            ao_exibir()
+    # ------------------------------------------------------------------ fechar
+    def closeEvent(self, evento):  # noqa: N802 - nome do Qt
+        """Fechar com uma tarefa rodando perguntaria nada e a interromperia no
+        meio (um Excel pela metade, a extração parada). Pergunta - o padrão é
+        NÃO fechar. Saindo para atualizar, a janela da atualização já perguntou."""
+        if (not self._saindo_para_atualizar and self.tarefa_em_andamento()
+                and not dialogos.perguntar(
+                    "Tarefa em andamento",
+                    "Há uma tarefa em andamento. Fechar o DocManager agora a interrompe.\n\n"
+                    "Fechar mesmo assim?", padrao_nao=True, parent=self)):
+            evento.ignore()
+            return
+        super().closeEvent(evento)
 
-    def report_callback_exception(self, exc, val, tb):
-        """Erros em callbacks (main thread) vão para o log da view ativa + popup,
-        já que o usuário não vê o terminal."""
-        import traceback
-        from tkinter import messagebox
-        msg = "".join(traceback.format_exception_only(exc, val)).strip()
-        view = self._views.get(getattr(self, "_key_ativa", None))
+    # ------------------------------------------------------------------ erros
+    def mostrar_erro_inesperado(self, tipo, valor, tb) -> None:
+        """Erro num slot (thread da interface): vai para o log da tela ativa e
+        numa caixa, já que no `.exe` ninguém vê o terminal."""
+        msg = "".join(traceback.format_exception_only(tipo, valor)).strip()
+        view = self.view_ativa()
         if view is not None and hasattr(view, "log"):
-            try:
-                view.log.log(f"ERRO: {msg}")
-            except Exception:  # noqa: BLE001
-                pass
-        try:
-            messagebox.showerror("Erro inesperado", msg)
-        except Exception:  # noqa: BLE001
-            pass
+            view.log.log(f"ERRO: {msg}")
+        dialogos.erro("Erro inesperado", msg, self)
 
 
 # Nome do mutex do app. TEM QUE SER IGUAL ao `AppMutex` do installer/docmanager.iss:
@@ -317,8 +343,55 @@ def _registrar_mutex():
         pass
 
 
+def criar_app(argv=None) -> QApplication:
+    """O QApplication com fonte, tema e folha do DocManager (reaproveita o que
+    já existir - os testes criam o deles)."""
+    app = QApplication.instance() or QApplication(argv if argv is not None else sys.argv)
+    app.setApplicationName("DocManager Itaipu")
+    app.setApplicationVersion(__version__)
+    app.setWindowIcon(icone_do_app())
+    estilo.carregar_fontes()
+    return app
+
+
+def _fechar_splash_nativa() -> None:
+    """Fecha a tela de carregamento NATIVA do PyInstaller (`pyi_splash`), que
+    cobriu a carga desde o duplo-clique no .exe. Em desenvolvimento não existe."""
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def abrir(app, config: ConfigManager | None = None) -> MainApp:
+    """Da tela de carregamento à janela pronta, sem troca visível de tela.
+
+    A splash do Qt mostra a MESMA imagem da nativa e entra antes de a nativa
+    sair (`ui/splash.py`). A janela é montada por baixo dela e aparece
+    MAXIMIZADA - pedido do usuário: toda abertura em tela cheia - e a splash
+    sai quando a janela já está na tela (`finish`), sem espera fixa."""
+    from .splash import mostrar_splash
+
+    splash = mostrar_splash()
+    _fechar_splash_nativa()
+    config = config or ConfigManager()
+    tema.aplicar(app, config.settings.tema)
+    tema.seguir_o_sistema(app, config)
+    janela = MainApp(config)
+    janela.showMaximized()
+    janela.raise_()
+    janela.activateWindow()
+    if splash is not None:
+        splash.finish(janela)
+    return janela
+
+
 def main():
+    from ..services import diario
+
     _registrar_mutex()
+    diario.iniciar(__version__)
     # Quem vem da v3.0.0 tem as credenciais num .env: importa uma vez para o
     # cofre do app, para a lista da Extração não aparecer vazia depois de atualizar.
     try:
@@ -327,19 +400,22 @@ def main():
     except Exception:  # noqa: BLE001 - migração nunca impede a abertura
         pass
 
-    app = MainApp()
-    app.withdraw()   # oculta enquanto a splash aparece
-    # Fecha o splash NATIVO do PyInstaller (pyi_splash) - cobriu a carga desde o
-    # duplo-clique no .exe. Em desenvolvimento não existe → ignora.
-    try:
-        import pyi_splash
-        pyi_splash.close()
-    except Exception:  # noqa: BLE001
-        pass
-    from .splash import mostrar_splash
-    mostrar_splash(app, ms=1600, ao_fechar=lambda: (app.deiconify(), app.lift()))
-    app.mainloop()
-    if app._saindo_para_atualizar:
+    app = criar_app()
+    janela = abrir(app)
+
+    gancho_anterior = sys.excepthook
+
+    def _gancho(tipo, valor, tb):
+        gancho_anterior(tipo, valor, tb)    # o do diário: grava o traceback
+        try:
+            janela.mostrar_erro_inesperado(tipo, valor, tb)
+        except Exception:  # noqa: BLE001 - o gancho nunca pode levantar
+            pass
+
+    sys.excepthook = _gancho
+    app.aboutToQuit.connect(diario.encerrar)
+    app.exec()
+    if janela._saindo_para_atualizar:
         # O instalador está esperando o mutex sumir, e ele só some com o fim do
         # PROCESSO. Sair na hora: uma thread de biblioteca ou um finalizador
         # lento segurando o processo faria a atualização desistir.

@@ -1,165 +1,109 @@
-"""Janela de Análise Delta ("Máquina do Tempo") - aberta de DENTRO do Mapa.
+"""Janela de Análise Delta ("Máquina do Tempo") - aberta de DENTRO do Mapa (e do Doc List).
 
-Porta fiel da `DeltaView` legada (CTkToplevel + ttk.Treeview): mesmo layout de
-árvore Grupo/Nível/Documento, visões Efetiva/Bruta, filtro "ocultar aprovados" e
-exportação Excel. A lógica vem de `core.snapshots.calcular_mudancas_periodo`
-(que respeita o toggle da regra estrita via `estrito`).
+Mesmo layout da `DeltaView` legada: árvore Grupo/Nível/Documento, visões
+Efetiva/Bruta, filtro "ocultar aprovados" e exportação Excel. A lógica vem de
+`core.snapshots.calcular_mudancas_periodo` (que respeita a regra estrita via
+`estrito`).
 """
 from __future__ import annotations
 
-import threading
 from datetime import datetime
-from tkinter import messagebox, ttk
 
-import customtkinter as ctk
+from PySide6.QtWidgets import QCheckBox
 
-from .. import theme as t
+from .. import dialogos
+from ..components import Seletor, botao, rotulo
+from .arvore import ArvoreDialog, campo_data
 
 _STATUS_APROVADOS = ["Aprovado", "Aprovado com Comentários", "Para Assinatura"]
+_COLUNAS = [("Grupo / Nível / Documento", 320), ("Rev/Data (Antes)", 130), ("Aconex (Antes)", 140),
+            ("Efetivo (Antes)", 140), ("", 34), ("Rev/Data (Depois)", 130), ("Aconex (Depois)", 140),
+            ("Efetivo (Depois)", 140)]
+# Colunas só da visão Bruta: as de revisão e data.
+_SO_BRUTA = (1, 5)
 
 
-class DeltaDialog(ctk.CTkToplevel):
+def info_revisao(d: dict, lado: str) -> str:
+    rev = d.get(f"rev_{lado}", "-")
+    return f"Rev {rev} ({d.get(f'data_{lado}', '-')})" if rev != "-" else "-"
+
+
+class DeltaDialog(ArvoreDialog):
     def __init__(self, parent, *, path_map, sheet_map, path_hist, sheet_hist,
-                 cols_config, estrito=False, titulo=None):
-        super().__init__(parent)
+                 cols_config, estrito=False, titulo=None, config=None):
         # `titulo`: o diálogo serve ao Mapa dos Planos e ao Doc List Mapping -
         # a planilha de origem muda, o motor é o mesmo.
-        self.title(titulo or "Análise de Mudanças por Período (Delta)")
-        self.geometry("1180x620")
-        self.configure(fg_color=t.FUNDO)
+        super().__init__(parent, titulo=titulo or "Análise de Mudanças por Período (Delta)",
+                         colunas=_COLUNAS, config=config)
         self.path_map, self.sheet_map = path_map, sheet_map
         self.path_hist, self.sheet_hist = path_hist, sheet_hist
         self.cols_config = cols_config
         self.estrito = estrito
         self.dados_cache = None
 
-        self._montar()
-        self._estilo_tree()
-        self.lift()
-        self.after(80, self.focus_force)
-
-    # ---------------------------------------------------------------- UI
-    def _montar(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-
-        top = ctk.CTkFrame(self, fg_color=t.CARD)
-        top.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
-        hoje = datetime.now()
-        ctk.CTkLabel(top, text="Período:", font=t.corpo(12, "bold"), text_color=t.TEXTO).pack(side="left", padx=(12, 6))
-        self.entry_ini = ctk.CTkEntry(top, placeholder_text="DD/MM/AAAA", width=110)
-        self.entry_ini.pack(side="left", padx=4)
-        ctk.CTkLabel(top, text="até", text_color=t.TEXTO_FRACO).pack(side="left", padx=4)
-        self.entry_fim = ctk.CTkEntry(top, placeholder_text="DD/MM/AAAA", width=110)
-        self.entry_fim.insert(0, hoje.strftime("%d/%m/%Y"))
-        self.entry_fim.pack(side="left", padx=4)
-
-        ctk.CTkLabel(top, text="Agrupar:", font=t.corpo(12, "bold"), text_color=t.TEXTO).pack(side="left", padx=(16, 6))
-        self.var_agrup = ctk.StringVar(value="Grupo")
-        ctk.CTkOptionMenu(top, variable=self.var_agrup, values=["Grupo", "Sistema"], width=100,
-                          fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO).pack(side="left", padx=4)
-
-        ctk.CTkLabel(top, text="Visão:", font=t.corpo(12, "bold"), text_color=t.TEXTO).pack(side="left", padx=(16, 6))
-        self.var_visao = ctk.StringVar(value="Efetiva")
-        ctk.CTkSegmentedButton(top, variable=self.var_visao, values=["Efetiva", "Bruta"],
-                               selected_color=t.ACENTO, selected_hover_color=t.ACENTO_HOVER,
-                               command=lambda _: self._repovoar()).pack(side="left", padx=4)
-
-        self.btn_filtrar = ctk.CTkButton(top, text="Verificar Mudanças", command=self._executar,
-                                         fg_color=t.ACENTO, hover_color=t.ACENTO_HOVER, width=160)
-        self.btn_filtrar.pack(side="left", padx=16)
-        self.var_ocultar = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(top, text="Ocultar se já estava Aprovado", variable=self.var_ocultar,
-                        command=self._repovoar).pack(side="left", padx=8)
-
-        tree_frame = ctk.CTkFrame(self, fg_color="transparent")
-        tree_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 8))
-        tree_frame.grid_columnconfigure(0, weight=1)
-        tree_frame.grid_rowconfigure(0, weight=1)
-        cols = ("info_antes", "raw_antes", "real_antes", "seta", "info_depois", "raw_depois", "real_depois")
-        self.tree = ttk.Treeview(tree_frame, columns=cols, selectmode="browse")
-        self.tree.heading("#0", text="Grupo / Nível / Documento", anchor="w")
-        for c, txt, w in [("info_antes", "Rev/Data (Antes)", 120), ("raw_antes", "Aconex (Antes)", 130),
-                          ("real_antes", "Efetivo (Antes)", 130), ("seta", " ", 30),
-                          ("info_depois", "Rev/Data (Depois)", 120), ("raw_depois", "Aconex (Depois)", 130),
-                          ("real_depois", "Efetivo (Depois)", 130)]:
-            self.tree.heading(c, text=txt, anchor="w")
-            self.tree.column(c, width=w, minwidth=w, anchor="center" if c == "seta" else "w")
-        self.tree.column("#0", width=320, minwidth=200)
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=vsb.set)
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        self.tree.bind("<Double-1>", self._duplo_clique)
-
-        footer = ctk.CTkFrame(self, fg_color="transparent")
-        footer.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
-        self.lbl_status = ctk.CTkLabel(footer, text="Informe o período e clique em Verificar Mudanças.",
-                                       text_color=t.TEXTO_FRACO, font=t.corpo(12))
-        self.lbl_status.pack(side="left")
-        ctk.CTkLabel(footer, text="●  em vermelho: documento presente em mais de um grupo",
-                     text_color="#C00000", font=t.corpo(11)).pack(side="left", padx=(16, 0))
-        self.btn_exportar = ctk.CTkButton(footer, text="📊 Exportar Excel", command=self._exportar,
-                                          fg_color=t.SIDEBAR_ATIVO, state="disabled")
-        self.btn_exportar.pack(side="right")
-
-    def _estilo_tree(self):
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("Treeview", background=t.CARD, foreground=t.TEXTO, fieldbackground=t.CARD,
-                        rowheight=30, font=("Segoe UI", 10), borderwidth=0)
-        style.configure("Treeview.Heading", background=t.SIDEBAR, foreground=t.TEXTO,
-                        font=("Segoe UI", 10, "bold"))
-        style.map("Treeview", background=[("selected", t.ACENTO)])
-        # Documento presente em mais de um grupo de classificação: texto vermelho.
-        self.tree.tag_configure("repetido", foreground="#C00000")
+        self.entry_ini = campo_data()
+        self.entry_fim = campo_data(datetime.now().strftime("%d/%m/%Y"))
+        self.opt_agrup = Seletor(["Grupo", "Sistema"])
+        self.opt_visao = Seletor(["Efetiva", "Bruta"])
+        self.opt_visao.currentTextChanged.connect(lambda _v: self._repovoar())
+        self.btn_filtrar = botao("Verificar Mudanças", variante="primario", icone="search",
+                                 ao_clicar=self._executar)
+        self.chk_ocultar = QCheckBox("Ocultar se já estava Aprovado")
+        self.chk_ocultar.toggled.connect(lambda _v: self._repovoar())
+        self.adicionar_na_barra(rotulo("Período:", "destaque"), self.entry_ini, rotulo("até", "suave"),
+                                self.entry_fim, rotulo("Agrupar:", "destaque"), self.opt_agrup,
+                                rotulo("Visão:", "destaque"), self.opt_visao, self.btn_filtrar,
+                                self.chk_ocultar)
+        self.barra_lay.addStretch(1)
+        self.lbl_status.setText("Informe o período e clique em Verificar Mudanças.")
+        self.legenda("●  em vermelho: documento presente em mais de um grupo")
+        self._aplicar_visao()
 
     # ------------------------------------------------------------ ações
     def _executar(self):
-        dt_ini, dt_fim = self.entry_ini.get().strip(), self.entry_fim.get().strip()
+        dt_ini, dt_fim = self.entry_ini.text().strip(), self.entry_fim.text().strip()
         if not dt_ini or not dt_fim:
-            messagebox.showwarning("Aviso", "Preencha as duas datas.", parent=self)
+            dialogos.aviso("Aviso", "Preencha as duas datas.", self)
             return
-        self.btn_filtrar.configure(state="disabled", text="Processando...")
-        self.lbl_status.configure(text="Cruzando dados... aguarde.")
-        threading.Thread(target=self._worker, args=(dt_ini, dt_fim), daemon=True).start()
+        self.lbl_status.setText("Cruzando dados... aguarde.")
+        agrup, visao = self.opt_agrup.get(), self.opt_visao.get()
 
-    def _worker(self, dt_ini, dt_fim):
-        from ...mapa_backend import calcular_mudancas_periodo
-        try:
-            ok, arvore, total = calcular_mudancas_periodo(
-                self.path_map, self.sheet_map, self.path_hist, self.sheet_hist,
-                dt_ini, dt_fim, self.cols_config,
-                agrupador_escolhido=self.var_agrup.get(), tipo_visao=self.var_visao.get(),
-                estrito=self.estrito)
-        except Exception as e:  # noqa: BLE001
-            ok, arvore, total = False, str(e), 0
-        self.after(0, self._concluir, ok, arvore, total)
+        def trabalho():
+            from ...mapa_backend import calcular_mudancas_periodo
+            try:
+                return calcular_mudancas_periodo(
+                    self.path_map, self.sheet_map, self.path_hist, self.sheet_hist,
+                    dt_ini, dt_fim, self.cols_config, agrupador_escolhido=agrup,
+                    tipo_visao=visao, estrito=self.estrito)
+            except Exception as e:  # noqa: BLE001
+                return False, str(e), 0
 
-    def _concluir(self, ok, arvore, total):
-        self.btn_filtrar.configure(state="normal", text="Verificar Mudanças")
+        self.rodar_em_thread(self.btn_filtrar, "Processando...", trabalho, self._concluir)
+
+    def _concluir(self, resultado):
+        ok, arvore, total = resultado
         if not ok:
-            messagebox.showerror("Erro", f"Falha: {arvore}", parent=self)
-            self.lbl_status.configure(text="Erro na análise.")
-            self.btn_exportar.configure(state="disabled")
+            dialogos.erro("Erro", f"Falha: {arvore}", self)
+            self.lbl_status.setText("Erro na análise.")
+            self.btn_exportar.setEnabled(False)
             return
         self.dados_cache = arvore
         self._repovoar()
-        self.lbl_status.configure(text=f"Análise concluída. {total} documento(s) com mudança no período.")
-        self.btn_exportar.configure(state="normal" if total else "disabled")
+        self.lbl_status.setText(f"Análise concluída. {total} documento(s) com mudança no período.")
+        self.btn_exportar.setEnabled(bool(total))
+
+    def _aplicar_visao(self):
+        bruta = self.opt_visao.get() == "Bruta"
+        for c in _SO_BRUTA:
+            self.tree.setColumnHidden(c, not bruta)
 
     def _repovoar(self):
-        self.tree.delete(*self.tree.get_children())
+        self.limpar()
+        self._aplicar_visao()
         if not self.dados_cache:
             return
-        nome_agr = self.var_agrup.get()
-        self.tree.heading("#0", text=f"{nome_agr} / Nível / Documento")
-        if self.var_visao.get() == "Efetiva":
-            self.tree.configure(displaycolumns=("raw_antes", "real_antes", "seta", "raw_depois", "real_depois"))
-        else:
-            self.tree.configure(displaycolumns=("info_antes", "raw_antes", "real_antes", "seta",
-                                                "info_depois", "raw_depois", "real_depois"))
-        ocultar = self.var_ocultar.get()
+        self.tree.headerItem().setText(0, f"{self.opt_agrup.get()} / Nível / Documento")
+        ocultar = self.chk_ocultar.isChecked()
         exibidos = 0
         for grupo in sorted(self.dados_cache.keys()):
             filtrado, total_grupo = {}, 0
@@ -170,51 +114,31 @@ class DeltaDialog(ctk.CTkToplevel):
                     total_grupo += len(validos)
             if not total_grupo:
                 continue
-            id_g = self.tree.insert("", "end", text=f"📂 {grupo} ({total_grupo})", open=True)
+            no_g = self.grupo(f"{grupo} ({total_grupo})")
             for nivel in sorted(filtrado.keys()):
                 docs = filtrado[nivel]
-                id_n = self.tree.insert(id_g, "end", text=f"L {nivel} ({len(docs)})", open=True)
+                no_n = self.grupo(f"L {nivel} ({len(docs)})", no_g)
                 for d in docs:
                     exibidos += 1
-                    info_a = f"Rev {d.get('rev_antes', '-')} ({d.get('data_antes', '-')})" if d.get("rev_antes", "-") != "-" else "-"
-                    info_d = f"Rev {d.get('rev_depois', '-')} ({d.get('data_depois', '-')})" if d.get("rev_depois", "-") != "-" else "-"
-                    tags = ("repetido",) if d.get("repetido_grupos") else ()
-                    self.tree.insert(id_n, "end", text=f"📄 {d['doc']}",
-                                     values=(info_a, d["raw_antes"], d["real_antes"], "➜",
-                                             info_d, d["raw_depois"], d["real_depois"]), tags=tags)
+                    self.documento(no_n, d["doc"],
+                                   (info_revisao(d, "antes"), d["raw_antes"], d["real_antes"], "➜",
+                                    info_revisao(d, "depois"), d["raw_depois"], d["real_depois"]),
+                                   "alerta" if d.get("repetido_grupos") else None)
         if ocultar:
-            self.lbl_status.configure(text=f"Exibindo {exibidos} documentos (filtro ativo).")
-
-    def _duplo_clique(self, event):
-        item = self.tree.identify_row(event.y)
-        if not item:
-            return
-        texto = self.tree.item(item, "text")
-        if "📄" in texto:
-            codigo = texto.replace("📄", "").strip()
-            self.clipboard_clear()
-            self.clipboard_append(codigo)
-            self.update()
-            messagebox.showinfo("Copiado", f"Código copiado:\n{codigo}", parent=self)
+            self.lbl_status.setText(f"Exibindo {exibidos} documentos (filtro ativo).")
 
     def _exportar(self):
         if not self.dados_cache:
             return
-        d1 = self.entry_ini.get().strip().replace("/", ".")
-        d2 = self.entry_fim.get().strip().replace("/", ".")
+        d1 = self.entry_ini.text().strip().replace("/", ".")
+        d2 = self.entry_fim.text().strip().replace("/", ".")
         aba = str(self.sheet_map).replace(" ", "_")
-        nome = f"Delta_{aba}_{d1}_ate_{d2}.xlsx"
-        from ..components import pedir_salvar
-        ctx = getattr(getattr(self, "master", None), "ctx", None)
-        caminho = pedir_salvar(getattr(ctx, "config", None), "saida", nome,
-                               titulo="Salvar Exportação Delta", parent=self)
+        caminho = dialogos.pedir_salvar(self.config, "saida", f"Delta_{aba}_{d1}_ate_{d2}.xlsx",
+                                        titulo="Salvar Exportação Delta", parent=self)
         if not caminho:
             return
         from ...mapa_backend import exportar_delta_arvore
-        ok, msg = exportar_delta_arvore(
-            self.dados_cache, caminho, agrupador=self.var_agrup.get(), visao=self.var_visao.get(),
-            ocultar_aprovados=self.var_ocultar.get())
-        if ok:
-            messagebox.showinfo("Exportação concluída", msg, parent=self)
-        else:
-            messagebox.showerror("Erro", msg, parent=self)
+        ok, msg = exportar_delta_arvore(self.dados_cache, caminho, agrupador=self.opt_agrup.get(),
+                                        visao=self.opt_visao.get(),
+                                        ocultar_aprovados=self.chk_ocultar.isChecked())
+        (dialogos.info if ok else dialogos.erro)("Exportação concluída" if ok else "Erro", msg, self)

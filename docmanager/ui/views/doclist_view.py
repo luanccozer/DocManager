@@ -8,13 +8,10 @@ status entre duas datas, pelo histórico do Aconex).
 """
 from __future__ import annotations
 
-from tkinter import messagebox
-
-import customtkinter as ctk
-
-from .. import theme as t
-from ..components import Card, FileSelector, RunBar
+from .. import dialogos
+from ..components import Card, FileSelector, RunBar, botao, linha, rotulo
 from .base import BaseView
+from .mapa_view import ler_linha_cabecalho
 
 
 class DocListView(BaseView):
@@ -29,42 +26,34 @@ class DocListView(BaseView):
 
     def montar(self, body):
         cfg = self.ctx.config
-        card = Card(body, "Arquivos")
-        card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-        self.sel_aconex = card.add(FileSelector(card, "Base Aconex", cfg, "aconex",
-                                                aba_padrao="Documentos"))
-        self.sel_doclist = card.add(FileSelector(card, "Doc List Mapping", cfg, "doclist"))
-        self.sel_ctrl = card.add(FileSelector(card, "Controle de Documentos (opcional)",
-                                              cfg, "controle"))
+        card = Card("Arquivos")
+        self.sel_aconex = card.add(FileSelector("Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
+        self.sel_doclist = card.add(FileSelector("Doc List Mapping", cfg, "doclist"))
+        self.sel_ctrl = card.add(FileSelector("Controle de Documentos (opcional)", cfg, "controle"))
+        card.add(rotulo("Do Controle vêm DATA PREVISTA EMISSÃO (vence a data mais recente), DATA "
+                        "REPROGRAMADA (nunca sobrescreve o que já está preenchido) e a descrição dos "
+                        "documentos que o Aconex ainda não conhece. FASE DE PROJETO é preenchida à mão.",
+                        "legenda", quebra=True))
+        body.addWidget(card)
 
-        ctk.CTkLabel(card, text=("Do Controle vêm DATA PREVISTA EMISSÃO (vence a data mais "
-                                 "recente), DATA REPROGRAMADA (nunca sobrescreve o que já "
-                                 "está preenchido) e a descrição dos documentos que o Aconex "
-                                 "ainda não conhece. FASE DE PROJETO é preenchida à mão."),
-                     font=t.corpo(11), text_color=t.TEXTO_FRACO, justify="left",
-                     wraplength=820, anchor="w").grid(row=card._linha, column=0, sticky="w",
-                                                      padx=16, pady=(0, 12))
+        periodo = botao("Analisar Período (previstos para emitir)", icone="calendar-range",
+                        ao_clicar=self._abrir_periodo)
+        delta = botao("Analisar Mudanças por Período (Delta)", icone="history", ao_clicar=self._abrir_delta)
+        body.addWidget(linha(periodo, delta))
 
-        linha = ctk.CTkFrame(body, fg_color="transparent")
-        linha.grid(row=1, column=0, sticky="ew", pady=(0, 8))
-        ctk.CTkButton(linha, text="🗓️ Analisar Período (previstos para emitir)", width=300,
-                      font=t.corpo(12), fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=self._abrir_periodo).pack(side="left")
-        ctk.CTkButton(linha, text="⏳ Analisar Mudanças por Período (Delta)", width=290,
-                      font=t.corpo(12), fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=self._abrir_delta).pack(side="right")
-
-        self.run = RunBar(body, "Iniciar Atualização", self._tarefa, self.log)
-        self.run.grid(row=2, column=0, sticky="ew", pady=(4, 8))
+        self.run = RunBar("Iniciar Atualização", self._tarefa, self.log)
+        body.addWidget(self.run)
 
     # ------------------------------------------------------------------
     def _abrir_periodo(self):
         """O que está previsto para emitir (olha para FRENTE, pelo planejamento)."""
         if not self.sel_doclist.path:
-            messagebox.showwarning("Aviso", "Selecione a planilha do Doc List Mapping primeiro.")
+            dialogos.aviso("Aviso", "Selecione a planilha do Doc List Mapping primeiro.", self)
             return
         from .periodo_dialog import PeriodoDialog
-        PeriodoDialog(self, path_doclist=self.sel_doclist.path, sheet=self.sel_doclist.sheet)
+        self._periodo = PeriodoDialog(self, config=self.ctx.config, path_doclist=self.sel_doclist.path,
+                                      sheet=self.sel_doclist.sheet)
+        self._periodo.show()
 
     def _abrir_delta(self):
         """O que ACONTECEU entre duas datas (olha para trás, pelo Aconex).
@@ -73,30 +62,25 @@ class DocListView(BaseView):
         mesmos nomes neste layout. `estrito=False` fixo - a regra das planilhas
         VIP é de níveis 3/4, que não existem aqui."""
         if not self.sel_doclist.path:
-            messagebox.showwarning("Aviso", "Selecione a planilha do Doc List Mapping primeiro.")
+            dialogos.aviso("Aviso", "Selecione a planilha do Doc List Mapping primeiro.", self)
             return
         if not self.sel_aconex.path:
-            messagebox.showwarning("Aviso", "Selecione a Base Aconex para prosseguir.")
+            dialogos.aviso("Aviso", "Selecione a Base Aconex para prosseguir.", self)
             return
+        from ...doclist_backend import DocListSheet
         from .delta_dialog import DeltaDialog
         cfg = dict(self._COLS_CFG)
         try:
-            import openpyxl
-
-            from ...doclist_backend import DocListSheet
-            wb = openpyxl.load_workbook(self.sel_doclist.path, read_only=True)
-            ws = (wb[self.sel_doclist.sheet]
-                  if self.sel_doclist.sheet and not isinstance(self.sel_doclist.sheet, int)
-                  else wb.active)
-            cfg["header_row"] = DocListSheet(ws).row_header
-            wb.close()
+            cfg["header_row"] = ler_linha_cabecalho(self.sel_doclist.path, self.sel_doclist.sheet,
+                                                    DocListSheet)
         except Exception as e:  # noqa: BLE001
-            messagebox.showerror("Erro", f"Não foi possível ler o cabeçalho do Doc List:\n{e}")
+            dialogos.erro("Erro", f"Não foi possível ler o cabeçalho do Doc List:\n{e}", self)
             return
-        DeltaDialog(self, path_map=self.sel_doclist.path, sheet_map=self.sel_doclist.sheet,
-                    path_hist=self.sel_aconex.path, sheet_hist=self.sel_aconex.sheet,
-                    cols_config=cfg, estrito=False,
-                    titulo="Doc List Mapping - Mudanças por Período (Delta)")
+        self._delta = DeltaDialog(self, config=self.ctx.config, path_map=self.sel_doclist.path,
+                                  sheet_map=self.sel_doclist.sheet, path_hist=self.sel_aconex.path,
+                                  sheet_hist=self.sel_aconex.sheet, cols_config=cfg, estrito=False,
+                                  titulo="Doc List Mapping - Mudanças por Período (Delta)")
+        self._delta.show()
 
     def _tarefa(self, run: RunBar):
         if not self.sel_aconex.path or not self.sel_doclist.path:
@@ -113,7 +97,7 @@ class DocListView(BaseView):
             self.sel_aconex.path, self.sel_doclist.path,
             sheet_aconex=self.sel_aconex.sheet, sheet_doclist=self.sel_doclist.sheet,
             controle=controle, log_cb=self.log.log, progress_cb=run.set_progress,
-            retry_cb=lambda m: messagebox.askretrycancel("Salvar", m))
+            retry_cb=lambda m: dialogos.tentar_de_novo("Salvar", m))
         self.log.log(r.mensagem)
         if r.ok:
-            self.after(0, lambda: messagebox.showinfo("Doc List Mapping", r.mensagem))
+            dialogos.info("Doc List Mapping", r.mensagem)

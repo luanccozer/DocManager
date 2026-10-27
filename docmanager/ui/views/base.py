@@ -1,79 +1,75 @@
 from __future__ import annotations
 
-import customtkinter as ctk
+from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget
 
-from .. import theme as t
-from ..components import LogConsole
+from ..components import LogConsole, botao, linha, rotulo
 
 
-class BaseView(ctk.CTkFrame):
+class BaseView(QWidget):
     """Cabeçalho (título + subtítulo) + corpo rolável + console de log padronizado.
 
     TODA view herda o mesmo painel de log ancorado no rodapé, com altura
     dinâmica (acompanha o tamanho da janela). Como não vemos o terminal, é aqui
-    que aparece o que está acontecendo e os erros. Subclasses usam `self.log`.
+    que aparece o que está acontecendo e os erros. Subclasses usam `self.log`
+    e montam a tela em `montar(body)`, onde `body` é um QVBoxLayout.
     """
 
     titulo_view = "View"
     subtitulo_view = ""
 
-    def __init__(self, master, ctx):
-        super().__init__(master, fg_color=t.FUNDO)
+    def __init__(self, ctx, parent=None):
+        super().__init__(parent)
+        self.setObjectName("tela")
         self.ctx = ctx
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)   # corpo cresce; o log fica ancorado embaixo
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(28, 22, 28, 18)
+        lay.setSpacing(10)
 
-        cab = ctk.CTkFrame(self, fg_color="transparent")
-        cab.grid(row=0, column=0, sticky="ew", padx=28, pady=(24, 8))
-        ctk.CTkLabel(cab, text=self.titulo_view, font=t.titulo(24), text_color=t.TEXTO).pack(anchor="w")
+        lay.addWidget(rotulo(self.titulo_view, nome="titulo_view"))
         if self.subtitulo_view:
-            ctk.CTkLabel(cab, text=self.subtitulo_view, font=t.corpo(13),
-                         text_color=t.TEXTO_FRACO).pack(anchor="w", pady=(2, 0))
+            lay.addWidget(rotulo(self.subtitulo_view, nome="subtitulo_view", quebra=True))
 
-        self.body = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        self.body.grid(row=1, column=0, sticky="nsew", padx=28, pady=(4, 8))
-        self.body.grid_columnconfigure(0, weight=1)
+        self._rolagem = QScrollArea()
+        self._rolagem.setWidgetResizable(True)
+        self._rolagem.setFrameShape(QFrame.Shape.NoFrame)
+        conteudo = QWidget()
+        self.body = QVBoxLayout(conteudo)
+        self.body.setContentsMargins(0, 6, 8, 6)
+        self.body.setSpacing(14)
+        self._rolagem.setWidget(conteudo)
+        lay.addWidget(self._rolagem, 1)   # corpo cresce; o log fica ancorado embaixo
 
-        self._montar_console()   # cria self.log (rodapé, altura dinâmica)
+        self._montar_console(lay)   # cria self.log (rodapé, altura dinâmica)
         self.montar(self.body)
+        self.body.addStretch(1)
 
-    # Console de log padronizado - presente em todas as views.
-    def _montar_console(self):
-        self._console = ctk.CTkFrame(self, fg_color=t.CARD, corner_radius=10,
-                                     border_width=1, border_color=t.CARD_BORDA, height=200)
-        self._console.grid(row=2, column=0, sticky="ew", padx=28, pady=(0, 20))
-        self._console.grid_propagate(False)   # altura controlada por nós (dinâmica)
-        self._console.grid_columnconfigure(0, weight=1)
-        self._console.grid_rowconfigure(1, weight=1)
-
-        barra = ctk.CTkFrame(self._console, fg_color="transparent")
-        barra.grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 2))
-        barra.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(barra, text="📋 Registro de execução", font=t.corpo(12, "bold"),
-                     text_color=t.TEXTO_FRACO).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(barra, text="Limpar", width=72, height=24, font=t.corpo(11),
-                      fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=lambda: self.log.clear()).grid(row=0, column=1, sticky="e")
-
-        self.log = LogConsole(self._console)
-        self.log.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+    def _montar_console(self, lay) -> None:
+        self._console = QFrame()
+        self._console.setObjectName("card")
+        cl = QVBoxLayout(self._console)
+        cl.setContentsMargins(12, 8, 12, 10)
+        cl.setSpacing(6)
+        self.log = LogConsole()
+        titulo = rotulo("Registro de execução", nome="card_titulo")
+        limpar = botao("Limpar", variante="fantasma", icone="eraser", ao_clicar=self.log.clear)
+        cl.addWidget(linha(titulo, QWidget(), limpar, esticar=1))
+        cl.addWidget(self.log, 1)
+        lay.addWidget(self._console)
         self.log.log("Pronto. Os passos e eventuais erros aparecem aqui.")
+        self._ajustar_console()
 
-        self.bind("<Configure>", self._ajustar_console)
+    def resizeEvent(self, evento):  # noqa: N802 - nome do Qt
+        super().resizeEvent(evento)
+        self._ajustar_console()
 
-    def _ajustar_console(self, _evt=None):
-        """Altura do console = ~24% da janela, entre 140 e 300 px (padronizado)."""
-        try:
-            alvo = max(140, min(int(self.winfo_height() * 0.24), 300))
-        except Exception:  # noqa: BLE001
-            return
-        if abs(self._console.winfo_height() - alvo) > 8:
-            self._console.configure(height=alvo)
+    def _ajustar_console(self) -> None:
+        """Altura do console = ~24% da tela, entre 140 e 300 px (padronizado)."""
+        self._console.setFixedHeight(max(140, min(int(self.height() * 0.24), 300)))
 
-    def montar(self, body):  # override
+    def montar(self, body) -> None:  # override
         raise NotImplementedError
 
-    def ao_exibir(self):  # override
+    def ao_exibir(self) -> None:  # override
         """Chamado TODA vez que a view volta para a tela.
 
         As views são criadas uma vez e ficam guardadas; o que muda por fora

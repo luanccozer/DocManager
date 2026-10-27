@@ -1,7 +1,7 @@
 """Verificação de Status de Documentos.
 
-3 abas do app antigo (Via Arquivo Excel · Via Lista Rápida · Todos Aconex), cada
-uma definindo um CONJUNTO de documentos. As duas ações no rodapé operam sobre o
+3 abas (Via Arquivo Excel · Via Lista Rápida · Todos Aconex), cada uma
+definindo um CONJUNTO de documentos. As duas ações no rodapé operam sobre o
 conjunto da aba ativa:
 
   • Status Atual  → status real de cada documento (Excel legado + gráfico).
@@ -12,18 +12,20 @@ conjunto da aba ativa:
 from __future__ import annotations
 
 from datetime import datetime
-from tkinter import messagebox
 
-import customtkinter as ctk
+from PySide6.QtGui import QIntValidator
+from PySide6.QtWidgets import QFormLayout, QLineEdit, QPlainTextEdit, QWidget
 
-from .. import theme as t
-from ..components import Card, FileSelector, RunBar, pedir_salvar
+from .. import dialogos
+from ..components import Abas, Card, FileSelector, RunBar, Seletor, botao, linha, rotulo
+from ..ponte import na_ui_e_esperar
 from .base import BaseView
 
 _NENHUM = "- NENHUM -"
-_TAB_EXCEL = "📄 Via Arquivo Excel"
-_TAB_LISTA = "📋 Via Lista Rápida"
-_TAB_TODOS = "☁️ Todos Aconex"
+_CARREGUE = "Carregue as colunas"
+_TAB_EXCEL = "Via Arquivo Excel"
+_TAB_LISTA = "Via Lista Rápida"
+_TAB_TODOS = "Todos Aconex"
 
 
 class StatusDocsView(BaseView):
@@ -31,105 +33,103 @@ class StatusDocsView(BaseView):
     subtitulo_view = "Status atual e Delta por período dos documentos da aba escolhida"
 
     def montar(self, body):
-        cfg = self.ctx.config
-        card = Card(body, "Base Aconex (obrigatória para todas as abas)")
-        card.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        self.sel = card.add(FileSelector(card, "Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
+        card = Card("Base Aconex (obrigatória para todas as abas)")
+        self.sel = card.add(FileSelector("Base Aconex", self.ctx.config, "aconex", aba_padrao="Documentos"))
+        body.addWidget(card)
 
-        self.tabs = ctk.CTkTabview(body, fg_color=t.CARD, segmented_button_selected_color=t.ACENTO,
-                                   segmented_button_selected_hover_color=t.ACENTO_HOVER)
-        self.tabs.grid(row=1, column=0, sticky="ew", pady=(0, 8))
-        self._montar_excel(self.tabs.add(_TAB_EXCEL))
-        self._montar_lista(self.tabs.add(_TAB_LISTA))
-        self._montar_todos(self.tabs.add(_TAB_TODOS))
+        abas_card = Card()
+        self.tabs = Abas()
+        self._montar_excel(self.tabs.add(_TAB_EXCEL, "file-spreadsheet"))
+        self._montar_lista(self.tabs.add(_TAB_LISTA, "list-checks"))
+        self._montar_todos(self.tabs.add(_TAB_TODOS, "download"))
+        abas_card.add(self.tabs)
+        body.addWidget(abas_card)
 
         self._montar_acoes(body)
 
     # ---------------------------------------------------------- Aba 1: Excel
     def _montar_excel(self, aba):
-        aba.grid_columnconfigure(0, weight=1)
-        self.sel_lista = FileSelector(aba, "Lista de Documentos", self.ctx.config, "status_list")
-        self.sel_lista.grid(row=0, column=0, sticky="ew", padx=6, pady=(8, 2))
+        lay = aba.layout()
+        self.sel_lista = FileSelector("Lista de Documentos", self.ctx.config, "status_list")
+        lay.addWidget(self.sel_lista)
 
-        cfg_row = ctk.CTkFrame(aba, fg_color="transparent")
-        cfg_row.grid(row=1, column=0, sticky="w", padx=6, pady=4)
-        ctk.CTkLabel(cfg_row, text="Linha do cabeçalho:", font=t.corpo(12), text_color=t.TEXTO).pack(side="left", padx=(0, 6))
-        self.header_row = ctk.CTkEntry(cfg_row, width=50, font=t.corpo(12))
-        self.header_row.insert(0, "1")
-        self.header_row.pack(side="left")
-        ctk.CTkButton(cfg_row, text="Carregar Colunas", width=140, font=t.corpo(12),
-                      fg_color="#E59400", hover_color="#B87700",
-                      command=self._carregar_colunas).pack(side="left", padx=12)
+        self.header_row = QLineEdit("1")
+        self.header_row.setValidator(QIntValidator(1, 100000))
+        self.header_row.setFixedWidth(70)
+        lay.addWidget(linha(rotulo("Linha do cabeçalho:"), self.header_row,
+                            botao("Carregar Colunas", icone="table", ao_clicar=self._carregar_colunas)))
 
-        map_row = ctk.CTkFrame(aba, fg_color="transparent")
-        map_row.grid(row=2, column=0, sticky="w", padx=6, pady=4)
-        ctk.CTkLabel(map_row, text="Coluna Cód. Itaipu:", font=t.corpo(12), text_color=t.TEXTO).grid(row=0, column=0, sticky="w", padx=(0, 6), pady=3)
-        self.col_itaipu = ctk.CTkOptionMenu(map_row, values=["Carregue as colunas"], width=200, font=t.corpo(12),
-                                            fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
-        self.col_itaipu.grid(row=0, column=1, sticky="w", pady=3)
-        ctk.CTkLabel(map_row, text="Coluna Cód. CMI:", font=t.corpo(12), text_color=t.TEXTO).grid(row=1, column=0, sticky="w", padx=(0, 6), pady=3)
-        self.col_cmi = ctk.CTkOptionMenu(map_row, values=["Carregue as colunas"], width=200, font=t.corpo(12),
-                                         fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
-        self.col_cmi.grid(row=1, column=1, sticky="w", pady=3)
+        self.col_itaipu = Seletor([_CARREGUE])
+        self.col_cmi = Seletor([_CARREGUE])
+        for c in (self.col_itaipu, self.col_cmi):
+            c.setMinimumWidth(240)
+        form = QWidget()
+        fl = QFormLayout(form)
+        fl.setContentsMargins(0, 0, 0, 0)
+        fl.addRow("Coluna Cód. Itaipu:", self.col_itaipu)
+        fl.addRow("Coluna Cód. CMI:", self.col_cmi)
+        lay.addWidget(linha(form))
+
+    def _linha_cabecalho(self) -> int:
+        try:
+            return max(int(self.header_row.text() or "1") - 1, 0)
+        except ValueError:
+            return 0
 
     def _carregar_colunas(self):
         if not self.sel_lista.path:
-            messagebox.showwarning("Aviso", "Selecione o arquivo da lista primeiro.")
+            dialogos.aviso("Aviso", "Selecione o arquivo da lista primeiro.", self)
             return
         try:
             import pandas as pd
-            row_idx = max(int(self.header_row.get()) - 1, 0)
+            row_idx = self._linha_cabecalho()
             df = pd.read_excel(self.sel_lista.path, sheet_name=self.sel_lista.sheet, header=row_idx, nrows=0)
             cols = [str(c) for c in df.columns if "Unnamed" not in str(c)]
             opcoes = [_NENHUM] + cols
-            self.col_itaipu.configure(values=opcoes)
-            self.col_cmi.configure(values=opcoes)
-            self.col_itaipu.set(cols[0] if cols else _NENHUM)
-            self.col_cmi.set(cols[1] if len(cols) > 1 else _NENHUM)
+            self.col_itaipu.definir_itens(opcoes, cols[0] if cols else _NENHUM)
+            self.col_cmi.definir_itens(opcoes, cols[1] if len(cols) > 1 else _NENHUM)
             self.log.log(f"Colunas carregadas da linha {row_idx + 1}: {len(cols)} colunas.")
         except Exception as e:  # noqa: BLE001
             self.log.log(f"Erro ao ler colunas: {e}")
-            messagebox.showerror("Erro", f"Erro ao ler a linha do cabeçalho:\n{e}")
+            dialogos.erro("Erro", f"Erro ao ler a linha do cabeçalho:\n{e}", self)
 
-    def _pares_do_excel(self):
+    def _pares_do_excel(self, estado):
         import pandas as pd
-        row_idx = max(int(self.header_row.get()) - 1, 0)
-        df = pd.read_excel(self.sel_lista.path, sheet_name=self.sel_lista.sheet, header=row_idx, dtype=str).fillna("")
-        col_it, col_cmi = self.col_itaipu.get(), self.col_cmi.get()
+        df = pd.read_excel(self.sel_lista.path, sheet_name=self.sel_lista.sheet,
+                           header=estado["linha"], dtype=str).fillna("")
+        col_it, col_cmi = estado["col_itaipu"], estado["col_cmi"]
         vazio = pd.Series([""] * len(df))
-        serie_it = df[col_it] if col_it not in (_NENHUM, "Carregue as colunas") and col_it in df.columns else vazio
-        serie_cmi = df[col_cmi] if col_cmi not in (_NENHUM, "Carregue as colunas") and col_cmi in df.columns else vazio
-        return [(str(a).strip(), str(b).strip()) for a, b in zip(serie_it, serie_cmi) if str(a).strip() or str(b).strip()]
+        serie_it = df[col_it] if col_it not in (_NENHUM, _CARREGUE) and col_it in df.columns else vazio
+        serie_cmi = df[col_cmi] if col_cmi not in (_NENHUM, _CARREGUE) and col_cmi in df.columns else vazio
+        return [(str(a).strip(), str(b).strip()) for a, b in zip(serie_it, serie_cmi)
+                if str(a).strip() or str(b).strip()]
 
     # ---------------------------------------------------------- Aba 2: Lista
     def _montar_lista(self, aba):
-        aba.grid_columnconfigure(0, weight=1)
-        top = ctk.CTkFrame(aba, fg_color="transparent")
-        top.grid(row=0, column=0, sticky="w", padx=6, pady=(8, 4))
-        ctk.CTkLabel(top, text="Tipo de código:", font=t.corpo(12), text_color=t.TEXTO).pack(side="left", padx=(0, 8))
-        self.tipo_lista = ctk.CTkOptionMenu(top, values=["Código Itaipu", "Código CMI"], width=150, font=t.corpo(12),
-                                            fg_color=t.SIDEBAR_HOVER, button_color=t.SIDEBAR_ATIVO)
-        self.tipo_lista.pack(side="left")
-        ctk.CTkLabel(aba, text="Cole os códigos (um por linha):", font=t.corpo(12), text_color=t.TEXTO_FRACO).grid(
-            row=1, column=0, sticky="w", padx=6, pady=(2, 2))
-        self.txt_lista = ctk.CTkTextbox(aba, height=110, font=t.mono(11), fg_color="#0B1119")
-        self.txt_lista.grid(row=2, column=0, sticky="ew", padx=6, pady=(0, 6))
+        lay = aba.layout()
+        self.tipo_lista = Seletor(["Código Itaipu", "Código CMI"])
+        lay.addWidget(linha(rotulo("Tipo de código:"), self.tipo_lista))
+        lay.addWidget(rotulo("Cole os códigos (um por linha):", "suave"))
+        self.txt_lista = QPlainTextEdit()
+        self.txt_lista.setObjectName("caixa_texto")
+        self.txt_lista.setFixedHeight(120)
+        lay.addWidget(self.txt_lista)
 
-    def _pares_da_lista(self):
-        codigos = [c.strip() for c in self.txt_lista.get("1.0", "end").splitlines() if c.strip()]
-        if self.tipo_lista.get() == "Código Itaipu":
+    @staticmethod
+    def _pares_da_lista(estado):
+        codigos = [c.strip() for c in estado["lista"].splitlines() if c.strip()]
+        if estado["tipo_lista"] == "Código Itaipu":
             return [(c, "") for c in codigos]
         return [("", c) for c in codigos]
 
     # ---------------------------------------------------------- Aba 3: Todos
     def _montar_todos(self, aba):
-        aba.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(aba, text="Usa automaticamente TODOS os documentos vigentes (Current) da base Aconex "
-                     "carregada, tanto para o Status Atual quanto para o Delta do período.",
-                     font=t.corpo(12), text_color=t.TEXTO_FRACO, justify="left", wraplength=680).grid(
-            row=0, column=0, sticky="w", padx=6, pady=16)
+        aba.layout().addWidget(rotulo(
+            "Usa automaticamente TODOS os documentos vigentes (Current) da base Aconex carregada, tanto "
+            "para o Status Atual quanto para o Delta do período.", "suave", quebra=True))
 
-    def _pares_de_todos(self, base):
+    @staticmethod
+    def _pares_de_todos(base):
         cur = base[base["Current"].astype(str).str.lower() == "true"]
         col_it = "No. do Documento" if "No. do Documento" in cur.columns else None
         col_cm = "Controle do Emissor" if "Controle do Emissor" in cur.columns else None
@@ -145,21 +145,21 @@ class StatusDocsView(BaseView):
 
     # ---------------------------------------------------------- Ações (rodapé)
     def _montar_acoes(self, body):
-        area = Card(body, "Ações (sobre os documentos da aba ativa)")
-        area.grid(row=2, column=0, sticky="ew", pady=(0, 4))
-
-        RunBar(area, "Gerar Status Atual", self._tarefa_status, self.log).grid(
-            row=1, column=0, sticky="ew", padx=16, pady=(2, 8))
-
-        linha = ctk.CTkFrame(area, fg_color="transparent")
-        linha.grid(row=2, column=0, sticky="ew", padx=16, pady=(2, 12))
-        ctk.CTkButton(linha, text="⏳ Analisar Mudanças por Período", width=260, height=38,
-                      font=t.corpo(13, "bold"), fg_color=t.SIDEBAR_HOVER, hover_color=t.SIDEBAR_ATIVO,
-                      command=self._abrir_delta).pack(side="left")
-        ctk.CTkLabel(linha, text="Abre a árvore de mudanças (por classificação) dos documentos da aba.",
-                     font=t.corpo(11), text_color=t.TEXTO_FRACO, justify="left", wraplength=420).pack(side="left", padx=12)
+        area = Card("Ações (sobre os documentos da aba ativa)")
+        area.add(RunBar("Gerar Status Atual", self._tarefa_status, self.log))
+        area.add(linha(botao("Analisar Mudanças por Período", icone="history", ao_clicar=self._abrir_delta),
+                       rotulo("Abre a árvore de mudanças (por classificação) dos documentos da aba.",
+                              "legenda", quebra=True), esticar=1))
+        body.addWidget(area)
 
     # ---------------------------------------------------------- comuns
+    def _estado(self) -> dict:
+        """Foto do que está na tela - lida na thread da interface, para a tarefa
+        (que roda em outra thread) não tocar em widget."""
+        return {"aba": self.tabs.get(), "linha": self._linha_cabecalho(),
+                "col_itaipu": self.col_itaipu.get(), "col_cmi": self.col_cmi.get(),
+                "tipo_lista": self.tipo_lista.get(), "lista": self.txt_lista.toPlainText()}
+
     def _carregar_base(self, run):
         from ...common import carregar_base_aconex
         if not self.sel.path:
@@ -171,17 +171,17 @@ class StatusDocsView(BaseView):
 
     def _coletar(self, run):
         """(base, pares, is_todos) conforme a aba ativa; None se faltar entrada."""
+        estado = na_ui_e_esperar(self._estado)
         base = self._carregar_base(run)
         if base is None:
             return None
-        aba = self.tabs.get()
-        if aba == _TAB_EXCEL:
+        if estado["aba"] == _TAB_EXCEL:
             if not self.sel_lista.path:
                 self.log.log("Selecione o arquivo da lista na aba 'Via Arquivo Excel'.")
                 return None
-            return base, self._pares_do_excel(), False
-        if aba == _TAB_LISTA:
-            pares = self._pares_da_lista()
+            return base, self._pares_do_excel(estado), False
+        if estado["aba"] == _TAB_LISTA:
+            pares = self._pares_da_lista(estado)
             if not pares:
                 self.log.log("Cole ao menos um código na aba 'Via Lista Rápida'.")
                 return None
@@ -202,9 +202,9 @@ class StatusDocsView(BaseView):
         linhas, contador, tem_modelos = analisar_status_pares(base, pares)
         for st, n in contador.most_common():
             self.log.log(f"  {st}: {n}")
+
         def _conta(estado):
-            return sum(1 for d in linhas
-                       if estado in (d.get("_itaipu_status"), d.get("_cmi_status")))
+            return sum(1 for d in linhas if estado in (d.get("_itaipu_status"), d.get("_cmi_status")))
 
         n_atualizados = _conta("atualizado")
         n_nao_confere = _conta("nao_confere")
@@ -222,36 +222,36 @@ class StatusDocsView(BaseView):
                          f"(texto laranja) - CONFIRA o comentário na célula.")
         run.set_progress(0.9)
         nome = f"Status_Docs_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-        saida = pedir_salvar(self.ctx.config, "saida", nome)
+        saida = dialogos.pedir_salvar(self.ctx.config, "saida", nome)
         if not saida:
             self.log.log("Salvamento cancelado.")
             return
         ok, msg = exportar_status_documentos(linhas, contador, saida, tem_modelos=tem_modelos)
         self.log.log(msg)
         if ok:
-            self.after(0, lambda: messagebox.showinfo("Status", f"{len(linhas)} documentos analisados."))
+            dialogos.info("Status", f"{len(linhas)} documentos analisados.")
 
     def _codigos_do_tab(self):
         """(codigos, is_todos) da aba ativa, SEM carregar a base; None se faltar entrada."""
-        aba = self.tabs.get()
-        if aba == _TAB_EXCEL:
+        estado = self._estado()
+        if estado["aba"] == _TAB_EXCEL:
             if not self.sel_lista.path:
-                messagebox.showwarning("Aviso", "Selecione o arquivo da lista na aba 'Via Arquivo Excel'.")
+                dialogos.aviso("Aviso", "Selecione o arquivo da lista na aba 'Via Arquivo Excel'.", self)
                 return None
             try:
-                pares = self._pares_do_excel()
+                pares = self._pares_do_excel(estado)
             except Exception as e:  # noqa: BLE001
-                messagebox.showerror("Erro", f"Erro ao ler a lista: {e}")
+                dialogos.erro("Erro", f"Erro ao ler a lista: {e}", self)
                 return None
             codigos = [c for par in pares for c in par if c]
             if not codigos:
-                messagebox.showwarning("Aviso", "Nenhum código nas colunas escolhidas.")
+                dialogos.aviso("Aviso", "Nenhum código nas colunas escolhidas.", self)
                 return None
             return codigos, False
-        if aba == _TAB_LISTA:
-            codigos = [c for par in self._pares_da_lista() for c in par if c]
+        if estado["aba"] == _TAB_LISTA:
+            codigos = [c for par in self._pares_da_lista(estado) for c in par if c]
             if not codigos:
-                messagebox.showwarning("Aviso", "Cole ao menos um código na aba 'Via Lista Rápida'.")
+                dialogos.aviso("Aviso", "Cole ao menos um código na aba 'Via Lista Rápida'.", self)
                 return None
             return codigos, False
         return None, True  # Todos Aconex → base inteira
@@ -259,12 +259,14 @@ class StatusDocsView(BaseView):
     def _abrir_delta(self):
         from ...status_backend import METADADOS_AGRUPAVEIS
         if not self.sel.path:
-            messagebox.showwarning("Aviso", "Selecione a base Aconex no topo.")
+            dialogos.aviso("Aviso", "Selecione a base Aconex no topo.", self)
             return
         res = self._codigos_do_tab()
         if res is None:
             return
         codigos, is_todos = res
         from .status_delta_dialog import StatusDeltaDialog
-        StatusDeltaDialog(self, path_aconex=self.sel.path, sheet_aconex=self.sel.sheet,
-                          codigos=codigos, is_todos=is_todos, metadados=METADADOS_AGRUPAVEIS)
+        self._delta = StatusDeltaDialog(self, config=self.ctx.config, path_aconex=self.sel.path,
+                                        sheet_aconex=self.sel.sheet, codigos=codigos, is_todos=is_todos,
+                                        metadados=METADADOS_AGRUPAVEIS)
+        self._delta.show()
