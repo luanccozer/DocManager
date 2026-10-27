@@ -2,7 +2,8 @@
 
 Essa imagem é mostrada pelo bootloader do PyInstaller (objeto `Splash` no
 `docmanager.spec`) já no duplo-clique, enquanto o Python e as bibliotecas
-carregam; `ui/main_app.main()` a fecha quando o app fica pronto.
+carregam; a splash do Qt (`ui/splash.py`) assume com a MESMA imagem e a
+nativa fecha por baixo dela, sem troca visível de tela.
 
 É uma imagem ESTÁTICA (o bootloader não anima). Antes o "carregando" vinha de
 uma barra parcial, que ficava feia; agora a tela é limpa - logo + título +
@@ -21,25 +22,37 @@ from PIL import Image, ImageDraw, ImageFont
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 
-from docmanager.ui import theme as t  # noqa: E402  (cores = as do app)
+from docmanager.ui.tokens import ESCURO  # noqa: E402  (cores = as do app)
 
 W, H = 440, 260
 SAIDA = os.path.join(RAIZ, "assets", "splash.png")
 LOGO = os.path.join(RAIZ, "assets", "logo_definitivo.ico")
-FONTES = r"C:\Windows\Fonts"
+# A fonte da própria interface (vai no pacote): a imagem sai igual em qualquer
+# máquina que a gere, e com a mesma letra da janela que vem depois dela.
+ROBOTO = os.path.join(RAIZ, "docmanager", "ui", "recursos", "fontes", "Roboto-Regular.ttf")
+
+# A splash da janela (`ui/splash.py`) mostra ESTA imagem, na mesma posição: a
+# troca da nativa (do bootloader) para a do Qt não se vê. Antes eram duas telas
+# diferentes, uma depois da outra, e a troca parecia defeito.
+FUNDO = ESCURO["superficie"]
+BORDA = ESCURO["primaria"]
+TEXTO = ESCURO["texto"]
+TEXTO_SUAVE = ESCURO["texto_suave"]
 
 
-def _fonte(nome: str, tam: int):
-    """Segoe UI (padrão do Windows); cai no default do PIL se faltar."""
+def _fonte(tam: int):
     try:
-        return ImageFont.truetype(os.path.join(FONTES, nome), tam)
+        return ImageFont.truetype(ROBOTO, tam)
     except OSError:
         return ImageFont.load_default()
 
 
-def _centrado(d: ImageDraw.ImageDraw, texto: str, fonte, y: int, cor: str) -> None:
-    largura = d.textlength(texto, font=fonte)
-    d.text(((W - largura) / 2, y), texto, font=fonte, fill=cor)
+def _centrado(d: ImageDraw.ImageDraw, texto: str, fonte, y: int, cor: str, *, negrito=False) -> None:
+    # O Roboto do pacote é só o Regular: o negrito sai do contorno no mesmo tom.
+    contorno = 1 if negrito else 0
+    largura = d.textlength(texto, font=fonte) + 2 * contorno
+    d.text(((W - largura) / 2, y), texto, font=fonte, fill=cor,
+           stroke_width=contorno, stroke_fill=cor)
 
 
 def _logo(lado: int):
@@ -51,9 +64,9 @@ def _logo(lado: int):
 
 
 def gerar() -> str:
-    img = Image.new("RGB", (W, H), t.SIDEBAR)
+    img = Image.new("RGB", (W, H), FUNDO)
     d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W - 1, H - 1], outline=t.ACENTO, width=2)
+    d.rectangle([0, 0, W - 1, H - 1], outline=BORDA, width=2)
 
     # Logo centralizado no topo - dá cara de tela intencional (não "vazia").
     y = 32
@@ -64,11 +77,11 @@ def gerar() -> str:
     else:
         y += 26
 
-    _centrado(d, "DocManager Itaipu", _fonte("segoeuib.ttf", 30), y, t.TEXTO)
+    _centrado(d, "DocManager Itaipu", _fonte(29), y, TEXTO, negrito=True)
     y += 46
-    _centrado(d, "Gestão documental · CMI ↔ Itaipu", _fonte("segoeui.ttf", 13), y, t.TEXTO_FRACO)
+    _centrado(d, "Gestão documental · CMI · Itaipu", _fonte(13), y, TEXTO_SUAVE)
     y += 30
-    _centrado(d, "Carregando...", _fonte("segoeui.ttf", 12), y, t.TEXTO_FRACO)
+    _centrado(d, "Carregando...", _fonte(12), y, TEXTO_SUAVE)
 
     img.save(SAIDA)
     return SAIDA

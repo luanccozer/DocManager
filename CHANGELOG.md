@@ -9,7 +9,8 @@ dela aqui **antes** de criar a tag.
 
 - Interface nova, em Qt, com o mesmo visual do SIG-FT: barra lateral com ícones, cartões, abas e tabelas redesenhados. Todas as telas e funções continuam as mesmas.
 - Tema escuro, claro ou o do Windows, escolhido em Configurações → Aparência e trocado na hora, sem reabrir o app. "Do Windows" acompanha o sistema mesmo com o app aberto.
-- Telas mais nítidas em monitores com escala de 125% ou 150%, e a tela de abertura não "pula" mais de tamanho.
+- Abertura sem tropeço: a tela de carregamento é uma só, do duplo-clique até o app aparecer (antes eram duas telas diferentes, uma depois da outra), e o DocManager abre sempre maximizado.
+- Telas mais nítidas em monitores com escala de 125% ou 150%.
 - As listas de escolha não mudam mais sozinhas quando a roda do mouse passa por cima delas ao rolar a tela.
 - Fechar o DocManager com uma tarefa rodando agora pergunta antes. O padrão é não fechar.
 - Extração Aconex → Consulta Rápida: cole uma lista de códigos (Itaipu ou CMI) e veja em segundos o status real e a revisão de cada um, direto da API, sem baixar a base completa. Dá para exportar o resultado no mesmo Excel do Status Documentos.

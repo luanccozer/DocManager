@@ -62,7 +62,8 @@ a = Analysis(
 pyz = PYZ(a.pure)
 
 # Splash NATIVO: aparece já no duplo-clique, cobrindo a carga do Python/libs.
-# Fechado por `pyi_splash.close()` em ui/main_app.main() quando o app fica pronto.
+# A splash do Qt (ui/splash.py) assume com a MESMA imagem e a fecha
+# (`pyi_splash.close()`, em ui/main_app.abrir()) sem troca visível de tela.
 # A imagem é a de CARREGAMENTO (logo + "Carregando...", SEM barra), gerada por
 # tools/gerar_splash.py com as cores do tema. NÃO usar assets/logo_final.png:
 # aquilo é um placeholder antigo ("DM placeholder"), herdado do legado.

@@ -404,3 +404,51 @@ def test_download_oferece_o_original_sem_comentarios(app):
     assert tela._estado()["modo_download"] == "marcado"     # o padrão de sempre
     tela.opt_modo_download.setCurrentIndex(1)
     assert tela._estado()["modo_download"] == "original"
+
+
+# ─────────────────────────── abertura ───────────────────────────────────────
+
+def test_splash_mostra_a_mesma_imagem_da_nativa(qtbot):
+    """Uma tela só na abertura: a splash do Qt é a imagem que o bootloader do
+    .exe mostra (`assets/splash.png`, a do Splash no docmanager.spec)."""
+    from PySide6.QtGui import QImage
+
+    from docmanager.ui import main_app, splash
+
+    main_app.criar_app()
+    caminho = splash.caminho_da_imagem()
+    assert caminho.replace("\\", "/").endswith("assets/splash.png")
+    tela = splash.mostrar_splash()
+    assert tela is not None
+    qtbot.addWidget(tela)
+    assert tela.pixmap().toImage().convertToFormat(QImage.Format.Format_RGB32) == \
+        QImage(caminho).convertToFormat(QImage.Format.Format_RGB32)
+    assert '"assets/splash.png"' in open(
+        splash.os.path.join(splash.os.path.dirname(caminho), "..", "docmanager.spec"),
+        encoding="utf-8").read()
+
+
+def test_splash_sem_imagem_nao_impede_a_abertura(monkeypatch):
+    from docmanager.ui import main_app, splash
+
+    main_app.criar_app()
+    monkeypatch.setattr(splash, "caminho_da_imagem", lambda: "")
+    assert splash.mostrar_splash() is None
+
+
+def test_janela_abre_maximizada_e_a_splash_sai(qtbot, monkeypatch, caixas):
+    from docmanager.services import updater
+    from docmanager.ui import main_app, splash
+
+    monkeypatch.setattr(updater, "verificar_em_segundo_plano", lambda *a, **k: None)
+    abertas = []
+    original = splash.mostrar_splash
+    monkeypatch.setattr(splash, "mostrar_splash", lambda: abertas.append(original()) or abertas[-1])
+    app = main_app.criar_app()
+    janela = main_app.abrir(app)
+    qtbot.addWidget(janela)
+    try:
+        assert janela.isMaximized()
+        qtbot.waitUntil(lambda: not abertas[0].isVisible(), timeout=5000)
+    finally:
+        janela._saindo_para_atualizar = True

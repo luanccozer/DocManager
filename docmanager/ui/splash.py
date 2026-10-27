@@ -1,69 +1,51 @@
-"""Splash de abertura: janela SEM bordas com o logo enquanto o app carrega.
-Fecha sozinha e revela a janela principal.
+"""Tela de abertura: a MESMA imagem da tela de carregamento nativa do `.exe`.
 
-No Qt a escala de DPI é do próprio toolkit (High-DPI ligado por padrão no Qt 6):
-a splash é montada escondida, já no tamanho final, e só então aparece - sem o
-"pulo" de tamanho que a do CustomTkinter tinha em telas a 125/150%.
+No duplo-clique, o bootloader do PyInstaller mostra `assets/splash.png` enquanto
+o Python e as bibliotecas carregam. Quando o Qt sobe, esta splash assume com a
+mesma imagem, no mesmo lugar (centro da tela), e só então a nativa fecha: a
+troca não se vê. Ela fica até a janela principal estar montada e aparecer.
+
+Até a 3.3.0-rc.1 eram duas telas DIFERENTES, uma depois da outra (a nativa nas
+cores antigas, a do Qt redesenhada e com 1,6 s fixos de espera), e a troca
+parecia defeito na abertura. A imagem é gerada por `tools/gerar_splash.py`, com
+as cores dos tokens.
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QLabel, QProgressBar, QVBoxLayout
+import os
 
-from .. import __version__
-from . import estilo
-from .logo import pixmap_do_logo
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QApplication, QSplashScreen
+
+from ..services.config import resource_path
+
+NOME_IMAGEM = os.path.join("assets", "splash.png")
 
 
-def mostrar_splash(ms: int = 1600, ao_fechar=None):
-    """Mostra a splash; após `ms`, fecha e chama `ao_fechar` (tipicamente
-    mostrar a janela principal). Se a splash falhar, chama `ao_fechar` na hora."""
+def caminho_da_imagem() -> str:
+    """`assets/splash.png`: no `.exe`, em `_internal/assets` (o `("assets",
+    "assets")` do .spec); no código-fonte, na raiz do repositório."""
+    candidatos = (resource_path(NOME_IMAGEM),
+                  os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                      os.path.abspath(__file__)))), NOME_IMAGEM))
+    return next((c for c in candidatos if os.path.exists(c)), "")
+
+
+def mostrar_splash() -> QSplashScreen | None:
+    """Mostra a splash e a desenha na hora. `None` se não der (sem imagem, sem
+    tela): a abertura nunca depende dela. Feche com `splash.finish(janela)`."""
     try:
-        sp = QFrame(None, Qt.WindowType.SplashScreen | Qt.WindowType.FramelessWindowHint
-                    | Qt.WindowType.WindowStaysOnTopHint)
-        sp.setObjectName("splash")
-        sp.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        sp.setStyleSheet(estilo.folha_da_splash())
-        sp.setFixedSize(440, 260)
-        lay = QVBoxLayout(sp)
-        lay.setContentsMargins(30, 26, 30, 30)
-        lay.setSpacing(10)
-        logo = QLabel()
-        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        if not (pix := pixmap_do_logo(84)).isNull():
-            logo.setPixmap(pix)
-            lay.addWidget(logo)
-        titulo = QLabel("DocManager Itaipu")
-        titulo.setObjectName("splash_titulo")
-        sub = QLabel(f"Gestão documental · CMI ↔ Itaipu · v{__version__}")
-        sub.setObjectName("splash_sub")
-        for w in (titulo, sub):
-            w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lay.addWidget(w)
-        barra = QProgressBar()
-        barra.setRange(0, 0)       # indeterminada: o "carregando"
-        barra.setTextVisible(False)
-        barra.setFixedWidth(250)
-        lay.addSpacing(8)
-        lay.addWidget(barra, 0, Qt.AlignmentFlag.AlignHCenter)
-        lay.addStretch(1)
+        caminho = caminho_da_imagem()
+        pixmap = QPixmap(caminho) if caminho else QPixmap()
+        if pixmap.isNull():
+            return None
+        splash = QSplashScreen(pixmap, Qt.WindowType.WindowStaysOnTopHint)
         tela = QApplication.primaryScreen()
         if tela is not None:
-            geo = tela.availableGeometry()
-            sp.move(geo.center() - sp.rect().center())
-        sp.show()
-    except Exception:  # noqa: BLE001 - se a splash falhar, segue direto para o app
-        if ao_fechar:
-            ao_fechar()
+            splash.move(tela.availableGeometry().center() - splash.rect().center())
+        splash.show()
+        QApplication.processEvents()   # desenha JÁ, antes de a nativa sair
+        return splash
+    except Exception:  # noqa: BLE001 - a splash nunca impede a abertura
         return None
-
-    def _fim():
-        try:
-            sp.close()
-        except RuntimeError:
-            pass
-        if ao_fechar:
-            ao_fechar()
-
-    QTimer.singleShot(ms, _fim)
-    return sp

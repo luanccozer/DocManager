@@ -354,6 +354,39 @@ def criar_app(argv=None) -> QApplication:
     return app
 
 
+def _fechar_splash_nativa() -> None:
+    """Fecha a tela de carregamento NATIVA do PyInstaller (`pyi_splash`), que
+    cobriu a carga desde o duplo-clique no .exe. Em desenvolvimento não existe."""
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def abrir(app, config: ConfigManager | None = None) -> MainApp:
+    """Da tela de carregamento à janela pronta, sem troca visível de tela.
+
+    A splash do Qt mostra a MESMA imagem da nativa e entra antes de a nativa
+    sair (`ui/splash.py`). A janela é montada por baixo dela e aparece
+    MAXIMIZADA - pedido do usuário: toda abertura em tela cheia - e a splash
+    sai quando a janela já está na tela (`finish`), sem espera fixa."""
+    from .splash import mostrar_splash
+
+    splash = mostrar_splash()
+    _fechar_splash_nativa()
+    config = config or ConfigManager()
+    tema.aplicar(app, config.settings.tema)
+    tema.seguir_o_sistema(app, config)
+    janela = MainApp(config)
+    janela.showMaximized()
+    janela.raise_()
+    janela.activateWindow()
+    if splash is not None:
+        splash.finish(janela)
+    return janela
+
+
 def main():
     from ..services import diario
 
@@ -368,10 +401,7 @@ def main():
         pass
 
     app = criar_app()
-    config = ConfigManager()
-    tema.aplicar(app, config.settings.tema)
-    tema.seguir_o_sistema(app, config)
-    janela = MainApp(config)
+    janela = abrir(app)
 
     gancho_anterior = sys.excepthook
 
@@ -384,16 +414,6 @@ def main():
 
     sys.excepthook = _gancho
     app.aboutToQuit.connect(diario.encerrar)
-
-    # Fecha o splash NATIVO do PyInstaller (pyi_splash) - cobriu a carga desde o
-    # duplo-clique no .exe. Em desenvolvimento não existe → ignora.
-    try:
-        import pyi_splash
-        pyi_splash.close()
-    except Exception:  # noqa: BLE001
-        pass
-    from .splash import mostrar_splash
-    mostrar_splash(1600, ao_fechar=lambda: (janela.show(), janela.raise_(), janela.activateWindow()))
     app.exec()
     if janela._saindo_para_atualizar:
         # O instalador está esperando o mutex sumir, e ele só some com o fim do

@@ -261,20 +261,6 @@ QHeaderView::section {{ background: {p['superficie_alta']}; color: {p['texto']};
 """
 
 
-def folha_da_splash(tema: str | None = None) -> str:
-    """A folha da tela de abertura, no `tema` (sem ele, `TEMA_ATUAL`)."""
-    p = tokens.paleta(_tema(tema))
-    return f"""
-#splash {{ background: {p['superficie']}; border: 2px solid {p['primaria']}; border-radius: 12px; }}
-#splash QLabel {{ background: transparent; }}
-#splash_titulo {{ color: {p['texto']}; font-size: 24px; font-weight: bold; }}
-#splash_sub {{ color: {p['texto_suave']}; font-size: {tokens.FONTE['legenda']}px; }}
-#splash QProgressBar {{ background: {p['borda']}; border: none; border-radius: 3px;
-    min-height: 6px; max-height: 6px; }}
-#splash QProgressBar::chunk {{ background: {p['primaria']}; border-radius: 3px; }}
-"""
-
-
 def cor_da_linha(estado: str) -> str | None:
     """Cor do TEXTO de uma linha de tabela por estado, no tema atual: 'alerta'
     (documento repetido em mais de um grupo, data-alvo vencida) ou 'apagado'
