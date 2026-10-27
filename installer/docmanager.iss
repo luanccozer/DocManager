@@ -218,8 +218,10 @@ begin
   if not ShellExec('', Desinstalador, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '',
                    SW_HIDE, ewWaitUntilTerminated, Codigo) then
   begin
-    Log(Format('DocManager: a remocao da antiga nao rodou (%d: %s). Ela fica.',
-      [Codigo, SysErrorMessage(Codigo)]));
+    // O "[" do array fica na mesma linha: linha que COMECA com "[" e lida
+    // pelo Inno como uma secao nova, mesmo dentro do [Code].
+    Log(Format('DocManager: a remocao da antiga nao rodou (%d: %s). Ela fica.', [
+      Codigo, SysErrorMessage(Codigo)]));
     Exit;
   end;
   // O desinstalador do Inno se copia para a pasta temporaria e o processo que
