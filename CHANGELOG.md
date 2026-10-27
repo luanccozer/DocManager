@@ -5,6 +5,13 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.4.0 - 2026-10-27
+
+- Módulo novo, Transpasse de Fase: desenha sozinho, a partir das planilhas, o quadro dia a dia de cada grupo de equipamentos (convocação, inspeção IB, emissão do CCMLC, transpasse de fase e início do comissionamento), com a mesma legenda e as mesmas cores da planilha da equipe. Basta selecionar a planilha de acompanhamento do transpasse e, se tiver, a complementar (controle do início do comissionamento, de onde vêm o início e a coluna Dias).
+- O painel abre no navegador e é um arquivo único: dá para mandar por e-mail ou deixar numa pasta para quem não tem o DocManager. Para atualizar depois de mexer nas planilhas, é só gerar de novo.
+- Passando o mouse sobre um grupo aparecem as datas, os dias entre cada etapa e há quanto tempo ele está parado. Etapa ainda em andamento aparece pintada até hoje.
+- Datas que não fecham (fora de ordem, no futuro, ano digitado errado, texto que não é data ou datas diferentes nas duas planilhas) ficam fora do quadro e aparecem no card do grupo, para corrigir na planilha.
+
 ## 3.3.0 - 2026-10-26
 
 - Interface nova, em Qt, com o mesmo visual do SIG-FT: barra lateral com ícones, cartões, abas e tabelas redesenhados. Todas as telas e funções continuam as mesmas.

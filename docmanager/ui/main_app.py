@@ -46,6 +46,7 @@ from .views.home_view import HomeView
 from .views.mapa_view import MapaView
 from .views.reports_view import ReportsView
 from .views.status_view import StatusDocsView
+from .views.transpasse_view import TranspasseView
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,7 @@ VIEWS = [
     ViewSpec("status", "Status Documentos", "search", StatusDocsView),
     ViewSpec("historico", "Histórico e Dashboard", "chart-column", HistoricoView),
     ViewSpec("relatorios", "Relatórios", "clipboard-list", ReportsView),
+    ViewSpec("transpasse", "Transpasse de Fase", "calendar-range", TranspasseView),
     ViewSpec("aconex", "Extração Aconex", "download", AconexView),
     ViewSpec("config", "Configurações", "settings", ConfigView),
 ]

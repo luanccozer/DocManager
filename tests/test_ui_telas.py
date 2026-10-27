@@ -397,6 +397,44 @@ def test_consulta_rapida_mostra_o_status_na_tela(app, qtbot, monkeypatch):
     assert tela.btn_exportar_consulta.isEnabled()
 
 
+def test_transpasse_gera_o_painel_e_abre_no_navegador(app, qtbot, monkeypatch, tmp_path):
+    """Seleciona as duas planilhas, gera e abre - a complementar é opcional."""
+    import webbrowser
+
+    from docmanager.ui import dialogos
+    from test_transpasse import GRUPO_002, complementar_com_inicio, planilha_principal
+
+    saida = tmp_path / "painel.html"
+    monkeypatch.setattr(dialogos, "pedir_salvar", lambda *a, **k: str(saida))
+    abertos = []
+    monkeypatch.setattr(webbrowser, "open", lambda url, *a, **k: abertos.append(url))
+    app.selecionar("transpasse")
+    tela = app._views["transpasse"]
+    tela.sel_principal.definir(str(planilha_principal(tmp_path / "a.xlsx", [GRUPO_002])))
+    tela.sel_complementar.definir(str(complementar_com_inicio(tmp_path / "c.xlsx")))
+
+    with qtbot.waitSignal(tela.run.terminou, timeout=10000):
+        tela.run.btn.click()
+
+    assert abertos == [saida.as_uri()]
+    assert "Painel gerado" in tela.log.texto()
+
+
+def test_transpasse_sem_a_planilha_principal_so_avisa(app, qtbot, monkeypatch):
+    from docmanager.ui import dialogos
+
+    pediu = []
+    monkeypatch.setattr(dialogos, "pedir_salvar", lambda *a, **k: pediu.append(a) or "")
+    app.selecionar("transpasse")
+    tela = app._views["transpasse"]
+
+    with qtbot.waitSignal(tela.run.terminou, timeout=10000):
+        tela.run.btn.click()
+
+    assert not pediu
+    assert "Selecione a planilha de acompanhamento" in tela.log.texto()
+
+
 def test_download_oferece_o_original_sem_comentarios(app):
     app.selecionar("aconex")
     tela = app._views["aconex"]

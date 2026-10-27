@@ -1104,6 +1104,16 @@ Cada Release passa a publicar, além do instalador completo, o `arquivos.json` (
 
 Decisões: (1) o código do `docmanager` sai do `.exe` (`module_collection_mode` → `.pyc` em `_internal\docmanager\`), senão o `.exe` de ~30 MB mudava a cada versão; (2) as bibliotecas do build ficam fixas em `constraints-build.txt`; (3) o `AppMutex` + `/SINAL` + `/REABRIR` da 3.1.1 continuam, porque o app instalado conversa por eles; (4) o instalador pequeno é o mesmo `.iss` com `/DAtualizacao=1`, com trava de versão (`DisplayVersion` do registro tem de ser a `VersaoDe`); (5) a abertura do app consulta sempre, sem intervalo; (6) cópia que não foi instalada pelo instalador (sem `unins*.exe`) não se atualiza sozinha.
 
+## 30. ✅ Transpasse de Fase (2026-10-27, pedido do usuário)
+
+A equipe acompanhava o transpasse de fase de cada grupo de equipamentos (convocação IB → inspeção IB → emissão do CCMLC → transpasse via Unifier → início do comissionamento) numa grade de dias pintada à mão ("Planilha1"), que acumulava erros de pintura e não mostrava o tempo parado. O módulo desenha a mesma grade a partir das datas. Pedido explícito: **simples como a planilha** (legenda, o quadro e o card ao passar o mouse, nada além) e **com as cores da legenda do Excel**.
+
+- **Fontes**: a planilha de acompanhamento (obrigatória, manda na lista de grupos) e a de controle do início do comissionamento (opcional, traz o início e completa datas; o grupo N dela é o `GEQ-001-NNN`). Colunas achadas pelo título; na complementar, só a linha "Realizada".
+- **Regras** (`core/transpasse.py`): pintura da Planilha1 (cor até a véspera do próximo marco, sem sábado/domingo; verde e preto num dia), etapa em andamento até hoje, "Dias" = convocação → início contando os dois dias (a coluna da planilha fazia assim), datas fora de ordem / no futuro / mais de um ano antes das demais ficam fora do quadro e vão para o card, e as divergências entre as planilhas também.
+- **Página** (`dashboard/transpasse_html.py`): HTML único com o modelo embutido no código (não depende do `.spec`), dados num `<script type="application/json">` e o JavaScript só desenhando.
+
+Explicação para quem usa: `docs/transpasse_de_fase.md`. Testes: `tests/test_transpasse.py` e `tests/test_ui_telas.py`.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*
