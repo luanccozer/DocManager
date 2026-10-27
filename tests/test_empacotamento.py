@@ -236,3 +236,28 @@ def test_build_reprodutivel_no_workflow():
 def test_nosso_codigo_fica_fora_do_exe():
     """Com o código dentro do .exe, ele muda inteiro a cada versão (~30 MB)."""
     assert 'module_collection_mode={"docmanager": "pyc"}' in _ler("docmanager.spec")
+
+
+# ─────────────── sempre "somente para mim" (desde a 3.6.0) ───────────────────
+
+def test_instalador_e_sempre_somente_para_mim():
+    """Sem pergunta e sem administrador: é o único escopo em que a atualização
+    pequena funciona (o app troca os próprios arquivos)."""
+    iss = _ler("installer/docmanager.iss")
+    assert re.search(r"^PrivilegesRequired=lowest$", iss, re.M)
+    assert "PrivilegesRequiredOverridesAllowed" not in iss   # nem diálogo, nem /ALLUSERS
+    assert "DefaultDirName={autopf}" in iss                  # lowest → %LOCALAPPDATA%\Programs
+
+
+def test_migra_a_instalacao_para_todos_antes_de_copiar():
+    """A antiga (HKLM) é desinstalada no ssInstall, depois de o app fechar,
+    pelo ShellExec (o único que deixa o Windows pedir o UAC)."""
+    code = _code_do_iss()
+    passo = code.split("procedure CurStepChanged", 1)[1].split("end;", 1)[0]
+    assert "ssInstall" in passo and "RemoverInstalacaoParaTodos" in passo
+    remover = code.split("procedure RemoverInstalacaoParaTodos", 1)[1].split("\nend;", 1)[0]
+    assert "ShellExec(" in remover and "/VERYSILENT" in remover
+    assert "Exec(" not in remover.replace("ShellExec(", "")
+    chave = code.split("function ChaveAntiga", 1)[1].split("\nend;", 1)[0]
+    assert "HKLM64" in chave and "HKLM32" in chave and "IsWin64" in chave
+    assert "HKCU" not in chave       # a instalação nova é a do HKCU: nunca a remove

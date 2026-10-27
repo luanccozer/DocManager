@@ -56,12 +56,12 @@ SetupIconFile=..\assets\logo_definitivo.ico
 UninstallDisplayIcon={app}\{#AppExe}
 
 ; --- Escopo da instalacao -----------------------------------------------
-; O padrao continua sendo "para todos" (Program Files, com admin), mas o
-; instalador PERGUNTA. Quem nao tem senha de administrador escolhe "somente
-; para mim" e vai para %LOCALAPPDATA%\Programs - e ai a atualizacao automatica
-; roda sem nenhum popup do UAC.
-PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog commandline
+; SEMPRE "somente para mim" (desde a 3.6.0): %LOCALAPPDATA%\Programs, sem
+; administrador e sem pergunta. E o unico escopo em que a atualizacao pequena
+; funciona (o app troca os arquivos ele mesmo, sem UAC). Ate a 3.5.x o
+; instalador perguntava, e o padrao era "para todos" (Program Files): quem
+; esta la e migrado uma vez - ver RemoverInstalacaoParaTodos no [Code].
+PrivilegesRequired=lowest
 
 ; --- Atualizacao por cima da versao anterior ----------------------------
 ; AppMutex: o app cria este mutex nomeado ao abrir, e e por ele que o Inno
@@ -175,12 +175,76 @@ begin
     Log(Format('DocManager: esperou %d ms o app fechar.', [Esperado]));
 end;
 
+// ==========================================================================
+//  Migracao da instalacao "para todos os usuarios" (ate a 3.5.x)
+// ==========================================================================
+// Este instalador e so "somente para mim" e nao enxerga a instalacao antiga em
+// Program Files (a chave dela fica no HKLM, nao no HKCU). Sem a migracao, a
+// maquina ficaria com DUAS instalacoes e dois atalhos, e o atalho antigo
+// abriria a versao velha. Antes de copiar, roda o desinstalador da antiga em
+// modo silencioso; ele pede a permissao de administrador uma vez (UAC). Se a
+// pessoa recusar, a instalacao nova segue igual e a antiga fica - nada quebra,
+// so sobra o atalho velho.
+function ChaveAntiga(var Chave, Desinstalador: String): Boolean;
+begin
+  Chave := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' +
+    ExpandConstant('{#SetupSetting("AppId")}') + '_is1';
+  Desinstalador := '';
+  // HKLM64 so existe em Windows 64-bit (em 32-bit, le-lo levanta excecao).
+  Result := (IsWin64 and RegQueryStringValue(HKLM64, Chave, 'UninstallString', Desinstalador))
+    or RegQueryStringValue(HKLM32, Chave, 'UninstallString', Desinstalador);
+end;
+
+procedure RemoverInstalacaoParaTodos();
+var
+  Chave, Desinstalador: String;
+  Codigo, Esperado: Integer;
+begin
+  if not ChaveAntiga(Chave, Desinstalador) then
+    Exit;
+  Desinstalador := RemoveQuotes(Desinstalador);
+  if not FileExists(Desinstalador) then
+  begin
+    Log('DocManager: chave antiga sem desinstalador em ' + Desinstalador);
+    Exit;
+  end;
+  Log('DocManager: removendo a instalacao para todos os usuarios: ' + Desinstalador);
+  // ShellExec, e nao Exec: o desinstalador de uma instalacao "para todos"
+  // precisa de administrador, e so o ShellExec deixa o Windows pedir o UAC.
+  if not ShellExec('', Desinstalador, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '',
+                   SW_HIDE, ewWaitUntilTerminated, Codigo) then
+  begin
+    Log(Format('DocManager: a remocao da antiga nao rodou (%d: %s). Ela fica.',
+      [Codigo, SysErrorMessage(Codigo)]));
+    Exit;
+  end;
+  // O desinstalador do Inno se copia para a pasta temporaria e o processo que
+  // o ShellExec esperou pode sair antes de acabar: espera a chave sumir.
+  Esperado := 0;
+  while ChaveAntiga(Chave, Desinstalador) and (Esperado < EsperaMaximaMs) do
+  begin
+    Sleep(PassoMs);
+    Esperado := Esperado + PassoMs;
+  end;
+  if ChaveAntiga(Chave, Desinstalador) then
+    Log('DocManager: a instalacao antiga continua registrada (UAC recusado?). Ela fica.')
+  else
+    Log(Format('DocManager: instalacao antiga removida em %d ms.', [Esperado]));
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  // ssInstall: depois da espera pelo app fechar (InitializeSetup), antes de
+  // copiar qualquer arquivo.
+  if CurStep = ssInstall then
+    RemoverInstalacaoParaTodos();
+end;
+
 function ReabrirAposAtualizar(): Boolean;
 begin
-  // Sem /REABRIR (app 3.1.0), numa instalacao para todos os usuarios o
-  // instalador ja nasceu elevado: a "conta original" pode ser a do
-  // administrador que digitou a senha, e o app abriria com os Documentos e as
-  // credenciais de outra pessoa. Nesse caso a pessoa reabre pelo atalho.
+  // /REABRIR vem do app 3.1.1 em diante; /RESTARTAPPLICATIONS, do 3.1.0.
+  // Desde a 3.6.0 o instalador nunca e elevado, entao a "conta original" e
+  // sempre a de quem usava o app.
   Result := WizardSilent and (TemParametro('/REABRIR') or
-    (TemParametro('/RESTARTAPPLICATIONS') and not IsAdminInstallMode));
+    TemParametro('/RESTARTAPPLICATIONS'));
 end;

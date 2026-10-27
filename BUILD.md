@@ -202,21 +202,25 @@ auto-update "existir mas não funcionar":
 
 O `.iss` compila e roda no Wine (Linux), o que basta para validar o `[Code]`:
 Inno Setup 6.4 do pacote npm `innosetup`, `wine32` e um "app" de teste
-compilado com o MinGW que só segura o mutex por alguns segundos. O modo
-"somente para mim" não roda no Wine (`{autopf}` não é suportado lá); o modo
-"para todos os usuários" roda.
+compilado com o MinGW que só segura o mutex por alguns segundos. Atenção: o
+modo "somente para mim", o único desde a 3.6.0, não roda no Wine (`{autopf}`
+não é suportado lá).
 
 ### Escopo da instalação e o UAC
 
-O instalador **pergunta** onde instalar:
+Desde a **v3.6.0** o instalador é **sempre "somente para mim"**
+(`PrivilegesRequired=lowest`, sem pergunta): `%LOCALAPPDATA%\Programs\DocManager
+Itaipu`, sem administrador. É o único escopo em que a atualização pequena
+funciona (o app troca os próprios arquivos, sem UAC).
 
-| Escolha | Onde | Atualização |
-|---|---|---|
-| **Para todos os usuários** (padrão) | `C:\Program Files\DocManager Itaipu` | Pede administrador (UAC) a cada atualização |
-| **Somente para mim** | `%LOCALAPPDATA%\Programs\DocManager Itaipu` | **Silenciosa, sem UAC** |
-
-Se a sua equipe não tem senha de administrador, oriente a escolher **"somente
-para mim"** - aí a atualização é um clique e nada mais.
+Até a 3.5.x o instalador perguntava, e o padrão era "para todos os usuários"
+(Program Files, chave no HKLM). Este instalador não enxerga aquela instalação,
+então ele a **migra**: no `ssInstall` (depois de o app fechar, antes de copiar),
+se existe a chave `Uninstall\<AppId>_is1` no HKLM, roda o `unins000.exe` dela em
+modo silencioso pelo `ShellExec` (o Windows pede o UAC **uma vez**) e espera a
+chave sumir. Se a permissão for recusada, a instalação nova segue e a antiga
+fica, com o atalho velho; o log do instalador diz o que aconteceu. As
+preferências e credenciais (em Documentos e no cofre do usuário) não mudam.
 
 ---
 
