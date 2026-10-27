@@ -9,6 +9,12 @@ Ninguém precisa mais empacotar nada à mão, nem enviar ZIP por e-mail, nem cop
 
 ## O procedimento inteiro (2 passos)
 
+> **Qual número?** Pequena alteração sobe o terceiro (`3.6.0 → 3.6.1`); módulo
+> ou ferramenta nova de grande impacto sobe o segundo (`3.6.4 → 3.7.0`);
+> mudança sistêmica sobe o primeiro (`3.7.2 → 4.0.0`). Regra completa e
+> conferência automática em `.claude/skills/versionamento/` - rode
+> `python .claude/skills/versionamento/proxima_versao.py`.
+
 ### 1. Escrever o que mudou
 
 Abra o **`CHANGELOG.md`** e acrescente o bloco da versão **no topo**:
