@@ -5,6 +5,10 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.4.0 - 2026-10-27
+
+- Atualização pequena no método da CMI Suite: o DocManager troca só os arquivos que mudaram com ele mesmo aberto, confere cada um e abre de novo já na versão nova, sem instalador, sem pedido de permissão do Windows e sem esperar o app fechar. Se algo não conferir, tudo volta como estava e ele baixa o instalador completo sozinho. Vale a partir da próxima versão, para quem instalou "somente para mim"; quem instalou para todos os usuários continua recebendo o instalador completo.
+
 ## 3.3.0 - 2026-10-26
 
 - Interface nova, em Qt, com o mesmo visual do SIG-FT: barra lateral com ícones, cartões, abas e tabelas redesenhados. Todas as telas e funções continuam as mesmas.

@@ -1104,6 +1104,8 @@ Cada Release passa a publicar, além do instalador completo, o `arquivos.json` (
 
 Decisões: (1) o código do `docmanager` sai do `.exe` (`module_collection_mode` → `.pyc` em `_internal\docmanager\`), senão o `.exe` de ~30 MB mudava a cada versão; (2) as bibliotecas do build ficam fixas em `constraints-build.txt`; (3) o `AppMutex` + `/SINAL` + `/REABRIR` da 3.1.1 continuam, porque o app instalado conversa por eles; (4) o instalador pequeno é o mesmo `.iss` com `/DAtualizacao=1`, com trava de versão (`DisplayVersion` do registro tem de ser a `VersaoDe`); (5) a abertura do app consulta sempre, sem intervalo; (6) cópia que não foi instalada pelo instalador (sem `unins*.exe`) não se atualiza sozinha.
 
+**3.4.0 - a pequena passa a ser o método da CMI Suite.** O instalador pequeno Inno (e a lista `atualizacoes`) saiu: o Release publica `DocManager_Itaipu_Atualizacao_<de>_para_<para>.zip`, que o próprio app aplica aberto (`services/pacote.py`: renomeia o antigo para `.dm-old`, escreve o novo, confere tudo contra o `arquivos.json`, desfaz em qualquer falha), atualiza a `DisplayVersion` em HKCU, abre o `.exe` novo e sai. Só vale com a pasta gravável (instalação "só para mim"); senão, e em qualquer falha, o completo. Detalhes em `BUILD.md`.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

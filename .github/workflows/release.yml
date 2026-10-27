@@ -8,10 +8,11 @@
 #  monta o instalador com o Inno Setup, calcula o SHA256 e publica o Release.
 #  Os apps já instalados avisam sozinhos na próxima abertura.
 #
-#  Desde a 3.2.0 o Release também traz a atualização "só do que mudou": o
-#  arquivos.json (cada arquivo instalado, com SHA256 - a base da versão
-#  seguinte) e um instalador PEQUENO para cada versão de origem recente, com só
-#  os arquivos que mudaram desde ela. Ver tools/gerar_atualizacao.py.
+#  O Release também traz a atualização "só do que mudou": o arquivos.json
+#  (cada arquivo instalado, com SHA256 - a base da versão seguinte) e um zip
+#  PEQUENO para cada versão de origem recente, com só os arquivos que mudaram
+#  desde ela. O app o aplica aberto e se reabre (o método da CMI Suite, desde
+#  a 3.4.0). Ver tools/gerar_atualizacao.py e docmanager/services/pacote.py.
 #
 #  Segredo necessário (Settings → Secrets and variables → Actions):
 #     UPDATE_TOKEN - PAT fine-grained, SOMENTE LEITURA (Contents: Read-only),
@@ -181,8 +182,8 @@ jobs:
             --tag "${{ steps.versao.outputs.tag }}"
 
       # ─── Atualização "só do que mudou" ──────────────────────────────────
-      # Nada daqui derruba o Release: sem base, sem pacote ou com o ISCC
-      # falhando, quem estiver na versão anterior recebe o completo.
+      # Nada daqui derruba o Release: sem base ou sem pacote, quem estiver na
+      # versão anterior recebe o completo.
       - name: Listar os arquivos instalados (arquivos.json)
         shell: bash
         run: |
@@ -227,16 +228,14 @@ jobs:
             --exe dist/DocManager/DocManager.exe --saida conteudo_exe.json \
             --anterior conteudo_exe_anterior.json
 
-      - name: Montar os instaladores pequenos
+      - name: Montar as atualizações pequenas
         continue-on-error: true   # sem isto, sai só o completo, como antes
         shell: bash
         run: |
           python tools/gerar_atualizacao.py pacotes \
             --manifesto arquivos.json --bases bases \
             --dist dist/DocManager --extra CHANGELOG.md=CHANGELOG.md \
-            --versao "${{ steps.versao.outputs.versao }}" \
-            --versao-info "${{ steps.versao.outputs.numerica }}" \
-            --iscc "$ISCC" --latest latest.json --lista pacotes.txt
+            --latest latest.json --lista pacotes.txt
 
       - name: Publicar o Release
         env:
@@ -246,9 +245,8 @@ jobs:
           PRERELEASE: ${{ steps.versao.outputs.prerelease }}
         shell: bash
         run: |
-          # O completo vai PRIMEIRO, e os pequenos num upload separado depois:
-          # o app até a 3.1.1 pega "o primeiro .exe do Release". Pela ordem de
-          # envio e pela ordem alfabética (Setup < Update), é sempre o completo.
+          # O completo vai PRIMEIRO, e os pequenos (zips) num upload separado
+          # depois: o app até a 3.1.1 pega "o primeiro .exe do Release".
           ativos=("$INSTALADOR#Instalador do DocManager Itaipu"
                   "latest.json#Manifesto (versão + SHA256)"
                   "arquivos.json#Arquivos instalados (base da próxima atualização)")
@@ -278,7 +276,7 @@ jobs:
               --notes-file notas_release.md "$sinal"
           fi
           if [ ${#pequenos[@]} -gt 0 ]; then
-            echo "Anexando ${#pequenos[@]} arquivo(s) da atualização pequena."
+            echo "Anexando ${#pequenos[@]} atualização(ões) pequena(s)."
             gh release upload "$TAG" "${pequenos[@]}" --clobber
           fi
           echo "─── publicado ───"

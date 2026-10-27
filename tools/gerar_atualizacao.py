@@ -1,25 +1,23 @@
-"""Atualização "só do que mudou": manifesto, bases e instaladores pequenos.
+"""Atualização "só do que mudou": manifesto, bases e pacotes pequenos.
 
 Entre duas versões quase tudo é igual (Python, bibliotecas, DLLs). Por isso cada
 Release publica, além do instalador completo:
 
   • `arquivos.json` - cada arquivo instalado, com SHA256 e tamanho. É a BASE da
-    diferença da versão seguinte;
-  • um instalador PEQUENO por versão de origem, só com o que mudou desde ela
-    (em dois formatos, `.zip` e `.exe` - ver `pacotes`);
-  • a lista `atualizacoes` no `latest.json`, que diz qual pequeno serve para
-    qual versão instalada. O app instalado procura a entrada com `de` igual à
-    própria versão; sem ela, baixa o completo.
+    diferença da versão seguinte, e o que o app confere depois de aplicar;
+  • um zip PEQUENO por versão de origem, só com o que mudou desde ela
+    (`DocManager_Itaipu_Atualizacao_<de>_para_<para>.zip`). O formato e quem o
+    aplica moram em `docmanager/services/pacote.py` - o método da CMI Suite;
+  • a lista `pequenas` e o `arquivos_json` no `latest.json`, com os SHA256.
 
 Não há diff binário: o arquivo que mudou vai inteiro. É mais simples, e o ganho
 já vem do resto da pasta, que não muda.
 
-Só biblioteca padrão (roda no runner antes de qualquer coisa ser instalada, e o
-`conteudo-exe` importa o PyInstaller só se ele existir). Subcomandos:
+Subcomandos:
 
     manifesto       percorre dist\\DocManager (+ extras) e grava o arquivos.json
     escolher-bases  a partir do JSON de GET /releases, as versões de origem
-    pacotes         diferença + includes do Inno + ISCC + zip + latest.json
+    pacotes         um zip por base + latest.json
     conteudo-exe    lista o que vai dentro do DocManager.exe (diagnóstico)
 
 Pular um pacote NUNCA derruba o Release: sai um `::warning::` e quem estiver
@@ -30,23 +28,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
-import subprocess
 import sys
-import zipfile
-from dataclasses import dataclass, field
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ))
+
+from docmanager.services import pacote  # noqa: E402 - o formato mora num lugar só
 
 ARQUIVO_MANIFESTO = "arquivos.json"
 ARQUIVO_CONTEUDO_EXE = "conteudo_exe.json"
-# Os dois prefixos são um ACORDO com o app (services/updater.py) e com o .iss
-# (OutputBaseFilename). "Setup" vem antes de "Update" na ordem alfabética: o app
-# 3.1.x, que pega "o primeiro .exe do Release", continua pegando o completo.
+# Acordo com o app (services/updater.py) e com o workflow.
 PREFIXO_COMPLETO = "DocManager_Itaipu_Setup_"
-PREFIXO_PEQUENO = "DocManager_Itaipu_Update_"
 
 # Se o pequeno copiaria mais que isto do total, não compensa: o completo,
 # comprimido inteiro, sai quase do mesmo tamanho.
@@ -145,85 +139,13 @@ def escolher_bases(releases: list[dict], versao_nova: str) -> list[str]:
     return tags
 
 
-# ────────────────────────────── diferença ───────────────────────────────────
-
-@dataclass
-class Diferenca:
-    copiar: list[str] = field(default_factory=list)          # novos ou com SHA diferente
-    remover: list[str] = field(default_factory=list)         # sumiram
-    pastas_remover: list[str] = field(default_factory=list)  # deixaram de existir
-
-    @property
-    def vazia(self) -> bool:
-        return not (self.copiar or self.remover)
-
-
-def _pastas(caminhos) -> set[str]:
-    pastas = set()
-    for c in caminhos:
-        partes = c.split("/")[:-1]
-        for i in range(1, len(partes) + 1):
-            pastas.add("/".join(partes[:i]))
-    return pastas
-
-
-def diferenca(base: dict, nova: dict) -> Diferenca:
-    """`base` e `nova` são o campo "arquivos" de dois manifestos."""
-    copiar = sorted(rel for rel, info in nova.items()
-                    if rel not in base or base[rel].get("sha256") != info.get("sha256"))
-    remover = sorted(rel for rel in base if rel not in nova)
-    sumidas = _pastas(base) - _pastas(nova)
-    # Da mais funda para a mais rasa: o dirifempty só apaga pasta vazia.
-    pastas = sorted(sumidas, key=lambda p: (-p.count("/"), p))
-    return Diferenca(copiar, remover, pastas)
-
-
-def fracao_copiada(dif: Diferenca, nova: dict) -> float:
-    total = sum(int(i.get("tamanho", 0)) for i in nova.values())
-    copiado = sum(int(nova[rel].get("tamanho", 0)) for rel in dif.copiar)
-    return copiado / total if total else 0.0
-
-
-# ─────────────────────────── includes do Inno ───────────────────────────────
-
-def escapar_inno(texto: str) -> str:
-    """'{' abre constante no Inno e '"' fecha o valor entre aspas."""
-    return texto.replace("{", "{{").replace('"', '""')
-
-
-def _win(rel: str) -> str:
-    return rel.replace("/", "\\")
-
-
-def linhas_arquivos(dif: Diferenca, origens: dict[str, Path], pasta_iss: Path) -> list[str]:
-    linhas = []
-    for rel in dif.copiar:
-        origem = Path(os.path.relpath(Path(origens[rel]).resolve(), pasta_iss.resolve()))
-        sub = rel.rsplit("/", 1)[0] if "/" in rel else ""
-        destino = "{app}" + ("\\" + escapar_inno(_win(sub)) if sub else "")
-        linhas.append(f'Source: "{escapar_inno(_win(origem.as_posix()))}"; '
-                      f'DestDir: "{destino}"; Flags: ignoreversion')
-    return linhas
-
-
-def linhas_remover(dif: Diferenca) -> list[str]:
-    linhas = [f'Type: files; Name: "{{app}}\\{escapar_inno(_win(rel))}"' for rel in dif.remover]
-    linhas += [f'Type: dirifempty; Name: "{{app}}\\{escapar_inno(_win(p))}"'
-               for p in dif.pastas_remover]
-    return linhas
-
-
-def gravar_include(destino: Path, linhas: list[str], titulo: str) -> None:
-    # UTF-8 COM BOM: é assim que o Inno reconhece um include em UTF-8 (sem o
-    # BOM ele lê na code page do Windows e um nome com acento sai trocado).
-    cabecalho = [f"; {titulo} - GERADO por tools/gerar_atualizacao.py, nao edite."]
-    destino.write_text("\n".join(cabecalho + linhas) + "\n", encoding="utf-8-sig")
-
-
 # ─────────────────────────────── pacotes ────────────────────────────────────
 
-def nome_pequeno(de: str, para: str) -> str:
-    return f"{PREFIXO_PEQUENO}{de}_para_{para}"
+def fracao_copiada(alterados: list[str], nova: dict) -> float:
+    """Quanto do total o pacote leva. `nova` é o campo "arquivos" do manifesto."""
+    total = sum(int(i.get("tamanho", 0)) for i in nova.values())
+    copiado = sum(int(nova[rel].get("tamanho", 0)) for rel in alterados)
+    return copiado / total if total else 0.0
 
 
 def _info(caminho: Path) -> dict:
@@ -231,58 +153,31 @@ def _info(caminho: Path) -> dict:
             "tamanho": caminho.stat().st_size}
 
 
-def zipar(exe: Path) -> Path:
-    """Um `.zip` sem compressão e sem senha, com o `.exe` sozinho dentro.
-
-    Não é para esconder nada do proxy: é outro formato para a mesma coisa. Na
-    rede da empresa o proxy cortava o fim de um formato e deixava passar outro,
-    então o app tenta zip → exe → completo."""
-    destino = exe.with_suffix(".zip")
-    destino.unlink(missing_ok=True)
-    with zipfile.ZipFile(destino, "w", compression=zipfile.ZIP_STORED) as z:
-        z.write(exe, arcname=exe.name)
-    return destino
-
-
-def entrada_latest(de: str, exe: Path, zip_: Path) -> dict:
-    return {"de": de, **_info(exe),
-            "zip": {**_info(zip_), "sha256_dentro": sha256_arquivo(exe)}}
-
-
-def gerar_pacote(*, de: str, base: dict, nova: dict, origens: dict[str, Path],
-                 iss: Path, iscc: str, versao: str, versao_info: str,
+def gerar_pacote(*, base: dict, nova: dict, origens: dict[str, Path],
                  pasta_saida: Path) -> dict | None:
-    """Gera o pequeno de `de` para `versao`. Devolve a entrada do latest.json,
-    ou None quando o pacote é pulado (com o motivo no log)."""
-    dif = diferenca(base.get("arquivos", {}), nova["arquivos"])
-    if dif.vazia:
-        _aviso(f"{de} -> {versao}: nenhum arquivo mudou; sem instalador pequeno.")
+    """O zip de `base` para `nova`. Devolve a entrada de `pequenas` do
+    latest.json, ou None quando o pacote é pulado (com o motivo no log)."""
+    de, versao = base["versao"], nova["versao"]
+    alterados, removidos = pacote.diferenca(base, nova)
+    if not (alterados or removidos):
+        _aviso(f"{de} -> {versao}: nenhum arquivo mudou; sem atualizacao pequena.")
         return None
-    fracao = fracao_copiada(dif, nova["arquivos"])
-    print(f"{de} -> {versao}: copiar {len(dif.copiar)}, remover {len(dif.remover)} "
-          f"arquivo(s) e {len(dif.pastas_remover)} pasta(s); {fracao:.0%} do total.")
-    for rel in dif.copiar[:40]:
+    fracao = fracao_copiada(alterados, nova["arquivos"])
+    print(f"{de} -> {versao}: copiar {len(alterados)}, remover {len(removidos)} "
+          f"arquivo(s); {fracao:.0%} do total.")
+    for rel in alterados[:40]:
         print(f"    + {rel}")
     if fracao > LIMITE_FRACAO:
         _aviso(f"{de} -> {versao}: o pequeno levaria {fracao:.0%} do total (limite "
                f"{LIMITE_FRACAO:.0%}); quem estiver na {de} recebe o completo.")
         return None
-
-    pasta_iss = iss.parent
-    gravar_include(pasta_iss / "atualizacao_arquivos.iss",
-                   linhas_arquivos(dif, origens, pasta_iss), f"Arquivos de {de} para {versao}")
-    gravar_include(pasta_iss / "atualizacao_remover.iss",
-                   linhas_remover(dif), f"Remocoes de {de} para {versao}")
-
-    cmd = [iscc, "/DAtualizacao=1", f"/DVersaoDe={de}", f"/DMyAppVersion={versao}",
-           f"/DMyVersionInfo={versao_info}", str(iss)]
-    r = subprocess.run(cmd)
-    exe = pasta_saida / f"{nome_pequeno(de, versao)}.exe"
-    if r.returncode != 0 or not exe.is_file():
-        _aviso(f"{de} -> {versao}: o ISCC falhou (codigo {r.returncode}); "
-               f"quem estiver na {de} recebe o completo.")
+    try:
+        zip_ = pacote.montar(origens, base, nova, pasta_saida)
+    except (OSError, KeyError, pacote.ErroPacote) as e:
+        _aviso(f"{de} -> {versao}: o pacote nao saiu ({e}); quem estiver na {de} "
+               f"recebe o completo.")
         return None
-    return entrada_latest(de, exe, zipar(exe))
+    return {"de": de, **_info(zip_)}
 
 
 # ─────────────────────────── conteúdo do .exe ───────────────────────────────
@@ -344,28 +239,32 @@ def _cmd_pacotes(args) -> None:
     nova = json.loads(args.manifesto.read_text(encoding="utf-8-sig"))
     origens = fontes(args.dist, _extras(args.extra))
     latest = json.loads(args.latest.read_text(encoding="utf-8-sig"))
-    entradas, gerados = [], []
+    args.saida.mkdir(parents=True, exist_ok=True)
+    entradas = []
     for arq in sorted(args.bases.glob("*.json")):
         try:
             base = json.loads(arq.read_text(encoding="utf-8-sig"))
-            de = str(base.get("versao") or arq.stem).lstrip("vV")
-        except (OSError, ValueError) as e:
+            base["versao"] = str(base.get("versao") or arq.stem).lstrip("vV")
+            base["arquivos"]
+        except (OSError, ValueError, KeyError, TypeError) as e:
             _aviso(f"{arq.name}: manifesto da base ilegivel ({e}); pulado.")
             continue
-        entrada = gerar_pacote(de=de, base=base, nova=nova, origens=origens, iss=args.iss,
-                               iscc=args.iscc, versao=args.versao,
-                               versao_info=args.versao_info or args.versao.split("-")[0],
-                               pasta_saida=args.saida)
+        entrada = gerar_pacote(base=base, nova=nova, origens=origens, pasta_saida=args.saida)
         if entrada is None:
             continue
         entradas.append(entrada)
-        gerados += [args.saida / entrada["zip"]["arquivo"], args.saida / entrada["arquivo"]]
         print(f"  -> {entrada['arquivo']}: {entrada['tamanho']} bytes")
-    latest["atualizacoes"] = entradas
+    # `pequenas`, e NÃO `atualizacoes`: o app 3.2.0-3.3.0 lê `atualizacoes` e
+    # rodaria o zip novo como se fosse o instalador pequeno dele. Sem a lista,
+    # ele baixa o completo.
+    latest.pop("atualizacoes", None)
+    latest["pequenas"] = entradas
+    latest["arquivos_json"] = {k: v for k, v in _info(args.manifesto).items() if k != "arquivo"}
     _gravar_json(args.latest, latest)
     # Lista para o passo que publica, um caminho por linha, com "\n" puro.
+    gerados = [args.saida / e["arquivo"] for e in entradas]
     args.lista.write_bytes("".join(f"{p.as_posix()}\n" for p in gerados).encode("utf-8"))
-    print(f"{len(entradas)} instalador(es) pequeno(s); latest.json atualizado.")
+    print(f"{len(entradas)} pacote(s) pequeno(s); latest.json atualizado.")
 
 
 def _cmd_conteudo_exe(args) -> None:
@@ -412,10 +311,6 @@ def main(argv=None) -> None:
     p.add_argument("--bases", type=Path, required=True, help="pasta com <tag>.json")
     p.add_argument("--dist", type=Path, required=True)
     p.add_argument("--extra", action="append")
-    p.add_argument("--versao", required=True)
-    p.add_argument("--versao-info", default="")
-    p.add_argument("--iss", type=Path, default=RAIZ / "installer" / "docmanager.iss")
-    p.add_argument("--iscc", required=True)
     p.add_argument("--saida", type=Path, default=RAIZ / "installer" / "Output")
     p.add_argument("--latest", type=Path, default=Path("latest.json"))
     p.add_argument("--lista", type=Path, default=Path("pacotes.txt"))

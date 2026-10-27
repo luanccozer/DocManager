@@ -132,14 +132,13 @@ def _info_falsa():
 def _info_pequena():
     from docmanager.services import updater
 
-    completo = updater.Atualizacao(versao="9.9.9-rc.1", notas="- teste",
-                                   nome_arquivo="DocManager_Itaipu_Setup_9.9.9-rc.1.exe",
-                                   url_asset="https://api/c", tamanho=56_000_000, sha256="c",
-                                   url_pagina="https://github.com/x", publicado_em="2026-10-23",
-                                   tamanho_completo=56_000_000, prerelease=True)
-    return updater.replace(completo, nome_arquivo="DocManager_Itaipu_Update_x.zip",
-                           url_asset="https://api/z", tamanho=12_900_000, sha256="z",
-                           incremental=True, formato="zip", completo=completo, reserva=completo)
+    return updater.Atualizacao(versao="9.9.9-rc.1", notas="- teste",
+                               nome_arquivo="DocManager_Itaipu_Setup_9.9.9-rc.1.exe",
+                               url_asset="https://api/c", tamanho=56_000_000, sha256="c",
+                               url_pagina="https://github.com/x", publicado_em="2026-10-23",
+                               prerelease=True,
+                               pequena=updater.Pacote("p.zip", "https://api/z", 12_900_000, "z"),
+                               arquivos=updater.Pacote("arquivos.json", "https://api/a", 9_000, "a"))
 
 
 def _dialogo(app, info, versao="3.1.0", **kw):
@@ -198,6 +197,7 @@ def test_checagem_roda_na_abertura_e_abre_o_aviso(qtbot, monkeypatch, caixas):
 
     perguntas = []
     monkeypatch.setattr(updater, "motivo_para_nao_verificar", lambda: "")
+    monkeypatch.setattr(updater, "pode_pequena", lambda info: True)
     monkeypatch.setattr(updater, "checar",
                         lambda v, **k: (perguntas.append(k.get("canal_testes")), _info_pequena())[1])
     monkeypatch.setattr(main_app.MainApp, "CHECAR_APOS_MS", 10)
@@ -249,22 +249,58 @@ def test_durante_o_download_x_e_esc_nao_fecham(app, monkeypatch):
     liberar.set()
 
 
-def test_caiu_no_completo_aparece_na_janela(app, qtbot, monkeypatch, tmp_path):
+def test_pequena_aplicada_reabre_o_exe_novo_e_fecha(app, qtbot, monkeypatch, tmp_path):
+    """O método da CMI Suite: sem instalador - aplica, abre o .exe novo, sai."""
     from docmanager.services import updater
 
-    info = _info_pequena()
+    reabertos, fechou = [], []
+    monkeypatch.setattr(updater, "pode_pequena", lambda info: True)
+    monkeypatch.setattr(updater, "atualizar_pequena", lambda info, **_k: tmp_path / "DocManager.exe")
+    monkeypatch.setattr(updater, "reabrir", reabertos.append)
+    monkeypatch.setattr(updater, "baixar", lambda *a, **k: pytest.fail("não devia baixar o completo"))
+    dlg = _dialogo(app, _info_pequena(), "9.9.8", fechar_app=lambda: fechou.append(1))
+    assert "só o que mudou" in dlg.lbl_resumo.text()
+    dlg._atualizar()
+    qtbot.waitUntil(lambda: bool(fechou), timeout=5000)
+    assert reabertos == [str(tmp_path / "DocManager.exe")]
 
-    def baixar(i, *, ao_cair_no_completo=None, **_k):
-        ao_cair_no_completo(i.completo, RuntimeError("cortado"))
-        return tmp_path / "Setup.exe"
+
+def test_pequena_que_falha_cai_no_completo(app, qtbot, monkeypatch, tmp_path):
+    from docmanager.services import updater
+
+    def falha(info, **_k):
+        raise updater.pacote.ErroPacote("cortado")
 
     fechou = []
-    monkeypatch.setattr(updater, "baixar", baixar)
+    monkeypatch.setattr(updater, "pode_pequena", lambda info: True)
+    monkeypatch.setattr(updater, "atualizar_pequena", falha)
+    monkeypatch.setattr(updater, "reabrir", lambda exe: pytest.fail("não devia reabrir"))
+    monkeypatch.setattr(updater, "baixar", lambda info, **_k: tmp_path / "Setup.exe")
     monkeypatch.setattr(updater, "instalar", lambda caminho, **_k: None)
-    dlg = _dialogo(app, info, "9.9.8", fechar_app=lambda: fechou.append(1))
+    dlg = _dialogo(app, _info_pequena(), "9.9.8", fechar_app=lambda: fechou.append(1))
     dlg._atualizar()
-    qtbot.waitUntil(lambda: "completo" in dlg.lbl_resumo.text(), timeout=5000)
+    qtbot.waitUntil(lambda: "nada foi alterado" in dlg.lbl_resumo.text(), timeout=5000)
+    assert "cortado" in dlg.lbl_resumo.text()
     qtbot.waitUntil(lambda: bool(fechou), timeout=5000)
+
+
+def test_pequena_aplicada_que_nao_reabre_avisa_e_nao_fecha(app, qtbot, monkeypatch, tmp_path):
+    from docmanager.services import updater
+    from docmanager.ui import dialogos
+
+    erros, fechou = [], []
+
+    def nao_abre(exe):
+        raise OSError("bloqueado")
+
+    monkeypatch.setattr(updater, "pode_pequena", lambda info: True)
+    monkeypatch.setattr(updater, "atualizar_pequena", lambda info, **_k: tmp_path / "DocManager.exe")
+    monkeypatch.setattr(updater, "reabrir", nao_abre)
+    monkeypatch.setattr(dialogos, "erro", lambda titulo, msg, parent=None: erros.append(msg))
+    dlg = _dialogo(app, _info_pequena(), "9.9.8", fechar_app=lambda: fechou.append(1))
+    dlg._atualizar()
+    qtbot.waitUntil(lambda: bool(erros), timeout=5000)
+    assert "Feche o DocManager e abra de novo" in erros[0] and not fechou
 
 
 # ─────────────────────────── componentes ────────────────────────────────────

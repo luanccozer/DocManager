@@ -83,7 +83,7 @@ ligou continua sem ver a rc.
 | `gerar_atualizacao.py manifesto` | Grava o `arquivos.json`: cada arquivo instalado, com SHA256. É a base da próxima versão. |
 | `gerar_atualizacao.py escolher-bases` + `gh release download` | Baixa o `arquivos.json` das versões de origem (as 3 mais recentes e a última normal). |
 | `gerar_atualizacao.py conteudo-exe` | Diagnóstico: lista o que vai dentro do `.exe` e o que mudou desde a versão anterior. |
-| `gerar_atualizacao.py pacotes` | Um instalador pequeno por base (`ISCC /DAtualizacao=1`), em `.zip` e `.exe`, e a lista `atualizacoes` no `latest.json`. |
+| `gerar_atualizacao.py pacotes` | Um zip pequeno por base (`services/pacote.py`), e a lista `pequenas` + o SHA256 do `arquivos.json` no `latest.json`. |
 | `gh release create` | Publica o Release com o instalador, os manifestos e as notas do CHANGELOG; os pequenos sobem depois, num envio separado. |
 
 Os passos da atualização pequena têm `continue-on-error`: se um deles falhar, o
@@ -140,10 +140,11 @@ requisição por abertura fica muito abaixo do limite do token), compara com a
 própria versão e, se houver novidade, abre o aviso. Só consulta se for o
 programa **instalado pelo instalador** (há um `unins000.exe` ao lado do `.exe`)
 e tiver token; o botão diz por que não, quando não. Ao clicar em
-**Atualizar agora**: baixa o instalador (o pequeno, quando há um para a versão
-instalada - ver "Atualização só do que mudou"), confere o SHA256, executa em modo
-silencioso, espera o instalador ficar pronto e fecha o app para que os arquivos
-possam ser trocados; no fim o instalador reabre o app. Enquanto o app fica
+**Atualizar agora**: quando há atualização pequena para a versão instalada e a
+pasta aceita escrita, o app a aplica aberto e se reabre (ver "Atualização só do
+que mudou"). Senão, ou se a pequena falhar, baixa o instalador completo, confere
+o SHA256, executa em modo silencioso, espera o instalador ficar pronto e fecha o
+app para que os arquivos possam ser trocados; no fim o instalador reabre o app. Enquanto o app fica
 aberto, a checagem se repete (o intervalo de 6 horas continua valendo), e o
 botão **🔄 Procurar atualizações** da barra lateral verifica na hora.
 
@@ -275,47 +276,44 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 
 ### Atualização só do que mudou
 
-Desde a **v3.2.0**, cada Release publica, além do instalador completo:
+Desde a **v3.4.0** é o **método da CMI Suite** (lá funciona sem tropeço): a
+pequena não passa por instalador nenhum. Cada Release publica, além do
+instalador completo:
 
 | Arquivo | O que é |
 |---|---|
 | `DocManager_Itaipu_Setup_<versão>.exe` | O instalador completo. Serve para qualquer versão; é o plano B. |
-| `DocManager_Itaipu_Update_<de>_para_<versão>.zip` / `.exe` | O instalador **pequeno**: só os arquivos que mudaram desde a `<de>`. O mesmo pacote em dois formatos. |
-| `arquivos.json` | Cada arquivo instalado, com SHA256 e tamanho. É a **base** da diferença da versão seguinte. |
-| `latest.json` | Versão, SHA256 do completo, notas e a lista `atualizacoes` (qual pequeno serve para qual versão instalada). |
+| `DocManager_Itaipu_Atualizacao_<de>_para_<versão>.zip` | A atualização **pequena**: `manifesto.json` (`de`, `para`, `alterados`, `removidos`) e `arquivos/<caminho>` com cada arquivo novo ou alterado desde a `<de>`. |
+| `arquivos.json` | Cada arquivo instalado, com SHA256 e tamanho. É a **base** da diferença da versão seguinte e o que o app confere depois de aplicar. |
+| `latest.json` | Versão, SHA256 do completo, notas, a lista `pequenas` (zip, `de`, SHA256) e o SHA256 do `arquivos.json`. |
 | `conteudo_exe.json` | Diagnóstico: o que vai dentro do `.exe`, entrada por entrada. |
 
-O app instalado lê o `latest.json`. Se existe uma entrada com `de` igual à versão
-dele, baixa o pequeno; senão, o completo. Não há diff binário: o arquivo que
-mudou vai inteiro.
+**Como o app aplica** (`docmanager/services/pacote.py`, o mesmo módulo que o
+workflow usa para montar o zip): só quando existe o zip saindo **exatamente** da
+versão instalada e a pasta do programa aceita escrita (instalação "só para
+mim"; em Program Files vai o completo, que pede a permissão). Baixa o
+`arquivos.json` e o zip, confere os dois SHA256 (sem SHA256 publicado, não há
+pequena), e com o app **aberto**: renomeia cada arquivo antigo para
+`<nome>.dm-old` (o Windows não deixa sobrescrever um `.exe` ou DLL em uso, mas
+deixa renomear), escreve o novo, afasta os removidos e confere **todos** os
+arquivos contra o `arquivos.json` novo. Qualquer falha desfaz tudo, na ordem
+inversa, e a janela cai para o completo. Deu certo: atualiza a versão em
+"Aplicativos instalados" (HKCU), abre o `.exe` novo e o processo sai na hora.
+Os `.dm-old` são apagados na abertura seguinte. Sem UAC, sem `/SINAL`, sem
+corrida com o mutex, sem trava de versão no registro.
+
+Nomes vindos do zip passam pelas regras de zip-slip da CMI Suite (recusa `\`,
+`:`, `/` no início, partes `.`/`..`/vazias ou terminadas em ponto ou espaço, NUL).
 
 **De quais versões sai um pequeno:** das 3 mais recentes que publicaram
 `arquivos.json` (pré-lançamentos inclusive) e, sempre, da última versão normal,
-porque é nela que está quase todo mundo. O pequeno é pulado (com aviso no run)
-quando nada mudou ou quando ele copiaria mais de 60% do total: aí o completo,
-comprimido inteiro, sai quase do mesmo tamanho.
+porque é nela que está quase todo mundo. A ordem é pela **versão**, nunca pela
+lista do GitHub. O pequeno é pulado (com aviso no run) quando nada mudou ou
+quando ele copiaria mais de 60% do total.
 
-**Por que dois formatos:** na rede da empresa, o proxy cortava o fim de um
-formato e deixava passar outro. O app tenta **zip → exe → completo**: confere o
-SHA256 do zip, extrai (recusa mais de um arquivo dentro ou nome com pasta) e
-confere o SHA256 do `.exe` de dentro. Se um falha (cortado, hash errado, rede),
-vai o próximo, e a janela avisa quando caiu no completo. Erro de disco não troca
-de arquivo.
-
-**Por que o app até a 3.1.1 não se confunde:** ele pega "o primeiro `.exe` do
-Release". O workflow sobe o completo antes dos pequenos, e `Setup` vem antes de
-`Update` na ordem alfabética. O app novo escolhe o completo pelo nome.
-
-**O instalador pequeno** é o mesmo `installer/docmanager.iss`, compilado com
-`ISCC /DAtualizacao=1 /DVersaoDe=<de> /DMyAppVersion=<versão>`. O `[Files]` e o
-`[InstallDelete]` vêm dos includes que o `gerar_atualizacao.py` grava (UTF-8 com
-BOM). O pequeno **nunca** apaga `{app}` nem `{app}\_internal` inteiros; o
-completo apaga o `_internal` antes de copiar, para a pasta ficar igual ao
-`arquivos.json`. O resto (AppId, `AppMutex`, a espera do `InitializeSetup`,
-`/SINAL`, `/REABRIR`, UAC) é o mesmo do completo. Antes de copiar, o pequeno
-confere a `DisplayVersion` da chave `Uninstall\<AppId>_is1`: se não for a
-`<de>`, não copia nada e reabre o app. Sem essa trava, um pequeno aplicado sobre
-a versão errada deixaria uma mistura das duas.
+**O app 3.2.0-3.3.0 não se confunde:** ele lia a lista `atualizacoes` do
+`latest.json`, que não é mais publicada (rodaria o zip novo como se fosse o
+instalador pequeno dele). Sem ela, ele baixa o completo, pelo nome.
 
 **O que faz o pacote ser pequeno de verdade** (sem isto ele levaria quase tudo):
 
@@ -333,15 +331,16 @@ a versão errada deixaria uma mistura das duas.
 Se o `.exe` entrar no pacote sem motivo, o passo *Diagnóstico do conteúdo do
 .exe* do run lista o que mudou lá dentro.
 
-**Quando a economia começa:** na versão **seguinte** à 3.2.0, porque quem escolhe
-o arquivo é o app já instalado. Roteiro para validar:
+**Quando a economia começa:** na versão **seguinte** à 3.4.0, porque quem aplica
+é o app já instalado (quem está na 3.3.0 recebe o completo da 3.4.0). Roteiro
+para validar:
 
-1. Instale à mão a primeira rc com o mecanismo (pelo completo). Ela publica só o
-   `arquivos.json`, sem pequeno.
+1. Instale "só para mim" a primeira rc com o método (pelo completo).
 2. No app, ligue **Versões de teste**.
-3. Publique a rc seguinte. Ela já traz o pequeno `de` a anterior.
+3. Publique a rc seguinte. Ela já traz o zip `de` a anterior.
 4. Abra o app: o aviso mostra o tamanho pequeno ("X MB: só o que mudou").
-   **Atualizar agora** deve trocar só o que mudou e reabrir na versão nova.
+   **Atualizar agora** deve trocar só o que mudou, sem pedir nada ao Windows, e
+   reabrir na versão nova; na abertura seguinte não sobra nenhum `*.dm-old`.
 
 ### A tela de carregamento (splash)
 
