@@ -5,6 +5,10 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.5.1 - 2026-10-27
+
+- Versão para conferir a atualização pequena: quem está na 3.5.0 (instalada "somente para mim") deve receber só o que mudou, em segundos, e o DocManager abre de novo sozinho, já na 3.5.1. Nada muda no uso.
+
 ## 3.5.0 - 2026-10-27
 
 - Módulo novo, Transpasse de Fase: desenha sozinho, a partir das planilhas, o quadro dia a dia de cada grupo de equipamentos (convocação, inspeção IB, emissão do CCMLC, transpasse de fase e início do comissionamento), com a mesma legenda e as mesmas cores da planilha da equipe. Basta selecionar a planilha de acompanhamento do transpasse e, se tiver, a complementar (controle do início do comissionamento, de onde vêm o início e a coluna Dias).
