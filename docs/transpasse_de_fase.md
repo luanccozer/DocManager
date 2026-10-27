@@ -1,6 +1,6 @@
 # Transpasse de Fase — como o painel funciona
 
-> Módulo do DocManager desde a **3.4.0**. Desenha sozinho, a partir das
+> Módulo do DocManager desde a **3.5.0**. Desenha sozinho, a partir das
 > planilhas de acompanhamento, o quadro de cores por dia que a equipe pintava à
 > mão (a "Planilha1"). Regras em `docmanager/core/transpasse.py`; leitura das
 > planilhas em `docmanager/services/transpasse_io.py`; página em
