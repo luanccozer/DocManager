@@ -43,8 +43,8 @@ relatórios.
 ### Primeiro uso: cadastrar as suas credenciais do Aconex
 
 Só a **Extração Aconex** precisa disso. Os demais módulos (Mapa, Doc List,
-Status, Histórico, Relatórios) funcionam sem cadastro nenhum, bastam os
-arquivos Excel.
+Status, Histórico, Relatórios, Transpasse de Fase) funcionam sem cadastro
+nenhum, bastam os arquivos Excel.
 
 1. No app, abra **📥 Extração Aconex**.
 2. Clique em **Cadastrar usuário**.
@@ -216,6 +216,14 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   vencimento e dias de atraso). O de fluxos usa a **base de Fluxos**, que tem
   seletor de arquivo próprio - não é a base de documentos.
   Detalhes em [`docs/fluxos_de_trabalho.md`](docs/fluxos_de_trabalho.md).
+- **🗓️ Transpasse de Fase** - desenha o quadro dia a dia de cada grupo de
+  equipamentos (convocação → inspeção IB → CCMLC → transpasse → início do
+  comissionamento), com a legenda e as cores da planilha da equipe. Selecione a
+  planilha de **acompanhamento do transpasse** e, opcionalmente, a
+  **complementar** (controle do início do comissionamento, de onde vêm o início
+  e a coluna Dias). Aqui não há seletor de aba: o app acha a aba certa sozinho.
+  Gera uma página HTML que abre no navegador e pode ser enviada a quem não tem
+  o app. Detalhes em [`docs/transpasse_de_fase.md`](docs/transpasse_de_fase.md).
 - **📥 Extração Aconex** - baixa a base completa do Aconex via API (precisa das
   credenciais cadastradas; ver "Primeiro uso" acima). Operação longa (~30 min em produção). **Se a conexão cair, o progresso
   não se perde**: cada página baixada fica guardada e a próxima execução retoma

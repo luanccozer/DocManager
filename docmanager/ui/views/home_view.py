@@ -31,6 +31,8 @@ MODULOS = [
      "atrasos Itaipu/CMI) e o painel executivo com evolução do atraso, First Time Right e gargalos."),
     ("relatorios", "clipboard-list", "Relatórios", "Relatório de Avanço (prazos de devolução da Itaipu) e "
      "Auditoria de Integração (documentos presos em 0AA)."),
+    ("transpasse", "calendar-range", "Transpasse de Fase", "Quadro dia a dia de cada grupo de equipamentos: "
+     "convocação, inspeção IB, CCMLC, transpasse e início do comissionamento, desenhado a partir das planilhas."),
     ("aconex", "download", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex. "
      "Na primeira vez, cadastre as suas credenciais na própria tela."),
     ("config", "settings", "Configurações", "Aparência, credenciais do Aconex, atualizações do app, Regra "

@@ -5,6 +5,13 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.5.0 - 2026-10-27
+
+- Módulo novo, Transpasse de Fase: desenha sozinho, a partir das planilhas, o quadro dia a dia de cada grupo de equipamentos (convocação, inspeção IB, emissão do CCMLC, transpasse de fase e início do comissionamento), com a mesma legenda e as mesmas cores da planilha da equipe. Basta selecionar a planilha de acompanhamento do transpasse e, se tiver, a complementar (controle do início do comissionamento, de onde vêm o início e a coluna Dias).
+- O painel abre no navegador e é um arquivo único: dá para mandar por e-mail ou deixar numa pasta para quem não tem o DocManager. Para atualizar depois de mexer nas planilhas, é só gerar de novo.
+- Passando o mouse sobre um grupo aparecem as datas, os dias entre cada etapa e há quanto tempo ele está parado. Etapa ainda em andamento aparece pintada até hoje.
+- Datas que não fecham (fora de ordem, no futuro, ano digitado errado, texto que não é data ou datas diferentes nas duas planilhas) ficam fora do quadro e aparecem no card do grupo, para corrigir na planilha.
+
 ## 3.4.0 - 2026-10-27
 
 - Atualização pequena no método da CMI Suite: o DocManager troca só os arquivos que mudaram com ele mesmo aberto, confere cada um e abre de novo já na versão nova, sem instalador, sem pedido de permissão do Windows e sem esperar o app fechar. Se algo não conferir, tudo volta como estava e ele baixa o instalador completo sozinho. Vale a partir da próxima versão, para quem instalou "somente para mim"; quem instalou para todos os usuários continua recebendo o instalador completo.
