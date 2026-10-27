@@ -4,12 +4,14 @@ Nada aqui toca a rede. O que é testado é justamente a parte que decide se o
 usuário vai ou não ser avisado - e que, errada, produz os dois piores defeitos
 possíveis: nunca avisar, ou reoferecer a mesma versão para sempre.
 """
+import dataclasses
+import hashlib
 import json
 
 import pytest
 
 from docmanager._ofuscacao import desofuscar, ofuscar
-from docmanager.services import updater
+from docmanager.services import pacote, updater
 from docmanager.services.config import ConfigManager
 
 
@@ -275,82 +277,84 @@ def test_instalador_que_nao_abre_vira_aviso(tmp_path, pasta_update):
 
 
 # --------------------------------------------------------------------------
-# Atualização "só do que mudou" (a partir da 3.2.0)
+# Atualização pequena: o método da CMI Suite (a partir da 3.4.0)
 # --------------------------------------------------------------------------
-COMPLETO = "DocManager_Itaipu_Setup_3.3.0.exe"
-PEQUENO = "DocManager_Itaipu_Update_3.2.0_para_3.3.0"
+COMPLETO = "DocManager_Itaipu_Setup_3.4.0.exe"
+ZIP = "DocManager_Itaipu_Atualizacao_3.3.0_para_3.4.0.zip"
 
 
-def _release_com_pequeno(*, com_zip=True, com_exe=True):
-    assets = [{"name": COMPLETO, "url": "api/completo", "size": 56_000_000},
+def _sha(dados: bytes) -> str:
+    return hashlib.sha256(dados).hexdigest()
+
+
+def _release_com_pequena(*, com_zip=True, com_arquivos=True, digest=True):
+    def asset(nome, url, tamanho, sha):
+        a = {"name": nome, "url": url, "size": tamanho}
+        if digest:
+            a["digest"] = f"sha256:{sha}"
+        return a
+    assets = [asset(COMPLETO, "api/completo", 56_000_000, "c" * 64),
               {"name": "latest.json", "url": "api/latest", "size": 900}]
-    if com_exe:
-        assets.append({"name": PEQUENO + ".exe", "url": "api/exe", "size": 4_000_000})
     if com_zip:
-        assets.append({"name": PEQUENO + ".zip", "url": "api/zip", "size": 4_000_100})
-    return _release(assets, tag="v3.3.0")
+        assets.append(asset(ZIP, "api/zip", 4_000_000, "a" * 64))
+    if com_arquivos:
+        assets.append(asset("arquivos.json", "api/arquivos", 90_000, "b" * 64))
+    return _release(assets, tag="v3.4.0")
 
 
-MANIFESTO = {
-    "versao": "3.3.0", "arquivo": COMPLETO, "sha256": "SHACOMPLETO", "notas": "- novidade",
-    "atualizacoes": [{"de": "3.2.0", "arquivo": PEQUENO + ".exe", "sha256": "SHAEXE",
-                      "tamanho": 4_000_000,
-                      "zip": {"arquivo": PEQUENO + ".zip", "sha256": "SHAZIP",
-                              "tamanho": 4_000_100, "sha256_dentro": "SHAEXE"}}],
-}
+def test_oferece_a_pequena_quando_ha_zip_da_versao_instalada():
+    info = updater.interpretar_release(_release_com_pequena(), None, "3.3.0")
+    assert info.nome_arquivo == COMPLETO and info.sha256 == "c" * 64
+    assert info.tem_pequena
+    assert info.pequena == updater.Pacote(ZIP, "api/zip", 4_000_000, "a" * 64)
+    assert info.arquivos == updater.Pacote("arquivos.json", "api/arquivos", 90_000, "b" * 64)
 
 
-def test_escolhe_o_pequeno_quando_o_de_bate():
-    info = updater.interpretar_release(_release_com_pequeno(), MANIFESTO, "3.2.0")
-    assert [(t.formato, t.nome_arquivo) for t in info.tentativas()] == [
-        ("zip", PEQUENO + ".zip"), ("exe", PEQUENO + ".exe"), ("completo", COMPLETO)]
-    assert info.incremental and info.sha256 == "shazip" and info.sha256_dentro == "shaexe"
-    assert info.tamanho_completo == 56_000_000
-    assert info.completo.nome_arquivo == COMPLETO and info.completo.sha256 == "shacompleto"
+@pytest.mark.parametrize("versao_atual", ["3.2.0", "3.3.0-rc.1", ""])
+def test_sem_zip_da_versao_instalada_vai_o_completo(versao_atual):
+    info = updater.interpretar_release(_release_com_pequena(), None, versao_atual)
+    assert not info.tem_pequena and info.nome_arquivo == COMPLETO
 
 
-@pytest.mark.parametrize("versao_atual", ["3.1.1", "3.2.0-rc.1", ""])
-def test_escolhe_o_completo_quando_o_de_nao_bate(versao_atual):
-    info = updater.interpretar_release(_release_com_pequeno(), MANIFESTO, versao_atual)
-    assert info.formato == "completo" and not info.incremental
-    assert info.nome_arquivo == COMPLETO and info.reserva is None
+@pytest.mark.parametrize("kw", [{"com_zip": False}, {"com_arquivos": False}, {"digest": False}])
+def test_pequena_incompleta_ou_sem_sha_nao_e_oferecida(kw):
+    """Sem o zip, sem o arquivos.json ou sem SHA256 de algum deles: o completo."""
+    assert not updater.interpretar_release(_release_com_pequena(**kw), None, "3.3.0").tem_pequena
 
 
-def test_falta_o_zip_tenta_o_exe_e_depois_o_completo():
-    info = updater.interpretar_release(_release_com_pequeno(com_zip=False), MANIFESTO, "3.2.0")
-    assert [t.formato for t in info.tentativas()] == ["exe", "completo"]
+def test_sha_do_latest_json_vence_o_digest():
+    manifesto = {"pequenas": [{"de": "3.3.0", "arquivo": ZIP, "sha256": "D" * 64}],
+                 "arquivos_json": {"sha256": "E" * 64}}
+    info = updater.interpretar_release(_release_com_pequena(digest=False), manifesto, "3.3.0")
+    assert info.pequena.sha256 == "d" * 64 and info.arquivos.sha256 == "e" * 64
 
 
-def test_faltam_os_arquivos_do_pequeno_vai_o_completo():
-    info = updater.interpretar_release(
-        _release_com_pequeno(com_zip=False, com_exe=False), MANIFESTO, "3.2.0")
-    assert info.formato == "completo"
-
-
-def test_pequeno_sem_sha_nao_e_oferecido():
-    manifesto = json.loads(json.dumps(MANIFESTO))
-    manifesto["atualizacoes"][0]["sha256"] = ""
-    manifesto["atualizacoes"][0]["zip"]["sha256_dentro"] = ""
-    info = updater.interpretar_release(_release_com_pequeno(), manifesto, "3.2.0")
-    assert info.formato == "completo"
-
-
-def test_completo_e_escolhido_pelo_nome_mesmo_com_o_pequeno_antes():
-    """O app até a 3.1.1 pegava 'o primeiro .exe'. Este pega o completo pelo nome,
-    qualquer que seja a ordem em que a API liste os arquivos."""
-    r = _release_com_pequeno()
+def test_o_zip_de_um_app_3_3_0_nunca_e_o_completo():
+    """O app 3.3.0 lê `atualizacoes`, que não é mais publicado; e o completo é
+    escolhido pelo nome, qualquer que seja a ordem dos arquivos."""
+    r = _release_com_pequena()
     r["assets"].reverse()
-    assert updater.interpretar_release(r, MANIFESTO).nome_arquivo == COMPLETO
-    sem_prefixo = _release([{"name": PEQUENO + ".exe", "url": "u1", "size": 1},
-                            {"name": "Instalador_antigo.exe", "url": "u2", "size": 1}])
-    assert updater.interpretar_release(sem_prefixo).nome_arquivo == "Instalador_antigo.exe"
-
-
-def test_app_antigo_continua_pegando_o_completo():
-    """O 3.1.1 instalado escolhe o primeiro .exe da lista. O workflow sobe o
-    completo antes dos pequenos, e o nome dele vem antes na ordem alfabética."""
-    nomes = sorted([COMPLETO, PEQUENO + ".exe", PEQUENO + ".zip", "latest.json", "arquivos.json"])
+    assert updater.interpretar_release(r, {"pequenas": []}).nome_arquivo == COMPLETO
+    nomes = sorted(a["name"] for a in r["assets"])
     assert next(n for n in nomes if n.endswith(".exe")) == COMPLETO
+
+
+def test_completo_de_release_antigo_e_escolhido_pelo_nome():
+    antigo = _release([{"name": "DocManager_Itaipu_Update_3.2.0_para_3.3.0.exe", "url": "u1", "size": 1},
+                       {"name": "Instalador_antigo.exe", "url": "u2", "size": 1}])
+    assert updater.interpretar_release(antigo).nome_arquivo == "Instalador_antigo.exe"
+
+
+def test_pode_pequena_so_com_pasta_gravavel(tmp_path, monkeypatch):
+    info = updater.interpretar_release(_release_com_pequena(), None, "3.3.0")
+    assert updater.pode_pequena(info, tmp_path)
+    monkeypatch.setattr(updater, "pasta_instalacao", lambda: None)
+    assert not updater.pode_pequena(info)                          # código-fonte
+    monkeypatch.setattr(updater, "_gravavel", lambda _p: False)
+    assert not updater.pode_pequena(info, tmp_path)                # Program Files
+    sem = updater.interpretar_release(_release_com_pequena(), None, "3.2.0")
+    monkeypatch.setattr(updater, "_gravavel", lambda _p: True)
+    assert not updater.pode_pequena(sem, tmp_path)
 
 
 def test_canal_de_testes_fica_com_a_versao_mais_alta_menos_rascunho():
@@ -383,12 +387,6 @@ class _Sessao:
         pass
 
 
-def _sha(dados: bytes) -> str:
-    import hashlib
-
-    return hashlib.sha256(dados).hexdigest()
-
-
 @pytest.fixture
 def servidor(tmp_path, monkeypatch):
     """`rede.abrir` falso: devolve o que estiver em `arquivos[url]`."""
@@ -409,132 +407,145 @@ def servidor(tmp_path, monkeypatch):
     return arquivos, pedidos, pasta
 
 
-def _cadeia(exe_bytes: bytes, zip_bytes: bytes, completo_bytes: bytes):
-    completo = updater.Atualizacao("3.3.0", "", COMPLETO, "api/completo", len(completo_bytes),
-                                   _sha(completo_bytes), "pag")
-    exe = updater.replace(completo, nome_arquivo=PEQUENO + ".exe", url_asset="api/exe",
-                          tamanho=len(exe_bytes), sha256=_sha(exe_bytes), incremental=True,
-                          formato="exe", completo=completo, reserva=completo)
-    return updater.replace(exe, nome_arquivo=PEQUENO + ".zip", url_asset="api/zip",
-                           tamanho=len(zip_bytes), sha256=_sha(zip_bytes), formato="zip",
-                           sha256_dentro=_sha(exe_bytes), reserva=exe)
-
-
-def _zip_com(nomes_e_dados) -> bytes:
-    import io
-    import zipfile
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_STORED) as z:
-        for nome, dados in nomes_e_dados:
-            z.writestr(nome, dados)
-    return buf.getvalue()
-
-
-EXE = b"E" * 1_200_000
 COMPLETO_BYTES = b"C" * 1_500_000
+V1 = {"DocManager.exe": b"exe v1", "_internal/lib.dll": b"lib" * 1000, "_internal/a.pyc": b"v1"}
+V2 = {"DocManager.exe": b"exe v2", "_internal/lib.dll": b"lib" * 1000, "_internal/a.pyc": b"v2"}
 
 
-def test_baixa_o_zip_e_extrai_o_exe_conferido(servidor):
-    arquivos, pedidos, pasta = servidor
-    zip_bytes = _zip_com([(PEQUENO + ".exe", EXE)])
+def _instalacao(pasta, arquivos):
+    for rel, dados in arquivos.items():
+        (pasta / rel).parent.mkdir(parents=True, exist_ok=True)
+        (pasta / rel).write_bytes(dados)
+    return pasta
+
+
+def _retrato(arquivos, versao):
+    return {"versao": versao, "arquivos": {rel: {"sha256": _sha(d), "tamanho": len(d)}
+                                           for rel, d in arquivos.items()}}
+
+
+def _conteudo(pasta):
+    return {p.relative_to(pasta).as_posix(): p.read_bytes() for p in pasta.rglob("*") if p.is_file()}
+
+
+@pytest.fixture
+def pequena(tmp_path, servidor):
+    """Uma instalação 3.3.0, o zip para a 3.4.0 e o arquivos.json no 'GitHub'."""
+    arquivos, pedidos, _ = servidor
+    instalada = _instalacao(tmp_path / "instalada", V1)
+    v2 = _instalacao(tmp_path / "v2", V2)
+    m1, m2 = _retrato(V1, "3.3.0"), _retrato(V2, "3.4.0")
+    zip_ = pacote.montar({rel: v2 / rel for rel in V2}, m1, m2, tmp_path)
+    zip_bytes, json_bytes = zip_.read_bytes(), json.dumps(m2).encode()
     arquivos["api/zip"] = _Resp(zip_bytes)
-    caminho = updater.baixar(_cadeia(EXE, zip_bytes, COMPLETO_BYTES))
-    assert caminho == pasta / (PEQUENO + ".exe")
-    assert caminho.read_bytes() == EXE
-    assert pedidos == ["api/zip"]
-    assert not (pasta / (PEQUENO + ".zip")).exists()
+    arquivos["api/arquivos"] = _Resp(json_bytes)
+    info = updater.Atualizacao(
+        "3.4.0", "", COMPLETO, "api/completo", len(COMPLETO_BYTES), _sha(COMPLETO_BYTES), "pag",
+        pequena=updater.Pacote(ZIP, "api/zip", len(zip_bytes), _sha(zip_bytes)),
+        arquivos=updater.Pacote("arquivos.json", "api/arquivos", len(json_bytes), _sha(json_bytes)))
+    return info, instalada, arquivos, pedidos
 
 
-def test_zip_cortado_cai_no_exe(servidor):
-    """O proxy da empresa cortava o fim de um formato e deixava passar outro."""
-    arquivos, pedidos, _ = servidor
-    zip_bytes = _zip_com([(PEQUENO + ".exe", EXE)])
-    arquivos["api/zip"] = _Resp(zip_bytes[:1_100_000], anunciado=len(zip_bytes))
-    arquivos["api/exe"] = _Resp(EXE)
-    caidas = []
-    caminho = updater.baixar(_cadeia(EXE, zip_bytes, COMPLETO_BYTES),
-                             ao_cair_no_completo=lambda *a: caidas.append(a))
-    assert caminho.read_bytes() == EXE
-    assert pedidos == ["api/zip", "api/exe"]
-    assert not caidas            # ainda não chegou no completo
+def test_pequena_de_ponta_a_ponta(pequena):
+    info, instalada, _arquivos, pedidos = pequena
+    exe = updater.atualizar_pequena(info, pasta=instalada)
+    assert exe == instalada / "DocManager.exe"
+    assert pedidos == ["api/arquivos", "api/zip"]
+    pacote.limpar_restos(instalada)
+    assert _conteudo(instalada) == V2
 
 
-def test_ordem_zip_exe_completo_e_aviso_de_completo(servidor):
-    arquivos, pedidos, _ = servidor
-    zip_bytes = _zip_com([(PEQUENO + ".exe", EXE)])
-    arquivos["api/zip"] = updater.rede.FalhaDeRede("caiu")
-    arquivos["api/exe"] = _Resp(b"X" * len(EXE))          # SHA errado
-    arquivos["api/completo"] = _Resp(COMPLETO_BYTES)
-    caidas = []
-    caminho = updater.baixar(_cadeia(EXE, zip_bytes, COMPLETO_BYTES),
-                             ao_cair_no_completo=lambda info, erro: caidas.append(info.nome_arquivo))
-    assert pedidos == ["api/zip", "api/exe", "api/completo"]
-    assert caminho.name == COMPLETO and caminho.read_bytes() == COMPLETO_BYTES
-    assert caidas == [COMPLETO]
+def test_zip_adulterado_nao_toca_na_instalacao(pequena):
+    info, instalada, arquivos, _ = pequena
+    arquivos["api/zip"] = _Resp(b"x" * info.pequena.tamanho)
+    with pytest.raises(updater.HashDivergente, match="não confere"):
+        updater.atualizar_pequena(info, pasta=instalada)
+    assert _conteudo(instalada) == V1
+
+
+def test_arquivos_json_de_outra_versao_e_recusado(pequena):
+    info, instalada, arquivos, _ = pequena
+    outro = json.dumps(_retrato(V2, "3.5.0")).encode()
+    arquivos["api/arquivos"] = _Resp(outro)
+    info = dataclasses.replace(info, arquivos=updater.Pacote("arquivos.json", "api/arquivos",
+                                                         len(outro), _sha(outro)))
+    with pytest.raises(pacote.ErroPacote, match="3.5.0"):
+        updater.atualizar_pequena(info, pasta=instalada)
+    assert _conteudo(instalada) == V1
+
+
+def test_instalacao_mexida_desfaz_e_levanta(pequena):
+    info, instalada, _, _ = pequena
+    (instalada / "_internal/lib.dll").write_bytes(b"outra")
+    antes = _conteudo(instalada)
+    with pytest.raises(pacote.ErroPacote):
+        updater.atualizar_pequena(info, pasta=instalada)
+    assert _conteudo(instalada) == antes
+
+
+def test_download_cortado_da_pequena_nao_toca_na_instalacao(pequena):
+    info, instalada, arquivos, _ = pequena
+    arquivos["api/zip"] = _Resp(b"PK", anunciado=info.pequena.tamanho)
+    with pytest.raises(updater.DownloadIncompleto):
+        updater.atualizar_pequena(info, pasta=instalada)
+    assert _conteudo(instalada) == V1
+
+
+def test_sem_pequena_nem_tenta(tmp_path):
+    info = updater.Atualizacao("3.4.0", "", COMPLETO, "api/completo", 1, "", "pag")
+    with pytest.raises(pacote.ErroPacote, match="indisponível"):
+        updater.atualizar_pequena(info, pasta=tmp_path)
+
+
+def test_limpar_restos_na_abertura(tmp_path, monkeypatch):
+    (tmp_path / "DocManager.exe.dm-old").write_bytes(b"velho")
+    monkeypatch.setattr(updater, "pasta_instalacao", lambda: tmp_path)
+    assert updater.limpar_restos() == 1 and not list(tmp_path.iterdir())
+    monkeypatch.setattr(updater, "pasta_instalacao", lambda: None)
+    assert updater.limpar_restos() == 0
+
+
+def test_reabrir_abre_o_exe_novo_desligado(monkeypatch, tmp_path):
+    chamadas = []
+    monkeypatch.setattr(updater.subprocess, "Popen", lambda *a, **k: chamadas.append((a, k)))
+    updater.reabrir(tmp_path / "DocManager.exe")
+    (args,), kw = chamadas[0]
+    assert args == [str(tmp_path / "DocManager.exe")] and kw["cwd"] == str(tmp_path)
 
 
 def test_arquivo_pequeno_demais_e_recusado(servidor):
     arquivos, _, pasta = servidor
-    info = updater.Atualizacao("3.3.0", "", COMPLETO, "api/completo", 0, "", "pag")
+    info = updater.Atualizacao("3.4.0", "", COMPLETO, "api/completo", 0, "", "pag")
     arquivos["api/completo"] = _Resp(b"<html>login</html>")
     with pytest.raises(updater.HashDivergente, match="pequeno demais"):
         updater.baixar(info)
     assert not list(pasta.iterdir())
 
 
+def test_completo_cortado_e_recusado(servidor):
+    arquivos, _, _ = servidor
+    info = updater.Atualizacao("3.4.0", "", COMPLETO, "api/completo", 0, _sha(COMPLETO_BYTES), "pag")
+    arquivos["api/completo"] = _Resp(COMPLETO_BYTES[:1_200_000], anunciado=len(COMPLETO_BYTES))
+    with pytest.raises(updater.DownloadIncompleto):
+        updater.baixar(info)
+
+
 def test_sha_errado_no_completo_e_erro_final(servidor):
     arquivos, _, _ = servidor
-    info = updater.Atualizacao("3.3.0", "", COMPLETO, "api/completo", 0, "0" * 64, "pag")
+    info = updater.Atualizacao("3.4.0", "", COMPLETO, "api/completo", 0, "0" * 64, "pag")
     arquivos["api/completo"] = _Resp(COMPLETO_BYTES)
     with pytest.raises(updater.HashDivergente, match="não confere"):
         updater.baixar(info)
 
 
-@pytest.mark.parametrize("membros", [
-    [("outro.exe", EXE), ("mais.exe", EXE)],          # mais de um membro
-    [("../fora.exe", EXE)],                           # nome com pasta
-    [("sub/" + PEQUENO + ".exe", EXE)],
-])
-def test_zip_invalido_cai_para_o_proximo(servidor, membros):
-    arquivos, pedidos, pasta = servidor
-    zip_bytes = _zip_com(membros)
-    arquivos["api/zip"] = _Resp(zip_bytes)
-    arquivos["api/exe"] = _Resp(EXE)
-    caminho = updater.baixar(_cadeia(EXE, zip_bytes, COMPLETO_BYTES))
-    assert pedidos == ["api/zip", "api/exe"] and caminho.read_bytes() == EXE
-    assert not (pasta.parent / "fora.exe").exists()
-
-
-def test_zip_corrompido_cai_para_o_proximo(servidor):
-    arquivos, pedidos, _ = servidor
-    lixo = b"PK" + b"\x00" * 1_100_000
-    arquivos["api/zip"] = _Resp(lixo)
-    arquivos["api/exe"] = _Resp(EXE)
-    assert updater.baixar(_cadeia(EXE, lixo, COMPLETO_BYTES)).read_bytes() == EXE
-    assert pedidos == ["api/zip", "api/exe"]
-
-
-def test_erro_de_disco_nao_troca_de_arquivo(servidor, monkeypatch):
-    arquivos, pedidos, _ = servidor
-    zip_bytes = _zip_com([(PEQUENO + ".exe", EXE)])
-    arquivos["api/zip"] = _Resp(zip_bytes)
-
-    def sem_espaco(*_a, **_k):
-        raise OSError(28, "No space left on device")
-
-    monkeypatch.setattr(updater, "_baixar_arquivo", sem_espaco)
-    with pytest.raises(OSError, match="space"):
-        updater.baixar(_cadeia(EXE, zip_bytes, COMPLETO_BYTES))
-
-
-def test_baixar_apaga_instaladores_velhos(servidor):
+def test_baixar_apaga_downloads_velhos(servidor):
     arquivos, _, pasta = servidor
     (pasta / "DocManager_Itaipu_Setup_3.1.0.exe").write_bytes(b"velho")
     (pasta / "x.zip.part").write_bytes(b"velho")
+    (pasta / "arquivos_3.3.0.json").write_bytes(b"velho")
     (pasta / "instalacao.log").write_text("log")
     arquivos["api/completo"] = _Resp(COMPLETO_BYTES)
-    updater.baixar(updater.Atualizacao("3.3.0", "", COMPLETO, "api/completo", 0, "", "pag"))
+    updater.baixar(updater.Atualizacao("3.4.0", "", COMPLETO, "api/completo", 0, "", "pag"))
     assert sorted(p.name for p in pasta.iterdir()) == [COMPLETO, "instalacao.log"]
 
 

@@ -392,6 +392,13 @@ def main():
 
     _registrar_mutex()
     diario.iniciar(__version__)
+    # A atualização pequena deixa os arquivos trocados como `*.dm-old` (estavam
+    # em uso): apaga agora. O que ainda estiver preso fica para a próxima.
+    try:
+        if (apagados := updater.limpar_restos()):
+            diario.registrar(f"atualização: {apagados} arquivo(s) da versão anterior apagado(s)")
+    except Exception:  # noqa: BLE001 - limpeza nunca impede a abertura
+        pass
     # Quem vem da v3.0.0 tem as credenciais num .env: importa uma vez para o
     # cofre do app, para a lista da Extração não aparecer vazia depois de atualizar.
     try:
