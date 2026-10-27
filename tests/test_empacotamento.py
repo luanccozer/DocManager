@@ -262,3 +262,12 @@ def test_migra_a_instalacao_para_todos_antes_de_copiar():
     chave = code.split("function ChaveAntiga", 1)[1].split("\nend;", 1)[0]
     assert "HKLM64" in chave and "HKLM32" in chave and "IsWin64" in chave
     assert "HKCU" not in chave       # a instalação nova é a do HKCU: nunca a remove
+
+
+def test_nenhuma_linha_do_code_comeca_com_colchete():
+    """O Inno lê linha que começa com "[" como uma seção nova, mesmo dentro do
+    [Code]: um array Pascal quebrado em linha nova abortou o build da 3.6.0
+    ("Invalid section tag")."""
+    code = _ler("installer/docmanager.iss").split("\n[Code]\n", 1)[1]
+    for numero, linha in enumerate(code.splitlines(), 1):
+        assert not linha.lstrip().startswith("["), f"[Code], linha {numero}: {linha!r}"
