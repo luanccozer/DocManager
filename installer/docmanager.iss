@@ -200,6 +200,10 @@ var
   Chave, Desinstalador: String;
   Codigo, Esperado: Integer;
 begin
+  // Trava: este instalador nunca e elevado (PrivilegesRequired=lowest). Se um
+  // dia for, a chave do HKLM seria a da PROPRIA instalacao em andamento.
+  if IsAdminInstallMode then
+    Exit;
   if not ChaveAntiga(Chave, Desinstalador) then
     Exit;
   Desinstalador := RemoveQuotes(Desinstalador);

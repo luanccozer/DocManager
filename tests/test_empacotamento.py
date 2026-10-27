@@ -257,6 +257,7 @@ def test_migra_a_instalacao_para_todos_antes_de_copiar():
     assert "ssInstall" in passo and "RemoverInstalacaoParaTodos" in passo
     remover = code.split("procedure RemoverInstalacaoParaTodos", 1)[1].split("\nend;", 1)[0]
     assert "ShellExec(" in remover and "/VERYSILENT" in remover
+    assert remover.index("IsAdminInstallMode") < remover.index("ChaveAntiga")
     assert "Exec(" not in remover.replace("ShellExec(", "")
     chave = code.split("function ChaveAntiga", 1)[1].split("\nend;", 1)[0]
     assert "HKLM64" in chave and "HKLM32" in chave and "IsWin64" in chave
