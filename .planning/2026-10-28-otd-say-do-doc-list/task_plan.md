@@ -4,10 +4,10 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Commit e push; entregar a explicação e a rodada 1. Depois: esperar as respostas e montar a rodada 2.
+Esperar as respostas da rodada 1; registrar cada uma em Decisions Made e no GLOSSARY.md; montar a rodada 2.
 
 ## Current Phase
-Phase 5
+Phase 6
 
 ## Phases
 
@@ -39,14 +39,14 @@ Phase 5
 - **Status:** complete
 
 ### Phase 5: Entrega desta sessão
-- [ ] Explicação do funcionamento atual para o usuário
-- [ ] Commit e push dos arquivos (.planning/, GLOSSARY.md) no branch designado
-- **Status:** in_progress
+- [x] Explicação do funcionamento atual para o usuário
+- [x] Commit e push dos arquivos (.planning/, GLOSSARY.md) no branch designado
+- **Status:** complete
 
 ### Phase 6: Spec e tickets (to-spec / to-tickets), depois das respostas
 - [ ] Rodadas seguintes do grilling até a fronteira esvaziar
 - [ ] /setup-matt-pocock-skills (issue tracker) antes do /to-spec
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 7: Implementação (tdd) e roteiro do Power BI
 - [ ] Python: colunas novas e regra de congelamento da data base

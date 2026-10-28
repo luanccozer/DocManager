@@ -49,3 +49,8 @@
   (out/2026: 48 documentos pela DATA-ALVO, como o painel mostra hoje; 58 pela
   DATA PREVISTA sem cancelados, dos quais 24 vencidos contra 11 de hoje).
 - Conferido: nenhum código de documento real nos arquivos versionados.
+
+### Actions Taken (Phase 5)
+- Commit b6ee7c0 enviado para origin/claude/intelligent-franklin-g8byqp (.planning/ + GLOSSARY.md).
+- Explicação do funcionamento atual e rodada 1 (Q1-Q7) entregues ao usuário no chat.
+- Aguardando respostas.
