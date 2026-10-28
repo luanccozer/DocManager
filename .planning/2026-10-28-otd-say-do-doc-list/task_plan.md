@@ -76,7 +76,8 @@ Rodada 2 (enviada em 2026-10-28, aguardando resposta):
 - Q5 (de novo): say-do como entendi das instruções. Rec.: sim.
 - Q8 Tela de sobrescrição: o que entra (toda célula preenchida diferente do Controle,
   mais nova ou mais antiga, inclusive texto/fórmula; vazia preenche sem perguntar;
-  sem tela, padrão é não sobrescrever). Rec.: sim.
+  a tela avisa que trocar a PREVISTA muda a baseline; sem tela, padrão é não
+  sobrescrever). Rec.: sim.
 - Q9 Lembrar o "não" numa aba da própria planilha até o Controle mudar de novo. Rec.: sim.
 - Q10 Os 15 com prevista = reprogramada: recuperar a data original pelo histórico do Box. Rec.: sim.
 - Q11 Data da atualização gravada pelo app e mostrada no painel. Rec.: sim.
@@ -84,7 +85,6 @@ Rodada 2 (enviada em 2026-10-28, aguardando resposta):
 Rodada 3 (depende da 2):
 - Layout: onde ficam os 2 cartões e o gráfico de BACKLOG; filtro de mês e curva S
   passam a usar a DATA PREVISTA? (depende de Q2, Q3)
-- Texto da tela de sobrescrição (avisar que aceitar troca da PREVISTA muda a baseline). (depende de Q8)
 - ADR da baseline congelada + atualizar a KB §24.13, que dizia "vence a mais recente".
 - Power BI: medidas DAX com Calendario + relações inativas (USERELATIONSHIP) para baseline e reprogramada. (depende de Q4, Q5, Q7)
 - Limpeza: coluna A 'NÍVEL' duplicada, 'Column30', datas 2034/2035 na prevista.
