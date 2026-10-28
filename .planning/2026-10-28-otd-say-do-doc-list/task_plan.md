@@ -4,7 +4,7 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Esperar as respostas da rodada 1; registrar cada uma em Decisions Made e no GLOSSARY.md; montar a rodada 2.
+Esperar as respostas da rodada 2 (Q2, Q3, Q5, Q8-Q11); registrar em Decisions Made e no GLOSSARY.md; montar a rodada 3.
 
 ## Current Phase
 Phase 6
@@ -58,21 +58,34 @@ Phase 6
 Árvore de decisões (grilling). Rodada 1 = fronteira atual, enviada ao usuário em
 2026-10-28; cada uma com a resposta recomendada.
 
-Rodada 1 (aguardando resposta):
-1. Q1 Baseline: congelar a própria DATA PREVISTA (app só preenche vazio)? Rec.: sim.
-2. Q2 Gráfico principal (eixo, SITUAÇÃO EMISSÃO, DIAS DESVIO) passa a medir contra a baseline? Rec.: sim.
-3. Q3 Backlog = reprogramada > baseline e não saiu até a baseline; entra ao ser reprogramado? Rec.: sim.
-4. Q4 Baseline OTD = (previstos no período − atrasados) ÷ previstos; futuro conta ok; distintos; sem cancelado? Rec.: sim.
-5. Q5 Backlog Say-do = mesma conta sobre o backlog, pela data reprogramada? Rec.: sim.
-6. Q6 Segunda reprogramação: manter a 1ª (como hoje) e avisar no log? Rec.: sim.
-7. Q7 Python grava as situações por documento; Power BI só conta? Rec.: sim.
+Rodada 1 (respondida em 2026-10-28):
+1. Q1 Baseline = a própria DATA PREVISTA, sem coluna nova → SIM. Mais um requisito
+   do usuário: nunca sobrescrever data preenchida; quando o Controle trocaria uma data
+   do Doc List (ou do Mapa), abrir tela com "aceitar", "não sobrescrever" e "caso a
+   caso" (lista de todas as incidências, escolhendo quais sobrescrever).
+2. Q2 → NÃO ENTENDEU. Reexplicar com exemplo e figura (outubro hoje x proposta).
+3. Q3 → NÃO ENTENDEU. Reexplicar com exemplos de documentos e a figura.
+4. Q4 Baseline OTD → SIM.
+5. Q5 → pediu para eu explicar o que entendi do say-do nas instruções.
+6. Q6 → SIM, com a tela de sobrescrição: o usuário decide (vale para a 2ª reprogramação).
+7. Q7 → SIM. Confirmar: antes de apresentar, rodar o app e atualizar o Power BI.
 
-Rodada 2 (depende da 1):
-- Data prevista mais nova no Controle depois do congelamento: só log, ou vira reprogramação? (depende de Q1)
-- A regra nova vale também para o Mapa dos Planos? A regra de datas é compartilhada desde a KB §24.13. (depende de Q1)
-- Recuperar a baseline perdida (15 docs com prevista = reprogramada; outros empurrados pelo Controle): histórico de versões do Box? (depende de Q1)
-- Texto/fórmula nas colunas de data sobrescritos pelo Controle: corrigir junto? (bug achado no experimento)
-- Layout: onde ficam os 2 cartões e o gráfico de BACKLOG; a curva S passa a usar a baseline? (depende de Q2, Q3)
+Rodada 2 (enviada em 2026-10-28, aguardando resposta):
+- Q2 (de novo): gráfico principal no dia da DATA PREVISTA, cor contra ela. Rec.: sim.
+- Q3 (de novo): backlog = reprogramada > prevista e não saiu até a prevista. Rec.: sim.
+- Q5 (de novo): say-do como entendi das instruções. Rec.: sim.
+- Q8 Tela de sobrescrição: o que entra (toda célula preenchida diferente do Controle,
+  mais nova ou mais antiga, inclusive texto/fórmula; vazia preenche sem perguntar;
+  sem tela, padrão é não sobrescrever). Rec.: sim.
+- Q9 Lembrar o "não" numa aba da própria planilha até o Controle mudar de novo. Rec.: sim.
+- Q10 Os 15 com prevista = reprogramada: recuperar a data original pelo histórico do Box. Rec.: sim.
+- Q11 Data da atualização gravada pelo app e mostrada no painel. Rec.: sim.
+
+Rodada 3 (depende da 2):
+- Layout: onde ficam os 2 cartões e o gráfico de BACKLOG; filtro de mês e curva S
+  passam a usar a DATA PREVISTA? (depende de Q2, Q3)
+- Texto da tela de sobrescrição (avisar que aceitar troca da PREVISTA muda a baseline). (depende de Q8)
+- ADR da baseline congelada + atualizar a KB §24.13, que dizia "vence a mais recente".
 - Power BI: medidas DAX com Calendario + relações inativas (USERELATIONSHIP) para baseline e reprogramada. (depende de Q4, Q5, Q7)
 - Limpeza: coluna A 'NÍVEL' duplicada, 'Column30', datas 2034/2035 na prevista.
 - Antes do /to-spec: /setup-matt-pocock-skills (issue tracker: GitHub Issues ou .scratch local).
@@ -83,6 +96,11 @@ Rodada 2 (depende da 1):
 | Plano nomeado em `.planning/2026-10-28-otd-say-do-doc-list/` (init-session.sh da skill) | contrato da skill: o inicializador oficial, uma fase por cabeçalho com status nativo |
 | Fatos levantados direto, sem subagente | regra da sessão: não abrir agentes sem o usuário pedir; a skill grilling só exige que fatos sejam trabalho meu |
 | Sem /to-spec nesta sessão | a skill exige o grilling fechado e o issue tracker configurado antes |
+| Q1: a baseline é a própria DATA PREVISTA EMISSÃO; nada de coluna nova | resposta do usuário (2026-10-28) |
+| Data preenchida nunca é sobrescrita sem aceite: tela com aceitar tudo / não sobrescrever / caso a caso | requisito do usuário (2026-10-28); vale para Doc List e Mapa dos Planos; desfaz o "vence a mais recente" da KB §24.13 |
+| Q4: Baseline OTD = (previstos no período − atrasados) ÷ previstos; ainda não vencido conta ok; distintos; sem cancelado | resposta do usuário (2026-10-28) |
+| Q6: 2ª reprogramação do Controle também passa pela tela; o usuário decide | resposta do usuário (2026-10-28) |
+| Q7: o Python grava a situação por documento; o Power BI só conta. Antes de apresentar: rodar o app e Atualizar o Power BI | resposta do usuário (2026-10-28) |
 
 ## Errors Encountered
 | Error | Resolution |

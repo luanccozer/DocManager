@@ -241,6 +241,32 @@ Os testes do repo continuam verdes: `tests/test_doclist.py` + `tests/test_contro
 - Backlog proposto (reprogramada > baseline e não saiu até a baseline): 67 no
   total, 5 com nova data em out/2026 e 62 em fev/2027.
 
+### Para reexplicar Q2 e Q3 (rodada 2)
+- Contagem com a regra do Power BI (código distinto por barra, linhas de nível 2,
+  sem cancelados): outubro pela DATA-ALVO = 48 (28 no prazo, 11 vencidos, 9 pendentes
+  no prazo), bate com o print; pela DATA PREVISTA = 59 (29 no prazo, 24 vencidos,
+  6 pendentes no prazo). 16 reprogramados para depois voltam para outubro; 5 que
+  tinham sido reprogramados para outubro saem. Backlog com nova data em outubro: 5
+  (dias 30 e 31), todos pendentes no prazo.
+- Correção: o Baseline OTD de outubro com essa regra é 35/59 = 59,3% (a rodada 1
+  disse 58,6%, contando cada código só na 1ª linha em que aparece).
+- Figura: scratchpad/saida/q2_q3_outubro.png (enviada ao usuário; não versionada,
+  porque sai dos dados reais).
+
+### Fatos para a tela de sobrescrição (Q1 + Q6)
+- A atualização roda numa thread; `ui/ponte.py::na_ui_e_esperar` já deixa a tarefa
+  abrir um diálogo e esperar a resposta (é assim que funciona o "Tentar de novo" ao
+  salvar). Uma tela no meio da atualização é viável sem mudar a arquitetura.
+- `atualizar_doclist` e `atualizar_mapeamento` recebem callbacks (`retry_cb`); a tela
+  pode entrar como mais um callback, que recebe a lista de incidências e devolve as
+  escolhidas.
+- A linha de comando (`docmanager.cli mapa --controle ...`) roda sem tela: precisa de
+  um padrão (proposto: não sobrescrever e listar no log). Não existe comando de linha
+  de comando para o Doc List.
+- O app não tem como saber se uma data foi digitada à mão ou escrita por uma rodada
+  anterior: as duas são só o valor da célula. A regra "nunca sobrescrever o digitado"
+  vira "nunca sobrescrever célula preenchida sem aceite".
+
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|

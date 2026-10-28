@@ -54,3 +54,14 @@
 - Commit b6ee7c0 enviado para origin/claude/intelligent-franklin-g8byqp (.planning/ + GLOSSARY.md).
 - Explicação do funcionamento atual e rodada 1 (Q1-Q7) entregues ao usuário no chat.
 - Aguardando respostas.
+
+## Session: 2026-10-28 (rodada 1 respondida)
+
+### Actions Taken
+- Respostas da rodada 1 registradas em task_plan.md (Key Questions, Decisions Made).
+- Novo requisito: tela de sobrescrição (aceitar / não sobrescrever / caso a caso),
+  para Doc List e Mapa dos Planos.
+- Figura de outubro (hoje x Q2 x Q3) feita com a skill dataviz (paleta verde/azul/
+  vermelho validada pelo script: todos os checks passaram), conferida visualmente
+  e corrigida (títulos sobrepostos). Arquivo: scratchpad/saida/q2_q3_outubro.png.
+- GLOSSARY.md: Data prevista vira a baseline; termos "sobrescrição" e "incidência".

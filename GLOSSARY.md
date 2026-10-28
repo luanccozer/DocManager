@@ -35,7 +35,9 @@ _Evite_: plano, item
 ### Datas
 
 **Data prevista**:
-A data planejada para a 1ª emissão do documento.
+A data planejada para a 1ª emissão do documento. É a baseline: uma vez definida,
+só muda quando alguém aceita a troca.
+_Evite_: data inicial, data original, data base
 
 **Data reprogramada**:
 A nova data assumida para a 1ª emissão de um documento que perdeu, ou ia perder,
@@ -51,6 +53,15 @@ _Evite_: TROCAR (nome antigo da coluna)
 A primeira submissão do documento à Itaipu: a revisão 0A ou, no documento que já
 nasce em revisão alta, a submissão mais antiga.
 _Evite_: última emissão (é a revisão mais recente, outra coisa)
+
+**Sobrescrição**:
+A troca de uma data já preenchida na planilha pela data do Controle de Documentos.
+Só acontece com o aceite de quem roda a atualização.
+_Evite_: atualização (é a rodada inteira, não a troca de uma data)
+
+**Incidência**:
+Cada data preenchida da planilha que o Controle de Documentos trocaria, isto é,
+cada sobrescrição pendente de decisão.
 
 ### Aderência
 
@@ -73,13 +84,10 @@ _Evite_: atrasado (sem dizer contra qual data)
 
 ## Ambiguidades sinalizadas
 
-Termos novos do pedido de `instruções.txt`, ainda em discussão (rodada 1 do
-grilling, 2026-10-28). Entram em **Language** quando forem decididos.
+Termos novos do pedido de `instruções.txt`, ainda em discussão no grilling.
+Entram em **Language** quando forem decididos. Resolvido na rodada 1: "data
+inicial" e "baseline" são a **Data prevista**.
 
-- **"Data inicial"** (instruções) × **Data prevista**: hoje a data prevista não é
-  fixa (acompanha o Controle quando ele empurra a data para frente), então as duas
-  podem divergir.
-- **"Baseline"**: proposta é a data prevista que não muda mais depois de definida.
 - **"Backlog"**: pode ser (a) todo documento reprogramado, (b) todo documento que
   perdeu a baseline ou (c) o reprogramado que não saiu até a baseline. Proposta: (c).
 - **"BL OTD"** (print) = **"Baseline OTD"** (instruções): mesmo indicador. Proposta:
