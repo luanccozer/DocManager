@@ -267,6 +267,22 @@ Os testes do repo continuam verdes: `tests/test_doclist.py` + `tests/test_contro
   anterior: as duas são só o valor da célula. A regra "nunca sobrescrever o digitado"
   vira "nunca sobrescrever célula preenchida sem aceite".
 
+### Power BI: alternar OTD e Say-do no mesmo gráfico (pergunta do usuário na rodada 2)
+- O jeito padrão: dois visuais no mesmo lugar do canvas + painel Seleção para
+  mostrar/ocultar + um indicador (bookmark) por visual, com a opção "Visuais
+  selecionados" + botões ligados aos indicadores (ou o "Navegador de indicadores").
+  No modo de edição do Desktop, o botão responde com Ctrl+clique. Um segmentador
+  sozinho não troca visual: ele filtra dados, não controla visibilidade.
+  Fontes: thedataschool.co.uk (Bookmarking in PowerBI: Toggling between Charts),
+  playfairdata.com (Toggle visuals with bookmarks), community.fabric.microsoft.com.
+- Um filtro de mês só, para os dois visuais: eixo dos dois = Calendario[Date];
+  OTD conta com USERELATIONSHIP para a DATA PREVISTA, Say-do com USERELATIONSHIP para
+  a DATA REPROGRAMADA (o padrão que o modelo já usa na medida `Emitidos`).
+- Formato dos arquivos: TMDL (modelo semântico em texto) é GA; PBIR é o padrão de
+  relatórios novos desde jan/2026; o .pbix anexado já está em PBIR. Não achei
+  confirmação de GA do projeto .pbip como um todo (blog do Power BI, posts de
+  Rui Romano). Um .pbip deixaria editar medidas, relações e indicadores como texto.
+
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|

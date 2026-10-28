@@ -4,7 +4,7 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Esperar as respostas da rodada 2 (Q2, Q3, Q5, Q8-Q11); registrar em Decisions Made e no GLOSSARY.md; montar a rodada 3.
+Esperar as respostas da rodada 3 (Q12-Q18). Se a fronteira esvaziar, confirmar o entendimento comum e seguir para /to-spec.
 
 ## Current Phase
 Phase 6
@@ -70,7 +70,7 @@ Rodada 1 (respondida em 2026-10-28):
 6. Q6 → SIM, com a tela de sobrescrição: o usuário decide (vale para a 2ª reprogramação).
 7. Q7 → SIM. Confirmar: antes de apresentar, rodar o app e atualizar o Power BI.
 
-Rodada 2 (enviada em 2026-10-28, aguardando resposta):
+Rodada 2 (respondida em 2026-10-28):
 - Q2 (de novo): gráfico principal no dia da DATA PREVISTA, cor contra ela. Rec.: sim.
 - Q3 (de novo): backlog = reprogramada > prevista e não saiu até a prevista. Rec.: sim.
 - Q5 (de novo): say-do como entendi das instruções. Rec.: sim.
@@ -81,14 +81,31 @@ Rodada 2 (enviada em 2026-10-28, aguardando resposta):
 - Q9 Lembrar o "não" numa aba da própria planilha até o Controle mudar de novo. Rec.: sim.
 - Q10 Os 15 com prevista = reprogramada: recuperar a data original pelo histórico do Box. Rec.: sim.
 - Q11 Data da atualização gravada pelo app e mostrada no painel. Rec.: sim.
+Respostas: Q2 SIM, e o usuário quer OTD e Say-do no MESMO gráfico, trocando por
+botão. Q3 "acho que sim" + pergunta se o gráfico de say-do é o de backlog (é: mesma
+coisa). Q5 SIM. Q8 SIM. Q9 "ok", lembrando que quem atualiza é o DocManager
+(esclarecer: é o DocManager que grava e lê a aba). Q10: vai conferir no Box; pediu
+a lista (gerada: 15 documentos). Q11 NÃO: nada de coluna nova; OBSERVAÇÕES segue manual.
 
-Rodada 3 (depende da 2):
-- Layout: onde ficam os 2 cartões e o gráfico de BACKLOG; filtro de mês e curva S
-  passam a usar a DATA PREVISTA? (depende de Q2, Q3)
-- ADR da baseline congelada + atualizar a KB §24.13, que dizia "vence a mais recente".
-- Power BI: medidas DAX com Calendario + relações inativas (USERELATIONSHIP) para baseline e reprogramada. (depende de Q4, Q5, Q7)
-- Limpeza: coluna A 'NÍVEL' duplicada, 'Column30', datas 2034/2035 na prevista.
-- Antes do /to-spec: /setup-matt-pocock-skills (issue tracker: GitHub Issues ou .scratch local).
+Rodada 3 (enviada em 2026-10-28, aguardando resposta):
+- Q12 Um gráfico só com dois botões, OTD e Say-do (indicadores + botões do Power BI);
+  Say-do = backlog pela DATA REPROGRAMADA; um filtro de mês para os dois. Rec.: sim.
+- Q13 Dois cartões sempre visíveis no lugar das notas amarelas (BASELINE OTD e
+  SAY-DO), respondendo a todos os filtros; sem mês = plano inteiro. Rec.: sim.
+- Q14 Curva S da Página 1: "previstos" pela DATA PREVISTA. Rec.: sim.
+- Q15 Entrega do Power BI: projeto .pbip editado por mim + roteiro curto de
+  conferência; sem .pbip, roteiro de cliques. Rec.: .pbip.
+- Q16 O app cria sozinho a coluna SITUAÇÃO SAY-DO (no fim da aba) e a aba de
+  recusas quando faltarem. Rec.: sim.
+- Q17 Registro formal: ADR da data prevista congelada + atualizar KB §24.13 e
+  docs/doc_list_mapping.md. Rec.: sim.
+- Q18 Onde acompanhar a spec e as tarefas: issues no GitHub do DocManager ou
+  arquivos no repositório. Rec.: GitHub.
+
+Fora do grilling (anotado para a spec):
+- Power BI: Calendario + relações inativas para DATA PREVISTA e DATA REPROGRAMADA,
+  medidas com USERELATIONSHIP (mesmo padrão da medida `Emitidos`).
+- Limpeza da planilha: coluna A 'NÍVEL' duplicada, 'Column30', datas 2034/2035 na prevista.
 
 ## Decisions Made
 | Decision | Rationale |
@@ -101,6 +118,13 @@ Rodada 3 (depende da 2):
 | Q4: Baseline OTD = (previstos no período − atrasados) ÷ previstos; ainda não vencido conta ok; distintos; sem cancelado | resposta do usuário (2026-10-28) |
 | Q6: 2ª reprogramação do Controle também passa pela tela; o usuário decide | resposta do usuário (2026-10-28) |
 | Q7: o Python grava a situação por documento; o Power BI só conta. Antes de apresentar: rodar o app e Atualizar o Power BI | resposta do usuário (2026-10-28) |
+| Q2: gráfico principal no dia da DATA PREVISTA; SITUAÇÃO EMISSÃO e DIAS DESVIO comparam com ela | resposta do usuário (2026-10-28); ele quer alternar OTD e Say-do no mesmo gráfico (virou a Q12) |
+| Q3: backlog = DATA REPROGRAMADA depois da DATA PREVISTA e não saiu até a DATA PREVISTA; o gráfico de say-do é o de backlog | resposta do usuário (2026-10-28, "acho que sim") |
+| Q5: say-do do mês = backlog com data reprogramada no mês; falha = não saiu até ela; o que não venceu conta ok | resposta do usuário (2026-10-28) |
+| Q8: tela de sobrescrição para toda data preenchida que o Controle trocaria (mais nova ou mais antiga, texto, fórmula); vazia preenche sem perguntar; aviso de mudança de baseline; sem tela, não troca | resposta do usuário (2026-10-28) |
+| Q9: recusa anotada numa aba da própria planilha, escrita e lida pelo DocManager; pergunta de novo só se o Controle mudar | resposta do usuário (2026-10-28, "ok") |
+| Q10: o usuário confere os 15 no histórico do Box; lista entregue (xlsx, fora do Git) | resposta do usuário (2026-10-28) |
+| Q11: sem coluna de data da atualização; OBSERVAÇÕES continua manual | resposta do usuário (2026-10-28) |
 
 ## Errors Encountered
 | Error | Resolution |

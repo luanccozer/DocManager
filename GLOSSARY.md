@@ -66,12 +66,39 @@ cada sobrescrição pendente de decisão.
 ### Aderência
 
 **Situação de emissão**:
-A categoria única de aderência de um documento: emitido no prazo, emitido com
-atraso, pendente no prazo, pendente vencido, sem planejamento ou cancelado.
+A categoria única de aderência de um documento à data prevista: emitido no prazo,
+emitido com atraso, pendente no prazo, pendente vencido, sem planejamento ou
+cancelado.
 
 **Pendente vencido**:
 Documento ainda não emitido cuja data de referência já passou.
 _Evite_: atrasado (sem dizer contra qual data)
+
+**Atrasado**:
+Documento que saiu depois de uma data, ou que não saiu e essa data já passou.
+Sempre se diz contra qual data: a prevista ou a reprogramada.
+
+### Indicadores
+
+**Backlog**:
+O documento cuja data reprogramada é posterior à data prevista e que não tinha
+saído até a data prevista. Entra no backlog quando é reprogramado.
+_Evite_: reprogramados (inclui quem já tinha saído no prazo), atrasados
+
+**Baseline OTD**:
+A parcela dos documentos com data prevista no período que não atrasaram contra
+ela. O que ainda não venceu conta como cumprido.
+_Evite_: BL OTD, OTD (sem dizer contra qual data)
+
+**Say-do**:
+A parcela dos documentos do backlog com data reprogramada no período que não
+atrasaram contra ela. O que ainda não venceu conta como cumprido. É o "falar-fazer":
+mede se o novo compromisso foi cumprido.
+_Evite_: Backlog Say-do (mesmo indicador)
+
+**Situação say-do**:
+A categoria de aderência de um documento do backlog à data reprogramada; fora do
+backlog, não existe.
 
 ## Relações
 
@@ -80,21 +107,17 @@ _Evite_: atrasado (sem dizer contra qual data)
 - A **Data-alvo** de um **Documento** é a **Data reprogramada** quando ela existe,
   senão a **Data prevista**.
 - A **Situação de emissão** compara a **1ª emissão** (ou o dia de hoje, se o
-  documento não saiu) com uma data de referência.
+  documento não saiu) com a **Data prevista**; a **Situação say-do** faz o mesmo com
+  a **Data reprogramada**, só para o **Backlog**.
+- Um documento do **Backlog** conta como atrasado no **Baseline OTD** e fica em
+  aberto no **Say-do** até a **Data reprogramada**.
 
-## Ambiguidades sinalizadas
+## Ambiguidades resolvidas
 
-Termos novos do pedido de `instruções.txt`, ainda em discussão no grilling.
-Entram em **Language** quando forem decididos. Resolvido na rodada 1: "data
-inicial" e "baseline" são a **Data prevista**.
-
-- **"Backlog"**: pode ser (a) todo documento reprogramado, (b) todo documento que
-  perdeu a baseline ou (c) o reprogramado que não saiu até a baseline. Proposta: (c).
-- **"BL OTD"** (print) = **"Baseline OTD"** (instruções): mesmo indicador. Proposta:
-  usar "Baseline OTD".
-- **"Say-do"** (print) = **"Backlog Say-do"** (instruções): mesmo indicador.
-- **"Atrasado"**: com baseline e data reprogramada convivendo, dizer sempre contra
-  qual das duas.
-- **Data reprogramada de documento já emitido**: na planilha atual há documentos
-  já emitidos com data reprogramada, que parece ser a data da próxima revisão, e não
-  da 1ª emissão. A definição acima não cobre esse uso.
+- "Data inicial" e "baseline" (instruções) são a **Data prevista** (rodada 1).
+- "BL OTD" (print) e "Baseline OTD" (instruções) são o mesmo indicador: **Baseline
+  OTD** (rodada 2).
+- "Say do" (print) e "Backlog Say-do" (instruções) são o mesmo indicador: **Say-do**;
+  o gráfico de say-do é o gráfico do **Backlog** (rodada 2).
+- Documento já emitido no prazo com data reprogramada (a data é de outra revisão)
+  não é **Backlog** (rodada 2).

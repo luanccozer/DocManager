@@ -65,3 +65,15 @@
   vermelho validada pelo script: todos os checks passaram), conferida visualmente
   e corrigida (títulos sobrepostos). Arquivo: scratchpad/saida/q2_q3_outubro.png.
 - GLOSSARY.md: Data prevista vira a baseline; termos "sobrescrição" e "incidência".
+
+## Session: 2026-10-28 (rodada 2 respondida)
+
+### Actions Taken
+- Respostas da rodada 2 registradas (Decisions Made); rodada 3 montada (Q12-Q18).
+- Pesquisa: alternar dois visuais no mesmo lugar = indicadores (bookmarks) + painel
+  Seleção + botões; TMDL GA, PBIR padrão desde jan/2026 (findings.md).
+- Lista dos 15 documentos (prevista = reprogramada) para conferir no Box:
+  scratchpad/saida/Lista_15_prevista_igual_reprogramada.xlsx (skill xlsx: Arial,
+  colunas a preencher em amarelo, linha de exemplo, validação de data, fórmula de
+  dias; recalc.py: 16 fórmulas, 0 erros; conferida em PDF). Fora do Git (dados reais).
+- GLOSSARY.md: Backlog, Baseline OTD, Say-do e Situação say-do resolvidos.
