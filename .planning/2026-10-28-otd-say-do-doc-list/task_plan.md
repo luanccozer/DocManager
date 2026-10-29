@@ -4,7 +4,7 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Ticket 01: teste vermelho da regra pura (célula preenchida nunca trocada; incidência) e depois o Doc List de ponta a ponta.
+Ticket 02: decisão injetável (aceitar/recusar/adiar) e aba 'Sobrescrições recusadas', Doc List e Mapa.
 
 ## Current Phase
 Phase 7
@@ -51,7 +51,7 @@ Phase 7
 - **Status:** complete
 
 ### Phase 7: Implementação do DocManager (tdd)
-- [ ] Ticket 01: data prevista congelada e incidências (Doc List + Mapa)
+- [x] Ticket 01: data prevista congelada e incidências (Doc List + Mapa)
 - [ ] Ticket 02: decisão injetável e aba de recusas
 - [ ] Ticket 03: tela de sobrescrição
 - [ ] Ticket 04: SITUAÇÃO OTD e SITUAÇÃO SAY-DO

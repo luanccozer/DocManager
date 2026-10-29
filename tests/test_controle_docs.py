@@ -213,24 +213,29 @@ def _resolver(prevista_celula, reprogramada_celula, prevista_ctrl, reprogramada_
                                    valor_celula_reprogramada=reprogramada_celula)
 
 
-def test_prevista_do_controle_mais_recente_atualiza_a_celula():
-    """Antes o Mapa só escrevia na célula vazia - uma data nova no Controle
-    nunca chegava ao mapeamento."""
+def _incidencias(d):
+    return [(i.coluna, i.valor_planilha, i.data_controle) for i in d.incidencias]
+
+
+def test_prevista_do_controle_mais_recente_vira_incidencia_no_mapa():
+    """ADR 0001: a data prevista preenchida não é trocada sem aceite (até
+    2026-10 a mais recente vencia, e a baseline se perdia)."""
     d = _resolver(date(2026, 3, 1), None, date(2026, 9, 1), None)
-    assert d.prevista_para_celula == date(2026, 9, 1)
-    assert d.prevista_atualizada
-    assert d.data_ref == date(2026, 9, 1)      # o atraso passa a usar a nova
+    assert d.prevista_para_celula is None
+    assert d.data_ref == date(2026, 3, 1)
+    assert _incidencias(d) == [("prevista", date(2026, 3, 1), date(2026, 9, 1))]
 
 
-def test_prevista_da_planilha_mais_recente_e_preservada_no_mapa():
+def test_prevista_da_planilha_mais_recente_tambem_vira_incidencia_no_mapa():
     d = _resolver(date(2026, 9, 1), None, date(2026, 3, 1), None)
     assert d.prevista_para_celula is None
     assert d.data_ref == date(2026, 9, 1)      # atraso usa a da planilha, não a do Controle
+    assert _incidencias(d) == [("prevista", date(2026, 9, 1), date(2026, 3, 1))]
 
 
-def test_celula_vazia_recebe_a_prevista_sem_marcar_atualizacao():
+def test_celula_vazia_recebe_a_prevista_sem_incidencia():
     d = _resolver(None, None, date(2026, 3, 1), None)
-    assert d.prevista_para_celula == date(2026, 3, 1) and not d.prevista_atualizada
+    assert d.prevista_para_celula == date(2026, 3, 1) and d.incidencias == ()
 
 
 def test_reprogramada_digitada_na_planilha_nao_e_mais_sobrescrita():
@@ -239,6 +244,7 @@ def test_reprogramada_digitada_na_planilha_nao_e_mais_sobrescrita():
     d = _resolver(date(2026, 1, 1), date(2026, 8, 8), date(2026, 1, 1), date(2026, 5, 5))
     assert d.reprogramada is None
     assert d.data_ref == date(2026, 8, 8)      # e é a manual que vale
+    assert _incidencias(d) == [("reprogramada", date(2026, 8, 8), date(2026, 5, 5))]
 
 
 def test_reprogramada_vazia_e_preenchida_pelo_controle():
@@ -274,8 +280,9 @@ def test_mapa_e_doclist_concordam_nas_datas():
         d = resolver_datas_doclist(prevista_atual=prev_cel, reprogramada_atual=reprog_cel,
                                    codigos=[], cod_itaipu_atual="#IT-1",
                                    cod_cmi_atual="", controle=ctrl)
-        assert (m.prevista_para_celula, m.reprogramada, m.data_ref) == \
-               (d.prevista, d.reprogramada, d.data_alvo), (prev_cel, reprog_cel, prev_ctrl, reprog_ctrl)
+        assert (m.prevista_para_celula, m.reprogramada, m.data_ref, m.incidencias) == \
+               (d.prevista, d.reprogramada, d.data_alvo, d.incidencias), \
+               (prev_cel, reprog_cel, prev_ctrl, reprog_ctrl)
 
 
 def test_mapa_end_to_end_respeita_input_manual(tmp_path):
@@ -300,14 +307,18 @@ def test_mapa_end_to_end_respeita_input_manual(tmp_path):
     ctrl_path = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
         {"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "30-06-2026", "reprog": "5/5/2026"}])
     controle = ler_controle(ctrl_path, 0, log_cb=lambda _m: None)
+    logs = []
     assert atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle,
-                                hoje=HOJE, log_cb=lambda _m: None).ok
+                                hoje=HOJE, log_cb=logs.append).ok
 
     ws2 = openpyxl.load_workbook(mapa_path).active
     prevista = ws2.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1).value
     reprog = ws2.cell(3, _COLS_MAPA.index("DATA REPROGRAMADA") + 1).value
-    assert str(prevista).startswith("2026-06-30")   # Controle é mais recente → atualiza
+    assert str(prevista).startswith("2026-01-01")   # baseline preservada (ADR 0001)
     assert str(reprog).startswith("2026-12-25")     # input manual preservado
+    # Sem quem decida (linha de comando), as duas trocas possíveis vão para o log.
+    texto = "\n".join(logs)
+    assert "2 datas preenchidas" in texto and "#IT-1" in texto
 
 
 def test_mapa_descricao_segue_prioridade_aconex_controle_planilha(tmp_path):

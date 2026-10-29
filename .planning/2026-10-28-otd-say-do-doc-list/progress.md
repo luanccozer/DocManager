@@ -77,3 +77,21 @@
   colunas a preencher em amarelo, linha de exemplo, validação de data, fórmula de
   dias; recalc.py: 16 fórmulas, 0 erros; conferida em PDF). Fora do Git (dados reais).
 - GLOSSARY.md: Backlog, Baseline OTD, Say-do e Situação say-do resolvidos.
+
+## Session: 2026-10-29 (implementação)
+
+### Actions Taken
+- Ambiente: venv com requirements + dev; libegl1 instalado para os testes Qt.
+  Linha de base: 1090 passed, ruff limpo.
+- Ticket 01 (TDD): tests/test_planejamento.py (regra pura, 11 testes) vermelho →
+  core/planejamento.py reescrito (Incidencia, aceitas, valores crus). Adaptadores do
+  Doc List e do Mapa; DocListSheet/MappingSheet ganharam get_bruto; serviço novo
+  services/sobrescricao.py (IncidenciaDoc, log); atualizações do Doc List e do Mapa
+  em duas passadas; ControleMemo para não buscar no Controle duas vezes.
+  Testes antigos de "vence a mais recente" reescritos para a regra nova.
+
+### Test Results
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| suíte inteira após ticket 01 | verde | 1105 passed | ok |
+| ruff check docmanager tests | limpo | All checks passed | ok |

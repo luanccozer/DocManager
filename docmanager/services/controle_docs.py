@@ -255,6 +255,33 @@ class ControleDocs:
         return len(self.rows)
 
 
+class ControleMemo:
+    """O mesmo Controle, com a busca de cada documento memorizada.
+
+    A atualização do Doc List e do Mapa passa duas vezes por documento (uma para
+    achar as incidências, outra para gravar, ADR 0001): sem memória, a busca -
+    que pode cair na varredura 'contém' - custaria dobrado.
+    """
+
+    def __init__(self, controle: ControleDocs):
+        self._controle = controle
+        self._memo: dict = {}
+
+    def resolver(self, codigos, cod_itaipu_atual="", cod_cmi_atual="", *,
+                 permitir_contido: bool = True) -> MatchControle:
+        chave = (tuple(codigos or ()), cod_itaipu_atual, cod_cmi_atual, permitir_contido)
+        if chave not in self._memo:
+            self._memo[chave] = self._controle.resolver(
+                codigos, cod_itaipu_atual, cod_cmi_atual, permitir_contido=permitir_contido)
+        return self._memo[chave]
+
+    def __getattr__(self, nome):
+        return getattr(self._controle, nome)
+
+    def __len__(self) -> int:
+        return len(self._controle)
+
+
 # --------------------------------------------------------------------------
 # Leitura dinâmica
 # --------------------------------------------------------------------------

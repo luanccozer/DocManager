@@ -113,6 +113,12 @@ class DocListSheet:
             return None
         return _para_date(self.ws.cell(row=row, column=col).value)
 
+    def get_bruto(self, chave: str, row: int):
+        """Valor cru da célula (data, texto, número ou fórmula). A regra de datas
+        precisa dele para separar a célula vazia da que tem texto (ADR 0001)."""
+        col = self._col_por_chave.get(chave)
+        return self.ws.cell(row=row, column=col).value if col else None
+
     def set_data(self, chave: str, row: int, valor: date | None) -> bool:
         """Grava DATA NATIVA com o formato de Data do Excel - nunca texto, senão
         o dashboard não consegue agrupar por período (ver `gravar_data`)."""

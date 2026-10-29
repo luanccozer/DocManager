@@ -8,13 +8,13 @@ da planilha, data do Controle). Sem decisão disponível, nada é trocado.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Data prevista preenchida e Controle com data mais nova: a planilha não muda e o log lista a incidência
-- [ ] Data prevista preenchida e Controle com data mais antiga: idem
-- [ ] Data reprogramada preenchida e Controle com outra: idem
-- [ ] Texto ("A DEFINIR") ou fórmula na coluna de data: não é apagado; vira incidência
-- [ ] Célula vazia: recebe a data do Controle, sem incidência
-- [ ] Data igual à do Controle: nada acontece
-- [ ] Data-alvo calculada sobre o que ficou nas células
-- [ ] Vale igual para o Doc List e para a etapa 1 do Mapa dos Planos
+- [x] Data prevista preenchida e Controle com data mais nova: a planilha não muda e o log lista a incidência
+- [x] Data prevista preenchida e Controle com data mais antiga: idem
+- [x] Data reprogramada preenchida e Controle com outra: idem
+- [x] Texto ("A DEFINIR") ou fórmula na coluna de data: não é apagado; vira incidência
+- [x] Célula vazia: recebe a data do Controle, sem incidência
+- [x] Data igual à do Controle: nada acontece
+- [x] Data-alvo calculada sobre o que ficou nas células
+- [x] Vale igual para o Doc List e para a etapa 1 do Mapa dos Planos

@@ -11,9 +11,10 @@ se aplicavam. Este módulo formaliza aquela adaptação - mesma espinha dorsal
 2. **Uma coluna de hierarquia.** `PLANO DE EXECUÇÃO` e `PREDECESSOR` viravam
    sempre o mesmo valor com só dois níveis - restou `PREDECESSOR`.
 3. **Planejamento dirigido pelo Controle de Documentos**: `DATA PREVISTA EMISSÃO`
-   e `DATA REPROGRAMADA` vêm de lá, e a coluna `DATA-ALVO EMISSÃO` (ex-`TROCAR`)
-   consolida a data que vale para o dashboard - REPROGRAMADA quando houver,
-   senão PREVISTA. `FASE DE PROJETO` é **input manual** (§27.3).
+   e `DATA REPROGRAMADA` vêm de lá quando estão vazias (preenchidas, só com
+   aceite - ADR 0001), e a coluna `DATA-ALVO EMISSÃO` (ex-`TROCAR`) consolida a
+   data que vale para o dashboard - REPROGRAMADA quando houver, senão PREVISTA.
+   `FASE DE PROJETO` é **input manual** (§27.3).
 
 O **STATUS CONSOLIDADO é o mesmo do Mapa** (`calcula_status_consolidado`): os
 três status de aprovação caem todos em `APROVADO`. Chegou a separá-los (§27),
@@ -36,7 +37,7 @@ from .constants import (
     CONS_NAO_APROVADO,
     CONS_NAO_EMITIDO,
 )
-from .planejamento import reconciliar_datas
+from .planejamento import Incidencia, reconciliar_datas
 
 # ---------------------------------------------------------------------------
 # Colunas (chave lógica → texto do cabeçalho), NA ORDEM do layout acordado.
@@ -290,27 +291,28 @@ class DatasDocList:
 
     `None` em `prevista`/`reprogramada` significa "não mexer na célula".
     `data_alvo` é sempre recalculada a partir do que ficará nas células.
+    `incidencias`: as datas preenchidas que o Controle trocaria (ADR 0001).
     """
     prevista: date | None = None
     reprogramada: date | None = None
     data_alvo: date | None = None
     via: str = ""            # como o doc foi achado no Controle (diagnóstico)
-    prevista_atualizada: bool = False   # o Controle trouxe data MAIS RECENTE
     titulo_controle: str = ""           # DESCRIÇÃO do Controle (fallback do Aconex)
+    incidencias: tuple[Incidencia, ...] = ()
 
 
-def resolver_datas_doclist(*, prevista_atual: date | None, reprogramada_atual: date | None,
-                           codigos, cod_itaipu_atual: str, cod_cmi_atual: str,
-                           controle) -> DatasDocList:
-    """Aplica as regras de planejamento do Doc List (§27).
+def resolver_datas_doclist(*, prevista_atual, reprogramada_atual, codigos,
+                           cod_itaipu_atual: str, cod_cmi_atual: str, controle,
+                           aceitas: frozenset[str] = frozenset()) -> DatasDocList:
+    """Aplica as regras de planejamento do Doc List (ADR 0001).
 
-    - **DATA PREVISTA EMISSÃO** - vem do Controle; havendo divergência com a
-      planilha, vence a data MAIS RECENTE.
-    - **DATA REPROGRAMADA** - vem do Controle, mas NUNCA sobrescreve: a coluna
-      também aceita input manual, que tem a palavra final.
+    - **DATA PREVISTA** e **DATA REPROGRAMADA** - vêm do Controle quando a
+      célula está vazia. Célula preenchida (data, texto ou fórmula) só é
+      trocada se a pessoa aceitou (`aceitas`); senão vira incidência.
     - **DATA-ALVO EMISSÃO** - sempre recalculada: reprogramada > prevista.
 
-    A regra é a mesma do Mapa dos Planos (`core/planejamento.py`, §24.13).
+    `prevista_atual`/`reprogramada_atual` são os valores CRUS das células.
+    A regra é a mesma do Mapa dos Planos (`core/planejamento.py`).
     **FASE DE PROJETO não entra aqui**: é input manual (§27.3).
     """
     linha = None
@@ -322,8 +324,9 @@ def resolver_datas_doclist(*, prevista_atual: date | None, reprogramada_atual: d
     d = reconciliar_datas(
         prevista_planilha=prevista_atual, reprogramada_planilha=reprogramada_atual,
         prevista_controle=linha.data_prevista if linha else None,
-        reprogramada_controle=linha.data_reprogramada if linha else None)
+        reprogramada_controle=linha.data_reprogramada if linha else None,
+        aceitas=aceitas)
     return DatasDocList(prevista=d.prevista, reprogramada=d.reprogramada,
                         data_alvo=d.data_ref, via=via,
-                        prevista_atualizada=d.prevista_atualizada,
-                        titulo_controle=str(linha.titulo).strip() if linha else "")
+                        titulo_controle=str(linha.titulo).strip() if linha else "",
+                        incidencias=d.incidencias)

@@ -126,31 +126,47 @@ def _row_controle(prevista=None, reprog=None, fase="", titulo="t"):
                        data_prevista=prevista, data_reprogramada=reprog, fase=fase)
 
 
-def _resolver(prevista_atual=None, reprogramada_atual=None, **kw_row):
+def _resolver(prevista_atual=None, reprogramada_atual=None, aceitas=frozenset(), **kw_row):
     return resolver_datas_doclist(
         prevista_atual=prevista_atual, reprogramada_atual=reprogramada_atual,
         codigos=[], cod_itaipu_atual="IT", cod_cmi_atual="",
-        controle=_ControleFake(_row_controle(**kw_row)))
+        controle=_ControleFake(_row_controle(**kw_row)), aceitas=aceitas)
 
 
-def test_prevista_vence_a_mais_recente():
-    """Divergência entre planilha e Controle → a data MAIS RECENTE ganha."""
+def _incidencias(d):
+    return [(i.coluna, i.valor_planilha, i.data_controle) for i in d.incidencias]
+
+
+def test_prevista_preenchida_nao_e_trocada_e_vira_incidencia():
+    """ADR 0001: a DATA PREVISTA é a baseline. O Controle replanejou para frente,
+    mas a troca só acontece com aceite - até lá, é uma incidência."""
     d = _resolver(prevista_atual=date(2026, 3, 1), prevista=date(2026, 9, 1))
-    assert d.prevista == date(2026, 9, 1) and d.prevista_atualizada
-    assert d.data_alvo == date(2026, 9, 1)
+    assert d.prevista is None                     # nada a escrever
+    assert d.data_alvo == date(2026, 3, 1)
+    assert _incidencias(d) == [("prevista", date(2026, 3, 1), date(2026, 9, 1))]
 
 
-def test_prevista_da_planilha_mais_recente_e_preservada():
+def test_prevista_da_planilha_mais_recente_tambem_vira_incidencia():
     d = _resolver(prevista_atual=date(2026, 9, 1), prevista=date(2026, 1, 1))
-    assert d.prevista is None            # nada a escrever
+    assert d.prevista is None
     assert d.data_alvo == date(2026, 9, 1)
+    assert _incidencias(d) == [("prevista", date(2026, 9, 1), date(2026, 1, 1))]
 
 
 def test_reprogramada_manual_nunca_e_sobrescrita():
     d = _resolver(prevista_atual=None, reprogramada_atual=date(2026, 8, 8),
                   prevista=date(2026, 1, 1), reprog=date(2026, 5, 5))
     assert d.reprogramada is None                 # input manual manda
-    assert d.data_alvo == date(2026, 8, 8)        # e é ela que vale
+    assert d.prevista == date(2026, 1, 1)         # a vazia é preenchida
+    assert d.data_alvo == date(2026, 8, 8)        # e é a manual que vale
+    assert _incidencias(d) == [("reprogramada", date(2026, 8, 8), date(2026, 5, 5))]
+
+
+def test_incidencia_aceita_troca_a_prevista():
+    d = _resolver(prevista_atual=date(2026, 3, 1), prevista=date(2026, 9, 1),
+                  aceitas=frozenset({"prevista"}))
+    assert d.prevista == date(2026, 9, 1)
+    assert d.data_alvo == date(2026, 9, 1)
 
 
 def test_data_alvo_prefere_reprogramada():
@@ -677,3 +693,53 @@ def test_exportacao_da_analise_por_periodo_usa_o_formato_de_data(tmp_path):
     ws = openpyxl.load_workbook(saida).active
     celulas = [c for linha in ws.iter_rows() for c in linha if c.is_date]
     assert celulas and all(c.number_format == FORMATO_DATA_EXCEL for c in celulas)
+
+
+# ---------------------------------------------------------------------------
+# Data prevista congelada e incidências (ADR 0001, pedido de 2026-10-28)
+# ---------------------------------------------------------------------------
+def _controle_xlsx(tmp_path, prevista="", reprog=""):
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx",
+                               [{"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": prevista, "reprog": reprog}])
+    return ler_controle(p, 0, log_cb=lambda _m: None)
+
+
+def _valor_data(ws, col, titulo):
+    v = ws.cell(2, col[titulo]).value
+    return v.date() if hasattr(v, "date") else v
+
+
+def test_data_prevista_preenchida_nao_e_trocada_pelo_controle_e_vai_para_o_log(tmp_path):
+    def preparar(ws, col):
+        ws.cell(2, col["DATA PREVISTA EMISSÃO"]).value = date(2026, 3, 1)
+
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", None, None)],
+        preparar=preparar, controle=_controle_xlsx(tmp_path, prevista="01-09-2026"))
+    assert _valor_data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 3, 1)
+    assert _valor_data(ws, col, "DATA-ALVO EMISSÃO") == date(2026, 3, 1)
+    texto = "\n".join(logs)
+    assert "1 data preenchida que o Controle trocaria ficou como está" in texto
+    assert "#IT-1" in texto and "01/03/2026 → 01/09/2026" in texto
+
+
+def test_texto_na_reprogramada_nao_e_apagado_pelo_controle(tmp_path):
+    """Até a v3.6 o Controle escrevia por cima de 'A DEFINIR' sem avisar."""
+    def preparar(ws, col):
+        ws.cell(2, col["DATA REPROGRAMADA"]).value = "A DEFINIR"
+
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", date(2026, 2, 1), None)],
+        preparar=preparar, controle=_controle_xlsx(tmp_path, prevista="01-02-2026", reprog="15/12/2026"))
+    assert ws.cell(2, col["DATA REPROGRAMADA"]).value == "A DEFINIR"
+    assert _valor_data(ws, col, "DATA-ALVO EMISSÃO") == date(2026, 2, 1)
+    assert any("'A DEFINIR' → 15/12/2026" in m for m in logs)
+
+
+def test_celula_de_data_vazia_continua_recebendo_a_data_do_controle(tmp_path):
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", None, None)],
+        controle=_controle_xlsx(tmp_path, prevista="01-02-2026", reprog="15/12/2026"))
+    assert _valor_data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 2, 1)
+    assert _valor_data(ws, col, "DATA REPROGRAMADA") == date(2026, 12, 15)
+    assert not any("o Controle trocaria" in m for m in logs)
