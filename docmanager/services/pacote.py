@@ -39,8 +39,8 @@ import shutil
 import zipfile
 from pathlib import Path, PurePath
 
-__all__ = ["SUFIXO_ANTIGO", "nome_pacote", "sha_de", "diferenca", "montar", "aplicar",
-           "limpar_restos", "dentro", "ErroPacote"]
+__all__ = ["SUFIXO_ANTIGO", "nome_pacote", "sha_de", "tamanho_de", "diferenca", "montar",
+           "aplicar", "conferir", "limpar_restos", "dentro", "ErroPacote"]
 
 SUFIXO_ANTIGO = ".dm-old"
 _BLOCO = 1024 * 1024
@@ -128,11 +128,53 @@ def _afastar(caminho: Path) -> Path:
     return alvo
 
 
-def aplicar(arquivo_zip: Path, pasta: Path, novo: dict) -> list[str]:
+def tamanho_de(valor) -> int | None:
+    """O tamanho de uma entrada do `arquivos.json`; None no formato só com o SHA256."""
+    if isinstance(valor, dict) and valor.get("tamanho") is not None:
+        try:
+            return int(valor["tamanho"])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def conferir(pasta: Path, novo: dict, trocados, progresso=None) -> None:
+    """Confere a pasta contra `novo` (o arquivos.json); levanta ErroPacote no 1º que não bate.
+
+    Os arquivos que o pacote ESCREVEU (`trocados`) são conferidos pelo SHA256.
+    Os outros, pelo tamanho: eles não foram tocados, e ler milhares de arquivos
+    inteiros (Python, Qt, pandas...) com o antivírus do Windows abrindo cada um
+    levava minutos com a janela parada - visto na 3.6.0 -> 3.6.1-rc.2. O
+    tamanho ainda pega a pasta que não é a versão de origem (uma biblioteca de
+    outra versão quase nunca tem o mesmo tamanho). Entrada sem tamanho (o
+    formato da CMI Suite) volta a ser conferida pelo SHA256.
+
+    `progresso(feitos, total)` é chamado ao longo da conferência.
+    """
+    trocados = set(trocados)
+    itens = list(novo["arquivos"].items())
+    total = len(itens)
+    for i, (rel, valor) in enumerate(itens, 1):
+        caminho = dentro(pasta, rel)
+        tamanho = tamanho_de(valor)
+        if not caminho.is_file():
+            confere = False
+        elif rel in trocados or tamanho is None:
+            confere = sha256(caminho) == sha_de(valor)
+        else:
+            confere = caminho.stat().st_size == tamanho
+        if not confere:
+            raise ErroPacote(f"{rel} não confere com a versão {novo['versao']}")
+        if progresso is not None:
+            progresso(i, total)
+
+
+def aplicar(arquivo_zip: Path, pasta: Path, novo: dict, progresso=None) -> list[str]:
     """Aplica o pacote sobre `pasta` e confere contra `novo` (o arquivos.json).
 
     Devolve os caminhos alterados. Em qualquer falha desfaz tudo e levanta
-    ErroPacote: a pasta fica exatamente como estava.
+    ErroPacote: a pasta fica exatamente como estava. `progresso(feitos,
+    total)` acompanha a conferência (ver `conferir`).
     """
     pasta = Path(pasta)
     feitos: list[tuple[Path, Path | None]] = []
@@ -154,10 +196,7 @@ def aplicar(arquivo_zip: Path, pasta: Path, novo: dict) -> list[str]:
                 if destino.exists():
                     feitos.append((destino, _afastar(destino)))
 
-        for rel, valor in novo["arquivos"].items():
-            caminho = dentro(pasta, rel)
-            if not caminho.is_file() or sha256(caminho) != sha_de(valor):
-                raise ErroPacote(f"{rel} não confere com a versão {novo['versao']}")
+        conferir(pasta, novo, info["alterados"], progresso)
         return list(info["alterados"])
     except Exception as erro:
         _desfazer(feitos)

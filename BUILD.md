@@ -300,7 +300,10 @@ mim"; em Program Files vai o completo, que pede a permissão). Baixa o
 pequena), e com o app **aberto**: renomeia cada arquivo antigo para
 `<nome>.dm-old` (o Windows não deixa sobrescrever um `.exe` ou DLL em uso, mas
 deixa renomear), escreve o novo, afasta os removidos e confere **todos** os
-arquivos contra o `arquivos.json` novo. Qualquer falha desfaz tudo, na ordem
+arquivos contra o `arquivos.json` novo: os que ele escreveu pelo SHA256, os
+outros pelo tamanho (ler milhares de arquivos inteiros, com o antivírus abrindo
+cada um, levava minutos - visto na 3.6.0 -> 3.6.1-rc.2), com o avanço na
+janela ("Conferindo os arquivos instalados: X de N"). Qualquer falha desfaz tudo, na ordem
 inversa, e a janela cai para o completo. Deu certo: atualiza a versão em
 "Aplicativos instalados" (HKCU), abre o `.exe` novo e o processo sai na hora.
 Os `.dm-old` são apagados na abertura seguinte. Sem UAC, sem `/SINAL`, sem

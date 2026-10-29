@@ -455,6 +455,20 @@ def test_pequena_de_ponta_a_ponta(pequena):
     assert _conteudo(instalada) == V2
 
 
+def test_pequena_mostra_a_conferencia(pequena):
+    """A conferência dos arquivos aparece na janela (texto e barra), sem
+    repetir aviso a cada arquivo."""
+    info, instalada, _arquivos, _pedidos = pequena
+    textos, barra = [], []
+    updater.atualizar_pequena(info, pasta=instalada, log_cb=textos.append,
+                              progresso_cb=barra.append)
+    total = len(V2)
+    conferindo = [t for t in textos if t.startswith("Conferindo os arquivos instalados")]
+    assert conferindo[-1] == f"Conferindo os arquivos instalados: {total} de {total}..."
+    assert len(conferindo) == len(set(conferindo)) <= 101
+    assert barra[-1] == 1.0
+
+
 def test_zip_adulterado_nao_toca_na_instalacao(pequena):
     info, instalada, arquivos, _ = pequena
     arquivos["api/zip"] = _Resp(b"x" * info.pequena.tamanho)

@@ -215,3 +215,31 @@ def test_ferramenta_do_workflow_monta_o_pacote_que_o_app_aplica(tmp_path):
     pacote.aplicar(zip_, v1, json.loads((tmp_path / "arquivos.json").read_text(encoding="utf-8")))
     pacote.limpar_restos(v1)
     assert _conteudo(v1) == V2
+
+
+def test_conferencia_le_so_os_arquivos_trocados(versoes, monkeypatch):
+    """Os não tocados são conferidos pelo tamanho: ler milhares de arquivos
+    inteiros (com o antivírus abrindo cada um) levava minutos no Windows."""
+    v1, _v2, _m1, m2, zip_ = versoes
+    lidos = []
+    original = pacote.sha256
+    monkeypatch.setattr(pacote, "sha256", lambda c: (lidos.append(c.name), original(c))[1])
+    pacote.aplicar(zip_, v1, m2)
+    assert sorted(lidos) == ["CHANGELOG.md", "DocManager.exe", "a.pyc", "entra.txt"]
+
+
+def test_nao_tocado_com_tamanho_diferente_desfaz(versoes):
+    v1, _v2, _m1, m2, zip_ = versoes
+    (v1 / "_internal/Qt6Core.dll").write_bytes(b"qt" * 999)
+    antes = _conteudo(v1)
+    with pytest.raises(pacote.ErroPacote, match="Qt6Core.dll"):
+        pacote.aplicar(zip_, v1, m2)
+    assert _conteudo(v1) == antes
+
+
+def test_conferencia_avisa_o_progresso(versoes):
+    v1, _v2, _m1, m2, zip_ = versoes
+    avisos = []
+    pacote.aplicar(zip_, v1, m2, progresso=lambda feitos, total: avisos.append((feitos, total)))
+    total = len(m2["arquivos"])
+    assert avisos == [(i, total) for i in range(1, total + 1)]
