@@ -1007,3 +1007,30 @@ def test_formula_recusada_fica_como_texto_na_aba(tmp_path):
     celula = wb[ABA_RECUSAS].cell(2, 4)
     assert (celula.value, celula.data_type) == ("=DATE(2026,12,1)", "s")
     assert any("1 data preenchida que o Controle trocaria: 0 trocadas, 1 recusada" in m for m in logs)
+
+
+def _windows_recusa_salvar(monkeypatch, programas):
+    """Toda gravação de planilha é recusada; o Windows aponta `programas`."""
+    from docmanager.services import gravacao
+
+    def recusa(self, caminho):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(openpyxl.Workbook, "save", recusa)
+    monkeypatch.setattr(gravacao, "_somente_leitura", lambda c: False)
+    monkeypatch.setattr(gravacao, "_programas_com_o_arquivo", lambda c: programas)
+    monkeypatch.setattr(gravacao.time, "sleep", lambda s: None)
+
+
+def test_salvar_recusado_diz_qual_programa_esta_com_a_planilha(tmp_path, monkeypatch):
+    """3.6.1-rc.1: o app dizia "arquivo aberto?" sem o arquivo estar aberto. O motivo
+    agora vem do Windows, na pergunta "Tentar de novo" e no resultado."""
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    _windows_recusa_salvar(monkeypatch, ["Microsoft Excel"])
+    perguntas = []
+    r = atualizar_doclist(path_base, path_dl, hoje=HOJE, log_cb=lambda _m: None,
+                          retry_cb=lambda m: perguntas.append(m) or False)
+    assert not r.ok
+    assert "Microsoft Excel" in r.mensagem
+    assert "arquivo aberto?" not in r.mensagem
+    assert len(perguntas) == 1 and "Microsoft Excel" in perguntas[0]

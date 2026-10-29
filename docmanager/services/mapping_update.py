@@ -26,6 +26,7 @@ from ..core.mapping import processar_documento, resolver_datas_controle
 from ..core.planejamento import COLUNA_PREVISTA
 from .controle_docs import ControleDocs, ControleMemo
 from .excel_io import COLUNAS_MAPA, MappingSheet, aviso_datas_com_texto, carregar_base_aconex
+from .gravacao import salvar_planilha
 from .sobrescricao import IncidenciaDoc, decidir
 
 TITULO_REPROGRAMADA_ETAPA1 = "DATA REPROGRAMADA (etapa 1)"
@@ -269,16 +270,9 @@ def atualizar_mapeamento(
             linhas, hierarquia, estrito=regra_estrita_vip, planos_comiss=planos_comiss).items():
         ms.set_val("resumo_quantidades", row_r, texto)
 
-    # Salvar (com retry opcional em PermissionError).
     log_cb("Salvando...")
-    while True:
-        try:
-            wb.save(path_mapping)
-            break
-        except PermissionError as e:
-            if retry_cb and retry_cb(f"Arquivo aberto/bloqueado: {e}. Feche e tente de novo."):
-                continue
-            return ResultadoMapa(False, f"Não foi possível salvar (arquivo aberto?): {e}", processadas)
+    if (erro := salvar_planilha(wb, path_mapping, retry_cb=retry_cb, log_cb=log_cb)) is not None:
+        return ResultadoMapa(False, erro, processadas)
 
     if progress_cb:
         progress_cb(1.0)

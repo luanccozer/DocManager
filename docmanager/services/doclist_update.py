@@ -33,6 +33,7 @@ from ..core.planejamento import COLUNA_PREVISTA
 from .controle_docs import ControleDocs, ControleMemo
 from .doclist_io import COLUNAS_CRIADAS_PELO_APP, DocListSheet
 from .excel_io import aviso_datas_com_texto, carregar_base_aconex
+from .gravacao import salvar_planilha
 from .sobrescricao import IncidenciaDoc, decidir
 
 
@@ -330,15 +331,8 @@ def atualizar_doclist(
         ds.set_val("resumo_quantidades", row_r, texto)
 
     log_cb("Salvando...")
-    while True:
-        try:
-            wb.save(path_doclist)
-            break
-        except PermissionError as e:
-            if retry_cb and retry_cb(f"Arquivo aberto/bloqueado: {e}. Feche e tente de novo."):
-                continue
-            return ResultadoDocList(False, f"Não foi possível salvar (arquivo aberto?): {e}",
-                                    processadas, grupos)
+    if (erro := salvar_planilha(wb, path_doclist, retry_cb=retry_cb, log_cb=log_cb)) is not None:
+        return ResultadoDocList(False, erro, processadas, grupos)
 
     if progress_cb:
         progress_cb(1.0)

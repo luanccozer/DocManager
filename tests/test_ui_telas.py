@@ -391,6 +391,54 @@ def test_seletor_de_arquivo_lista_as_abas(qtbot, tmp_path):
     assert sel.sheet == "Outra"
 
 
+def _ainda_aberto(caminho) -> bool:
+    """O próprio processo ainda segura o arquivo? No Linux, pela lista de
+    descritores; no Windows, um arquivo aberto não pode ser renomeado."""
+    import os
+    from pathlib import Path
+
+    alvo = os.path.realpath(caminho)
+    descritores = Path("/proc/self/fd")
+    if descritores.is_dir():
+        for fd in descritores.iterdir():
+            try:
+                if os.path.realpath(os.readlink(fd)) == alvo:
+                    return True
+            except OSError:
+                pass
+        return False
+    if os.name == "nt":
+        try:
+            os.replace(caminho, f"{caminho}.tmp")
+            os.replace(f"{caminho}.tmp", caminho)
+            return False
+        except PermissionError:
+            return True
+    pytest.skip("sem como listar os arquivos abertos neste sistema")
+
+
+def test_seletor_de_arquivo_nao_deixa_a_planilha_aberta(qtbot, tmp_path):
+    """Listar as abas não pode prender o arquivo: preso pelo próprio app, o Windows
+    recusava salvar a planilha depois ("permissão negada", 3.6.1-rc.1)."""
+    import gc
+
+    import openpyxl
+
+    from docmanager.ui.components import FileSelector
+
+    caminho = tmp_path / "Doc List Mapping.xlsx"
+    openpyxl.Workbook().save(caminho)
+    gc.disable()  # sem o coletor de lixo fechando o arquivo por acaso no meio do teste
+    try:
+        sel = FileSelector("Doc List Mapping")
+        qtbot.addWidget(sel)
+        sel.definir(str(caminho))
+        assert sel.sheet == "Sheet"
+        assert not _ainda_aberto(str(caminho))
+    finally:
+        gc.enable()
+
+
 def test_dialogos_de_arvore_abrem_e_mostram_documentos(app, qtbot):
     from docmanager.ui.views.delta_dialog import DeltaDialog
 

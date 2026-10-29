@@ -412,3 +412,33 @@ def test_controle_sem_nenhuma_data_avisa(tmp_path):
     linhas = []
     ler_controle(caminho, 0, log_cb=linhas.append)
     assert any("nenhuma linha do Controle tem data" in m for m in linhas)
+
+
+def test_mapa_salvar_recusado_diz_qual_programa_esta_com_a_planilha(tmp_path, monkeypatch):
+    """Mesmo diagnóstico do Doc List (3.6.1-rc.1)."""
+    from docmanager.services import gravacao
+
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/09/2025", current=True))
+    base_path = tmp_path / "base.xlsx"
+    b.to_excel(base_path, index=False)
+    mapa_path = tmp_path / "mapa.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for c, nome in enumerate(_COLS_MAPA, 1):
+        ws.cell(1, c, nome)
+    ws.cell(3, 1, "SALAS"), ws.cell(3, 2, "CMI-1"), ws.cell(3, 3, "#IT-1")
+    ws.cell(3, 4, "DOC"), ws.cell(3, 5, "4")
+    wb.save(mapa_path)
+
+    def recusa(self, caminho):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(openpyxl.Workbook, "save", recusa)
+    monkeypatch.setattr(gravacao, "_somente_leitura", lambda c: False)
+    monkeypatch.setattr(gravacao, "_programas_com_o_arquivo", lambda c: ["Microsoft Power BI Desktop"])
+    monkeypatch.setattr(gravacao.time, "sleep", lambda s: None)
+    r = atualizar_mapeamento(str(base_path), str(mapa_path), hoje=HOJE, log_cb=lambda _m: None)
+    assert not r.ok
+    assert "Microsoft Power BI Desktop" in r.mensagem
+    assert "arquivo aberto?" not in r.mensagem

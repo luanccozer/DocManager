@@ -5,7 +5,7 @@ name: Diagnóstico Windows - salvar Excel
 on:
   push:
     branches: ["claude/intelligent-franklin-g8byqp"]
-    paths: [".github/workflows/diag-windows-salvar.yml"]
+    paths: [".github/workflows/diag-windows-salvar.yml", "docmanager/services/gravacao.py", "tests/test_gravacao.py"]
 
 jobs:
   salvar:
@@ -23,56 +23,8 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install pandas openpyxl -c constraints-build.txt
-      - name: Salvar depois de abrir a planilha de cada jeito
+          pip install -r requirements.txt -c constraints-build.txt
+          pip install -r requirements-dev.txt -c constraints-build.txt
+      - name: Testes da gravação e do seletor de arquivo, no Windows
         shell: bash
-        run: |
-          python - <<'EOF'
-          import gc, mmap, os, stat, sys, tempfile
-          from pathlib import Path
-          import openpyxl, pandas as pd
-
-          print("python", sys.version.split()[0], "pandas", pd.__version__, "openpyxl", openpyxl.__version__)
-          segura = []
-
-          def novo(p):
-              wb = openpyxl.Workbook(); wb.active.title = "Unidade Geradora"; wb.active["A1"] = 1; wb.save(p)
-
-          def salvar(p):
-              wb = openpyxl.load_workbook(p); wb.active["A2"] = 2; wb.save(p)
-
-          def caso(nome, preparar, antes_de_salvar=None):
-              p = Path(tempfile.mkdtemp()) / "Doc List Mapping.xlsx"
-              novo(p)
-              try:
-                  r = preparar(p)
-                  if r is not None:
-                      segura.append(r)
-                  if antes_de_salvar:
-                      antes_de_salvar()
-                  salvar(p)
-                  print(f"[{nome}] SALVOU")
-              except Exception as e:
-                  print(f"[{nome}] FALHOU {type(e).__name__}: {e} (winerror={getattr(e, 'winerror', None)})")
-
-          def como_listar_abas(p):           # ui/components.py::_listar_abas
-              list(pd.ExcelFile(p).sheet_names)
-
-          def excelfile_fechado(p):
-              with pd.ExcelFile(p) as x:
-                  list(x.sheet_names)
-
-          def mmap_aberto(p):
-              f = open(p, "rb")
-              return f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-
-          caso("controle: nada aberto", lambda p: None)
-          caso("open('rb') aberto", lambda p: open(p, "rb"))
-          caso("pd.ExcelFile guardado", lambda p: pd.ExcelFile(p))
-          caso("pd.ExcelFile(...).sheet_names, como _listar_abas", como_listar_abas)
-          caso("idem + gc.collect() antes de salvar", como_listar_abas, gc.collect)
-          caso("with pd.ExcelFile (fechado)", excelfile_fechado)
-          caso("openpyxl read_only guardado", lambda p: openpyxl.load_workbook(p, read_only=True))
-          caso("controle: mmap aberto", mmap_aberto)
-          caso("controle: atributo somente leitura", lambda p: os.chmod(p, stat.S_IREAD))
-          EOF
+        run: python -m pytest -v -p no:cacheprovider tests/test_gravacao.py tests/test_ui_telas.py -k "gravacao or salvar or planilha_aberta or seletor_de_arquivo or motivo or programa or pasta"
