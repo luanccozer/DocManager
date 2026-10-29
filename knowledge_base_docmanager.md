@@ -1160,7 +1160,11 @@ Atualizar o Power BI. Na planilha real de out/2026: backlog de 67 documentos; 94
 pendentes vencidos contra a DATA PREVISTA (o painel atual, contra a DATA-ALVO, mostra 62).
 
 **Testes**: `tests/test_doclist.py` (casos A-H da conversa + cancelado; ciclo completo;
-criação das colunas). O roteiro do Power BI é o ticket 06 de `.scratch/otd-say-do/`.
+criação das colunas). O roteiro de cliques do Power BI (ticket 06 de `.scratch/otd-say-do/`)
+está em `docs/power_bi_otd_say_do.md`: um gráfico só, com as tabelas soltas `Visoes`
+(segmentação em blocos ATUAL | OTD | SAY-DO) e `Situacoes` (legenda), medidas com
+`USERELATIONSHIP` para a DATA PREVISTA e a DATA REPROGRAMADA, e a curva S com `ALL`
+no lugar de `ALLSELECTED` (acumula desde o início).
 
 ---
 

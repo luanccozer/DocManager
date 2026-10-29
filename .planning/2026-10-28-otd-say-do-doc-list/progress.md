@@ -161,3 +161,11 @@ Resultado: 1133 passed, ruff limpo.
   e docstring do script renumerados; `proxima_versao.py --checar 3.6.1` e
   `--checar 3.6.1-rc.1` deram OK. Ensaio = 3.6.1-rc.1 pelo Run workflow do Release
   neste branch, com Pré-lançamento marcado (só depois do OK do usuário).
+
+### Roteiro do Power BI (ticket 06)
+- docs/power_bi_otd_say_do.md: 11 passos + antes de começar, conferência pelo Excel e
+  tabela de problemas. Ligado a partir do README, docs/doc_list_mapping.md,
+  docs/situacao_emissao_dashboard.md, KB §27.7 e da spec. Ticket 06 = done.
+- Conferido por script contra o modelo do .pbix e simulado em Python sobre a planilha
+  de 28/10 (números no roteiro). Execução dos cliques fica com o usuário.
+

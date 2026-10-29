@@ -101,8 +101,9 @@ A parte do Power BI sai como roteiro de cliques, depois do DocManager.
   aconteceu até a data prevista.
 - **SITUAÇÃO EMISSÃO e DIAS DESVIO EMISSÃO**: sem mudança (contra a data-alvo).
 - **Sem coluna de data da atualização** (decisão do usuário); OBSERVAÇÕES segue manual.
-- **Power BI**: fora do código; roteiro de cliques detalhado depois (três visões com
-  botões de indicador, cartões, curva S acumulando desde o início).
+- **Power BI**: fora do código; roteiro de cliques em `docs/power_bi_otd_say_do.md`
+  (três visões num gráfico só, trocadas por uma segmentação em blocos; cartões; curva S
+  acumulando desde o início).
 
 ## Testing Decisions
 

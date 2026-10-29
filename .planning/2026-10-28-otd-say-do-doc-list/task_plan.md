@@ -4,8 +4,9 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Esperar as respostas da rodada 4 (Q19 layout das três visões, Q20 curva S); com elas, escrever o roteiro
-de cliques do Power BI (ticket 06).
+Com o OK do usuário, disparar a versão de teste 3.6.1-rc.1 (Actions → Release → Run workflow neste
+branch, Pré-lançamento marcado). Depois: o usuário testa o app e segue docs/power_bi_otd_say_do.md;
+PR para a main e tag v3.6.1 quando a rc estiver aprovada.
 
 ## Current Phase
 Phase 8
@@ -63,9 +64,9 @@ Phase 8
 ### Phase 8: Roteiro do Power BI (ticket 06)
 - [x] Protótipo das três visões (resposta à Q12 "como não ficar feio"), enviado
 - [x] Rodada 4 enviada (Q19, Q20)
-- [ ] Respostas da rodada 4 (Q19 três visões, Q20 curva S)
-- [ ] Roteiro de cliques detalhado, conferido contra o modelo atual
-- **Status:** in_progress
+- [x] Respostas da rodada 4 (Q19 três visões, Q20 curva S)
+- [x] Roteiro de cliques detalhado, conferido contra o modelo atual
+- **Status:** complete
 
 ## Key Questions
 
@@ -177,6 +178,9 @@ Fora do grilling (anotado para a spec):
 | Q16: o app cria sozinho as colunas novas e a aba de recusas | resposta do usuário (2026-10-29) |
 | Q17: ADR + KB + docs atualizados e versionados | resposta do usuário (2026-10-29) |
 | Q18: spec e tarefas como arquivos em .scratch/otd-say-do/ | resposta do usuário (2026-10-29, "o mais simples") |
+| Q19: variante A (botões no cabeçalho), abrindo na ATUAL; um gráfico só com segmentação em blocos | resposta do usuário (2026-10-29) |
+| Q20: curva S acumula desde o início (ALL), previstos pela DATA PREVISTA | resposta do usuário (2026-10-29) |
+| Versão 3.6.1 (PATCH), ensaio 3.6.1-rc.1 | skill de versionamento do usuário + "a mudança é pequena" (2026-10-29) |
 
 ## Errors Encountered
 | Error | Resolution |

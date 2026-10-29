@@ -198,7 +198,8 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   sobrescrever** ou **ver caso a caso** - e anota as recusas na aba
   "Sobrescrições recusadas". Também grava `SITUAÇÃO OTD` (contra a data prevista) e
   `SITUAÇÃO SAY-DO` (contra a reprogramada, só no backlog), para os indicadores
-  Baseline OTD e Say-do do Power BI.
+  Baseline OTD e Say-do do Power BI (roteiro de cliques em
+  [`docs/power_bi_otd_say_do.md`](docs/power_bi_otd_say_do.md)).
   Todas as colunas de data saem no formato **Data** do Excel (não
   "Personalizado"), que o Power BI lê como data; texto digitado numa coluna de
   data é apontado no log, porque impede essa leitura.

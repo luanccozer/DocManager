@@ -310,6 +310,30 @@ Os testes do repo continuam verdes: `tests/test_doclist.py` + `tests/test_contro
   sem cancelados): variantes A/B/C × visões ATUAL (48), OTD (59) e SAY-DO (5);
   cartões 59,3% (35 de 59) e 100% (5 de 5). Conferido claro, escuro e celular.
 
+### Power BI: o roteiro (ticket 06, 2026-10-29)
+- Cores atuais do gráfico DOCUMENTOS PARA EMISSÃO (visual.json): EMITIDO NO PRAZO
+  #1AAB40, EMITIDO COM ATRASO #FDEA21, PENDENTE NO PRAZO = cor 1 do tema CY24SU10
+  (#118DFF), PENDENTE VENCIDO #F5012E. Trocar a legenda de campo zera as cores: o
+  roteiro manda redigitar os quatro códigos.
+- Cartões existentes: número 19 pt negrito azul-marinho (tema, #12239E), rótulo de
+  categoria desligado, borda de 1 px raio 6. O roteiro copia o do canto superior
+  direito (herda estilo e os filtros NÍVEL = 2 e N° ITAIPU não vazio).
+- Notas amarelas do print: dentro do DOCUMENTAÇÃO GERAL, no alto à direita → cartões em
+  x 745 e 960, y 98, 200 x 72. Botões da visão em x 895, y 486, 270 x 30 (legenda do
+  gráfico vai para baixo para abrir o espaço).
+- NÍVEL na planilha só tem 1 e 2; 2 linhas de nível 2 sem N° ITAIPU (DISTINCTCOUNT as
+  conta como um valor vazio, como o painel já faz).
+- Simulação das medidas sobre a planilha de 28/10 (scratchpad/scripts/
+  simula_medidas_pbi.py): out/2026 ATUAL 48, OTD 59 (35 sem atraso, 59,3%), SAY-DO 5
+  (100%); plano inteiro 65,7% (735/1.118) e 100% (67/67); só outubro de 2026 tem backlog.
+  Curva S com out/2026: hoje 48 previstos x 14 emitidos; nova 905 x 841. 25 documentos
+  previstos para outubro saíram antes de 1/10 (o exemplo 10/10 x 30/09 do usuário).
+- Conferência do roteiro (scratchpad/scripts/confere_roteiro_pbi.py): 18 fórmulas, 12
+  medidas novas + 2 alteradas; toda referência existe no modelo, é criada no roteiro ou
+  chega com o Atualizar; posições não cobrem cartões nem segmentações.
+- learn.microsoft.com fora da rede da sessão: rótulos da interface em português vêm do
+  roteiro de 2026-09-16 (que o usuário já seguiu), de busca e do próprio .pbix.
+
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|

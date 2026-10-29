@@ -156,7 +156,8 @@ No Power BI, os indicadores contam códigos distintos:
 
 Nos dois, o que ainda não venceu conta como cumprido e o cancelado fica fora. O
 "vencido" é o do dia em que o app rodou: **antes de apresentar, rode o DocManager e
-clique em Atualizar no Power BI.**
+clique em Atualizar no Power BI.** O passo a passo do painel (três visões, cartões e
+curva S) está em [`power_bi_otd_say_do.md`](power_bi_otd_say_do.md).
 
 ## Situação de emissão (aderência ao planejamento)
 
