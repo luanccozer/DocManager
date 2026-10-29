@@ -14,6 +14,7 @@ dela aqui **antes** de criar a tag.
 - Doc List Mapping: duas colunas novas, SITUAÇÃO OTD (o documento saiu na data prevista?) e SITUAÇÃO SAY-DO (o documento reprogramado saiu na data nova?), para os indicadores Baseline OTD e Say-do do Power BI. O app cria as colunas no fim da aba na primeira atualização. A SITUAÇÃO EMISSÃO continua como estava.
 - A planilha escolhida na tela não fica mais presa pelo DocManager. Com o app aberto, o Excel podia recusar salvar o arquivo (acesso negado, arquivo em uso), mesmo sem ninguém mais com ele aberto.
 - Quando o Windows não deixa salvar o Doc List ou o Mapa, o DocManager tenta de novo por alguns segundos e depois diz o motivo: qual programa está com a planilha aberta, se ela está marcada como Somente leitura ou se a pasta não aceita gravação. Antes dizia sempre "arquivo aberto?".
+- Atualização pequena mais rápida: o DocManager confere pelo conteúdo só os arquivos que ela trocou, e os outros pelo tamanho. Antes lia todos os arquivos instalados e a janela ficava minutos parada depois do download; agora mostra "Conferindo os arquivos instalados: X de N".
 
 ## 3.6.0 - 2026-10-27
 
