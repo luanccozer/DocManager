@@ -1226,4 +1226,39 @@ Explicação para quem usa: `docs/transpasse_de_fase.md`. Testes: `tests/test_tr
 
 ---
 
+## 31. ✅ Gravar a planilha no Windows: arquivo preso e motivo da recusa (3.6.1, 2026-10-29, relato do usuário)
+
+**Relato** (3.6.1-rc.1): "não consigo salvar o arquivo Excel, dá permissão negada porque supostamente estou
+com ele aberto, só que não estou; criei um arquivo novo e deu a mesma proibição".
+
+**Medido no Windows** (executor `windows-latest` do GitHub, Python 3.12, pandas 3.1, openpyxl 3.1.5):
+- arquivo aberto para leitura pelo próprio processo (`open`, `pd.ExcelFile`, openpyxl `read_only`) **não**
+  impede o `wb.save` do openpyxl: o Python abre com compartilhamento de leitura e escrita;
+- mas impede **trocar ou apagar** o arquivo (falta o compartilhamento de exclusão), e é assim que o Excel
+  salva: grava um temporário e troca. Com o DocManager aberto, o Excel não salvava a planilha;
+- "Permission denied" (Errno 13) ao gravar vem do atributo Somente leitura, de outro programa com o arquivo
+  aberto sem compartilhar escrita (Excel, Power BI, Box sincronizando) ou de o Windows negar a pasta (Acesso
+  controlado a pastas, permissão no Box). O código de erro do Python não distingue esses casos.
+
+**O vazamento**: `ui/components.py::_listar_abas` fazia `pd.ExcelFile(caminho).sheet_names` sem fechar. O
+workbook do openpyxl tem ciclo de referências, então o arquivo só fechava quando o coletor de lixo passasse
+(num app parado, demora). Todo arquivo escolhido na tela ficava preso, por isso "até um arquivo novo".
+Agora é `with pd.ExcelFile(...)`.
+
+**O motivo da recusa** (`services/gravacao.py::salvar_planilha`, usado pelo Doc List e pelo Mapa): tenta 3
+vezes com 2 s de intervalo (o Box e o antivírus soltam logo) e depois pergunta ao Windows - atributo
+Somente leitura; programas com o arquivo aberto (Restart Manager, `rstrtmgr.dll`, sem contar o próprio
+processo); se a pasta aceita um arquivo novo (`~$docmanager-*.tmp`, prefixo que o Box não sincroniza). A
+mensagem diz o que fazer e aparece na pergunta "Tentar de novo".
+
+**Em aberto**: no computador do usuário, a causa da recusa do próprio DocManager não foi confirmada. O
+vazamento explica a recusa do Excel; para a do DocManager, a 3.6.1-rc.2 passa a dizer o motivo.
+
+**Regra**: todo Excel aberto só para ler (`pd.ExcelFile`, openpyxl `read_only`) fecha na saída (`with` ou
+`try/finally close()`). Testes: `tests/test_ui_telas.py::test_seletor_de_arquivo_nao_deixa_a_planilha_aberta`
+(desliga o coletor de lixo para não passar por sorte) e `tests/test_gravacao.py` (o teste do Restart Manager
+só roda no Windows, no workflow de Release).
+
+---
+
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

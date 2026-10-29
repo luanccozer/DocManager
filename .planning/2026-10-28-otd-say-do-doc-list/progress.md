@@ -177,3 +177,14 @@ Resultado: 1133 passed, ruff limpo.
   e da 3.5.2-rc.1. Release v3.6.1-rc.1 marcado como pré-lançamento, no commit fa1790f.
 - Próximo: o usuário testa (Versões de teste) e segue docs/power_bi_otd_say_do.md;
   aprovada a rc, PR para a main e tag v3.6.1 com o OK dele.
+
+### Relato da 3.6.1-rc.1: "permissão negada" ao salvar (2026-10-29)
+- Hipótese 1 (arquivo preso pelo próprio app): confirmada no Linux - `_listar_abas` deixava
+  o `pd.ExcelFile` aberto até o coletor de lixo (teste vermelho com gc desligado).
+- Medido no Windows (workflow temporário diag-windows-salvar.yml): esse arquivo preso NÃO
+  impede o `wb.save` do openpyxl (Python compartilha leitura e escrita), mas impede trocar
+  o arquivo - e o Excel salva trocando. Errno 13 só com Somente leitura no experimento.
+- Correção: `with pd.ExcelFile`; `services/gravacao.py::salvar_planilha` no Doc List e no
+  Mapa (3 tentativas, depois motivo: Somente leitura, programa com o arquivo pelo Restart
+  Manager, pasta que não aceita gravação). CHANGELOG 3.6.1 e KB §31. Suíte 1145 + 1
+  (o teste do Restart Manager só roda no Windows).

@@ -12,6 +12,8 @@ dela aqui **antes** de criar a tag.
 - As trocas recusadas ficam anotadas numa aba nova da própria planilha, "Sobrescrições recusadas", e não são perguntadas de novo enquanto o Controle mantiver a mesma data. Fechar a pergunta sem escolher deixa para decidir na próxima atualização.
 - Texto como "A DEFINIR" ou uma fórmula numa coluna de data também contam como preenchidos: antes, o Controle escrevia por cima sem avisar.
 - Doc List Mapping: duas colunas novas, SITUAÇÃO OTD (o documento saiu na data prevista?) e SITUAÇÃO SAY-DO (o documento reprogramado saiu na data nova?), para os indicadores Baseline OTD e Say-do do Power BI. O app cria as colunas no fim da aba na primeira atualização. A SITUAÇÃO EMISSÃO continua como estava.
+- A planilha escolhida na tela não fica mais presa pelo DocManager. Com o app aberto, o Excel podia recusar salvar o arquivo (acesso negado, arquivo em uso), mesmo sem ninguém mais com ele aberto.
+- Quando o Windows não deixa salvar o Doc List ou o Mapa, o DocManager tenta de novo por alguns segundos e depois diz o motivo: qual programa está com a planilha aberta, se ela está marcada como Somente leitura ou se a pasta não aceita gravação. Antes dizia sempre "arquivo aberto?".
 
 ## 3.6.0 - 2026-10-27
 
