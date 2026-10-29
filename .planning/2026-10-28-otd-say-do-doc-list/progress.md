@@ -100,3 +100,7 @@
   adiar, caso a caso) + 1 no Mapa. services/sobrescricao.py ganhou
   DecisaoSobrescricao, aba "Sobrescrições recusadas" (ler/anotar) e `decidir`.
   `decidir_cb` novo em atualizar_doclist e atualizar_mapeamento. Suíte: 1112 passed.
+- Ticket 03 (TDD): ui/views/sobrescricao_dialog.py (EscolhaSobrescricao com Aceitar
+  todas / Não sobrescrever / Ver caso a caso; CasoACasoDialog com caixas de marcar;
+  decidir_sobrescricoes via ponte). Telas do Doc List e do Mapa passam decidir_cb.
+  8 testes Qt novos, 2 deles de ponta a ponta pela tela (timer age na janela modal).

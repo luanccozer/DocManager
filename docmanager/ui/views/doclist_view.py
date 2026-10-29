@@ -11,6 +11,7 @@ from __future__ import annotations
 from .. import dialogos
 from ..components import Card, FileSelector, RunBar, botao, linha, rotulo
 from .base import BaseView
+from .sobrescricao_dialog import decidir_sobrescricoes
 from .mapa_view import ler_linha_cabecalho
 
 
@@ -97,7 +98,8 @@ class DocListView(BaseView):
             self.sel_aconex.path, self.sel_doclist.path,
             sheet_aconex=self.sel_aconex.sheet, sheet_doclist=self.sel_doclist.sheet,
             controle=controle, log_cb=self.log.log, progress_cb=run.set_progress,
-            retry_cb=lambda m: dialogos.tentar_de_novo("Salvar", m))
+            retry_cb=lambda m: dialogos.tentar_de_novo("Salvar", m),
+            decidir_cb=lambda pendentes: decidir_sobrescricoes(pendentes, self))
         self.log.log(r.mensagem)
         if r.ok:
             dialogos.info("Doc List Mapping", r.mensagem)

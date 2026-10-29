@@ -526,3 +526,174 @@ def test_janela_abre_maximizada_e_a_splash_sai(qtbot, monkeypatch, caixas):
         qtbot.waitUntil(lambda: not abertas[0].isVisible(), timeout=5000)
     finally:
         janela._saindo_para_atualizar = True
+
+
+# ---------------------------------------------------------------------------
+# Tela de sobrescrição (ADR 0001): o Controle trocaria datas já preenchidas
+# ---------------------------------------------------------------------------
+def _incidencias_exemplo():
+    from datetime import date
+
+    from docmanager.services.sobrescricao import IncidenciaDoc
+
+    return [IncidenciaDoc(row=2, cod_itaipu="#IT-1", cod_cmi="CMI-1", descricao="DOC 1",
+                          coluna="prevista", titulo_coluna="DATA PREVISTA EMISSÃO",
+                          valor_planilha=date(2026, 3, 1), data_controle=date(2026, 9, 1)),
+            IncidenciaDoc(row=3, cod_itaipu="#IT-2", cod_cmi="CMI-2", descricao="DOC 2",
+                          coluna="reprogramada", titulo_coluna="DATA REPROGRAMADA",
+                          valor_planilha="A DEFINIR", data_controle=date(2026, 12, 15))]
+
+
+def _quando_abrir(classe, acao):
+    """Age na janela modal assim que ela abrir. Ela roda o próprio laço de
+    eventos (exec), então quem age é um timer, que dispara dentro dele."""
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
+
+    timer = QTimer()
+    timer.setInterval(20)
+
+    def _tick():
+        janela = QApplication.activeModalWidget()
+        if isinstance(janela, classe):
+            timer.stop()
+            acao(janela)
+
+    timer.timeout.connect(_tick)
+    timer.start()
+    return timer
+
+
+def test_sobrescricao_aceitar_todas(qtbot):
+    from docmanager.services.sobrescricao import DecisaoSobrescricao
+    from docmanager.ui.views.sobrescricao_dialog import EscolhaSobrescricao, decidir_sobrescricoes
+
+    _t = _quando_abrir(EscolhaSobrescricao, lambda w: w.btn_aceitar.click())
+    assert decidir_sobrescricoes(_incidencias_exemplo()) == DecisaoSobrescricao.aceitar_todas(2)
+
+
+def test_sobrescricao_nao_sobrescrever(qtbot):
+    from docmanager.services.sobrescricao import DecisaoSobrescricao
+    from docmanager.ui.views.sobrescricao_dialog import EscolhaSobrescricao, decidir_sobrescricoes
+
+    _t = _quando_abrir(EscolhaSobrescricao, lambda w: w.btn_recusar.click())
+    assert decidir_sobrescricoes(_incidencias_exemplo()) == DecisaoSobrescricao.recusar_todas(2)
+
+
+def test_fechar_a_tela_de_sobrescricao_e_decidir_depois(qtbot):
+    from docmanager.ui.views.sobrescricao_dialog import EscolhaSobrescricao, decidir_sobrescricoes
+
+    _t = _quando_abrir(EscolhaSobrescricao, lambda w: w.reject())
+    assert decidir_sobrescricoes(_incidencias_exemplo()) is None
+
+
+def test_sobrescricao_avisa_que_a_data_prevista_e_a_baseline(qtbot):
+    from docmanager.ui.views.sobrescricao_dialog import EscolhaSobrescricao
+
+    tela = EscolhaSobrescricao(_incidencias_exemplo())
+    qtbot.addWidget(tela)
+    assert "2 datas" in tela.lbl_resumo.text()
+    assert "baseline" in tela.lbl_aviso.text()
+
+
+def test_caso_a_caso_troca_as_marcadas_e_recusa_as_outras(qtbot):
+    from docmanager.services.sobrescricao import DecisaoSobrescricao
+    from docmanager.ui.views.sobrescricao_dialog import (
+        CasoACasoDialog,
+        EscolhaSobrescricao,
+        decidir_sobrescricoes,
+    )
+
+    vistas = []
+
+    def marcar_a_segunda(w):
+        vistas.extend([w.tree.topLevelItem(i).text(3) for i in range(w.tree.topLevelItemCount())])
+        w.marcar(1, True)
+        w.btn_trocar.click()
+
+    _t1 = _quando_abrir(EscolhaSobrescricao, lambda w: w.btn_caso.click())
+    _t2 = _quando_abrir(CasoACasoDialog, marcar_a_segunda)
+    decisao = decidir_sobrescricoes(_incidencias_exemplo())
+    assert decisao == DecisaoSobrescricao(aceitas=frozenset({1}), recusadas=frozenset({0}))
+    assert vistas == ["01/03/2026", "'A DEFINIR'"]       # o que a planilha tem hoje
+
+
+def test_caso_a_caso_marcar_todas_e_cancelar(qtbot):
+    from docmanager.ui.views.sobrescricao_dialog import CasoACasoDialog
+
+    tela = CasoACasoDialog(_incidencias_exemplo())
+    qtbot.addWidget(tela)
+    assert tela.decisao().aceitas == frozenset()          # começa tudo desmarcado
+    tela.btn_marcar.click()
+    assert tela.decisao().aceitas == frozenset({0, 1})
+    tela.btn_desmarcar.click()
+    assert tela.decisao().recusadas == frozenset({0, 1})
+
+
+def test_doclist_pergunta_antes_de_trocar_uma_data_preenchida(app, qtbot, tmp_path):
+    """A tela de verdade: a atualização roda em thread e a pergunta abre na
+    janela; aceitar troca a data na planilha."""
+    from datetime import date
+
+    import openpyxl
+    from builders import escrever_controle_xlsx
+    from test_doclist import _preparar_planilha
+
+    from docmanager.ui.views.sobrescricao_dialog import EscolhaSobrescricao
+
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    path_ctrl = escrever_controle_xlsx(tmp_path / "ctrl.xlsx",
+                                       [{"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "01-09-2026"}])
+    app.selecionar("doclist")
+    tela = app._views["doclist"]
+    tela.sel_aconex.definir(str(path_base))
+    tela.sel_doclist.definir(str(path_dl))
+    tela.sel_ctrl.definir(str(path_ctrl))
+
+    _t = _quando_abrir(EscolhaSobrescricao, lambda w: w.btn_aceitar.click())
+    with qtbot.waitSignal(tela.run.terminou, timeout=20000):
+        tela.run.btn.click()
+
+    ws = openpyxl.load_workbook(path_dl).active
+    col = {str(c.value): c.column for c in ws[1]}
+    assert ws.cell(2, col["DATA PREVISTA EMISSÃO"]).value.date() == date(2026, 9, 1)
+    assert "Sobrescrição aceita" in tela.log.texto()
+
+
+def test_mapa_pergunta_antes_de_trocar_uma_data_preenchida(app, qtbot, tmp_path):
+    from datetime import date
+
+    import openpyxl
+    from builders import HistoricoBuilder, base, escrever_controle_xlsx
+    from test_controle_docs import _COLS_MAPA
+
+    from docmanager.services.sobrescricao import ABA_RECUSAS
+    from docmanager.ui.views.sobrescricao_dialog import EscolhaSobrescricao
+
+    path_base = tmp_path / "base.xlsx"
+    base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+         .evento("0A", 1, "Em Processo", "01/09/2025", current=True)).to_excel(path_base, index=False)
+    path_mapa = tmp_path / "mapa.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for c, nome in enumerate(_COLS_MAPA, 1):
+        ws.cell(1, c, nome)
+    ws.cell(3, 1, "SALAS"), ws.cell(3, 2, "CMI-1"), ws.cell(3, 3, "#IT-1"), ws.cell(3, 5, "4")
+    ws.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1, date(2026, 1, 1))
+    wb.save(path_mapa)
+    path_ctrl = escrever_controle_xlsx(tmp_path / "ctrl.xlsx",
+                                       [{"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "30-06-2026"}])
+    app.selecionar("mapa")
+    tela = app._views["mapa"]
+    tela.sel_aconex.definir(str(path_base))
+    tela.sel_mapa.definir(str(path_mapa))
+    tela.sel_ctrl.definir(str(path_ctrl))
+
+    _t = _quando_abrir(EscolhaSobrescricao, lambda w: w.btn_recusar.click())
+    with qtbot.waitSignal(tela.run.terminou, timeout=20000):
+        tela.run.btn.click()
+
+    wb2 = openpyxl.load_workbook(path_mapa)
+    assert str(wb2.active.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1).value) \
+        .startswith("2026-01-01")
+    assert ABA_RECUSAS in wb2.sheetnames

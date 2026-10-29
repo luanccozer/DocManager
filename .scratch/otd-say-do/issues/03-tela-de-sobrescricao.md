@@ -9,9 +9,9 @@ telas do Doc List e do Mapa dos Planos.
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Os três caminhos devolvem a decisão certa
-- [ ] O caso a caso mostra todas as incidências e respeita as marcações
-- [ ] Fechar sem escolher devolve "adiar"
-- [ ] Abre a partir da tarefa em thread, como os outros diálogos do app
+- [x] Os três caminhos devolvem a decisão certa
+- [x] O caso a caso mostra todas as incidências e respeita as marcações
+- [x] Fechar sem escolher devolve "adiar"
+- [x] Abre a partir da tarefa em thread, como os outros diálogos do app
