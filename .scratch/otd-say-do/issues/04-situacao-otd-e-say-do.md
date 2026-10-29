@@ -8,12 +8,12 @@ formatação das vizinhas. Linhas de grupo ficam vazias. A SITUAÇÃO EMISSÃO n
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Caso A (prevista vencida, reprogramada futura, não emitido): OTD pendente vencido; say-do pendente no prazo
-- [ ] Caso B (reprogramado antes de vencer): no backlog
-- [ ] Caso C (emitido antes da prevista, com reprogramada): fora do backlog
-- [ ] Caso D (reprogramada = prevista): fora do backlog
-- [ ] Caso E (vencido sem reprogramada): fora do backlog; OTD pendente vencido
-- [ ] Colunas criadas quando faltam; planilha que já as tem não muda de layout
-- [ ] Grupo (nível 1) com as colunas novas vazias
+- [x] Caso A (prevista vencida, reprogramada futura, não emitido): OTD pendente vencido; say-do pendente no prazo
+- [x] Caso B (reprogramado antes de vencer): no backlog
+- [x] Caso C (emitido antes da prevista, com reprogramada): fora do backlog
+- [x] Caso D (reprogramada = prevista): fora do backlog
+- [x] Caso E (vencido sem reprogramada): fora do backlog; OTD pendente vencido
+- [x] Colunas criadas quando faltam; planilha que já as tem não muda de layout
+- [x] Grupo (nível 1) com as colunas novas vazias

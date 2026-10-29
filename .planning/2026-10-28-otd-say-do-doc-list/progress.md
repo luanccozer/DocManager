@@ -104,3 +104,9 @@
   todas / Não sobrescrever / Ver caso a caso; CasoACasoDialog com caixas de marcar;
   decidir_sobrescricoes via ponte). Telas do Doc List e do Mapa passam decidir_cb.
   8 testes Qt novos, 2 deles de ponta a ponta pela tela (timer age na janela modal).
+- Ticket 04 (TDD): core/doclist.py ganhou e_backlog e classificar_situacao_say_do
+  (casos A-H + cancelado); COLUNAS_DOCLIST com SITUAÇÃO OTD e SITUAÇÃO SAY-DO;
+  DocListSheet.criar_colunas (anexa no fim, copia estilo, estende autofiltro) usado
+  pela atualização e pelo script tools/criar_colunas_situacao_emissao.py.
+  Conferido na planilha real (cópia): script criou AA/AB e é idempotente; backlog
+  = 67 distintos, OTD com 94 pendentes vencidos (o painel de hoje mostra 62).

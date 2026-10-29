@@ -4,7 +4,7 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Ticket 04: SITUAÇÃO OTD e SITUAÇÃO SAY-DO no Doc List, com criação automática das colunas.
+Ticket 05: ADR 0001, KB (§24.13 substituída, §24.14 e §27.7 novas), guias, README, textos das telas e CHANGELOG.
 
 ## Current Phase
 Phase 7
@@ -54,7 +54,7 @@ Phase 7
 - [x] Ticket 01: data prevista congelada e incidências (Doc List + Mapa)
 - [x] Ticket 02: decisão injetável e aba de recusas
 - [x] Ticket 03: tela de sobrescrição
-- [ ] Ticket 04: SITUAÇÃO OTD e SITUAÇÃO SAY-DO
+- [x] Ticket 04: SITUAÇÃO OTD e SITUAÇÃO SAY-DO
 - [ ] Ticket 05: ADR, KB, guias, README, CHANGELOG
 - [ ] Suíte inteira + ruff verdes; revisão (code-review) feita
 - **Status:** in_progress

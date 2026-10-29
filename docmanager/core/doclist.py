@@ -60,6 +60,8 @@ COLUNAS_DOCLIST: dict[str, str] = {
     "data_primeira_emissao": "DATA 1ª EMISSÃO",
     "situacao_emissao": "SITUAÇÃO EMISSÃO",
     "dias_desvio_emissao": "DIAS DESVIO EMISSÃO",
+    "situacao_otd": "SITUAÇÃO OTD",
+    "situacao_say_do": "SITUAÇÃO SAY-DO",
     "status_real": "STATUS REAL",
     "status_emissao": "STATUS",
     "responsavel": "RESPONSIBLE (COE/VENDOR)",
@@ -90,6 +92,7 @@ NIVEL_DOCUMENTO = "2"
 COLUNAS_CALCULADAS = (
     "data_alvo", "emitido_nao_emitido", "data_ultimo_status", "revisao",
     "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao",
+    "situacao_otd", "situacao_say_do",
     "status_real", "status_emissao", "status_consolidado", "com_itaipu",
     "predecessor", "resumo_quantidades",
 )
@@ -180,6 +183,42 @@ def classificar_situacao_emissao(*, data_primeira_emissao: date | None,
         return (SIT_EMITIDO_NO_PRAZO if data_primeira_emissao <= data_alvo
                 else SIT_EMITIDO_COM_ATRASO)
     return SIT_PENDENTE_NO_PRAZO if hoje <= data_alvo else SIT_PENDENTE_VENCIDO
+
+
+# ---------------------------------------------------------------------------
+# Baseline OTD e Say-do (pedido de 2026-10-28, KB §27.7)
+# ---------------------------------------------------------------------------
+# A SITUAÇÃO EMISSÃO mede contra a DATA-ALVO (a visão "de hoje" do painel). Os
+# dois indicadores pedidos medem contra datas fixas:
+#   - SITUAÇÃO OTD: os mesmos baldes, contra a DATA PREVISTA (a baseline);
+#   - SITUAÇÃO SAY-DO: os mesmos baldes, contra a DATA REPROGRAMADA, só para o
+#     backlog. O Power BI conta; a regra fica aqui, testada.
+def e_backlog(*, data_prevista: date | None, data_reprogramada: date | None,
+              data_primeira_emissao: date | None) -> bool:
+    """Backlog: a data reprogramada é posterior à prevista e o documento não
+    tinha saído até a prevista.
+
+    Fica de fora a reprogramação igual à prevista (a data não mudou) e a do
+    documento que já tinha saído no prazo - na planilha real ela é a data da
+    próxima revisão, não da 1ª emissão. Entra assim que é reprogramado, mesmo
+    antes de a prevista vencer.
+    """
+    if data_prevista is None or data_reprogramada is None or data_reprogramada <= data_prevista:
+        return False
+    return not (data_primeira_emissao is not None and data_primeira_emissao <= data_prevista)
+
+
+def classificar_situacao_say_do(*, data_prevista: date | None, data_reprogramada: date | None,
+                                data_primeira_emissao: date | None, status_consolidado: str,
+                                hoje: date) -> str | None:
+    """Balde do novo compromisso: a 1ª emissão (ou HOJE) contra a data
+    reprogramada. `None` fora do backlog - a célula fica vazia."""
+    if not e_backlog(data_prevista=data_prevista, data_reprogramada=data_reprogramada,
+                     data_primeira_emissao=data_primeira_emissao):
+        return None
+    return classificar_situacao_emissao(data_primeira_emissao=data_primeira_emissao,
+                                        data_alvo=data_reprogramada,
+                                        status_consolidado=status_consolidado, hoje=hoje)
 
 
 def calcular_dias_desvio_emissao(data_primeira_emissao: date | None,

@@ -21,6 +21,7 @@ from docmanager.core.doclist import (
     calcular_predecessores,
     calcular_resumo_quantidades,
     classificar_situacao_emissao,
+    classificar_situacao_say_do,
     resolver_datas_doclist,
 )
 from docmanager.core.doclist_periodo import (
@@ -872,3 +873,97 @@ def test_caso_a_caso_troca_so_as_escolhidas(tmp_path):
     assert _data(ws, col, "DATA REPROGRAMADA") == date(2026, 12, 15)         # aceita
     assert _data(ws, col, "DATA-ALVO EMISSÃO") == date(2026, 12, 15)
     assert [c.value for c in wb[ABA_RECUSAS][2]][2] == "DATA PREVISTA EMISSÃO"
+
+
+# ---------------------------------------------------------------------------
+# SITUAÇÃO OTD e SITUAÇÃO SAY-DO (Baseline OTD e Say-do, pedido de 2026-10-28)
+# ---------------------------------------------------------------------------
+HOJE_OUT = date(2026, 10, 28)
+
+
+@pytest.mark.parametrize("caso,prevista,reprogramada,emissao,esperado", [
+    # A: perdeu a data prevista e assumiu nova data → backlog, no prazo do novo compromisso.
+    ("A", date(2026, 10, 15), date(2027, 2, 28), None, SIT_PENDENTE_NO_PRAZO),
+    # B: reprogramado antes de vencer → entra no backlog assim que é reprogramado.
+    ("B", date(2026, 12, 22), date(2027, 2, 28), None, SIT_PENDENTE_NO_PRAZO),
+    # C: saiu antes da prevista; a reprogramada é de outra revisão → fora do backlog.
+    ("C", date(2026, 9, 30), date(2026, 10, 9), date(2026, 9, 24), None),
+    # D: a data não mudou → fora do backlog.
+    ("D", date(2027, 2, 28), date(2027, 2, 28), None, None),
+    # E: vencido sem data nova → fora do backlog (é o atrasado sem compromisso).
+    ("E", date(2026, 9, 1), None, None, None),
+    # Saiu depois da prevista, mas antes da reprogramada → cumpriu o novo compromisso.
+    ("F", date(2026, 5, 1), date(2026, 8, 1), date(2026, 7, 20), SIT_EMITIDO_NO_PRAZO),
+    # Perdeu também a reprogramada.
+    ("G", date(2026, 5, 1), date(2026, 8, 1), date(2026, 9, 2), SIT_EMITIDO_COM_ATRASO),
+    ("H", date(2026, 5, 1), date(2026, 8, 1), None, SIT_PENDENTE_VENCIDO),
+])
+def test_situacao_say_do_so_existe_no_backlog(caso, prevista, reprogramada, emissao, esperado):
+    assert classificar_situacao_say_do(
+        data_prevista=prevista, data_reprogramada=reprogramada, data_primeira_emissao=emissao,
+        status_consolidado="NÃO EMITIDO" if emissao is None else "APROVADO",
+        hoje=HOJE_OUT) == esperado, caso
+
+
+def test_backlog_cancelado_fica_cancelado_no_say_do():
+    assert classificar_situacao_say_do(
+        data_prevista=date(2026, 5, 1), data_reprogramada=date(2026, 8, 1),
+        data_primeira_emissao=None, status_consolidado="CANCELADO", hoje=HOJE_OUT) == SIT_CANCELADO
+
+
+def _doclist_casos_a_e(tmp_path, *, sem_colunas_novas=False):
+    """Um grupo e os casos A-E (só o C está no Aconex, emitido em 24/09/2026)."""
+    b = base(HistoricoBuilder("TC", "#IT-C", "CMI-C", "DOC C")
+             .evento("0A", 1, "Em Processo", "24/09/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+    linhas = [
+        ("UNIT", "SDSC", "", "GRUPO-1", "AGRUPAMENTO", "1", None, None),
+        ("UNIT", "SDSC", "CMI-A", "#IT-A", "DOC A", "2", date(2026, 10, 15), date(2027, 2, 28)),
+        ("UNIT", "SDSC", "CMI-B", "#IT-B", "DOC B", "2", date(2026, 12, 22), date(2027, 2, 28)),
+        ("UNIT", "SDSC", "CMI-C", "#IT-C", "DOC C", "2", date(2026, 9, 30), date(2026, 10, 9)),
+        ("UNIT", "SDSC", "CMI-D", "#IT-D", "DOC D", "2", date(2027, 2, 28), date(2027, 2, 28)),
+        ("UNIT", "SDSC", "CMI-E", "#IT-E", "DOC E", "2", date(2026, 9, 1), None),
+    ]
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx", linhas)
+    if sem_colunas_novas:
+        wb = openpyxl.load_workbook(path_dl)
+        ws = wb.active
+        for titulo in ("SITUAÇÃO SAY-DO", "SITUAÇÃO OTD"):
+            ws.delete_cols([c.column for c in ws[1] if c.value == titulo][0])
+        ws.auto_filter.ref = f"A1:{ws.cell(1, ws.max_column).column_letter}{ws.max_row}"
+        wb.save(path_dl)
+    return path_base, path_dl
+
+
+def test_ciclo_completo_grava_situacao_otd_e_say_do(tmp_path):
+    path_base, path_dl = _doclist_casos_a_e(tmp_path)
+    r = atualizar_doclist(path_base, path_dl, hoje=HOJE_OUT, log_cb=lambda _m: None)
+    assert r.ok, r.mensagem
+    ws = openpyxl.load_workbook(path_dl).active
+    col = {str(c.value): c.column for c in ws[1]}
+    situacao = {ws.cell(row, col["N° ITAIPU"]).value: (ws.cell(row, col["SITUAÇÃO OTD"]).value,
+                                                       ws.cell(row, col["SITUAÇÃO SAY-DO"]).value,
+                                                       ws.cell(row, col["SITUAÇÃO EMISSÃO"]).value)
+                for row in range(2, 8)}
+    assert situacao == {
+        "GRUPO-1": (None, None, None),                                   # grupo não é documento
+        "#IT-A": (SIT_PENDENTE_VENCIDO, SIT_PENDENTE_NO_PRAZO, SIT_PENDENTE_NO_PRAZO),
+        "#IT-B": (SIT_PENDENTE_NO_PRAZO, SIT_PENDENTE_NO_PRAZO, SIT_PENDENTE_NO_PRAZO),
+        "#IT-C": (SIT_EMITIDO_NO_PRAZO, None, SIT_EMITIDO_NO_PRAZO),
+        "#IT-D": (SIT_PENDENTE_NO_PRAZO, None, SIT_PENDENTE_NO_PRAZO),
+        "#IT-E": (SIT_PENDENTE_VENCIDO, None, SIT_PENDENTE_VENCIDO),
+    }
+
+
+def test_colunas_otd_e_say_do_sao_criadas_quando_faltam(tmp_path):
+    path_base, path_dl = _doclist_casos_a_e(tmp_path, sem_colunas_novas=True)
+    logs = []
+    assert atualizar_doclist(path_base, path_dl, hoje=HOJE_OUT, log_cb=logs.append).ok
+    ws = openpyxl.load_workbook(path_dl).active
+    cab = [c.value for c in ws[1]]
+    assert cab[-2:] == ["SITUAÇÃO OTD", "SITUAÇÃO SAY-DO"]                # no fim da aba
+    assert ws.cell(3, len(cab)).value == SIT_PENDENTE_NO_PRAZO           # say-do do caso A
+    assert ws.auto_filter.ref.endswith(f"{ws.cell(1, len(cab)).column_letter}7")
+    assert any("Coluna criada: SITUAÇÃO OTD" in m for m in logs)
+    assert not any("não encontradas" in m for m in logs)

@@ -23,6 +23,7 @@ from ..core.doclist import (
     calcular_predecessores,
     calcular_resumo_quantidades,
     classificar_situacao_emissao,
+    classificar_situacao_say_do,
     niveis_fora_do_padrao,
     resolver_datas_doclist,
 )
@@ -30,7 +31,7 @@ from ..core.identity import AconexIndex, obter_codigos_historicos
 from ..core.mapping import processar_documento
 from ..core.planejamento import COLUNA_PREVISTA
 from .controle_docs import ControleDocs, ControleMemo
-from .doclist_io import DocListSheet
+from .doclist_io import COLUNAS_CRIADAS_PELO_APP, DocListSheet
 from .excel_io import aviso_datas_com_texto, carregar_base_aconex
 from .sobrescricao import IncidenciaDoc, decidir
 
@@ -118,7 +119,8 @@ def _escrever_grupo(ds: DocListSheet, row: int) -> None:
     # antes ela nunca era reescrita no grupo e podia guardar texto no meio da
     # coluna de data - o que faz o Power BI ler a coluna inteira como texto.
     for chave in ("data_alvo", "revisao", "data_ultimo_status", "status_emissao",
-                  "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao"):
+                  "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao",
+                  "situacao_otd", "situacao_say_do"):
         ds.set_val(chave, row, None)
 
 
@@ -135,6 +137,21 @@ def _escrever_situacao_emissao(ds: DocListSheet, row: int, r, data_alvo, hoje: d
         status_consolidado=r.status_consolidado, hoje=hoje))
     ds.set_val("dias_desvio_emissao", row,
                calcular_dias_desvio_emissao(r.data_primeira_emissao, data_alvo))
+
+
+def _escrever_otd_e_say_do(ds: DocListSheet, row: int, r, hoje: date) -> None:
+    """SITUAÇÃO OTD (contra a DATA PREVISTA, a baseline) e SITUAÇÃO SAY-DO
+    (contra a DATA REPROGRAMADA, só no backlog), sobre as datas que FICARAM nas
+    células depois da decisão de sobrescrição."""
+    prevista = ds.get_data("data_prevista", row)
+    reprogramada = ds.get_data("data_reprogramada", row)
+    ds.set_val("situacao_otd", row, classificar_situacao_emissao(
+        data_primeira_emissao=r.data_primeira_emissao, data_alvo=prevista,
+        status_consolidado=r.status_consolidado, hoje=hoje))
+    ds.set_val("situacao_say_do", row, classificar_situacao_say_do(
+        data_prevista=prevista, data_reprogramada=reprogramada,
+        data_primeira_emissao=r.data_primeira_emissao,
+        status_consolidado=r.status_consolidado, hoje=hoje))
 
 
 def _escrever_documento(ds: DocListSheet, row: int, r) -> None:
@@ -201,6 +218,8 @@ def atualizar_doclist(
     trocas = ds.renomear_cabecalhos_legados()
     for antigo, novo in trocas:
         log_cb(f"Cabeçalho atualizado: '{antigo}' → '{novo}'.")
+    for titulo, letra in ds.criar_colunas(COLUNAS_CRIADAS_PELO_APP):
+        log_cb(f"Coluna criada: {titulo} (coluna {letra}, no fim da aba; pode arrastá-la).")
     if ds.colunas_ausentes:
         log_cb(f"Aviso: colunas não encontradas na planilha (serão ignoradas): "
                f"{', '.join(ds.colunas_ausentes)}")
@@ -273,6 +292,7 @@ def atualizar_doclist(
             data_prevista=datas.data_alvo, hoje=hoje)
         _escrever_documento(ds, row, resultado)
         _escrever_situacao_emissao(ds, row, resultado, datas.data_alvo, hoje_ref)
+        _escrever_otd_e_say_do(ds, row, resultado, hoje_ref)
 
         # Descrição - cadeia de prioridade Aconex > Controle > planilha (§27.3).
         # Quem está no Aconex já teve a descrição escrita acima. Para o resto,
