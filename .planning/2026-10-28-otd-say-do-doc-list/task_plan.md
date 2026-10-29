@@ -4,10 +4,10 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Esperar as respostas da rodada 3 (Q12-Q18). Se a fronteira esvaziar, confirmar o entendimento comum e seguir para /to-spec.
+Ticket 01: teste vermelho da regra pura (célula preenchida nunca trocada; incidência) e depois o Doc List de ponta a ponta.
 
 ## Current Phase
-Phase 6
+Phase 7
 
 ## Phases
 
@@ -43,14 +43,25 @@ Phase 6
 - [x] Commit e push dos arquivos (.planning/, GLOSSARY.md) no branch designado
 - **Status:** complete
 
-### Phase 6: Spec e tickets (to-spec / to-tickets), depois das respostas
-- [ ] Rodadas seguintes do grilling até a fronteira esvaziar
-- [ ] /setup-matt-pocock-skills (issue tracker) antes do /to-spec
+### Phase 6: Spec e tickets (to-spec / to-tickets)
+- [x] Rodadas do grilling até a parte do DocManager ficar sem perguntas (rodadas 1-3)
+- [x] Issue tracker = arquivos em .scratch/ (setup das skills, "o mais simples"); CLAUDE.md com o bloco Agent skills
+- [x] Spec em .scratch/otd-say-do/spec.md
+- [x] Tickets 01-06 em .scratch/otd-say-do/issues/
+- **Status:** complete
+
+### Phase 7: Implementação do DocManager (tdd)
+- [ ] Ticket 01: data prevista congelada e incidências (Doc List + Mapa)
+- [ ] Ticket 02: decisão injetável e aba de recusas
+- [ ] Ticket 03: tela de sobrescrição
+- [ ] Ticket 04: SITUAÇÃO OTD e SITUAÇÃO SAY-DO
+- [ ] Ticket 05: ADR, KB, guias, README, CHANGELOG
+- [ ] Suíte inteira + ruff verdes; revisão (code-review) feita
 - **Status:** in_progress
 
-### Phase 7: Implementação (tdd) e roteiro do Power BI
-- [ ] Python: colunas novas e regra de congelamento da data base
-- [ ] Power BI: medidas de Baseline OTD e Backlog Say-do + gráfico de backlog
+### Phase 8: Roteiro do Power BI (ticket 06)
+- [ ] Respostas da rodada 4 (Q19 três visões, Q20 curva S)
+- [ ] Roteiro de cliques detalhado, conferido contra o modelo atual
 - **Status:** pending
 
 ## Key Questions
@@ -87,7 +98,7 @@ coisa). Q5 SIM. Q8 SIM. Q9 "ok", lembrando que quem atualiza é o DocManager
 (esclarecer: é o DocManager que grava e lê a aba). Q10: vai conferir no Box; pediu
 a lista (gerada: 15 documentos). Q11 NÃO: nada de coluna nova; OBSERVAÇÕES segue manual.
 
-Rodada 3 (enviada em 2026-10-28, aguardando resposta):
+Rodada 3 (respondida em 2026-10-29):
 - Q12 Um gráfico só com dois botões, OTD e Say-do (indicadores + botões do Power BI);
   Say-do = backlog pela DATA REPROGRAMADA; um filtro de mês para os dois. Rec.: sim.
 - Q13 Dois cartões sempre visíveis no lugar das notas amarelas (BASELINE OTD e
@@ -101,6 +112,31 @@ Rodada 3 (enviada em 2026-10-28, aguardando resposta):
   docs/doc_list_mapping.md. Rec.: sim.
 - Q18 Onde acompanhar a spec e as tarefas: issues no GitHub do DocManager ou
   arquivos no repositório. Rec.: GitHub.
+
+Respostas: Q12 faltou a visão ATUAL (a de hoje, pela DATA-ALVO): são TRÊS visões no
+mesmo gráfico; pediu como fazer para não ficar feio. Q13 cartões "ali mesmo" (onde
+estão as notas amarelas). Q14 SIM, e apontou que a curva de hoje erra: documento
+previsto para 10/10 e emitido em 30/09 conta como previsto em outubro mas não como
+emitido em outubro (o acumulado recomeça no mês filtrado). Q15 primeiro o DocManager;
+depois instruções de clique bem detalhadas para o Power BI (sem .pbip). Q16 SIM
+(automático). Q17 SIM, e atualizar o conhecimento no Git (KB + docs). Q18 "não
+entendi, vai pelo mais simples" → arquivos no repositório (.scratch/, convenção
+local das skills do Matt Pocock).
+
+Consequências tiradas por mim (informar ao usuário):
+- Com a visão ATUAL mantida, a SITUAÇÃO EMISSÃO NÃO muda de régua (continua contra a
+  DATA-ALVO, que é o gráfico de hoje). A régua da DATA PREVISTA vai para uma coluna
+  nova, SITUAÇÃO OTD. Isso substitui o detalhe da Q2 ("SITUAÇÃO EMISSÃO passa a
+  comparar com a DATA PREVISTA"); o comportamento pedido é o mesmo.
+- Fechar a tela de sobrescrição sem escolher = nada trocado e nada anotado (pergunta
+  de novo na próxima rodada).
+
+Rodada 4 (só Power BI; não bloqueia o DocManager):
+- Q19 Três visões no mesmo lugar com botões em segmento (ATUAL | OTD | SAY-DO, via
+  Navegador de indicadores), mesmo tamanho e posição, título muda por visão;
+  abre na ATUAL. Mostrar com um protótipo visual.
+- Q20 Curva S: acumular desde o começo do projeto (o filtro de mês só escolhe a
+  janela), previstos pela DATA PREVISTA. Resolve o exemplo 10/10 x 30/09.
 
 Fora do grilling (anotado para a spec):
 - Power BI: Calendario + relações inativas para DATA PREVISTA e DATA REPROGRAMADA,
@@ -125,6 +161,13 @@ Fora do grilling (anotado para a spec):
 | Q9: recusa anotada numa aba da própria planilha, escrita e lida pelo DocManager; pergunta de novo só se o Controle mudar | resposta do usuário (2026-10-28, "ok") |
 | Q10: o usuário confere os 15 no histórico do Box; lista entregue (xlsx, fora do Git) | resposta do usuário (2026-10-28) |
 | Q11: sem coluna de data da atualização; OBSERVAÇÕES continua manual | resposta do usuário (2026-10-28) |
+| Q12: três visões no mesmo gráfico (ATUAL, OTD, SAY-DO); SITUAÇÃO EMISSÃO fica como está e entra a coluna SITUAÇÃO OTD | resposta do usuário (2026-10-29) + consequência técnica |
+| Q13: cartões BASELINE OTD e SAY-DO onde estão as notas amarelas | resposta do usuário (2026-10-29) |
+| Q14: curva S com previstos pela DATA PREVISTA e sem recomeçar o acumulado no mês filtrado | resposta do usuário (2026-10-29) |
+| Q15: primeiro o DocManager; depois roteiro de cliques detalhado do Power BI | resposta do usuário (2026-10-29) |
+| Q16: o app cria sozinho as colunas novas e a aba de recusas | resposta do usuário (2026-10-29) |
+| Q17: ADR + KB + docs atualizados e versionados | resposta do usuário (2026-10-29) |
+| Q18: spec e tarefas como arquivos em .scratch/otd-say-do/ | resposta do usuário (2026-10-29, "o mais simples") |
 
 ## Errors Encountered
 | Error | Resolution |
