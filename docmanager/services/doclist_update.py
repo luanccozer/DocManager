@@ -23,14 +23,18 @@ from ..core.doclist import (
     calcular_predecessores,
     calcular_resumo_quantidades,
     classificar_situacao_emissao,
+    classificar_situacao_say_do,
     niveis_fora_do_padrao,
     resolver_datas_doclist,
 )
 from ..core.identity import AconexIndex, obter_codigos_historicos
 from ..core.mapping import processar_documento
-from .controle_docs import ControleDocs
-from .doclist_io import DocListSheet
+from ..core.planejamento import COLUNA_PREVISTA
+from .controle_docs import ControleDocs, ControleMemo
+from .doclist_io import COLUNAS_CRIADAS_PELO_APP, DocListSheet
 from .excel_io import aviso_datas_com_texto, carregar_base_aconex
+from .gravacao import salvar_planilha
+from .sobrescricao import IncidenciaDoc, decidir
 
 
 # Colunas de data que aceitam input manual (as outras o app calcula e grava).
@@ -49,7 +53,6 @@ class ResultadoDocList:
 class DiagnosticoDocList:
     """Placar do casamento Doc List ↔ Controle, para o log não ser mudo."""
     previstas: int = 0
-    previstas_atualizadas: int = 0
     reprogramadas: int = 0
     alvos: int = 0
     titulos: int = 0
@@ -72,9 +75,8 @@ class DiagnosticoDocList:
         vias = ", ".join(f"{k}: {v}" for k, v in sorted(self.por_via.items())) or "nenhum"
         msgs = [
             f"Controle ↔ Doc List: {self.casados} documentos casaram ({vias}).",
-            f"Planejamento gravado: {self.previstas} datas previstas "
-            f"({self.previstas_atualizadas} atualizadas por serem mais recentes), "
-            f"{self.reprogramadas} reprogramações, {self.alvos} datas-alvo.",
+            f"Planejamento gravado: {self.previstas} datas previstas e {self.reprogramadas} "
+            f"reprogramações escritas, {self.alvos} datas-alvo.",
         ]
         if self.titulos:
             msgs.append(f"{self.titulos} descrições vindas do título do Controle "
@@ -87,6 +89,17 @@ class DiagnosticoDocList:
                         f"{amostra}{resto}")
             msgs.append("Se algum deles existe no Controle, confira se a ABA selecionada é a certa.")
         return msgs
+
+
+@dataclass
+class _Linha:
+    """Uma linha com código, guardada entre as duas passadas."""
+    row: int
+    cod_itaipu: str
+    cod_cmi: str
+    e_grupo: bool
+    df_tracking: object = None
+    codigos: list = field(default_factory=list)
 
 
 def _escrever_grupo(ds: DocListSheet, row: int) -> None:
@@ -107,7 +120,8 @@ def _escrever_grupo(ds: DocListSheet, row: int) -> None:
     # antes ela nunca era reescrita no grupo e podia guardar texto no meio da
     # coluna de data - o que faz o Power BI ler a coluna inteira como texto.
     for chave in ("data_alvo", "revisao", "data_ultimo_status", "status_emissao",
-                  "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao"):
+                  "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao",
+                  "situacao_otd", "situacao_say_do"):
         ds.set_val(chave, row, None)
 
 
@@ -124,6 +138,21 @@ def _escrever_situacao_emissao(ds: DocListSheet, row: int, r, data_alvo, hoje: d
         status_consolidado=r.status_consolidado, hoje=hoje))
     ds.set_val("dias_desvio_emissao", row,
                calcular_dias_desvio_emissao(r.data_primeira_emissao, data_alvo))
+
+
+def _escrever_otd_e_say_do(ds: DocListSheet, row: int, r, hoje: date) -> None:
+    """SITUAÇÃO OTD (contra a DATA PREVISTA, a baseline) e SITUAÇÃO SAY-DO
+    (contra a DATA REPROGRAMADA, só no backlog), sobre as datas que FICARAM nas
+    células depois da decisão de sobrescrição."""
+    prevista = ds.get_data("data_prevista", row)
+    reprogramada = ds.get_data("data_reprogramada", row)
+    ds.set_val("situacao_otd", row, classificar_situacao_emissao(
+        data_primeira_emissao=r.data_primeira_emissao, data_alvo=prevista,
+        status_consolidado=r.status_consolidado, hoje=hoje))
+    ds.set_val("situacao_say_do", row, classificar_situacao_say_do(
+        data_prevista=prevista, data_reprogramada=reprogramada,
+        data_primeira_emissao=r.data_primeira_emissao,
+        status_consolidado=r.status_consolidado, hoje=hoje))
 
 
 def _escrever_documento(ds: DocListSheet, row: int, r) -> None:
@@ -145,13 +174,39 @@ def _escrever_documento(ds: DocListSheet, row: int, r) -> None:
     ds.set_val("status_consolidado", row, r.status_consolidado)
 
 
+def _resolver_datas(ds: DocListSheet, ln: _Linha, controle, aceitas=frozenset()):
+    return resolver_datas_doclist(
+        prevista_atual=ds.get_bruto("data_prevista", ln.row),
+        reprogramada_atual=ds.get_bruto("data_reprogramada", ln.row),
+        codigos=ln.codigos, cod_itaipu_atual=ln.cod_itaipu, cod_cmi_atual=ln.cod_cmi,
+        controle=controle, aceitas=aceitas)
+
+
+def _incidencias_da_linha(ds: DocListSheet, ln: _Linha, datas) -> list[IncidenciaDoc]:
+    return [IncidenciaDoc(
+        row=ln.row, cod_itaipu=ln.cod_itaipu, cod_cmi=ln.cod_cmi,
+        descricao=ds.get_val("descricao", ln.row), coluna=inc.coluna,
+        titulo_coluna=COLUNAS_DOCLIST["data_prevista" if inc.coluna == COLUNA_PREVISTA
+                                      else "data_reprogramada"],
+        valor_planilha=inc.valor_planilha, data_controle=inc.data_controle)
+        for inc in datas.incidencias]
+
+
 def atualizar_doclist(
     path_aconex, path_doclist, *, sheet_aconex=0, sheet_doclist=None,
     controle: ControleDocs | None = None, hoje: date | None = None,
-    log_cb=print, progress_cb=None, retry_cb=None,
+    log_cb=print, progress_cb=None, retry_cb=None, decidir_cb=None,
 ) -> ResultadoDocList:
     """Atualiza a planilha do Doc List Mapping a partir da base Aconex (+
-    Controle de Documentos, opcional)."""
+    Controle de Documentos, opcional).
+
+    Duas passadas: a primeira localiza cada documento e acha as incidências (as
+    datas preenchidas que o Controle trocaria, ADR 0001); a segunda grava tudo
+    com as datas finais. A busca no Controle é memorizada, então não custa dobrado.
+
+    `decidir_cb(pendentes) -> DecisaoSobrescricao | None` é a tela de
+    sobrescrição; sem ela, nenhuma data preenchida é trocada.
+    """
     log_cb("Lendo base Aconex...")
     base = carregar_base_aconex(path_aconex, sheet_aconex)
     idx = AconexIndex(base)
@@ -164,6 +219,8 @@ def atualizar_doclist(
     trocas = ds.renomear_cabecalhos_legados()
     for antigo, novo in trocas:
         log_cb(f"Cabeçalho atualizado: '{antigo}' → '{novo}'.")
+    for titulo, letra in ds.criar_colunas(COLUNAS_CRIADAS_PELO_APP):
+        log_cb(f"Coluna criada: {titulo} (coluna {letra}, no fim da aba; pode arrastá-la).")
     if ds.colunas_ausentes:
         log_cb(f"Aviso: colunas não encontradas na planilha (serão ignoradas): "
                f"{', '.join(ds.colunas_ausentes)}")
@@ -171,18 +228,21 @@ def atualizar_doclist(
     log_cb(f"Processando linhas {ds.start_row} a {ds.max_row}...")
     hoje_ref = hoje or date.today()   # régua do PENDENTE NO PRAZO / VENCIDO
     total = max(ds.max_row - ds.start_row + 1, 1)
-    processadas = grupos = 0
+    controle = ControleMemo(controle) if controle is not None else None
     diag = DiagnosticoDocList()
     datas_com_texto: list[str] = []
 
+    # Passada 1: datas manuais viram DATA do Excel, cada documento é localizado
+    # no Aconex e as incidências com o Controle são levantadas.
+    linhas: list[_Linha] = []
+    incidencias: list[IncidenciaDoc] = []
     for i, row in enumerate(range(ds.start_row, ds.max_row + 1)):
         if progress_cb and i % 10 == 0:
-            progress_cb(min(i / total, 0.95))
+            progress_cb(min(0.3 * i / total, 0.3))
         c_itaipu = ds.get_val("codigo_itaipu", row)
         c_cmi = ds.get_val("codigo_cmi", row)
         if not c_itaipu and not c_cmi:
             continue
-        processadas += 1
 
         # As datas digitadas à mão viram DATA do Excel (texto '15/10/2026',
         # formato personalizado...), para o Power BI ler a coluna como data. As
@@ -191,45 +251,59 @@ def atualizar_doclist(
             if (texto := ds.normalizar_data(chave, row)) is not None:
                 datas_com_texto.append(f"{COLUNAS_DOCLIST[chave]} linha {row}: '{texto}'")
 
-        if ds.get_val("nivel", row).strip() == NIVEL_GRUPO:
+        ln = _Linha(row, c_itaipu, c_cmi, e_grupo=ds.get_val("nivel", row).strip() == NIVEL_GRUPO)
+        linhas.append(ln)
+        if ln.e_grupo:
+            continue
+        ln.df_tracking = idx.localizar(c_itaipu, c_cmi)
+        ln.codigos = obter_codigos_historicos(ln.df_tracking) if not ln.df_tracking.empty else []
+        incidencias += _incidencias_da_linha(ds, ln, _resolver_datas(ds, ln, controle))
+
+    # Decisão sobre as incidências: a tela (decidir_cb) ou, sem ela, nada trocado.
+    aceitas_por_linha, linhas_log = decidir(incidencias, wb, decidir_cb, hoje=hoje_ref)
+    for linha_log in linhas_log:
+        log_cb(linha_log)
+
+    # Passada 2: grava status, datas e aderência.
+    grupos = 0
+    for i, ln in enumerate(linhas):
+        if progress_cb and i % 10 == 0:
+            progress_cb(min(0.3 + 0.65 * i / max(len(linhas), 1), 0.95))
+        row = ln.row
+        if ln.e_grupo:
             grupos += 1
             _escrever_grupo(ds, row)
             continue
 
-        df_tracking = idx.localizar(c_itaipu, c_cmi)
-
         # Planejamento vindo do Controle (roda mesmo sem o doc no Aconex - é
         # justamente o não emitido que precisa da data prevista).
-        datas = resolver_datas_doclist(
-            prevista_atual=ds.get_data("data_prevista", row),
-            reprogramada_atual=ds.get_data("data_reprogramada", row),
-            codigos=obter_codigos_historicos(df_tracking) if not df_tracking.empty else [],
-            cod_itaipu_atual=c_itaipu, cod_cmi_atual=c_cmi, controle=controle)
+        datas = _resolver_datas(ds, ln, controle, aceitas_por_linha.get(row, frozenset()))
         if datas.prevista is not None and ds.set_data("data_prevista", row, datas.prevista):
             diag.previstas += 1
-            diag.previstas_atualizadas += int(datas.prevista_atualizada)
         if datas.reprogramada is not None and ds.set_data("data_reprogramada", row, datas.reprogramada):
             diag.reprogramadas += 1
         # DATA-ALVO é sempre reescrita (inclusive apagada, se não há mais data).
         if ds.set_data("data_alvo", row, datas.data_alvo) and datas.data_alvo is not None:
             diag.alvos += 1
         if controle is not None:
-            diag.registrar(datas.via, c_itaipu or c_cmi)
+            diag.registrar(datas.via, ln.cod_itaipu or ln.cod_cmi)
 
         resultado = processar_documento(
-            df_tracking, nivel=ds.get_val("nivel", row), tag_etapa="",
+            ln.df_tracking, nivel=ds.get_val("nivel", row), tag_etapa="",
             data_prevista=datas.data_alvo, hoje=hoje)
         _escrever_documento(ds, row, resultado)
         _escrever_situacao_emissao(ds, row, resultado, datas.data_alvo, hoje_ref)
+        _escrever_otd_e_say_do(ds, row, resultado, hoje_ref)
 
         # Descrição - cadeia de prioridade Aconex > Controle > planilha (§27.3).
         # Quem está no Aconex já teve a descrição escrita acima. Para o resto,
         # o título do Controle SOBRESCREVE o que estiver na célula: descrição
         # digitada à mão costuma ser genérica, e a do Controle é a boa.
-        if df_tracking.empty and datas.titulo_controle \
+        if ln.df_tracking.empty and datas.titulo_controle \
                 and ds.get_val("descricao", row) != datas.titulo_controle:
             ds.set_val("descricao", row, datas.titulo_controle)
             diag.titulos += 1
+    processadas = len(linhas)
 
     if controle is not None:
         for linha_log in diag.linhas_log():
@@ -257,15 +331,8 @@ def atualizar_doclist(
         ds.set_val("resumo_quantidades", row_r, texto)
 
     log_cb("Salvando...")
-    while True:
-        try:
-            wb.save(path_doclist)
-            break
-        except PermissionError as e:
-            if retry_cb and retry_cb(f"Arquivo aberto/bloqueado: {e}. Feche e tente de novo."):
-                continue
-            return ResultadoDocList(False, f"Não foi possível salvar (arquivo aberto?): {e}",
-                                    processadas, grupos)
+    if (erro := salvar_planilha(wb, path_doclist, retry_cb=retry_cb, log_cb=log_cb)) is not None:
+        return ResultadoDocList(False, erro, processadas, grupos)
 
     if progress_cb:
         progress_cb(1.0)

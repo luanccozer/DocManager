@@ -429,6 +429,8 @@ Arquivo opcional no Mapa dos Planos. Leitura: `header=3` (cabeçalho na linha 4)
 5. **Datas conflitantes** (códigos do mesmo doc com datas diferentes no Controle) → desempate: data atrelada ao **código Itaipu atual** do mapeamento → senão, ao **código CMI atual** → senão, a **data mais nova** (segurança).
 6. Formato: data nativa do Excel, no formato **Data** (desde a v3.1.1, §27.6; antes o openpyxl deixava `yyyy-mm-dd`).
 
+> Regra histórica (v2.2). A regra atual das datas do Controle é a §24.14: data preenchida só é trocada com aceite.
+
 ---
 
 ## 14. KPIs Analíticos (`analisar_kpis_documento`)
@@ -967,6 +969,10 @@ Cinco ajustes de "comunicação" entre partes do código, sem regra de negócio 
 
 ## 24.13 ✅ Regras de data UNIFICADAS — o Mapa adotou as do Doc List (2026-07-28, decisão do usuário)
 
+> ⚠️ **Substituída pela §24.14 (2026-10-29, ADR 0001).** A unificação continua (uma
+> regra só, em `core/planejamento.py`), mas a DATA PREVISTA não fica mais com a mais
+> recente: data preenchida só é trocada com aceite.
+
 **Decisão**: *"Vamos tornar as duas regras do Doc List Mapping como regras para o mapeamento de planos também. A lógica dele é melhor."*
 
 | | Mapa (antes) | **Agora, nos dois** |
@@ -982,6 +988,54 @@ O que as regras antigas custavam: uma data replanejada no Controle **nunca chega
 **Infra que faltava**: `MappingSheet` não sabia **ler** a `DATA REPROGRAMADA` (ela é endereçada por posição, §21.1) — ganhou `get_reprogramada_etapa1` e `get_data`, ambas sobre `celula_para_date` (`core/normalize.py`), que normaliza datetime nativo / texto / serial do Excel para `date`. Comparar "qual é mais recente" exige `date` dos dois lados; a leitura antiga devolvia string. `celula_para_date` é a implementação única, compartilhada com o Doc List.
 
 **Testes**: `tests/test_controle_docs.py` +8 (atualização pela mais recente, preservação da mais recente da planilha, reprogramada manual intocada, reprogramada vazia preenchida, `data_ref` sem match, equivalência Mapa↔Doc List e um end-to-end no mapeamento). 612 testes verdes nos 2 venvs.
+
+---
+
+## 24.14 ✅ Data preenchida só é trocada com aceite — tela de sobrescrição (2026-10-29, decisão do usuário, ADR 0001)
+
+**Pedido** (gestão, `instruções.txt`): "a data reprogramada para de atualizar a data
+inicial" e dois indicadores, Baseline OTD e Backlog Say-do. **Decisão do usuário**:
+"o melhor é nunca sobrescrever a data digitada à mão", com a opção de aceitar, não
+sobrescrever ou ver caso a caso. Registro: `docs/adr/0001-data-prevista-e-a-baseline.md`.
+
+| | Até 2026-10 (§24.13) | **Agora, no Doc List e na etapa 1 do Mapa** |
+|---|---|---|
+| Célula vazia | recebe a do Controle | recebe a do Controle (igual) |
+| `DATA PREVISTA` preenchida | vence a **mais recente** | **nunca trocada sem aceite** → incidência |
+| `DATA REPROGRAMADA` preenchida | nunca trocada | **nunca trocada sem aceite** → incidência |
+| Texto ('A DEFINIR') ou fórmula na coluna de data | o Controle escrevia por cima, em silêncio (defeito) | conta como preenchida → incidência |
+| `data_ref` / `DATA-ALVO` | `REPROGRAMADA > PREVISTA` sobre os valores finais | igual |
+
+**Por quê**: a DATA PREVISTA é a baseline do Baseline OTD. Com "a mais recente vence",
+cada replanejamento do Controle apagava a data original; na planilha real (out/2026)
+15 documentos já estavam com prevista = reprogramada = 28/02/2027.
+
+**Como funciona** (duas passadas em `services/doclist_update.py` e
+`services/mapping_update.py`):
+
+1. A 1ª passada normaliza as datas manuais, localiza cada documento e levanta as
+   **incidências** (`core/planejamento.Incidencia`): toda data preenchida diferente da
+   do Controle, mais nova ou mais antiga. A busca no Controle é memorizada
+   (`ControleMemo`), então a 2ª passada não paga de novo.
+2. Incidências cuja chave (código, coluna, data do Controle) está na aba
+   **"Sobrescrições recusadas"** não são perguntadas. Se o Controle mudar a data outra
+   vez, é informação nova e volta a ser perguntada; apagar a linha da aba também.
+3. As pendentes vão para `decidir_cb` - a tela (`ui/views/sobrescricao_dialog.py`):
+   **Aceitar todas**, **Não sobrescrever** ou **Ver caso a caso** (lista com caixas de
+   marcar; as desmarcadas viram recusa). A tela avisa que trocar a DATA PREVISTA muda
+   a baseline. Fechar a janela = decidir depois: nada trocado, nada anotado.
+4. As recusas são anotadas na aba (N° ITAIPU, Nº CMI, COLUNA, DATA NA PLANILHA, DATA DO
+   CONTROLE, RECUSADA EM, POR), criada pelo app na primeira recusa. Ela viaja com o
+   arquivo, então vale para quem rodar o app em outra máquina; o Power BI não a lê.
+5. A 2ª passada grava tudo com as datas finais (as aceitas trocadas).
+
+Sem `decidir_cb` (linha de comando do Mapa, testes) nada é trocado nem anotado, e o log
+lista as incidências. O app não sabe se uma data foi digitada à mão ou escrita por uma
+rodada anterior: por isso a regra vale para toda célula preenchida.
+
+**Testes**: `tests/test_planejamento.py` (regra pura), `tests/test_doclist.py` e
+`tests/test_controle_docs.py` (ponta a ponta, com a decisão injetada),
+`tests/test_ui_telas.py` (a tela, inclusive rodando a atualização do Doc List e do Mapa).
 
 ---
 
@@ -1005,11 +1059,11 @@ Diferenças em relação ao Mapa dos Planos:
 
 | Coluna | Origem | Regra |
 |---|---|---|
-| `DATA PREVISTA EMISSÃO` | `DATA PREVISTA DE EMISSÃO ACONEX` | divergência → vence a **data mais recente** |
-| `DATA REPROGRAMADA` | `REPROGRAMAÇÃO` do Controle **ou** input manual | **nunca sobrescreve** valor existente |
+| `DATA PREVISTA EMISSÃO` | `DATA PREVISTA DE EMISSÃO ACONEX` | vazia → a do Controle; preenchida → **só com aceite** (§24.14). É a baseline |
+| `DATA REPROGRAMADA` | `REPROGRAMAÇÃO` do Controle **ou** input manual | vazia → a do Controle; preenchida → **só com aceite** (§24.14) |
 | `DATA-ALVO EMISSÃO` | derivada | `REPROGRAMADA > PREVISTA`, sempre recalculada |
 
-As duas regras de data são as mesmas do Mapa dos Planos desde §24.13 (`core/planejamento.py`); nasceram aqui e foram adotadas lá. `FASE DE PROJETO` saiu desta tabela em §27.3.
+As regras de data são as mesmas do Mapa dos Planos (`core/planejamento.py`): unificadas em §24.13 e trocadas em §24.14 (até 2026-10 a DATA PREVISTA ficava com a mais recente). `FASE DE PROJETO` saiu desta tabela em §27.3.
 
 `DATA-ALVO EMISSÃO` ocupa o lugar da antiga coluna **`TROCAR`** (renomeada automaticamente na primeira atualização, junto com `RESPONSÁVEL`→`RESPONSIBLE (COE/VENDOR)` e `OBSERVAÇÃO`→`OBSERVAÇÕES`). É ela que prepara a leitura por período no dashboard: gravada como **data nativa** do Excel, não texto — assim como `DATA ÚLTIMA EMISSÃO` (o Mapa a escrevia como texto até a v3.1.0, §27.6).
 
@@ -1037,6 +1091,15 @@ O §27 tinha separado `APROVADO` / `APROVADO COM COMENTÁRIOS` / `PARA ASSINATUR
 
 `calcula_status_consolidado_doclist` foi **removida** (virou indireção vazia sobre `calcula_status_consolidado`) e `doclist_update` passou a usar o consolidado que `processar_documento` já calcula. As constantes `CONS_APROVADO_COM_COMENTARIOS`/`CONS_PARA_ASSINATURA` saíram. O RESUMO QUANTIDADES voltou a `Total / Aprovados / Em Processo / Não Aprovados / Não Emitidos` (+ `Cancelados` quando houver), como no exemplo original do usuário.
 
+### 27.5 ✅ Situação de emissão (2026-09-16, pedido do usuário)
+
+Resumo; o detalhe está em `docs/situacao_emissao_dashboard.md`. `DATA 1ª EMISSÃO` (a 0A,
+ou a mais antiga sem 0A; dentro dela, o reenvio mais recente), `SITUAÇÃO EMISSÃO`
+(emitido no prazo, emitido com atraso, pendente no prazo, pendente vencido, sem
+planejamento, cancelado) e `DIAS DESVIO EMISSÃO` (1ª emissão − data-alvo). A régua é a
+**DATA-ALVO**: é a visão "Atual" do gráfico DOCUMENTOS PARA EMISSÃO, e continua assim
+depois da §27.7.
+
 ### 27.6 ✅ Datas no formato Data do Excel, para o Power BI (2026-09-30, pedido do usuário)
 
 **Pedido**: "corrigir o formato das datas, elas precisam estar em Data e não como custom, no formato que o Power BI possa ler, pelo menos a coluna DATA-ALVO".
@@ -1057,6 +1120,51 @@ Planilha atualizada na v3.1.0: uma rodada de atualização basta para trocar o f
 - as DATAS PREVISTAS e REPROGRAMADAS das **etapas 2 a 4** continuam intocadas: são só input manual, e as REPROGRAMADAS nem são endereçáveis por nome (§21.1). Há teste travando isso.
 
 **Defeito antigo achado no caminho**: rodando o Mapa **sem** o Controle, o atraso lia a DATA PREVISTA com `get_val`, que devolve o texto da célula - para uma data nativa, `'2024-12-01 00:00:00'`. Os KPIs interpretam com `dayfirst=True`, e o pandas troca dia e mês: 1º/12 virava 12/01 sempre que o dia era até 12, errando `DIAS DE ATRASO`, `SITUAÇÃO DO PRAZO` e o `ATRASO ACUMULADO CMI`. Agora `ms.get_data` entrega a data. Com o Controle não acontecia (a `data_ref` já era data). Testes: `tests/test_mapping.py` (seção "Datas como DATA do Excel").
+
+---
+
+### 27.7 ✅ Baseline OTD e Say-do: SITUAÇÃO OTD, SITUAÇÃO SAY-DO e backlog (2026-10-29, pedido da gestão)
+
+**Pedido** (`instruções.txt`): reprogramar não pode tirar o documento do mês original;
+o reprogramado aparece num gráfico de BACKLOG; dois indicadores - **Baseline OTD**
+(contra a data original) e **Say-do** ("falar-fazer": se o novo compromisso foi
+cumprido). Vocabulário em `GLOSSARY.md`; decisões no grilling de 2026-10-28/29
+(`.planning/2026-10-28-otd-say-do-doc-list/`, spec em `.scratch/otd-say-do/`).
+
+Duas colunas calculadas novas (`core/doclist.py`), criadas pelo app no fim da aba quando
+faltam (`DocListSheet.criar_colunas`, com o estilo da `SITUAÇÃO EMISSÃO`):
+
+| Coluna | Régua | Quem tem |
+|---|---|---|
+| `SITUAÇÃO OTD` | 1ª emissão (ou hoje) × **DATA PREVISTA** (a baseline) | todo documento |
+| `SITUAÇÃO SAY-DO` | 1ª emissão (ou hoje) × **DATA REPROGRAMADA** | só o **backlog**; vazia fora dele |
+
+Os baldes são os da `SITUAÇÃO EMISSÃO` (§27.5). Nível 1 fica vazio. A `SITUAÇÃO EMISSÃO`
+**não muda** (continua contra a DATA-ALVO): o usuário quer manter a visão atual e
+alternar, no mesmo gráfico do Power BI, entre Atual, OTD e Say-do.
+
+**Backlog** (`e_backlog`): DATA REPROGRAMADA **posterior** à DATA PREVISTA **e** a 1ª
+emissão não aconteceu até a DATA PREVISTA. Entra assim que é reprogramado (mesmo antes
+de a prevista vencer). Fica de fora: reprogramação igual à prevista (a data não mudou) e
+documento que já tinha saído no prazo - na planilha real, a reprogramada desses é a
+data da próxima revisão (NEP, 0B/0C/0D), não da 1ª emissão.
+
+**Indicadores** (no Power BI, que só conta códigos distintos):
+- Baseline OTD do período = (documentos com DATA PREVISTA no período − atrasados contra
+  ela) ÷ documentos com DATA PREVISTA no período. O que ainda não venceu conta como
+  cumprido ("pode considerar o que está previsto como ok"). Cancelado fica fora.
+- Say-do do período = a mesma conta sobre o backlog, com a DATA REPROGRAMADA.
+
+O "vencido" é o do dia em que o app rodou: antes de apresentar, rodar o DocManager e
+Atualizar o Power BI. Na planilha real de out/2026: backlog de 67 documentos; 94
+pendentes vencidos contra a DATA PREVISTA (o painel atual, contra a DATA-ALVO, mostra 62).
+
+**Testes**: `tests/test_doclist.py` (casos A-H da conversa + cancelado; ciclo completo;
+criação das colunas). O roteiro de cliques do Power BI (ticket 06 de `.scratch/otd-say-do/`)
+está em `docs/power_bi_otd_say_do.md`: um gráfico só, com as tabelas soltas `Visoes`
+(segmentação em blocos ATUAL | OTD | SAY-DO) e `Situacoes` (legenda), medidas com
+`USERELATIONSHIP` para a DATA PREVISTA e a DATA REPROGRAMADA, e a curva S com `ALL`
+no lugar de `ALLSELECTED` (acumula desde o início).
 
 ---
 
@@ -1115,6 +1223,48 @@ A equipe acompanhava o transpasse de fase de cada grupo de equipamentos (convoca
 - **Página** (`dashboard/transpasse_html.py`): HTML único com o modelo embutido no código (não depende do `.spec`), dados num `<script type="application/json">` e o JavaScript só desenhando.
 
 Explicação para quem usa: `docs/transpasse_de_fase.md`. Testes: `tests/test_transpasse.py` e `tests/test_ui_telas.py`.
+
+---
+
+## 31. ✅ Gravar a planilha no Windows: arquivo preso e motivo da recusa (3.6.1, 2026-10-29, relato do usuário)
+
+**Relato** (3.6.1-rc.1): "não consigo salvar o arquivo Excel, dá permissão negada porque supostamente estou
+com ele aberto, só que não estou; criei um arquivo novo e deu a mesma proibição".
+
+**Medido no Windows** (executor `windows-latest` do GitHub, Python 3.12, pandas 3.1, openpyxl 3.1.5):
+- arquivo aberto para leitura pelo próprio processo (`open`, `pd.ExcelFile`, openpyxl `read_only`) **não**
+  impede o `wb.save` do openpyxl: o Python abre com compartilhamento de leitura e escrita;
+- mas impede **trocar ou apagar** o arquivo (falta o compartilhamento de exclusão), e é assim que o Excel
+  salva: grava um temporário e troca. Com o DocManager aberto, o Excel não salvava a planilha;
+- "Permission denied" (Errno 13) ao gravar vem do atributo Somente leitura, de outro programa com o arquivo
+  aberto sem compartilhar escrita (Excel, Power BI, Box sincronizando) ou de o Windows negar a pasta (Acesso
+  controlado a pastas, permissão no Box). O código de erro do Python não distingue esses casos.
+
+**O vazamento**: `ui/components.py::_listar_abas` fazia `pd.ExcelFile(caminho).sheet_names` sem fechar. O
+workbook do openpyxl tem ciclo de referências, então o arquivo só fechava quando o coletor de lixo passasse
+(num app parado, demora). Todo arquivo escolhido na tela ficava preso, por isso "até um arquivo novo".
+Agora é `with pd.ExcelFile(...)`.
+
+**O motivo da recusa** (`services/gravacao.py::salvar_planilha`, usado pelo Doc List e pelo Mapa): tenta 3
+vezes com 2 s de intervalo (o Box e o antivírus soltam logo) e depois pergunta ao Windows - atributo
+Somente leitura; programas com o arquivo aberto (Restart Manager, `rstrtmgr.dll`, sem contar o próprio
+processo); se a pasta aceita um arquivo novo (`~$docmanager-*.tmp`, prefixo que o Box não sincroniza). A
+mensagem diz o que fazer e aparece na pergunta "Tentar de novo".
+
+**Em aberto**: no computador do usuário, a causa da recusa do próprio DocManager não foi confirmada. O
+vazamento explica a recusa do Excel; para a do DocManager, a 3.6.1-rc.2 passa a dizer o motivo.
+
+**Regra**: todo Excel aberto só para ler (`pd.ExcelFile`, openpyxl `read_only`) fecha na saída (`with` ou
+`try/finally close()`). Testes: `tests/test_ui_telas.py::test_seletor_de_arquivo_nao_deixa_a_planilha_aberta`
+(desliga o coletor de lixo para não passar por sorte) e `tests/test_gravacao.py` (o teste do Restart Manager
+só roda no Windows, no workflow de Release).
+
+**Objeto do Qt no coletor de lixo** (CI de 2026-10-29, falha de segmentação): um objeto do Qt que vira
+lixo em ciclo de referências é destruído na thread em que o coletor rodar - às vezes a thread de trabalho
+de uma tarefa - e o Qt derruba o processo quando um objeto dele morre fora da thread da interface. Regras:
+janela de pergunta é apagada com `deleteLater()` assim que responde (`decidir_sobrescricoes`); nada que
+roda na thread de trabalho chama `gc.collect()`; nos testes, `tests/conftest.py` coleta o lixo de todo
+teste de tela ao fim dele, na thread da interface.
 
 ---
 

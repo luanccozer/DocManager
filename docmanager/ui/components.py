@@ -150,10 +150,17 @@ class Card(QFrame):
 # ─────────────────────────────── seletor de arquivo ──────────────────────────
 
 def _listar_abas(caminho: str) -> list[str]:
-    """Nomes das abas do Excel (rápido, sem ler os dados)."""
+    """Nomes das abas do Excel (rápido, sem ler os dados).
+
+    Fecha o arquivo na saída. Sem o `with`, o ExcelFile só era fechado quando o
+    coletor de lixo passasse - minutos depois, num app parado -, e enquanto isso
+    o Excel não conseguia salvar a planilha: ele salva trocando o arquivo, e o
+    Windows não troca um arquivo que outro programa tem aberto (3.6.1-rc.1).
+    """
     try:
         import pandas as pd
-        return list(pd.ExcelFile(caminho).sheet_names)
+        with pd.ExcelFile(caminho) as arquivo:
+            return list(arquivo.sheet_names)
     except Exception:  # noqa: BLE001
         return []
 

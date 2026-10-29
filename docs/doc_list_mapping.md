@@ -10,21 +10,23 @@ Follow-up semanal de uma documentação já definida: você mantém a planilha, 
 o módulo, e ele atualiza status, hierarquia, resumo por escopo e as datas de
 planejamento a partir da base do Aconex e do Controle de Documentos.
 
-## Cabeçalho oficial (24 colunas)
+## Cabeçalho oficial (26 colunas)
 
 ```
 GRUPO · SISTEMA · FASE DE PROJETO · Nº CMI · N° ITAIPU ·
 DESCRIÇÃO DO DOCUMENTO · DATA PREVISTA EMISSÃO · DATA REPROGRAMADA ·
 DATA-ALVO EMISSÃO · EMITIDO / NÃO EMITIDO · DATA ÚLTIMA EMISSÃO ·
 ÚLTIMA REV. EMITIDA · DATA 1ª EMISSÃO · SITUAÇÃO EMISSÃO ·
-DIAS DESVIO EMISSÃO · STATUS REAL · STATUS · RESPONSIBLE (COE/VENDOR) ·
-NÍVEL · STATUS CONSOLIDADO · COM ITAIPU · PREDECESSOR · OBSERVAÇÕES ·
-RESUMO QUANTIDADES
+DIAS DESVIO EMISSÃO · SITUAÇÃO OTD · SITUAÇÃO SAY-DO · STATUS REAL · STATUS ·
+RESPONSIBLE (COE/VENDOR) · NÍVEL · STATUS CONSOLIDADO · COM ITAIPU ·
+PREDECESSOR · OBSERVAÇÕES · RESUMO QUANTIDADES
 ```
 
 > **A ordem não importa.** As colunas são localizadas pelo TEXTO do cabeçalho,
 > então mover, agrupar ou ocultar não afeta nada — só **renomear** quebra.
-> Planilha sem as três colunas de emissão continua rodando: o log avisa quais
+> `SITUAÇÃO OTD` e `SITUAÇÃO SAY-DO` o próprio app cria no fim da aba, na
+> primeira atualização, com a formatação das vizinhas (o log diz em que coluna).
+> Planilha sem as outras colunas de emissão continua rodando: o log avisa quais
 > faltam e elas são ignoradas. Para criá-las já formatadas:
 > `python tools/criar_colunas_situacao_emissao.py "Doc List Mapping.xlsx" --aba "Unidade Geradora"`
 
@@ -63,7 +65,11 @@ reconhecidos e **renomeados automaticamente** na primeira atualização:
 
 | Calculado (sobrescrito a cada atualização) | Input manual (nunca sobrescrito) |
 |---|---|
-| `DATA-ALVO EMISSÃO`, `EMITIDO / NÃO EMITIDO`, `DATA ÚLTIMA EMISSÃO`, `ÚLTIMA REV. EMITIDA`, `DATA 1ª EMISSÃO`, `SITUAÇÃO EMISSÃO`, `DIAS DESVIO EMISSÃO`, `STATUS REAL`, `STATUS`, `STATUS CONSOLIDADO`, `COM ITAIPU`, `PREDECESSOR`, `RESUMO QUANTIDADES` | `GRUPO`, `SISTEMA`, `NÍVEL`, **`FASE DE PROJETO`**, `RESPONSIBLE (COE/VENDOR)`, `OBSERVAÇÕES`, `DATA REPROGRAMADA` |
+| `DATA-ALVO EMISSÃO`, `EMITIDO / NÃO EMITIDO`, `DATA ÚLTIMA EMISSÃO`, `ÚLTIMA REV. EMITIDA`, `DATA 1ª EMISSÃO`, `SITUAÇÃO EMISSÃO`, `DIAS DESVIO EMISSÃO`, `SITUAÇÃO OTD`, `SITUAÇÃO SAY-DO`, `STATUS REAL`, `STATUS`, `STATUS CONSOLIDADO`, `COM ITAIPU`, `PREDECESSOR`, `RESUMO QUANTIDADES` | `GRUPO`, `SISTEMA`, `NÍVEL`, **`FASE DE PROJETO`**, `RESPONSIBLE (COE/VENDOR)`, `OBSERVAÇÕES` |
+
+`DATA PREVISTA EMISSÃO` e `DATA REPROGRAMADA` ficam no meio: o Controle preenche
+quando estão vazias, mas preenchidas só mudam com o seu aceite (ver "Datas de
+planejamento").
 
 `Nº CMI`, `N° ITAIPU` e `DESCRIÇÃO DO DOCUMENTO` são atualizados quando o
 Aconex traz um valor novo (o código do documento muda ao longo da vida).
@@ -83,12 +89,36 @@ A prioridade da `DESCRIÇÃO DO DOCUMENTO`, nessa ordem:
 
 | Coluna | De onde vem | Regra |
 |---|---|---|
-| `DATA PREVISTA EMISSÃO` | `DATA PREVISTA DE EMISSÃO ACONEX` | havendo divergência, vence a **data mais recente** |
-| `DATA REPROGRAMADA` | `REPROGRAMAÇÃO` do Controle **ou** digitada por você | **nunca sobrescreve** o que já está preenchido |
+| `DATA PREVISTA EMISSÃO` | `DATA PREVISTA DE EMISSÃO ACONEX` ou digitada por você | vazia → a do Controle; preenchida → **só com o seu aceite**. É a **baseline** do Baseline OTD |
+| `DATA REPROGRAMADA` | `REPROGRAMAÇÃO` do Controle **ou** digitada por você | vazia → a do Controle; preenchida → **só com o seu aceite** |
 | `DATA-ALVO EMISSÃO` | derivada | `REPROGRAMADA` quando existe, senão `PREVISTA` |
 
-> As duas regras de data valem também para o **Mapa dos Planos** desde 2026-07-28
-> (KB §24.13) — a implementação é uma só, em `core/planejamento.py`.
+> A regra vale também para a etapa 1 do **Mapa dos Planos** — a implementação é
+> uma só, em `core/planejamento.py` (KB §24.14, ADR 0001). Até 2026-10 a
+> `DATA PREVISTA` ficava com a mais recente das duas, e a data original se perdia.
+
+### Quando o Controle trocaria uma data preenchida
+
+Uma data já preenchida (digitada à mão ou escrita numa rodada anterior; o app não
+distingue) só é trocada pela do Controle se você aceitar. Também contam como
+preenchidas a célula com texto (`A DEFINIR`) e a com fórmula. Cada troca possível é
+uma **incidência**, e no meio da atualização o DocManager pergunta:
+
+- **Aceitar todas** — todas ficam com a data do Controle;
+- **Não sobrescrever** — todas ficam como estão e são anotadas como recusadas;
+- **Ver caso a caso** — a lista das incidências (documento, descrição, coluna, data
+  na planilha, data no Controle) com caixa de marcar: as marcadas são trocadas, as
+  desmarcadas ficam e são anotadas como recusadas.
+
+Fechar a janela é decidir depois: nada é trocado nem anotado, e a pergunta volta na
+próxima atualização. Trocar a `DATA PREVISTA` muda a baseline: o Baseline OTD passa a
+medir contra a data nova (a tela avisa).
+
+As recusas ficam na aba **"Sobrescrições recusadas"**, que o app cria na própria
+planilha (N° ITAIPU, Nº CMI, coluna, data na planilha, data do Controle, quando e
+quem). Uma recusa não é perguntada de novo enquanto o Controle mantiver a mesma data;
+se ele mudar outra vez, a pergunta volta. Para ser perguntado de novo antes disso,
+apague a linha da aba. O Power BI não lê essa aba.
 
 Todas gravadas como **data nativa** do Excel, no formato **Data** (e não
 "Personalizado"), que aparece como dd/mm/aaaa e que o Power BI lê como data: é o
@@ -99,6 +129,35 @@ o Power BI de ler a coluna como data.
 
 > Sem o Controle de Documentos o módulo roda normalmente: apenas as datas de
 > planejamento e o resgate da descrição não acontecem.
+
+## Baseline OTD e Say-do
+
+Pedido da gestão (out/2026): mostrar o que atrasou contra a data original e se o
+novo compromisso dos atrasados está sendo cumprido. Vocabulário em `GLOSSARY.md`;
+regra de domínio na KB §27.7.
+
+| Coluna | Compara a 1ª emissão (ou hoje) com | Quem tem |
+|---|---|---|
+| `SITUAÇÃO EMISSÃO` | a `DATA-ALVO EMISSÃO` (visão atual) | todo documento |
+| `SITUAÇÃO OTD` | a `DATA PREVISTA EMISSÃO` (a baseline) | todo documento |
+| `SITUAÇÃO SAY-DO` | a `DATA REPROGRAMADA` (o novo compromisso) | só o **backlog** |
+
+Os baldes são os mesmos da situação de emissão (abaixo). **Backlog** é o documento
+com `DATA REPROGRAMADA` posterior à `DATA PREVISTA` que não tinha saído até a
+`DATA PREVISTA`: entra assim que é reprogramado. Não entram a reprogramação igual à
+prevista nem o documento que já tinha saído no prazo (a data reprogramada dele é de
+outra revisão).
+
+No Power BI, os indicadores contam códigos distintos:
+
+- **Baseline OTD** do período = (documentos com `DATA PREVISTA` no período − atrasados
+  contra ela) ÷ documentos com `DATA PREVISTA` no período;
+- **Say-do** do período = a mesma conta sobre o backlog, com a `DATA REPROGRAMADA`.
+
+Nos dois, o que ainda não venceu conta como cumprido e o cancelado fica fora. O
+"vencido" é o do dia em que o app rodou: **antes de apresentar, rode o DocManager e
+clique em Atualizar no Power BI.** O passo a passo do painel (três visões, cartões e
+curva S) está em [`power_bi_otd_say_do.md`](power_bi_otd_say_do.md).
 
 ## Situação de emissão (aderência ao planejamento)
 

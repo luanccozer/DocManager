@@ -134,7 +134,7 @@ class AtualizacaoDialog(QDialog):
             return
         self._baixando = True
         self.btn_atualizar.setEnabled(False)
-        self.btn_atualizar.setText("Baixando...")
+        self.btn_atualizar.setText("Atualizando..." if self._pequena else "Baixando...")
         self.btn_pular.setEnabled(False)
         self.btn_depois.setEnabled(False)
         self.barra.setValue(0)

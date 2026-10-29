@@ -566,14 +566,34 @@ def atualizar_pequena(info: Atualizacao, *, pasta: Path | None = None,
     _baixar_arquivo(info.pequena.nome, info.pequena.url, info.pequena.tamanho,
                     info.pequena.sha256, zip_, progresso_cb=progresso_cb, log_cb=log_cb,
                     minimo=0)
+    log_cb("Aplicando a atualização...")
+    progresso_cb(0.0)
     try:
-        alterados = pacote.aplicar(zip_, pasta, manifesto_novo)
+        alterados = pacote.aplicar(zip_, pasta, manifesto_novo,
+                                   progresso=_progresso_da_conferencia(progresso_cb, log_cb))
     finally:
         zip_.unlink(missing_ok=True)
     progresso_cb(1.0)
     log_cb(f"Atualização aplicada: {len(alterados)} arquivo(s) trocado(s), todos conferidos.")
     _registrar_versao(info.versao, pasta)
     return pasta / "DocManager.exe"
+
+
+def _progresso_da_conferencia(progresso_cb: Progresso, log_cb: Log):
+    """`progresso(feitos, total)` para o `pacote.aplicar`: a barra e o texto
+    ("Conferindo os arquivos: 1200 de 2700...") só mudam quando o percentual
+    muda - milhares de avisos entupiriam a fila da interface."""
+    ultimo = [-1]
+
+    def progresso(feitos: int, total: int) -> None:
+        pct = int(feitos * 100 / total) if total else 100
+        if pct == ultimo[0]:
+            return
+        ultimo[0] = pct
+        progresso_cb(pct / 100)
+        log_cb(f"Conferindo os arquivos instalados: {feitos} de {total}...")
+
+    return progresso
 
 
 def _registrar_versao(versao: str, pasta: Path) -> None:

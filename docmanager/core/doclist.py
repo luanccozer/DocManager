@@ -11,9 +11,10 @@ se aplicavam. Este módulo formaliza aquela adaptação - mesma espinha dorsal
 2. **Uma coluna de hierarquia.** `PLANO DE EXECUÇÃO` e `PREDECESSOR` viravam
    sempre o mesmo valor com só dois níveis - restou `PREDECESSOR`.
 3. **Planejamento dirigido pelo Controle de Documentos**: `DATA PREVISTA EMISSÃO`
-   e `DATA REPROGRAMADA` vêm de lá, e a coluna `DATA-ALVO EMISSÃO` (ex-`TROCAR`)
-   consolida a data que vale para o dashboard - REPROGRAMADA quando houver,
-   senão PREVISTA. `FASE DE PROJETO` é **input manual** (§27.3).
+   e `DATA REPROGRAMADA` vêm de lá quando estão vazias (preenchidas, só com
+   aceite - ADR 0001), e a coluna `DATA-ALVO EMISSÃO` (ex-`TROCAR`) consolida a
+   data que vale para o dashboard - REPROGRAMADA quando houver, senão PREVISTA.
+   `FASE DE PROJETO` é **input manual** (§27.3).
 
 O **STATUS CONSOLIDADO é o mesmo do Mapa** (`calcula_status_consolidado`): os
 três status de aprovação caem todos em `APROVADO`. Chegou a separá-los (§27),
@@ -36,7 +37,7 @@ from .constants import (
     CONS_NAO_APROVADO,
     CONS_NAO_EMITIDO,
 )
-from .planejamento import reconciliar_datas
+from .planejamento import Incidencia, reconciliar_datas
 
 # ---------------------------------------------------------------------------
 # Colunas (chave lógica → texto do cabeçalho), NA ORDEM do layout acordado.
@@ -59,6 +60,8 @@ COLUNAS_DOCLIST: dict[str, str] = {
     "data_primeira_emissao": "DATA 1ª EMISSÃO",
     "situacao_emissao": "SITUAÇÃO EMISSÃO",
     "dias_desvio_emissao": "DIAS DESVIO EMISSÃO",
+    "situacao_otd": "SITUAÇÃO OTD",
+    "situacao_say_do": "SITUAÇÃO SAY-DO",
     "status_real": "STATUS REAL",
     "status_emissao": "STATUS",
     "responsavel": "RESPONSIBLE (COE/VENDOR)",
@@ -89,6 +92,7 @@ NIVEL_DOCUMENTO = "2"
 COLUNAS_CALCULADAS = (
     "data_alvo", "emitido_nao_emitido", "data_ultimo_status", "revisao",
     "data_primeira_emissao", "situacao_emissao", "dias_desvio_emissao",
+    "situacao_otd", "situacao_say_do",
     "status_real", "status_emissao", "status_consolidado", "com_itaipu",
     "predecessor", "resumo_quantidades",
 )
@@ -179,6 +183,42 @@ def classificar_situacao_emissao(*, data_primeira_emissao: date | None,
         return (SIT_EMITIDO_NO_PRAZO if data_primeira_emissao <= data_alvo
                 else SIT_EMITIDO_COM_ATRASO)
     return SIT_PENDENTE_NO_PRAZO if hoje <= data_alvo else SIT_PENDENTE_VENCIDO
+
+
+# ---------------------------------------------------------------------------
+# Baseline OTD e Say-do (pedido de 2026-10-28, KB §27.7)
+# ---------------------------------------------------------------------------
+# A SITUAÇÃO EMISSÃO mede contra a DATA-ALVO (a visão "de hoje" do painel). Os
+# dois indicadores pedidos medem contra datas fixas:
+#   - SITUAÇÃO OTD: os mesmos baldes, contra a DATA PREVISTA (a baseline);
+#   - SITUAÇÃO SAY-DO: os mesmos baldes, contra a DATA REPROGRAMADA, só para o
+#     backlog. O Power BI conta; a regra fica aqui, testada.
+def e_backlog(*, data_prevista: date | None, data_reprogramada: date | None,
+              data_primeira_emissao: date | None) -> bool:
+    """Backlog: a data reprogramada é posterior à prevista e o documento não
+    tinha saído até a prevista.
+
+    Fica de fora a reprogramação igual à prevista (a data não mudou) e a do
+    documento que já tinha saído no prazo - na planilha real ela é a data da
+    próxima revisão, não da 1ª emissão. Entra assim que é reprogramado, mesmo
+    antes de a prevista vencer.
+    """
+    if data_prevista is None or data_reprogramada is None or data_reprogramada <= data_prevista:
+        return False
+    return not (data_primeira_emissao is not None and data_primeira_emissao <= data_prevista)
+
+
+def classificar_situacao_say_do(*, data_prevista: date | None, data_reprogramada: date | None,
+                                data_primeira_emissao: date | None, status_consolidado: str,
+                                hoje: date) -> str | None:
+    """Balde do novo compromisso: a 1ª emissão (ou HOJE) contra a data
+    reprogramada. `None` fora do backlog - a célula fica vazia."""
+    if not e_backlog(data_prevista=data_prevista, data_reprogramada=data_reprogramada,
+                     data_primeira_emissao=data_primeira_emissao):
+        return None
+    return classificar_situacao_emissao(data_primeira_emissao=data_primeira_emissao,
+                                        data_alvo=data_reprogramada,
+                                        status_consolidado=status_consolidado, hoje=hoje)
 
 
 def calcular_dias_desvio_emissao(data_primeira_emissao: date | None,
@@ -290,27 +330,28 @@ class DatasDocList:
 
     `None` em `prevista`/`reprogramada` significa "não mexer na célula".
     `data_alvo` é sempre recalculada a partir do que ficará nas células.
+    `incidencias`: as datas preenchidas que o Controle trocaria (ADR 0001).
     """
     prevista: date | None = None
     reprogramada: date | None = None
     data_alvo: date | None = None
     via: str = ""            # como o doc foi achado no Controle (diagnóstico)
-    prevista_atualizada: bool = False   # o Controle trouxe data MAIS RECENTE
     titulo_controle: str = ""           # DESCRIÇÃO do Controle (fallback do Aconex)
+    incidencias: tuple[Incidencia, ...] = ()
 
 
-def resolver_datas_doclist(*, prevista_atual: date | None, reprogramada_atual: date | None,
-                           codigos, cod_itaipu_atual: str, cod_cmi_atual: str,
-                           controle) -> DatasDocList:
-    """Aplica as regras de planejamento do Doc List (§27).
+def resolver_datas_doclist(*, prevista_atual, reprogramada_atual, codigos,
+                           cod_itaipu_atual: str, cod_cmi_atual: str, controle,
+                           aceitas: frozenset[str] = frozenset()) -> DatasDocList:
+    """Aplica as regras de planejamento do Doc List (ADR 0001).
 
-    - **DATA PREVISTA EMISSÃO** - vem do Controle; havendo divergência com a
-      planilha, vence a data MAIS RECENTE.
-    - **DATA REPROGRAMADA** - vem do Controle, mas NUNCA sobrescreve: a coluna
-      também aceita input manual, que tem a palavra final.
+    - **DATA PREVISTA** e **DATA REPROGRAMADA** - vêm do Controle quando a
+      célula está vazia. Célula preenchida (data, texto ou fórmula) só é
+      trocada se a pessoa aceitou (`aceitas`); senão vira incidência.
     - **DATA-ALVO EMISSÃO** - sempre recalculada: reprogramada > prevista.
 
-    A regra é a mesma do Mapa dos Planos (`core/planejamento.py`, §24.13).
+    `prevista_atual`/`reprogramada_atual` são os valores CRUS das células.
+    A regra é a mesma do Mapa dos Planos (`core/planejamento.py`).
     **FASE DE PROJETO não entra aqui**: é input manual (§27.3).
     """
     linha = None
@@ -322,8 +363,9 @@ def resolver_datas_doclist(*, prevista_atual: date | None, reprogramada_atual: d
     d = reconciliar_datas(
         prevista_planilha=prevista_atual, reprogramada_planilha=reprogramada_atual,
         prevista_controle=linha.data_prevista if linha else None,
-        reprogramada_controle=linha.data_reprogramada if linha else None)
+        reprogramada_controle=linha.data_reprogramada if linha else None,
+        aceitas=aceitas)
     return DatasDocList(prevista=d.prevista, reprogramada=d.reprogramada,
                         data_alvo=d.data_ref, via=via,
-                        prevista_atualizada=d.prevista_atualizada,
-                        titulo_controle=str(linha.titulo).strip() if linha else "")
+                        titulo_controle=str(linha.titulo).strip() if linha else "",
+                        incidencias=d.incidencias)
