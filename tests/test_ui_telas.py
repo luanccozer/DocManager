@@ -616,6 +616,36 @@ def _quando_abrir(classe, acao):
     return timer
 
 
+def test_sobrescricao_apaga_as_janelas_depois_de_respondidas(qtbot):
+    """Sem dono, a janela respondida ficava para o coletor de lixo, que pode rodar
+    numa thread de trabalho - e o Qt derruba o processo quando um objeto dele
+    morre fora da thread da interface. Com dono (a tela), ficava escondida para
+    sempre, uma a mais a cada atualização."""
+    import shiboken6
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    from docmanager.ui.views.sobrescricao_dialog import (
+        CasoACasoDialog,
+        EscolhaSobrescricao,
+        decidir_sobrescricoes,
+    )
+
+    janelas = []
+
+    def guardar_e(acao):
+        def agir(w):
+            janelas.append(w)
+            acao(w)
+        return agir
+
+    _t1 = _quando_abrir(EscolhaSobrescricao, guardar_e(lambda w: w.btn_caso.click()))
+    _t2 = _quando_abrir(CasoACasoDialog, guardar_e(lambda w: w.btn_trocar.click()))
+    assert decidir_sobrescricoes(_incidencias_exemplo()) is not None
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert len(janelas) == 2
+    assert not any(shiboken6.isValid(w) for w in janelas)
+
+
 def test_sobrescricao_aceitar_todas(qtbot):
     from docmanager.services.sobrescricao import DecisaoSobrescricao
     from docmanager.ui.views.sobrescricao_dialog import EscolhaSobrescricao, decidir_sobrescricoes

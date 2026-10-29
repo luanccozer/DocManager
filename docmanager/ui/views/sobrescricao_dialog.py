@@ -130,18 +130,30 @@ class CasoACasoDialog(QDialog):
 
 
 def decidir_sobrescricoes(pendentes, parent=None) -> DecisaoSobrescricao | None:
-    """Pergunta o que fazer com as incidências. None = decidir depois (janela fechada)."""
+    """Pergunta o que fazer com as incidências. None = decidir depois (janela fechada).
+
+    Cada janela é apagada (`deleteLater`) assim que responde: com dono, ela
+    ficaria escondida na tela para sempre; sem dono, ficaria para o coletor de
+    lixo, que pode rodar numa thread de trabalho - e o Qt derruba o processo
+    quando um objeto dele morre fora da thread da interface.
+    """
+    def _responder(janela):
+        try:
+            return janela.exec() == QDialog.DialogCode.Accepted
+        finally:
+            janela.deleteLater()
+
     def _abrir():
         n = len(pendentes)
         escolha = EscolhaSobrescricao(pendentes, parent)
-        if escolha.exec() != QDialog.DialogCode.Accepted:
+        if not _responder(escolha):
             return None
         if escolha.escolha == EscolhaSobrescricao.ACEITAR:
             return DecisaoSobrescricao.aceitar_todas(n)
         if escolha.escolha == EscolhaSobrescricao.RECUSAR:
             return DecisaoSobrescricao.recusar_todas(n)
         caso = CasoACasoDialog(pendentes, parent)
-        if caso.exec() != QDialog.DialogCode.Accepted:
+        if not _responder(caso):
             return None
         return caso.decisao()
     return na_ui_e_esperar(_abrir)
