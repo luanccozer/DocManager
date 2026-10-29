@@ -428,15 +428,19 @@ def test_seletor_de_arquivo_nao_deixa_a_planilha_aberta(qtbot, tmp_path):
 
     caminho = tmp_path / "Doc List Mapping.xlsx"
     openpyxl.Workbook().save(caminho)
+    sel = FileSelector("Doc List Mapping")
+    qtbot.addWidget(sel)
     gc.disable()  # sem o coletor de lixo fechando o arquivo por acaso no meio do teste
     try:
-        sel = FileSelector("Doc List Mapping")
-        qtbot.addWidget(sel)
         sel.definir(str(caminho))
         assert sel.sheet == "Sheet"
         assert not _ainda_aberto(str(caminho))
     finally:
         gc.enable()
+        # Coleta já, na thread da interface: deixado para depois, o lixo acumulado
+        # (com objetos do Qt) podia ser coletado na thread de outro teste, e o Qt
+        # derruba o processo quando um objeto dele morre fora da thread da interface.
+        gc.collect()
 
 
 def test_dialogos_de_arvore_abrem_e_mostram_documentos(app, qtbot):

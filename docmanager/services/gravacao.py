@@ -16,7 +16,6 @@ Fora do Windows não há Restart Manager: a lista de programas sai vazia.
 """
 from __future__ import annotations
 
-import gc
 import os
 import stat
 import tempfile
@@ -52,7 +51,6 @@ def _tentar_salvar(wb, caminho, tentativas: int, espera_s: float, log) -> Permis
             erro = e
             if i + 1 < tentativas:
                 log(f"O Windows recusou salvar ({e.strerror or e}); tentando de novo em {espera_s:g} s.")
-                gc.collect()  # solta arquivo que alguma biblioteca ainda segure
                 time.sleep(espera_s)
     return erro
 
