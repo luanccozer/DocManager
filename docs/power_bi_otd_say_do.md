@@ -14,10 +14,11 @@ dos passos 9 a 11.
   - **OTD** conta pela data prevista, a baseline.
   - **SAY-DO** mostra só o backlog, pela data reprogramada.
   - O painel abre na ATUAL.
-- Dois cartões, **BASELINE OTD** e **SAY-DO**, no lugar das notas amarelas. Eles seguem
-  o filtro PERÍODO e os filtros do topo (sistema, fase, responsável).
-- **Página 1**: a curva S passa a acumular desde o início do projeto. O filtro de mês só
-  escolhe o trecho mostrado, e os previstos passam a contar pela data prevista.
+- Um cartão que acompanha os botões: na OTD mostra o Baseline OTD, na SAY-DO o Say-do e
+  na ATUAL quantos documentos há no período. Ele segue o filtro PERÍODO e os filtros do
+  topo (sistema, fase, responsável).
+- **Página 1**: a curva S conta os previstos pela data prevista, e os emitidos passam a
+  incluir os documentos previstos para o período que saíram antes dele.
 
 Leva uns 45 minutos. Faça na ordem, porque cada passo usa o anterior.
 
@@ -266,7 +267,7 @@ No painel Dados, clique em **Baseline OTD**. Na faixa **Ferramentas de medida**,
 no botão **%** e deixe **1** casa decimal. Faça o mesmo em **Say-do**. As medidas
 "(cartão)" já saem prontas, como texto.
 
-**Confira:** são 12 medidas novas em Calendario, e nenhuma tem o triângulo amarelo de
+**Confira:** são 12 medidas novas em Calendario (o passo 9 cria mais duas), e nenhuma tem o triângulo amarelo de
 erro.
 
 ---
@@ -368,46 +369,87 @@ PERÍODO continua agindo só no gráfico, no cartão do nível 3 e nos cartões 
 
 ---
 
-## Passo 9: os dois cartões
+## Passo 9: um cartão que acompanha os botões
 
-Copie um cartão que já existe, para herdar o estilo: número azul-marinho em negrito e
-borda arredondada.
+Um cartão só, que muda com o botão escolhido (decisão do usuário, 2026-10-29):
 
-1. Clique no cartão do canto superior direito da página, ao lado do logo da CMI (o que
-   mostra o total de documentos). Tecle **Ctrl+C** e **Ctrl+V**: aparece uma cópia.
-2. Com a cópia selecionada, em **Criar visual → Campos**, tire o campo que está lá
-   (clique no X) e arraste **Baseline OTD (cartão)**.
-3. Em **Formatar visual → Geral → Título**:
-   - ligue o título;
-   - em **Texto**, clique no **fx**, escolha **Valor do campo → Baseline OTD (título)** e
-     clique **OK**;
-   - use fonte 9, em negrito, na mesma cor azul-marinho do número.
-4. Em **Geral → Propriedades**, use Altura **72** e Largura **200**, Horizontal **745** e
-   Vertical **98**. É onde estava a nota amarela "BL OTD".
-5. Repita os passos 1 a 4 para o Say-do:
-   - campo **Say-do (cartão)**;
-   - título **Say-do (título)**;
-   - Horizontal **960**, Vertical **98**.
-6. Recomendado: impedir que os cartões mudem quando alguém clica numa barra ou fatia.
-   1. Selecione o gráfico DOCUMENTAÇÃO GERAL.
+| Botão | O cartão mostra | Título do cartão |
+|---|---|---|
+| ATUAL | quantos documentos o gráfico tem no período | DOCUMENTOS NO PERÍODO |
+| OTD | o Baseline OTD (59,3%) | BASELINE OTD · 35 de 59 sem atraso |
+| SAY-DO | o Say-do (100,0%) | SAY-DO · 5 de 5 sem atraso |
+
+1. Crie mais duas medidas, como no passo 5 (botão direito em **Calendario → Nova medida**):
+
+```dax
+Indicador (cartão) =
+SWITCH(
+    SELECTEDVALUE(Visoes[Visao], "ATUAL"),
+    "OTD", [Baseline OTD (cartão)],
+    "SAY-DO", [Say-do (cartão)],
+    FORMAT(COALESCE([Documentos (visão)], 0), "0")
+)
+```
+
+```dax
+Indicador (título) =
+SWITCH(
+    SELECTEDVALUE(Visoes[Visao], "ATUAL"),
+    "OTD", [Baseline OTD (título)],
+    "SAY-DO", [Say-do (título)],
+    "DOCUMENTOS NO PERÍODO"
+)
+```
+
+2. Copie um cartão que já existe, para herdar o estilo (número azul-marinho em negrito,
+   borda arredondada). Clique no cartão do canto superior direito da página, ao lado do
+   logo da CMI (o que mostra o total de documentos), e tecle **Ctrl+C** e **Ctrl+V**.
+   - Se você já tinha feito os dois cartões da versão anterior deste roteiro, apague o do
+     Say-do (selecione e tecle **Delete**) e use o do Baseline OTD como cópia.
+3. Com a cópia selecionada, em **Criar visual → Campos**, tire o campo que está lá e
+   arraste **Indicador (cartão)**.
+4. Em **Formatar visual → Geral → Título**: ligue o título; em **Texto**, clique no **fx**,
+   escolha **Valor do campo → Indicador (título)** e clique **OK**. Fonte 9, negrito, na cor
+   azul-marinho do número.
+5. Em **Geral → Propriedades**, ponha o tamanho (por exemplo, Altura **72** e Largura
+   **220**) e arraste o cartão para onde preferir.
+6. Interações: o cartão **tem** de ouvir os botões ATUAL | OTD | SAY-DO e o PERÍODO. Se você
+   fez a parte das interações da versão anterior deste passo, confira:
+   1. Selecione a segmentação dos botões.
    2. Na faixa **Formato**, clique em **Editar interações**.
-   3. Em cima de cada cartão novo, clique no ícone **Nenhum** (o círculo cortado).
-   4. Repita com as três pizzas e com DOCUMENTOS PARA EMISSÃO.
-   5. Clique em **Editar interações** de novo para sair. Os cartões antigos já são assim.
+   3. Em cima do cartão, o ícone escolhido tem de ser o **Filtro** (o funil), não o
+      **Nenhum**. Faça o mesmo com a segmentação PERÍODO.
+   4. Para o cartão não mudar quando alguém clica numa barra ou fatia, selecione o
+      DOCUMENTAÇÃO GERAL, as três pizzas e o DOCUMENTOS PARA EMISSÃO, um de cada vez, e
+      clique em **Nenhum** em cima do cartão.
+   5. Clique em **Editar interações** de novo para sair.
 
-Os filtros que vieram com a cópia (NÍVEL = 2 e N° ITAIPU não vazio) podem ficar: as
-medidas já contam só o nível 2.
+Os filtros que vieram com a cópia (NÍVEL = 2 e N° ITAIPU não vazio) podem ficar: as medidas
+já contam só o nível 2.
 
 **Confira** com **2026 → outubro** (planilha de 28/10):
-- **BASELINE OTD · 35 de 59 sem atraso**, valor **59,3%**;
-- **SAY-DO · 5 de 5 sem atraso**, valor **100,0%**.
+- **ATUAL**: DOCUMENTOS NO PERÍODO, **48**;
+- **OTD**: BASELINE OTD · 35 de 59 sem atraso, **59,3%**;
+- **SAY-DO**: SAY-DO · 5 de 5 sem atraso, **100,0%**.
 
-Num mês sem backlog, o SAY-DO mostra "—". Com a planilha de 28/10, isso vale para todos
-os meses de 2026 menos outubro.
+Num mês sem backlog, o SAY-DO mostra "—". Com a planilha de 28/10, isso vale para todos os
+meses de 2026 menos outubro.
 
 ---
 
 ## Passo 10: a curva S da Página 1
+
+A curva continua sendo a do período escolhido no filtro (começa do zero em previstos), com
+uma correção (decisão do usuário, 2026-10-29): **os emitidos contam os documentos previstos
+para o período, inclusive os que saíram antes dele**. Um documento previsto para 10/10 e
+emitido em 30/09 já aparece como emitido no 1º de outubro.
+
+- **Previstos**: documentos com DATA PREVISTA entre o início do período e o dia do gráfico.
+- **Emitidos**: dos documentos com DATA PREVISTA no período, os que já tinham a 1ª emissão
+  até o dia do gráfico (a linha para em hoje).
+
+Consequência: documento emitido em outubro mas previsto para outro mês não entra na curva
+de outubro; ele aparece na curva do mês em que estava previsto.
 
 1. Vá para a **Página 1**.
 2. No painel **Dados**, em **Calendario**, clique em **Previstos Acum**. Na barra de
@@ -416,14 +458,13 @@ os meses de 2026 menos outubro.
 ```dax
 Previstos Acum =
 VAR DataAtual = MAX(Calendario[Date])
+VAR Inicio = CALCULATE(MIN(Calendario[Date]), ALLSELECTED(Calendario))
 RETURN
 CALCULATE(
-    [Previstos],
-    USERELATIONSHIP(Calendario[Date], 'Unidade Geradora'[DATA PREVISTA Aux]),
-    FILTER(
-        ALL(Calendario),
-        Calendario[Date] <= DataAtual
-    )
+    DISTINCTCOUNT('Unidade Geradora'[N° ITAIPU]),
+    CROSSFILTER('Unidade Geradora'[DATA-ALVO Aux], Calendario[Date], None),
+    'Unidade Geradora'[DATA PREVISTA Aux] >= Inicio,
+    'Unidade Geradora'[DATA PREVISTA Aux] <= DataAtual
 )
 ```
 
@@ -432,32 +473,32 @@ CALCULATE(
 ```dax
 Emitidos Acum =
 VAR DataAtual = MAX(Calendario[Date])
+VAR Inicio = CALCULATE(MIN(Calendario[Date]), ALLSELECTED(Calendario))
+VAR Fim = CALCULATE(MAX(Calendario[Date]), ALLSELECTED(Calendario))
 RETURN
 IF(
     DataAtual > TODAY(),
     BLANK(),
     CALCULATE(
-        [Emitidos],
-        FILTER(
-            ALL(Calendario),
-            Calendario[Date] <= DataAtual
-        )
+        DISTINCTCOUNT('Unidade Geradora'[N° ITAIPU]),
+        CROSSFILTER('Unidade Geradora'[DATA-ALVO Aux], Calendario[Date], None),
+        'Unidade Geradora'[DATA PREVISTA Aux] >= Inicio,
+        'Unidade Geradora'[DATA PREVISTA Aux] <= Fim,
+        'Unidade Geradora'[DATA 1ª EMISSÃO Aux] <> BLANK(),
+        'Unidade Geradora'[DATA 1ª EMISSÃO Aux] <= DataAtual
     )
 )
 ```
 
-O que mudou nas duas:
-- `ALLSELECTED` virou `ALL`: a curva acumula desde o início do projeto, e o filtro de mês
-  só escolhe o trecho mostrado;
-- os previstos passam a contar pela DATA PREVISTA, com `USERELATIONSHIP`.
+Como funcionam: `Inicio` e `Fim` são o primeiro e o último dia do período escolhido no
+filtro; o `CROSSFILTER(..., None)` desliga a relação do Calendario com a DATA-ALVO dentro da
+conta, para as datas serem comparadas direto com a DATA PREVISTA e a DATA 1ª EMISSÃO. Sem
+nenhum período escolhido, a curva cobre o projeto inteiro.
 
 **Confira** com **2026 → outubro** (planilha de 28/10):
-- a curva não começa do zero. Em 31/10 os previstos chegam a **905**, e os emitidos ficam
-  em **841** (a linha para em hoje);
-- antes, a curva mostrava **48** previstos e **14** emitidos. Os 25 documentos previstos
-  para outubro que saíram antes de 1/10 (o caso do previsto para 10/10 e emitido em
-  30/09) ficavam fora da conta dos emitidos;
-- a distância entre as duas linhas é o atraso acumulado.
+- em 1/10: **0** previstos e **27** emitidos (os previstos para outubro que já tinham saído);
+- em 10/10: 28 previstos e 29 emitidos;
+- em 31/10: **60** previstos; os emitidos param em **30**, em 28/10.
 
 ---
 
@@ -506,7 +547,8 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | Botões ou legenda fora de ordem | Faltou **Classificar por coluna → Ordem** (passo 4). |
 | As cores voltaram ao padrão | Refaça o item 5 do passo 6. |
 | O cartão mostra "—" | Não há documento previsto (ou backlog) no período. É o esperado. |
-| A curva S ainda começa do zero no mês | Confira se as duas medidas do passo 10 usam `ALL(Calendario)`, e não `ALLSELECTED`. |
+| O cartão não muda com os botões | A interação dos botões com o cartão está em **Nenhum**: passo 9, item 6. |
+| Na curva S, o documento emitido antes do mês não aparece | Confira se as duas medidas do passo 10 foram trocadas pelas da versão com `CROSSFILTER`. |
 
 ---
 
@@ -523,6 +565,7 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | `OTD previstos`, `OTD atrasados`, `Baseline OTD` | (previstos no período − atrasados) ÷ previstos, no nível 2. O que não venceu conta como cumprido. |
 | `Backlog`, `Backlog atrasado`, `Say-do` | A mesma conta sobre o backlog, pela data reprogramada. |
 | Medidas "(cartão)" e "(título)" | O número do cartão (ou "—") e a linha "x de y sem atraso". |
-| `Previstos Acum`, `Emitidos Acum` | A curva S, acumulada desde o início. |
+| `Indicador (cartão)`, `Indicador (título)` | O cartão único: escolhe o número e o título conforme o botão. |
+| `Previstos Acum`, `Emitidos Acum` | A curva S do período; os emitidos são os dos documentos previstos no período, inclusive os que saíram antes dele. |
 
 As situações são gravadas pelo DocManager (KB §27.5 e §27.7). O Power BI só conta.
