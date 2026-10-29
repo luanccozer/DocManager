@@ -1259,6 +1259,13 @@ vazamento explica a recusa do Excel; para a do DocManager, a 3.6.1-rc.2 passa a 
 (desliga o coletor de lixo para não passar por sorte) e `tests/test_gravacao.py` (o teste do Restart Manager
 só roda no Windows, no workflow de Release).
 
+**Objeto do Qt no coletor de lixo** (CI de 2026-10-29, falha de segmentação): um objeto do Qt que vira
+lixo em ciclo de referências é destruído na thread em que o coletor rodar - às vezes a thread de trabalho
+de uma tarefa - e o Qt derruba o processo quando um objeto dele morre fora da thread da interface. Regras:
+janela de pergunta é apagada com `deleteLater()` assim que responde (`decidir_sobrescricoes`); nada que
+roda na thread de trabalho chama `gc.collect()`; nos testes, `tests/conftest.py` coleta o lixo de todo
+teste de tela ao fim dele, na thread da interface.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

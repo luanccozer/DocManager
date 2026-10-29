@@ -188,3 +188,10 @@ Resultado: 1133 passed, ruff limpo.
   Mapa (3 tentativas, depois motivo: Somente leitura, programa com o arquivo pelo Restart
   Manager, pasta que não aceita gravação). CHANGELOG 3.6.1 e KB §31. Suíte 1145 + 1
   (o teste do Restart Manager só roda no Windows).
+- CI caiu 2 de 3 vezes com falha de segmentação: coletor de lixo na thread de trabalho do
+  teste do Transpasse destruindo objeto do Qt. Gatilho: o teste novo desligava o coletor;
+  origem do lixo: janelas da sobrescrição sem dono nos testes. Correções: o teste coleta
+  na hora; `gravacao` sem gc.collect (roda na thread de trabalho); janelas apagadas com
+  deleteLater ao responder (no app, com dono, ficavam escondidas para sempre); conftest
+  coleta o lixo de todo teste de tela. Suíte 1146 + 1 em 3.13 e 3.12; KB §31.
+
