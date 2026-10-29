@@ -169,3 +169,11 @@ Resultado: 1133 passed, ruff limpo.
 - Conferido por script contra o modelo do .pbix e simulado em Python sobre a planilha
   de 28/10 (números no roteiro). Execução dos cliques fica com o usuário.
 
+
+### Versão de teste publicada
+- 3.6.1-rc.1 disparada a pedido do usuário (Actions → Release, workflow_dispatch neste
+  branch, Pré-lançamento). Run 40876510834 verde em ~7 min: lint e testes, executável,
+  instalador, manifestos e atualizações pequenas a partir da 3.6.0 (~180 KB), da 3.5.1
+  e da 3.5.2-rc.1. Release v3.6.1-rc.1 marcado como pré-lançamento, no commit fa1790f.
+- Próximo: o usuário testa (Versões de teste) e segue docs/power_bi_otd_say_do.md;
+  aprovada a rc, PR para a main e tag v3.6.1 com o OK dele.
