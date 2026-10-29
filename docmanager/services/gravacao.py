@@ -38,7 +38,7 @@ def salvar_planilha(wb, caminho, *, retry_cb=None, log_cb=None, tentativas: int 
             return None
         motivo = motivo_da_recusa(caminho, erro)
         log(f"Não foi possível salvar: {motivo}")
-        if retry_cb and retry_cb(f"{motivo}\n\nDepois clique em Tentar de novo."):
+        if retry_cb and retry_cb(f"{motivo}\n\nResolva isso e tente de novo."):
             continue
         return f"Não foi possível salvar a planilha. {motivo}"
 
