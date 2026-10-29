@@ -195,3 +195,11 @@ Resultado: 1133 passed, ruff limpo.
   deleteLater ao responder (no app, com dono, ficavam escondidas para sempre); conftest
   coleta o lixo de todo teste de tela. Suíte 1146 + 1 em 3.13 e 3.12; KB §31.
 
+
+### Versão de teste 3.6.1-rc.2 publicada
+- Release run 40904706198 verde em ~4,5 min no commit 4aae358 (CI verde nele e no 692022e).
+  Lint e testes no Windows passaram, inclusive o do Restart Manager (só é pulado fora do
+  Windows). Release v3.6.1-rc.2 como pré-lançamento: instalador, manifestos e
+  atualizações pequenas a partir da 3.6.1-rc.1 (113 KB), da 3.6.0 (197 KB) e da 3.5.2-rc.1.
+- Próximo: o usuário testa salvar (DocManager e Excel com o app aberto); aprovada a rc,
+  PR para a main e tag v3.6.1 com o OK dele.
