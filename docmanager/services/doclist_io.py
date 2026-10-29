@@ -8,10 +8,11 @@ Duas responsabilidades:
 """
 from __future__ import annotations
 
+from copy import copy
 from datetime import date
 
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, range_boundaries
 
 from ..core.doclist import (
     ANCORA_DOCLIST,
@@ -42,6 +43,14 @@ def _norm_cabecalho(v) -> str:
 
 # Leitura de célula de data: implementação única, compartilhada com o Mapa.
 _para_date = celula_para_date
+
+# Colunas que o próprio app cria quando faltam (pedido do usuário, 2026-10-29):
+# chave → (colunas-modelo para copiar o estilo, em ordem de preferência, formato
+# numérico, largura). As demais colunas ausentes só geram aviso.
+COLUNAS_CRIADAS_PELO_APP: dict[str, tuple[tuple[str, ...], str, float]] = {
+    "situacao_otd": (("SITUAÇÃO EMISSÃO", "STATUS REAL"), "General", 20.0),
+    "situacao_say_do": (("SITUAÇÃO EMISSÃO", "STATUS REAL"), "General", 20.0),
+}
 
 
 class DocListSheet:
@@ -113,6 +122,12 @@ class DocListSheet:
             return None
         return _para_date(self.ws.cell(row=row, column=col).value)
 
+    def get_bruto(self, chave: str, row: int):
+        """Valor cru da célula (data, texto, número ou fórmula). A regra de datas
+        precisa dele para separar a célula vazia da que tem texto (ADR 0001)."""
+        col = self._col_por_chave.get(chave)
+        return self.ws.cell(row=row, column=col).value if col else None
+
     def set_data(self, chave: str, row: int, valor: date | None) -> bool:
         """Grava DATA NATIVA com o formato de Data do Excel - nunca texto, senão
         o dashboard não consegue agrupar por período (ver `gravar_data`)."""
@@ -137,6 +152,45 @@ class DocListSheet:
         if not col:
             return None
         return normalizar_celula_data(self.ws.cell(row=row, column=col))
+
+    def criar_colunas(self, novas: dict[str, tuple[tuple[str, ...], str, float]]) -> list[tuple[str, str]]:
+        """Cria no FIM da aba as colunas de `novas` que faltam; devolve [(título, letra)].
+
+        Anexa no fim, nunca insere no meio: `insert_cols` do openpyxl move os
+        valores mas não as larguras, a formatação condicional nem o autofiltro.
+        Como o app acha a coluna pelo texto do cabeçalho, a posição não importa -
+        a pessoa pode arrastá-la depois. O estilo vem da MESMA linha de uma
+        coluna-modelo, o que preserva zebra e bordas; o autofiltro é estendido.
+        """
+        criadas: list[tuple[str, str]] = []
+        destino = self.ws.max_column + 1
+        ultima = self.ws.max_row
+        for chave, (modelos, formato, largura) in novas.items():
+            if chave in self._col_por_chave:
+                continue
+            col_modelo = next((self.headers[_norm_cabecalho(m)] for m in modelos
+                               if _norm_cabecalho(m) in self.headers), None)
+            alvo = self.ws.cell(self.row_header, destino)
+            alvo.value = COLUNAS_DOCLIST[chave]
+            if col_modelo:
+                alvo._style = copy(self.ws.cell(self.row_header, col_modelo)._style)
+            alvo.number_format = "General"
+            for r in range(self.row_header + 1, ultima + 1):
+                celula = self.ws.cell(r, destino)
+                if col_modelo:
+                    celula._style = copy(self.ws.cell(r, col_modelo)._style)
+                celula.number_format = formato
+            self.ws.column_dimensions[alvo.column_letter].width = largura
+            criadas.append((COLUNAS_DOCLIST[chave], alvo.column_letter))
+            destino += 1
+        if criadas:
+            if self.ws.auto_filter.ref:
+                min_c, min_r, _max_c, max_r = range_boundaries(self.ws.auto_filter.ref)
+                self.ws.auto_filter.ref = (f"{get_column_letter(min_c)}{min_r}:"
+                                           f"{get_column_letter(self.ws.max_column)}{max_r}")
+            self.headers, _ = self._find_headers(self.ws)
+            self._col_por_chave = self._mapear_colunas()
+        return criadas
 
     def renomear_cabecalhos_legados(self) -> list[tuple[str, str]]:
         """Atualiza no arquivo os cabeçalhos antigos para o nome oficial

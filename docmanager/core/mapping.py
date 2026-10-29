@@ -22,9 +22,8 @@ from .kpis import (
     calcular_atrasos_acumulados,
     data_primeira_emissao,
 )
-from .normalize import celula_para_date as _como_date
 from .normalize import remover_acentos
-from .planejamento import reconciliar_datas
+from .planejamento import Incidencia, reconciliar_datas
 from .status_engine import calcular_status_real
 from .truth_line import resolver_linha_da_verdade
 
@@ -102,18 +101,17 @@ class DatasControle:
       células**, não só o que veio do Controle. É a data que o atraso usa.
     - `via`: como o documento foi localizado no Controle ('exato' | 'frouxo' |
       'contido' | '' quando não achou). Só para diagnóstico/log.
-    - `prevista_atualizada`: a célula já tinha data e o Controle trouxe uma mais
-      recente (para o log distinguir preenchimento de atualização).
     - `titulo_controle`: DESCRIÇÃO do Controle. Serve de **fallback** para a
       descrição do documento quando o Aconex não o conhece (§27.3) - sem isso o
       não emitido fica só com o código na planilha.
+    - `incidencias`: as datas preenchidas que o Controle trocaria (ADR 0001).
     """
     prevista_para_celula: date | None = None
     reprogramada: date | None = None
     data_ref: date | None = None
     via: str = ""
-    prevista_atualizada: bool = False
     titulo_controle: str = ""
+    incidencias: tuple[Incidencia, ...] = ()
 
     @property
     def achou(self) -> bool:
@@ -121,28 +119,23 @@ class DatasControle:
 
 
 def resolver_datas_controle(valor_celula_prevista, codigos_historicos, cod_itaipu_atual,
-                            cod_cmi_atual, controle, *,
-                            valor_celula_reprogramada: date | None = None) -> DatasControle:
+                            cod_cmi_atual, controle, *, valor_celula_reprogramada=None,
+                            aceitas: frozenset[str] = frozenset()) -> DatasControle:
     """Resolve PREVISTA e REPROGRAMAÇÃO da etapa 1 e entrega a `data_ref` do atraso.
 
-    Regras (unificadas com o Doc List Mapping a pedido do usuário, §24.13 -
-    "a lógica dele é melhor"):
+    Regra única com o Doc List Mapping (`core/planejamento.py`, ADR 0001):
 
-    - **DATA PREVISTA** - vence a data **mais recente** entre a planilha e o
-      Controle. Antes o Mapa só escrevia na célula vazia, então uma reprogramação
-      de calendário registrada no Controle nunca chegava ao mapeamento.
-    - **DATA REPROGRAMADA** - só preenche o **vazio**: a coluna aceita input
-      manual, e antes o Mapa a sobrescrevia a cada rodada, apagando o que a
-      equipe tinha digitado.
+    - **célula vazia** recebe a data do Controle;
+    - **célula preenchida** (data, texto ou fórmula) só é trocada se a pessoa
+      aceitou (`aceitas`); senão vira incidência. Até 2026-10 a DATA PREVISTA
+      ficava com a mais recente das duas (§24.13), e a baseline se perdia;
     - **`data_ref`** - REPROGRAMAÇÃO > PREVISTA sobre os valores FINAIS (os que
-      ficam nas células). Antes vinha só do Controle, então o atraso ignorava uma
-      data mais recente que estivesse na planilha.
+      ficam nas células).
 
-    A busca no Controle é a cascata de `ControleDocs.resolver` (exato → frouxo →
-    'contém'), que inclui o equivalente ao Ctrl+F manual (§24.12).
+    `valor_celula_prevista`/`valor_celula_reprogramada` são os valores CRUS das
+    células. A busca no Controle é a cascata de `ControleDocs.resolver` (exato →
+    frouxo → 'contém'), que inclui o equivalente ao Ctrl+F manual (§24.12).
     """
-    prevista_atual = _como_date(valor_celula_prevista)
-    reprogramada_atual = _como_date(valor_celula_reprogramada)
     linha = None
     via = ""
     if controle is not None:
@@ -150,13 +143,14 @@ def resolver_datas_controle(valor_celula_prevista, codigos_historicos, cod_itaip
         linha, via = m.linha, m.via
 
     d = reconciliar_datas(
-        prevista_planilha=prevista_atual, reprogramada_planilha=reprogramada_atual,
+        prevista_planilha=valor_celula_prevista, reprogramada_planilha=valor_celula_reprogramada,
         prevista_controle=linha.data_prevista if linha else None,
-        reprogramada_controle=linha.data_reprogramada if linha else None)
+        reprogramada_controle=linha.data_reprogramada if linha else None,
+        aceitas=aceitas)
     return DatasControle(prevista_para_celula=d.prevista, reprogramada=d.reprogramada,
                          data_ref=d.data_ref, via=via,
-                         prevista_atualizada=d.prevista_atualizada,
-                         titulo_controle=str(linha.titulo).strip() if linha else "")
+                         titulo_controle=str(linha.titulo).strip() if linha else "",
+                         incidencias=d.incidencias)
 
 
 def processar_documento(df_tracking: pd.DataFrame, *, nivel: str, tag_etapa: str = "",

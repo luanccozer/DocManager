@@ -7,6 +7,14 @@
 >
 > As três decisões que estavam pendentes foram respondidas pelo usuário e estão
 > registradas em [§11](#11-decisões-do-usuário-respondidas).
+>
+> **Atualização de 2026-10-29:** a `SITUAÇÃO EMISSÃO` continua contra a DATA-ALVO e
+> vira a visão "Atual" do gráfico. Entraram `SITUAÇÃO OTD` (contra a DATA PREVISTA,
+> a baseline) e `SITUAÇÃO SAY-DO` (contra a DATA REPROGRAMADA, só no backlog), para os
+> indicadores Baseline OTD e Say-do - ver `docs/doc_list_mapping.md` e a KB §27.7.
+> O modelo do .pbix também mudou desde este levantamento: há uma tabela `Calendario`
+> e a página "Página 1" com a curva S de previstos e emitidos. O roteiro de cliques das
+> três visões, dos cartões e da curva S está em [`power_bi_otd_say_do.md`](power_bi_otd_say_do.md).
 
 ## Índice
 

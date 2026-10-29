@@ -5,6 +5,7 @@ suíte leria (e escreveria!) o cofre real de quem está rodando os testes - e o
 resultado mudaria de máquina para máquina. `DOCMANAGER_DADOS_DIR` redireciona a
 pasta inteira para um diretório temporário por teste.
 """
+import gc
 import os
 
 import pytest
@@ -23,3 +24,14 @@ def dados_isolados(tmp_path, monkeypatch):
     monkeypatch.setattr(credenciais, "_cofre", None, raising=False)
     yield
     credenciais._cofre = None
+
+
+@pytest.fixture(autouse=True)
+def lixo_do_qt_coletado_na_thread_da_interface(request):
+    """Teste de tela coleta o próprio lixo ao terminar, nesta thread. Deixado para
+    depois, o coletor podia rodar na thread de trabalho de outro teste e destruir um
+    objeto do Qt fora da thread da interface, e o Qt derruba o processo (falha de
+    segmentação no CI, 2026-10-29)."""
+    yield
+    if "qtbot" in request.fixturenames:
+        gc.collect()

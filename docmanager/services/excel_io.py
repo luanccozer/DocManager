@@ -266,12 +266,17 @@ class MappingSheet:
 
     def get_data(self, chave: str, row: int):
         """Valor da célula como `date` (ou None) - datetime nativo, texto ou
-        serial do Excel. Necessário para COMPARAR a data da planilha com a do
-        Controle (a comparação de 'mais recente' não funciona com string)."""
+        serial do Excel."""
         col = self._col(chave)
         if not col:
             return None
         return celula_para_date(self.ws.cell(row=row, column=col).value)
+
+    def get_bruto(self, chave: str, row: int):
+        """Valor cru da célula (data, texto ou fórmula). A regra de datas precisa
+        dele para separar a célula vazia da que tem texto (ADR 0001)."""
+        col = self._col(chave)
+        return self.ws.cell(row=row, column=col).value if col else None
 
     def _col_reprogramada_etapa1(self):
         """Coluna DATA REPROGRAMADA da ETAPA 1, ou None.
@@ -296,6 +301,11 @@ class MappingSheet:
         if col is None:
             return None
         return celula_para_date(self.ws.cell(row=row, column=col).value)
+
+    def get_reprogramada_etapa1_bruto(self, row: int):
+        """Valor cru da DATA REPROGRAMADA da etapa 1 (ver `get_bruto`)."""
+        col = self._col_reprogramada_etapa1()
+        return self.ws.cell(row=row, column=col).value if col is not None else None
 
     def set_reprogramada_etapa1(self, row: int, valor) -> bool:
         """Escreve a REPROGRAMAÇÃO (data nativa) na coluna DATA REPROGRAMADA da

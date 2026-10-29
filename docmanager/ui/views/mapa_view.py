@@ -3,6 +3,7 @@ from __future__ import annotations
 from .. import dialogos
 from ..components import Card, FileSelector, RunBar, botao, linha, rotulo
 from .base import BaseView
+from .sobrescricao_dialog import decidir_sobrescricoes
 
 
 def ler_linha_cabecalho(caminho: str, aba, classe_planilha) -> int:
@@ -81,7 +82,8 @@ class MapaView(BaseView):
             sheet_aconex=self.sel_aconex.sheet, sheet_mapping=self.sel_mapa.sheet,
             controle=controle, regra_estrita_vip=self.ctx.config.settings.regra_estrita_vip,
             log_cb=self.log.log, progress_cb=run.set_progress,
-            retry_cb=lambda m: dialogos.tentar_de_novo("Salvar", m))
+            retry_cb=lambda m: dialogos.tentar_de_novo("Salvar", m),
+            decidir_cb=lambda pendentes: decidir_sobrescricoes(pendentes, self))
         self.log.log(r.mensagem)
         if r.ok:
             dialogos.info("Mapa dos Planos", r.mensagem)

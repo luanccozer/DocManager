@@ -183,7 +183,8 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
 - **🗺️ Mapa dos Planos** - atualiza a planilha de Mapeamento (status real,
   hierarquia, KPIs, atrasos). Selecione a **Base Aconex** + o **Mapeamento** e,
   opcionalmente, o **Controle de Documentos** (preenche datas previstas /
-  reprogramação). As datas que o app grava (DATA ÚLTIMA EMISSÃO e a DATA
+  reprogramação vazias; uma data já preenchida só é trocada se você aceitar, na
+  tela de sobrescrição - ver Doc List abaixo). As datas que o app grava (DATA ÚLTIMA EMISSÃO e a DATA
   PREVISTA e a REPROGRAMADA da etapa 1) saem no formato **Data** do Excel, que o
   Power BI lê como data. O botão **⏳ Analisar Mudanças por Período (Delta)**
   abre a "Máquina do Tempo" comparando o status entre duas datas.
@@ -192,6 +193,13 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   `PREDECESSOR`. Do **Controle de Documentos** vêm as datas de planejamento,
   consolidadas na coluna `DATA-ALVO EMISSÃO` (reprogramada > prevista) que o
   dashboard lê, e a descrição dos documentos que o Aconex ainda não conhece.
+  A `DATA PREVISTA EMISSÃO` é a baseline: quando o Controle trocaria uma data já
+  preenchida (prevista ou reprogramada), o app pergunta - **aceitar todas**, **não
+  sobrescrever** ou **ver caso a caso** - e anota as recusas na aba
+  "Sobrescrições recusadas". Também grava `SITUAÇÃO OTD` (contra a data prevista) e
+  `SITUAÇÃO SAY-DO` (contra a reprogramada, só no backlog), para os indicadores
+  Baseline OTD e Say-do do Power BI (roteiro de cliques em
+  [`docs/power_bi_otd_say_do.md`](docs/power_bi_otd_say_do.md)).
   Todas as colunas de data saem no formato **Data** do Excel (não
   "Personalizado"), que o Power BI lê como data; texto digitado numa coluna de
   data é apontado no log, porque impede essa leitura.

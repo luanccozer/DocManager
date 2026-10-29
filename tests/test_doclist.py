@@ -21,6 +21,7 @@ from docmanager.core.doclist import (
     calcular_predecessores,
     calcular_resumo_quantidades,
     classificar_situacao_emissao,
+    classificar_situacao_say_do,
     resolver_datas_doclist,
 )
 from docmanager.core.doclist_periodo import (
@@ -33,6 +34,7 @@ from docmanager.core.kpis import data_primeira_emissao
 from docmanager.services.controle_docs import ler_controle
 from docmanager.services.doclist_io import DocListSheet, ler_linhas_doclist
 from docmanager.services.doclist_update import atualizar_doclist
+from docmanager.services.sobrescricao import ABA_RECUSAS, DecisaoSobrescricao
 
 HOJE = date(2026, 7, 27)
 
@@ -126,31 +128,47 @@ def _row_controle(prevista=None, reprog=None, fase="", titulo="t"):
                        data_prevista=prevista, data_reprogramada=reprog, fase=fase)
 
 
-def _resolver(prevista_atual=None, reprogramada_atual=None, **kw_row):
+def _resolver(prevista_atual=None, reprogramada_atual=None, aceitas=frozenset(), **kw_row):
     return resolver_datas_doclist(
         prevista_atual=prevista_atual, reprogramada_atual=reprogramada_atual,
         codigos=[], cod_itaipu_atual="IT", cod_cmi_atual="",
-        controle=_ControleFake(_row_controle(**kw_row)))
+        controle=_ControleFake(_row_controle(**kw_row)), aceitas=aceitas)
 
 
-def test_prevista_vence_a_mais_recente():
-    """Divergência entre planilha e Controle → a data MAIS RECENTE ganha."""
+def _incidencias(d):
+    return [(i.coluna, i.valor_planilha, i.data_controle) for i in d.incidencias]
+
+
+def test_prevista_preenchida_nao_e_trocada_e_vira_incidencia():
+    """ADR 0001: a DATA PREVISTA é a baseline. O Controle replanejou para frente,
+    mas a troca só acontece com aceite - até lá, é uma incidência."""
     d = _resolver(prevista_atual=date(2026, 3, 1), prevista=date(2026, 9, 1))
-    assert d.prevista == date(2026, 9, 1) and d.prevista_atualizada
-    assert d.data_alvo == date(2026, 9, 1)
+    assert d.prevista is None                     # nada a escrever
+    assert d.data_alvo == date(2026, 3, 1)
+    assert _incidencias(d) == [("prevista", date(2026, 3, 1), date(2026, 9, 1))]
 
 
-def test_prevista_da_planilha_mais_recente_e_preservada():
+def test_prevista_da_planilha_mais_recente_tambem_vira_incidencia():
     d = _resolver(prevista_atual=date(2026, 9, 1), prevista=date(2026, 1, 1))
-    assert d.prevista is None            # nada a escrever
+    assert d.prevista is None
     assert d.data_alvo == date(2026, 9, 1)
+    assert _incidencias(d) == [("prevista", date(2026, 9, 1), date(2026, 1, 1))]
 
 
 def test_reprogramada_manual_nunca_e_sobrescrita():
     d = _resolver(prevista_atual=None, reprogramada_atual=date(2026, 8, 8),
                   prevista=date(2026, 1, 1), reprog=date(2026, 5, 5))
     assert d.reprogramada is None                 # input manual manda
-    assert d.data_alvo == date(2026, 8, 8)        # e é ela que vale
+    assert d.prevista == date(2026, 1, 1)         # a vazia é preenchida
+    assert d.data_alvo == date(2026, 8, 8)        # e é a manual que vale
+    assert _incidencias(d) == [("reprogramada", date(2026, 8, 8), date(2026, 5, 5))]
+
+
+def test_incidencia_aceita_troca_a_prevista():
+    d = _resolver(prevista_atual=date(2026, 3, 1), prevista=date(2026, 9, 1),
+                  aceitas=frozenset({"prevista"}))
+    assert d.prevista == date(2026, 9, 1)
+    assert d.data_alvo == date(2026, 9, 1)
 
 
 def test_data_alvo_prefere_reprogramada():
@@ -677,3 +695,342 @@ def test_exportacao_da_analise_por_periodo_usa_o_formato_de_data(tmp_path):
     ws = openpyxl.load_workbook(saida).active
     celulas = [c for linha in ws.iter_rows() for c in linha if c.is_date]
     assert celulas and all(c.number_format == FORMATO_DATA_EXCEL for c in celulas)
+
+
+# ---------------------------------------------------------------------------
+# Data prevista congelada e incidências (ADR 0001, pedido de 2026-10-28)
+# ---------------------------------------------------------------------------
+def _controle_xlsx(tmp_path, prevista="", reprog=""):
+    p = escrever_controle_xlsx(tmp_path / "ctrl.xlsx",
+                               [{"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": prevista, "reprog": reprog}])
+    return ler_controle(p, 0, log_cb=lambda _m: None)
+
+
+def _valor_data(ws, col, titulo):
+    v = ws.cell(2, col[titulo]).value
+    return v.date() if hasattr(v, "date") else v
+
+
+def test_data_prevista_preenchida_nao_e_trocada_pelo_controle_e_vai_para_o_log(tmp_path):
+    def preparar(ws, col):
+        ws.cell(2, col["DATA PREVISTA EMISSÃO"]).value = date(2026, 3, 1)
+
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", None, None)],
+        preparar=preparar, controle=_controle_xlsx(tmp_path, prevista="01-09-2026"))
+    assert _valor_data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 3, 1)
+    assert _valor_data(ws, col, "DATA-ALVO EMISSÃO") == date(2026, 3, 1)
+    texto = "\n".join(logs)
+    assert "1 data preenchida que o Controle trocaria ficou como está" in texto
+    assert "#IT-1" in texto and "01/03/2026 → 01/09/2026" in texto
+
+
+def test_texto_na_reprogramada_nao_e_apagado_pelo_controle(tmp_path):
+    """Até a v3.6 o Controle escrevia por cima de 'A DEFINIR' sem avisar."""
+    def preparar(ws, col):
+        ws.cell(2, col["DATA REPROGRAMADA"]).value = "A DEFINIR"
+
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", date(2026, 2, 1), None)],
+        preparar=preparar, controle=_controle_xlsx(tmp_path, prevista="01-02-2026", reprog="15/12/2026"))
+    assert ws.cell(2, col["DATA REPROGRAMADA"]).value == "A DEFINIR"
+    assert _valor_data(ws, col, "DATA-ALVO EMISSÃO") == date(2026, 2, 1)
+    assert any("'A DEFINIR' → 15/12/2026" in m for m in logs)
+
+
+def test_celula_de_data_vazia_continua_recebendo_a_data_do_controle(tmp_path):
+    ws, col, logs = _rodar_doclist(
+        tmp_path, [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", None, None)],
+        controle=_controle_xlsx(tmp_path, prevista="01-02-2026", reprog="15/12/2026"))
+    assert _valor_data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 2, 1)
+    assert _valor_data(ws, col, "DATA REPROGRAMADA") == date(2026, 12, 15)
+    assert not any("o Controle trocaria" in m for m in logs)
+
+
+# ---------------------------------------------------------------------------
+# Decisão das incidências e aba de recusas (ADR 0001)
+# ---------------------------------------------------------------------------
+class _Decisor:
+    """Faz o papel da tela: anota o que recebeu e devolve a decisão pedida."""
+
+    def __init__(self, decidir):
+        self.decidir = decidir
+        self.chamadas: list[list] = []
+
+    def __call__(self, pendentes):
+        self.chamadas.append(list(pendentes))
+        return self.decidir(pendentes)
+
+
+def _preparar_planilha(tmp_path, *, prevista=date(2026, 3, 1), reprog=None):
+    """Base + Doc List com um documento já planejado; devolve os caminhos."""
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/03/2026")
+             .evento("0A", 2, "Aprovado", "20/03/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx",
+                                [("UNIT", "SDSC", "CMI-1", "#IT-1", "DOC", "2", prevista, reprog)])
+    return path_base, path_dl
+
+
+def _atualizar(path_base, path_dl, controle, decisor, logs=None):
+    r = atualizar_doclist(path_base, path_dl, controle=controle, hoje=HOJE,
+                          log_cb=(logs.append if logs is not None else lambda _m: None),
+                          decidir_cb=decisor)
+    assert r.ok, r.mensagem
+    wb = openpyxl.load_workbook(path_dl)
+    ws = wb.active
+    return wb, ws, {str(c.value): c.column for c in ws[1]}
+
+
+def _data(ws, col, titulo, row=2):
+    v = ws.cell(row, col[titulo]).value
+    return v.date() if hasattr(v, "date") else v
+
+
+def test_aceitar_troca_a_data_e_a_data_alvo_acompanha(tmp_path):
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    decisor = _Decisor(lambda p: DecisaoSobrescricao.aceitar_todas(len(p)))
+    wb, ws, col = _atualizar(path_base, path_dl, _controle_xlsx(tmp_path, prevista="01-09-2026"), decisor)
+
+    assert [(i.codigo, i.coluna, i.data_controle) for i in decisor.chamadas[0]] == \
+        [("#IT-1", "prevista", date(2026, 9, 1))]
+    assert _data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 9, 1)
+    assert _data(ws, col, "DATA-ALVO EMISSÃO") == date(2026, 9, 1)
+    assert ABA_RECUSAS not in wb.sheetnames
+
+
+def test_recusa_fica_anotada_na_aba_e_nao_e_perguntada_de_novo(tmp_path):
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    controle = _controle_xlsx(tmp_path, prevista="01-09-2026")
+    recusa = _Decisor(lambda p: DecisaoSobrescricao.recusar_todas(len(p)))
+    wb, ws, col = _atualizar(path_base, path_dl, controle, recusa)
+
+    assert _data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 3, 1)
+    aba = wb[ABA_RECUSAS]
+    assert [c.value for c in aba[1]][:5] == ["N° ITAIPU", "Nº CMI", "COLUNA", "DATA NA PLANILHA",
+                                             "DATA DO CONTROLE"]
+    linha = [c.value for c in aba[2]]
+    assert linha[:3] == ["#IT-1", "CMI-1", "DATA PREVISTA EMISSÃO"]
+    assert (linha[3].date(), linha[4].date(), linha[5].date()) == \
+        (date(2026, 3, 1), date(2026, 9, 1), HOJE)
+
+    # Segunda rodada, mesmo Controle: a tela nem é aberta.
+    de_novo = _Decisor(lambda p: DecisaoSobrescricao.aceitar_todas(len(p)))
+    logs = []
+    _wb, ws, col = _atualizar(path_base, path_dl, controle, de_novo, logs)
+    assert de_novo.chamadas == []
+    assert _data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 3, 1)
+    assert any("já recusada antes" in m for m in logs)
+
+
+def test_controle_com_outra_data_volta_a_perguntar(tmp_path):
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    _atualizar(path_base, path_dl, _controle_xlsx(tmp_path, prevista="01-09-2026"),
+               _Decisor(lambda p: DecisaoSobrescricao.recusar_todas(len(p))))
+
+    decisor = _Decisor(lambda p: None)
+    _atualizar(path_base, path_dl, _controle_xlsx(tmp_path, prevista="15-09-2026"), decisor)
+    assert [i.data_controle for i in decisor.chamadas[0]] == [date(2026, 9, 15)]
+
+
+def test_linha_apagada_da_aba_faz_perguntar_de_novo(tmp_path):
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    controle = _controle_xlsx(tmp_path, prevista="01-09-2026")
+    wb, _ws, _col = _atualizar(path_base, path_dl, controle,
+                               _Decisor(lambda p: DecisaoSobrescricao.recusar_todas(len(p))))
+    wb[ABA_RECUSAS].delete_rows(2)
+    wb.save(path_dl)
+
+    decisor = _Decisor(lambda p: None)
+    _atualizar(path_base, path_dl, controle, decisor)
+    assert len(decisor.chamadas) == 1
+
+
+def test_adiar_nao_troca_nem_anota(tmp_path):
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    logs = []
+    wb, ws, col = _atualizar(path_base, path_dl, _controle_xlsx(tmp_path, prevista="01-09-2026"),
+                             _Decisor(lambda p: None), logs)
+    assert _data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 3, 1)
+    assert ABA_RECUSAS not in wb.sheetnames
+    assert any("ficou como está" in m for m in logs)
+
+
+def test_caso_a_caso_troca_so_as_escolhidas(tmp_path):
+    path_base, path_dl = _preparar_planilha(tmp_path, prevista=date(2026, 3, 1),
+                                            reprog=date(2026, 11, 10))
+    controle = _controle_xlsx(tmp_path, prevista="01-09-2026", reprog="15/12/2026")
+
+    def escolher(pendentes):
+        reprog = next(i for i, inc in enumerate(pendentes) if inc.coluna == "reprogramada")
+        prev = next(i for i, inc in enumerate(pendentes) if inc.coluna == "prevista")
+        return DecisaoSobrescricao(aceitas=frozenset({reprog}), recusadas=frozenset({prev}))
+
+    wb, ws, col = _atualizar(path_base, path_dl, controle, _Decisor(escolher))
+    assert _data(ws, col, "DATA PREVISTA EMISSÃO") == date(2026, 3, 1)       # recusada
+    assert _data(ws, col, "DATA REPROGRAMADA") == date(2026, 12, 15)         # aceita
+    assert _data(ws, col, "DATA-ALVO EMISSÃO") == date(2026, 12, 15)
+    assert [c.value for c in wb[ABA_RECUSAS][2]][2] == "DATA PREVISTA EMISSÃO"
+
+
+# ---------------------------------------------------------------------------
+# SITUAÇÃO OTD e SITUAÇÃO SAY-DO (Baseline OTD e Say-do, pedido de 2026-10-28)
+# ---------------------------------------------------------------------------
+HOJE_OUT = date(2026, 10, 28)
+
+
+@pytest.mark.parametrize("caso,prevista,reprogramada,emissao,esperado", [
+    # A: perdeu a data prevista e assumiu nova data → backlog, no prazo do novo compromisso.
+    ("A", date(2026, 10, 15), date(2027, 2, 28), None, SIT_PENDENTE_NO_PRAZO),
+    # B: reprogramado antes de vencer → entra no backlog assim que é reprogramado.
+    ("B", date(2026, 12, 22), date(2027, 2, 28), None, SIT_PENDENTE_NO_PRAZO),
+    # C: saiu antes da prevista; a reprogramada é de outra revisão → fora do backlog.
+    ("C", date(2026, 9, 30), date(2026, 10, 9), date(2026, 9, 24), None),
+    # D: a data não mudou → fora do backlog.
+    ("D", date(2027, 2, 28), date(2027, 2, 28), None, None),
+    # E: vencido sem data nova → fora do backlog (é o atrasado sem compromisso).
+    ("E", date(2026, 9, 1), None, None, None),
+    # Saiu depois da prevista, mas antes da reprogramada → cumpriu o novo compromisso.
+    ("F", date(2026, 5, 1), date(2026, 8, 1), date(2026, 7, 20), SIT_EMITIDO_NO_PRAZO),
+    # Perdeu também a reprogramada.
+    ("G", date(2026, 5, 1), date(2026, 8, 1), date(2026, 9, 2), SIT_EMITIDO_COM_ATRASO),
+    ("H", date(2026, 5, 1), date(2026, 8, 1), None, SIT_PENDENTE_VENCIDO),
+])
+def test_situacao_say_do_so_existe_no_backlog(caso, prevista, reprogramada, emissao, esperado):
+    assert classificar_situacao_say_do(
+        data_prevista=prevista, data_reprogramada=reprogramada, data_primeira_emissao=emissao,
+        status_consolidado="NÃO EMITIDO" if emissao is None else "APROVADO",
+        hoje=HOJE_OUT) == esperado, caso
+
+
+def test_backlog_cancelado_fica_cancelado_no_say_do():
+    assert classificar_situacao_say_do(
+        data_prevista=date(2026, 5, 1), data_reprogramada=date(2026, 8, 1),
+        data_primeira_emissao=None, status_consolidado="CANCELADO", hoje=HOJE_OUT) == SIT_CANCELADO
+
+
+def _doclist_casos_a_e(tmp_path, *, sem_colunas_novas=False):
+    """Um grupo e os casos A-E (só o C está no Aconex, emitido em 24/09/2026)."""
+    b = base(HistoricoBuilder("TC", "#IT-C", "CMI-C", "DOC C")
+             .evento("0A", 1, "Em Processo", "24/09/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+    linhas = [
+        ("UNIT", "SDSC", "", "GRUPO-1", "AGRUPAMENTO", "1", None, None),
+        ("UNIT", "SDSC", "CMI-A", "#IT-A", "DOC A", "2", date(2026, 10, 15), date(2027, 2, 28)),
+        ("UNIT", "SDSC", "CMI-B", "#IT-B", "DOC B", "2", date(2026, 12, 22), date(2027, 2, 28)),
+        ("UNIT", "SDSC", "CMI-C", "#IT-C", "DOC C", "2", date(2026, 9, 30), date(2026, 10, 9)),
+        ("UNIT", "SDSC", "CMI-D", "#IT-D", "DOC D", "2", date(2027, 2, 28), date(2027, 2, 28)),
+        ("UNIT", "SDSC", "CMI-E", "#IT-E", "DOC E", "2", date(2026, 9, 1), None),
+    ]
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx", linhas)
+    if sem_colunas_novas:
+        wb = openpyxl.load_workbook(path_dl)
+        ws = wb.active
+        for titulo in ("SITUAÇÃO SAY-DO", "SITUAÇÃO OTD"):
+            ws.delete_cols([c.column for c in ws[1] if c.value == titulo][0])
+        ws.auto_filter.ref = f"A1:{ws.cell(1, ws.max_column).column_letter}{ws.max_row}"
+        wb.save(path_dl)
+    return path_base, path_dl
+
+
+def test_ciclo_completo_grava_situacao_otd_e_say_do(tmp_path):
+    path_base, path_dl = _doclist_casos_a_e(tmp_path)
+    r = atualizar_doclist(path_base, path_dl, hoje=HOJE_OUT, log_cb=lambda _m: None)
+    assert r.ok, r.mensagem
+    ws = openpyxl.load_workbook(path_dl).active
+    col = {str(c.value): c.column for c in ws[1]}
+    situacao = {ws.cell(row, col["N° ITAIPU"]).value: (ws.cell(row, col["SITUAÇÃO OTD"]).value,
+                                                       ws.cell(row, col["SITUAÇÃO SAY-DO"]).value,
+                                                       ws.cell(row, col["SITUAÇÃO EMISSÃO"]).value)
+                for row in range(2, 8)}
+    assert situacao == {
+        "GRUPO-1": (None, None, None),                                   # grupo não é documento
+        "#IT-A": (SIT_PENDENTE_VENCIDO, SIT_PENDENTE_NO_PRAZO, SIT_PENDENTE_NO_PRAZO),
+        "#IT-B": (SIT_PENDENTE_NO_PRAZO, SIT_PENDENTE_NO_PRAZO, SIT_PENDENTE_NO_PRAZO),
+        "#IT-C": (SIT_EMITIDO_NO_PRAZO, None, SIT_EMITIDO_NO_PRAZO),
+        "#IT-D": (SIT_PENDENTE_NO_PRAZO, None, SIT_PENDENTE_NO_PRAZO),
+        "#IT-E": (SIT_PENDENTE_VENCIDO, None, SIT_PENDENTE_VENCIDO),
+    }
+
+
+def test_colunas_otd_e_say_do_sao_criadas_quando_faltam(tmp_path):
+    path_base, path_dl = _doclist_casos_a_e(tmp_path, sem_colunas_novas=True)
+    logs = []
+    assert atualizar_doclist(path_base, path_dl, hoje=HOJE_OUT, log_cb=logs.append).ok
+    ws = openpyxl.load_workbook(path_dl).active
+    cab = [c.value for c in ws[1]]
+    assert cab[-2:] == ["SITUAÇÃO OTD", "SITUAÇÃO SAY-DO"]                # no fim da aba
+    assert ws.cell(3, len(cab)).value == SIT_PENDENTE_NO_PRAZO           # say-do do caso A
+    assert ws.auto_filter.ref.endswith(f"{ws.cell(1, len(cab)).column_letter}7")
+    assert any("Coluna criada: SITUAÇÃO OTD" in m for m in logs)
+    assert not any("não encontradas" in m for m in logs)
+
+
+def test_recusa_continua_valendo_quando_o_aconex_troca_o_codigo_itaipu(tmp_path):
+    """O app atualiza o N° ITAIPU pelo Aconex; a recusa anotada com o código
+    antigo continua valendo pelo Nº CMI."""
+    b = base(HistoricoBuilder("T1", "#IT-NOVO", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/03/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx",
+                                [("UNIT", "SDSC", "CMI-1", "#IT-VELHO", "DOC", "2", date(2026, 3, 1), None)])
+    controle = ler_controle(escrever_controle_xlsx(
+        tmp_path / "ctrl.xlsx", [{"itaipu": "#IT-NOVO", "cmi": "CMI-1", "prevista": "01-09-2026"}]),
+        0, log_cb=lambda _m: None)
+    _atualizar(path_base, path_dl, controle, _Decisor(lambda p: DecisaoSobrescricao.recusar_todas(len(p))))
+
+    de_novo = _Decisor(lambda p: None)
+    _wb, ws, col = _atualizar(path_base, path_dl, controle, de_novo)
+    assert ws.cell(2, col["N° ITAIPU"]).value == "#IT-NOVO"
+    assert de_novo.chamadas == []
+
+
+def test_formula_recusada_fica_como_texto_na_aba(tmp_path):
+    def preparar_formula(path_dl):
+        wb = openpyxl.load_workbook(path_dl)
+        ws = wb.active
+        col = {str(c.value): c.column for c in ws[1]}
+        ws.cell(2, col["DATA REPROGRAMADA"]).value = "=DATE(2026,12,1)"
+        wb.save(path_dl)
+
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    preparar_formula(path_dl)
+    logs = []
+    wb, ws, col = _atualizar(path_base, path_dl,
+                             _controle_xlsx(tmp_path, prevista="01-03-2026", reprog="15/12/2026"),
+                             _Decisor(lambda p: DecisaoSobrescricao.recusar_todas(len(p))), logs)
+    assert ws.cell(2, col["DATA REPROGRAMADA"]).value == "=DATE(2026,12,1)"   # a fórmula ficou
+    celula = wb[ABA_RECUSAS].cell(2, 4)
+    assert (celula.value, celula.data_type) == ("=DATE(2026,12,1)", "s")
+    assert any("1 data preenchida que o Controle trocaria: 0 trocadas, 1 recusada" in m for m in logs)
+
+
+def _windows_recusa_salvar(monkeypatch, programas):
+    """Toda gravação de planilha é recusada; o Windows aponta `programas`."""
+    from docmanager.services import gravacao
+
+    def recusa(self, caminho):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(openpyxl.Workbook, "save", recusa)
+    monkeypatch.setattr(gravacao, "_somente_leitura", lambda c: False)
+    monkeypatch.setattr(gravacao, "_programas_com_o_arquivo", lambda c: programas)
+    monkeypatch.setattr(gravacao.time, "sleep", lambda s: None)
+
+
+def test_salvar_recusado_diz_qual_programa_esta_com_a_planilha(tmp_path, monkeypatch):
+    """3.6.1-rc.1: o app dizia "arquivo aberto?" sem o arquivo estar aberto. O motivo
+    agora vem do Windows, na pergunta "Tentar de novo" e no resultado."""
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    _windows_recusa_salvar(monkeypatch, ["Microsoft Excel"])
+    perguntas = []
+    r = atualizar_doclist(path_base, path_dl, hoje=HOJE, log_cb=lambda _m: None,
+                          retry_cb=lambda m: perguntas.append(m) or False)
+    assert not r.ok
+    assert "Microsoft Excel" in r.mensagem
+    assert "arquivo aberto?" not in r.mensagem
+    assert len(perguntas) == 1 and "Microsoft Excel" in perguntas[0]

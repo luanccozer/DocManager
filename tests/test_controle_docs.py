@@ -213,24 +213,29 @@ def _resolver(prevista_celula, reprogramada_celula, prevista_ctrl, reprogramada_
                                    valor_celula_reprogramada=reprogramada_celula)
 
 
-def test_prevista_do_controle_mais_recente_atualiza_a_celula():
-    """Antes o Mapa só escrevia na célula vazia - uma data nova no Controle
-    nunca chegava ao mapeamento."""
+def _incidencias(d):
+    return [(i.coluna, i.valor_planilha, i.data_controle) for i in d.incidencias]
+
+
+def test_prevista_do_controle_mais_recente_vira_incidencia_no_mapa():
+    """ADR 0001: a data prevista preenchida não é trocada sem aceite (até
+    2026-10 a mais recente vencia, e a baseline se perdia)."""
     d = _resolver(date(2026, 3, 1), None, date(2026, 9, 1), None)
-    assert d.prevista_para_celula == date(2026, 9, 1)
-    assert d.prevista_atualizada
-    assert d.data_ref == date(2026, 9, 1)      # o atraso passa a usar a nova
+    assert d.prevista_para_celula is None
+    assert d.data_ref == date(2026, 3, 1)
+    assert _incidencias(d) == [("prevista", date(2026, 3, 1), date(2026, 9, 1))]
 
 
-def test_prevista_da_planilha_mais_recente_e_preservada_no_mapa():
+def test_prevista_da_planilha_mais_recente_tambem_vira_incidencia_no_mapa():
     d = _resolver(date(2026, 9, 1), None, date(2026, 3, 1), None)
     assert d.prevista_para_celula is None
     assert d.data_ref == date(2026, 9, 1)      # atraso usa a da planilha, não a do Controle
+    assert _incidencias(d) == [("prevista", date(2026, 9, 1), date(2026, 3, 1))]
 
 
-def test_celula_vazia_recebe_a_prevista_sem_marcar_atualizacao():
+def test_celula_vazia_recebe_a_prevista_sem_incidencia():
     d = _resolver(None, None, date(2026, 3, 1), None)
-    assert d.prevista_para_celula == date(2026, 3, 1) and not d.prevista_atualizada
+    assert d.prevista_para_celula == date(2026, 3, 1) and d.incidencias == ()
 
 
 def test_reprogramada_digitada_na_planilha_nao_e_mais_sobrescrita():
@@ -239,6 +244,7 @@ def test_reprogramada_digitada_na_planilha_nao_e_mais_sobrescrita():
     d = _resolver(date(2026, 1, 1), date(2026, 8, 8), date(2026, 1, 1), date(2026, 5, 5))
     assert d.reprogramada is None
     assert d.data_ref == date(2026, 8, 8)      # e é a manual que vale
+    assert _incidencias(d) == [("reprogramada", date(2026, 8, 8), date(2026, 5, 5))]
 
 
 def test_reprogramada_vazia_e_preenchida_pelo_controle():
@@ -274,8 +280,9 @@ def test_mapa_e_doclist_concordam_nas_datas():
         d = resolver_datas_doclist(prevista_atual=prev_cel, reprogramada_atual=reprog_cel,
                                    codigos=[], cod_itaipu_atual="#IT-1",
                                    cod_cmi_atual="", controle=ctrl)
-        assert (m.prevista_para_celula, m.reprogramada, m.data_ref) == \
-               (d.prevista, d.reprogramada, d.data_alvo), (prev_cel, reprog_cel, prev_ctrl, reprog_ctrl)
+        assert (m.prevista_para_celula, m.reprogramada, m.data_ref, m.incidencias) == \
+               (d.prevista, d.reprogramada, d.data_alvo, d.incidencias), \
+               (prev_cel, reprog_cel, prev_ctrl, reprog_ctrl)
 
 
 def test_mapa_end_to_end_respeita_input_manual(tmp_path):
@@ -300,14 +307,65 @@ def test_mapa_end_to_end_respeita_input_manual(tmp_path):
     ctrl_path = escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
         {"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "30-06-2026", "reprog": "5/5/2026"}])
     controle = ler_controle(ctrl_path, 0, log_cb=lambda _m: None)
+    logs = []
     assert atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle,
-                                hoje=HOJE, log_cb=lambda _m: None).ok
+                                hoje=HOJE, log_cb=logs.append).ok
 
     ws2 = openpyxl.load_workbook(mapa_path).active
     prevista = ws2.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1).value
     reprog = ws2.cell(3, _COLS_MAPA.index("DATA REPROGRAMADA") + 1).value
-    assert str(prevista).startswith("2026-06-30")   # Controle é mais recente → atualiza
+    assert str(prevista).startswith("2026-01-01")   # baseline preservada (ADR 0001)
     assert str(reprog).startswith("2026-12-25")     # input manual preservado
+    # Sem quem decida (linha de comando), as duas trocas possíveis vão para o log.
+    texto = "\n".join(logs)
+    assert "2 datas preenchidas" in texto and "#IT-1" in texto
+
+
+def test_mapa_troca_so_o_que_foi_aceito_e_lembra_a_recusa(tmp_path):
+    """A tela de sobrescrição vale também para o Mapa (pedido do usuário)."""
+    from docmanager.services.sobrescricao import ABA_RECUSAS, DecisaoSobrescricao
+
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/09/2025", current=True))
+    base_path = tmp_path / "base.xlsx"
+    b.to_excel(base_path, index=False)
+    mapa_path = tmp_path / "mapa.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for c, nome in enumerate(_COLS_MAPA, 1):
+        ws.cell(1, c, nome)
+    ws.cell(3, 1, "SALAS"), ws.cell(3, 2, "CMI-1"), ws.cell(3, 3, "#IT-1")
+    ws.cell(3, 4, "DOC"), ws.cell(3, 5, "4")
+    ws.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1, date(2026, 1, 1))
+    ws.cell(3, _COLS_MAPA.index("DATA REPROGRAMADA") + 1, date(2026, 12, 25))
+    wb.save(mapa_path)
+    controle = ler_controle(escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "30-06-2026", "reprog": "5/5/2026"}]),
+        0, log_cb=lambda _m: None)
+
+    recebidas = []
+
+    def decidir(pendentes):
+        recebidas.append([(i.coluna, i.titulo_coluna) for i in pendentes])
+        prev = next(i for i, inc in enumerate(pendentes) if inc.coluna == "prevista")
+        reprog = next(i for i, inc in enumerate(pendentes) if inc.coluna == "reprogramada")
+        return DecisaoSobrescricao(aceitas=frozenset({prev}), recusadas=frozenset({reprog}))
+
+    assert atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle, hoje=HOJE,
+                                log_cb=lambda _m: None, decidir_cb=decidir).ok
+    assert sorted(recebidas[0]) == [("prevista", "DATA PREVISTA EMISSÃO ETAPA 1"),
+                                    ("reprogramada", "DATA REPROGRAMADA (etapa 1)")]
+    wb2 = openpyxl.load_workbook(mapa_path)
+    ws2 = wb2.active
+    assert str(ws2.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1).value).startswith("2026-06-30")
+    assert str(ws2.cell(3, _COLS_MAPA.index("DATA REPROGRAMADA") + 1).value).startswith("2026-12-25")
+    assert [c.value for c in wb2[ABA_RECUSAS][2]][:3] == ["#IT-1", "CMI-1", "DATA REPROGRAMADA (etapa 1)"]
+
+    # Na rodada seguinte, a recusa não volta e a prevista aceita já é igual à do Controle.
+    recebidas.clear()
+    assert atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle, hoje=HOJE,
+                                log_cb=lambda _m: None, decidir_cb=decidir).ok
+    assert recebidas == []
 
 
 def test_mapa_descricao_segue_prioridade_aconex_controle_planilha(tmp_path):
@@ -354,3 +412,33 @@ def test_controle_sem_nenhuma_data_avisa(tmp_path):
     linhas = []
     ler_controle(caminho, 0, log_cb=linhas.append)
     assert any("nenhuma linha do Controle tem data" in m for m in linhas)
+
+
+def test_mapa_salvar_recusado_diz_qual_programa_esta_com_a_planilha(tmp_path, monkeypatch):
+    """Mesmo diagnóstico do Doc List (3.6.1-rc.1)."""
+    from docmanager.services import gravacao
+
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/09/2025", current=True))
+    base_path = tmp_path / "base.xlsx"
+    b.to_excel(base_path, index=False)
+    mapa_path = tmp_path / "mapa.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for c, nome in enumerate(_COLS_MAPA, 1):
+        ws.cell(1, c, nome)
+    ws.cell(3, 1, "SALAS"), ws.cell(3, 2, "CMI-1"), ws.cell(3, 3, "#IT-1")
+    ws.cell(3, 4, "DOC"), ws.cell(3, 5, "4")
+    wb.save(mapa_path)
+
+    def recusa(self, caminho):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(openpyxl.Workbook, "save", recusa)
+    monkeypatch.setattr(gravacao, "_somente_leitura", lambda c: False)
+    monkeypatch.setattr(gravacao, "_programas_com_o_arquivo", lambda c: ["Microsoft Power BI Desktop"])
+    monkeypatch.setattr(gravacao.time, "sleep", lambda s: None)
+    r = atualizar_mapeamento(str(base_path), str(mapa_path), hoje=HOJE, log_cb=lambda _m: None)
+    assert not r.ok
+    assert "Microsoft Power BI Desktop" in r.mensagem
+    assert "arquivo aberto?" not in r.mensagem
