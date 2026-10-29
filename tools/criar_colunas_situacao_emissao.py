@@ -5,7 +5,7 @@
 As colunas (`DATA 1ª EMISSÃO`, `SITUAÇÃO EMISSÃO`, `DIAS DESVIO EMISSÃO`,
 `SITUAÇÃO OTD`, `SITUAÇÃO SAY-DO`) são **calculadas pelo app**: este script só as
 cria vazias, já com a cara das outras colunas da planilha. Quem as preenche é a
-atualização normal do módulo (que, desde a v3.7, já cria sozinha as duas últimas).
+atualização normal do módulo (que, desde a v3.6.1, já cria sozinha as duas últimas).
 
 Decisões de projeto, para quem for mexer depois:
 

@@ -153,3 +153,11 @@ Resultado: 1133 passed, ruff limpo.
   um gráfico só, abrindo na ATUAL) e Q20 (curva S acumulando desde o começo, previstos
   pela DATA PREVISTA).
 
+
+### Versão (skill de versionamento do usuário, branch claude/ecstatic-bardeen-yxm9fn)
+- Rodada 4 respondida: Q19 = A (abre na ATUAL), Q20 = sim.
+- O usuário apontou que a mudança é pequena: pela regra da skill (mesma função
+  funcionando melhor + coluna nova = PATCH), a versão é 3.6.1, não 3.7.0. CHANGELOG
+  e docstring do script renumerados; `proxima_versao.py --checar 3.6.1` e
+  `--checar 3.6.1-rc.1` deram OK. Ensaio = 3.6.1-rc.1 pelo Run workflow do Release
+  neste branch, com Pré-lançamento marcado (só depois do OK do usuário).

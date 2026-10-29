@@ -5,7 +5,7 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.7.0 - 2026-10-29
+## 3.6.1 - 2026-10-29
 
 - Doc List Mapping e Mapa dos Planos: uma data já preenchida na planilha (prevista ou reprogramada, digitada à mão ou não) não é mais trocada pela do Controle de Documentos sem você aceitar. Quando o Controle trocaria alguma, o DocManager pergunta: aceitar todas, não sobrescrever ou ver caso a caso, com a lista das datas para marcar quais trocar. Célula vazia continua sendo preenchida pelo Controle.
 - A data prevista passa a ser a baseline: o Controle não a empurra mais para frente sozinho, e quem aceitar a troca é avisado de que o atraso passa a ser medido contra a data nova.
