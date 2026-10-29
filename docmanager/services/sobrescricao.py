@@ -84,11 +84,21 @@ def linhas_log_nao_trocadas(incidencias: list[IncidenciaDoc], limite: int = 15) 
     return [f"{cab}: {amostra}{resto}."]
 
 
+def _contar(n: int, singular: str, plural: str) -> str:
+    return f"{n} {singular if n == 1 else plural}"
+
+
 def linhas_log_decisao(*, aceitas: list[IncidenciaDoc], recusadas: list[IncidenciaDoc],
                        adiadas: list[IncidenciaDoc], ja_recusadas: list[IncidenciaDoc],
                        limite: int = 15) -> list[str]:
     """Resumo do que aconteceu com as incidências da rodada."""
     msgs: list[str] = []
+    total = len(aceitas) + len(recusadas) + len(adiadas) + len(ja_recusadas)
+    if total and (aceitas or recusadas):
+        msgs.append(f"{_contar(total, 'data preenchida', 'datas preenchidas')} que o Controle "
+                    f"trocaria: {_contar(len(aceitas), 'trocada', 'trocadas')}, "
+                    f"{_contar(len(recusadas), 'recusada', 'recusadas')}, "
+                    f"{len(adiadas)} para depois, {len(ja_recusadas)} já recusadas antes.")
     if ja_recusadas:
         n = len(ja_recusadas)
         msgs.append(f"{n} troca{'s' if n > 1 else ''} já recusada{'s' if n > 1 else ''} antes "
@@ -108,22 +118,24 @@ def linhas_log_decisao(*, aceitas: list[IncidenciaDoc], recusadas: list[Incidenc
 # ---------------------------------------------------------------------------
 # Memória das recusas
 # ---------------------------------------------------------------------------
-def _chave(codigo, titulo_coluna, data_controle) -> tuple:
-    return (chave_codigo(codigo), remover_acentos(str(titulo_coluna)).strip().upper(),
-            celula_para_date(data_controle))
+def _chaves(cod_itaipu, cod_cmi, titulo_coluna, data_controle) -> set[tuple]:
+    """Uma chave por código do documento: o N° ITAIPU muda quando o Aconex traz um
+    código novo, e a recusa tem de continuar valendo pelo Nº CMI (e vice-versa)."""
+    coluna = remover_acentos(str(titulo_coluna)).strip().upper()
+    data = celula_para_date(data_controle)
+    return {(chave_codigo(c), coluna, data) for c in (cod_itaipu, cod_cmi) if chave_codigo(c)}
 
 
 def ler_recusas(wb) -> set[tuple]:
-    """Chaves (documento, coluna, data do Controle) já recusadas na pasta de trabalho."""
+    """Chaves (código, coluna, data do Controle) já recusadas na pasta de trabalho."""
     if ABA_RECUSAS not in wb.sheetnames:
         return set()
-    chaves = set()
+    chaves: set[tuple] = set()
     for linha in wb[ABA_RECUSAS].iter_rows(min_row=2, values_only=True):
         if not linha or len(linha) < 5:
             continue
-        codigo = linha[0] or linha[1]
-        if codigo and linha[2] and celula_para_date(linha[4]) is not None:
-            chaves.add(_chave(codigo, linha[2], linha[4]))
+        if linha[2] and celula_para_date(linha[4]) is not None:
+            chaves |= _chaves(linha[0], linha[1], linha[2], linha[4])
     return chaves
 
 
@@ -132,8 +144,8 @@ def separar_ja_recusadas(incidencias: list[IncidenciaDoc], recusas: set[tuple]):
     mesma data: se ele mudar de novo, é informação nova e volta a ser perguntada."""
     pendentes, ja = [], []
     for inc in incidencias:
-        alvo = ja if _chave(inc.codigo, inc.titulo_coluna, inc.data_controle) in recusas else pendentes
-        alvo.append(inc)
+        chaves = _chaves(inc.cod_itaipu, inc.cod_cmi, inc.titulo_coluna, inc.data_controle)
+        (ja if chaves & recusas else pendentes).append(inc)
     return pendentes, ja
 
 
@@ -161,9 +173,11 @@ def anotar_recusas(wb, recusadas: list[IncidenciaDoc], *, quando: date, quem: st
     for inc in recusadas:
         ws.append([inc.cod_itaipu, inc.cod_cmi, inc.titulo_coluna, None, None, None, quem])
         row = ws.max_row
-        # O valor da planilha é uma data ou o texto que estava na célula ('A DEFINIR').
+        # O valor da planilha é uma data ou o texto que estava na célula ('A DEFINIR',
+        # '=DATE(...)'). Fórmula vira TEXTO aqui: é o registro do que havia lá.
         if isinstance(inc.valor_planilha, str):
             ws.cell(row, 4).value = inc.valor_planilha
+            ws.cell(row, 4).data_type = "s"
         else:
             gravar_data(ws.cell(row, 4), inc.valor_planilha)
         gravar_data(ws.cell(row, 5), inc.data_controle)

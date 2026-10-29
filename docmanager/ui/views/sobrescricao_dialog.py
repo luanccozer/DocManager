@@ -14,8 +14,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QHeaderView, QTreeWidget, QTreeWidgetItem, QVBoxLayout
 
-from ...core.planejamento import COLUNA_PREVISTA
-from ...services.sobrescricao import DecisaoSobrescricao, formatar_valor
+from ...controle_backend import COLUNA_PREVISTA, DecisaoSobrescricao, formatar_valor
 from ..components import botao, linha, rodape, rotulo
 from ..ponte import na_ui_e_esperar
 

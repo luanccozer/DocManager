@@ -967,3 +967,43 @@ def test_colunas_otd_e_say_do_sao_criadas_quando_faltam(tmp_path):
     assert ws.auto_filter.ref.endswith(f"{ws.cell(1, len(cab)).column_letter}7")
     assert any("Coluna criada: SITUAÇÃO OTD" in m for m in logs)
     assert not any("não encontradas" in m for m in logs)
+
+
+def test_recusa_continua_valendo_quando_o_aconex_troca_o_codigo_itaipu(tmp_path):
+    """O app atualiza o N° ITAIPU pelo Aconex; a recusa anotada com o código
+    antigo continua valendo pelo Nº CMI."""
+    b = base(HistoricoBuilder("T1", "#IT-NOVO", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/03/2026", current=True))
+    path_base = tmp_path / "base.xlsx"
+    b.to_excel(path_base, index=False)
+    path_dl = _escrever_doclist(tmp_path / "dl.xlsx",
+                                [("UNIT", "SDSC", "CMI-1", "#IT-VELHO", "DOC", "2", date(2026, 3, 1), None)])
+    controle = ler_controle(escrever_controle_xlsx(
+        tmp_path / "ctrl.xlsx", [{"itaipu": "#IT-NOVO", "cmi": "CMI-1", "prevista": "01-09-2026"}]),
+        0, log_cb=lambda _m: None)
+    _atualizar(path_base, path_dl, controle, _Decisor(lambda p: DecisaoSobrescricao.recusar_todas(len(p))))
+
+    de_novo = _Decisor(lambda p: None)
+    _wb, ws, col = _atualizar(path_base, path_dl, controle, de_novo)
+    assert ws.cell(2, col["N° ITAIPU"]).value == "#IT-NOVO"
+    assert de_novo.chamadas == []
+
+
+def test_formula_recusada_fica_como_texto_na_aba(tmp_path):
+    def preparar_formula(path_dl):
+        wb = openpyxl.load_workbook(path_dl)
+        ws = wb.active
+        col = {str(c.value): c.column for c in ws[1]}
+        ws.cell(2, col["DATA REPROGRAMADA"]).value = "=DATE(2026,12,1)"
+        wb.save(path_dl)
+
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    preparar_formula(path_dl)
+    logs = []
+    wb, ws, col = _atualizar(path_base, path_dl,
+                             _controle_xlsx(tmp_path, prevista="01-03-2026", reprog="15/12/2026"),
+                             _Decisor(lambda p: DecisaoSobrescricao.recusar_todas(len(p))), logs)
+    assert ws.cell(2, col["DATA REPROGRAMADA"]).value == "=DATE(2026,12,1)"   # a fórmula ficou
+    celula = wb[ABA_RECUSAS].cell(2, 4)
+    assert (celula.value, celula.data_type) == ("=DATE(2026,12,1)", "s")
+    assert any("1 data preenchida que o Controle trocaria: 0 trocadas, 1 recusada" in m for m in logs)

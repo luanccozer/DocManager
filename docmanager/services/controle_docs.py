@@ -275,12 +275,6 @@ class ControleMemo:
                 codigos, cod_itaipu_atual, cod_cmi_atual, permitir_contido=permitir_contido)
         return self._memo[chave]
 
-    def __getattr__(self, nome):
-        return getattr(self._controle, nome)
-
-    def __len__(self) -> int:
-        return len(self._controle)
-
 
 # --------------------------------------------------------------------------
 # Leitura dinâmica

@@ -115,3 +115,23 @@
   o código já citava) e §27.7 nova (OTD e say-do); docs/doc_list_mapping.md,
   docs/controle_de_documentos.md, docs/situacao_emissao_dashboard.md, README,
   texto da tela do Doc List, GLOSSARY (Situação OTD) e CHANGELOG 3.7.0 (parser ok).
+
+### Revisão (skill code-review do Matt Pocock, dois eixos, feita inline sem subagentes)
+Ponto fixo: 9c2fff6 (spec e tarefas) → HEAD.
+
+**Standards** (README "Arquitetura", KB §22, baseline de smells do Fowler):
+- Violação documentada: a tela importava `core` e `services` direto; o README diz que
+  a interface só enxerga backends → passou a importar de `controle_backend` (corrigido).
+- Speculative Generality: `ControleMemo.__getattr__`/`__len__` sem uso → removidos.
+- Duplicated Code (julgamento): as duas atualizações (Doc List e Mapa) têm a mesma
+  forma de duas passadas, sobre planilhas e colunas diferentes. Mantido: a duplicação
+  paralela já existia (Diagnóstico, escrita), e a regra em si está num lugar só.
+
+**Spec** (.scratch/otd-say-do/spec.md):
+- História 20 parcial: o log não dizia o total de incidências → linha de resumo nova.
+- Correção: recusa anotada com o N° ITAIPU deixava de valer quando o Aconex trocava o
+  código → a chave agora vale pelos dois códigos (teste novo).
+- Correção: texto de fórmula recusado era gravado na aba como fórmula → fica texto
+  (teste novo).
+- Histórias 31-33 (Power BI) em aberto: ticket 06, depende da rodada 4.
+Resultado: 1133 passed, ruff limpo.
