@@ -293,7 +293,7 @@ campos):
 
 O gráfico volta com as cores padrão do tema. Agora abra a aba **Formatar visual**:
 
-4. Em **Visual → Colunas → Cores**, acerte a cor de cada situação. Clique no quadradinho
+5. Em **Visual → Colunas → Cores**, acerte a cor de cada situação. Clique no quadradinho
    de cor, depois em **Mais cores**, e digite o código. São as cores que o gráfico usa
    hoje:
 
@@ -306,10 +306,10 @@ O gráfico volta com as cores padrão do tema. Agora abra a aba **Formatar visua
 
    Se aparecer uma cor só, escolha a situação na lista **Série** ou ligue
    **Mostrar tudo**.
-5. Em **Visual → Legenda → Opções → Posição**, escolha uma das posições **Inferior**
+6. Em **Visual → Legenda → Opções → Posição**, escolha uma das posições **Inferior**
    (por exemplo, **Inferior central**). A legenda desce e abre espaço em cima para os
    botões do passo 7.
-6. Em **Geral → Título → Texto**, clique no **fx** ao lado da caixa de texto:
+7. Em **Geral → Título → Texto**, clique no **fx** ao lado da caixa de texto:
    - em **Formatar estilo**, escolha **Valor do campo**;
    - em **Em qual campo devemos nos basear?**, escolha **Título (visão)** (fica em
      Calendario);
@@ -504,7 +504,7 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | "Não é possível determinar os relacionamentos entre os campos" | Sobrou campo de tabela no gráfico além de Date (Eixo X) e Situacao (Legenda): confira Eixo Y (só a medida Documentos (visão), com ícone de calculadora), Dicas de ferramenta e Múltiplos pequenos (vazios) e se não ficou DATA-ALVO EMISSÃO no Eixo X. |
 | Gráfico vazio | Confira se há um botão escolhido, se **Documentos (visão)** está no Eixo Y e se o PERÍODO já é do Calendario (passo 8). |
 | Botões ou legenda fora de ordem | Faltou **Classificar por coluna → Ordem** (passo 4). |
-| As cores voltaram ao padrão | Refaça o item 4 do passo 6. |
+| As cores voltaram ao padrão | Refaça o item 5 do passo 6. |
 | O cartão mostra "—" | Não há documento previsto (ou backlog) no período. É o esperado. |
 | A curva S ainda começa do zero no mês | Confira se as duas medidas do passo 10 usam `ALL(Calendario)`, e não `ALLSELECTED`. |
 
