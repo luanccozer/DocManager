@@ -11,3 +11,10 @@ curva S acumulando desde o início pela data prevista.
 
 - [ ] Roteiro testado contra o modelo atual (tabelas, relações e medidas existentes)
 - [ ] Inclui como conferir os números contra a planilha
+
+**Notes:** abordagem recomendada na rodada 4 (Q19 = variante A): um gráfico só, com
+as tabelas desconectadas 'Visões' (segmentação em blocos) e 'Situações' (legenda) e
+uma medida que troca a coluna de situação e a relação de data pela visão escolhida; o
+slicer de período passa da hierarquia da DATA-ALVO para o Calendario. Detalhes em
+`.planning/2026-10-28-otd-say-do-doc-list/findings.md` ("como montar as três visões").
+

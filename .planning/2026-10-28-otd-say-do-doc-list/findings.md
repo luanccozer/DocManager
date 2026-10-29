@@ -283,6 +283,33 @@ Os testes do repo continuam verdes: `tests/test_doclist.py` + `tests/test_contro
   confirmação de GA do projeto .pbip como um todo (blog do Power BI, posts de
   Rui Romano). Um .pbip deixaria editar medidas, relações e indicadores como texto.
 
+### Power BI: como montar as três visões (protótipo da Q12, 2026-10-29)
+- Página 'Unidade Geradora': o slicer Ano/Mês filtra pela hierarquia automática da
+  DATA-ALVO EMISSÃO e só age no gráfico DOCUMENTOS PARA EMISSÃO e no cartão do nível 3
+  (interação "Nenhum" para o resto). O gráfico: eixo DATA-ALVO (Dia), legenda SITUAÇÃO
+  EMISSÃO, contagem distinta de N° ITAIPU, filtro do visual NÍVEL = 2.
+- Para OTD e SAY-DO o slicer de período passa para o Calendario (Ano/Mês). Na visão
+  ATUAL ele chega à DATA-ALVO pela relação ativa; nas outras a medida troca a relação
+  com USERELATIONSHIP (DATA PREVISTA Aux, DATA REPROGRAMADA Aux, colunas novas).
+- Um gráfico só, sem indicadores: tabela desconectada 'Visões' (ATUAL, OTD, SAY-DO)
+  numa segmentação em blocos, tabela desconectada 'Situações' na legenda e uma medida
+  que, pela visão escolhida, filtra a coluna de situação daquela visão (SITUAÇÃO
+  EMISSÃO, OTD ou SAY-DO) e troca a relação de data. As cores por categoria ficam
+  iguais nas três visões, e os slicers do topo (SISTEMA, FASE, RESPONSIBLE) e o filtro
+  NÍVEL = 2 continuam valendo, porque a contagem é na 'Unidade Geradora'. Corrige a
+  nota acima ("um segmentador sozinho não troca visual"): ele não troca o visual,
+  troca o que a medida conta.
+- As variantes B (abas com explicação) e C (cartões que são botões) só saem com três
+  gráficos sobrepostos, botões e indicadores: mais cliques e três gráficos para manter
+  iguais.
+- Power Query: o primeiro "Tipo Alterado" lista Column1..Column23; o que vem depois
+  entra como "any" e ganha o nome do cabeçalho em "Cabeçalhos Promovidos" (foi assim
+  que SITUAÇÃO EMISSÃO entrou). SITUAÇÃO OTD e SITUAÇÃO SAY-DO entram sozinhas no
+  Atualizar; vale um passo de tipo Texto no fim.
+- Protótipo (HTML descartável, só no scratchpad, com agregados de out/2026 e NÍVEL = 2,
+  sem cancelados): variantes A/B/C × visões ATUAL (48), OTD (59) e SAY-DO (5);
+  cartões 59,3% (35 de 59) e 100% (5 de 5). Conferido claro, escuro e celular.
+
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|

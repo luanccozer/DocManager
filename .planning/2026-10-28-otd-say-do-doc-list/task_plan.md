@@ -4,10 +4,11 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Revisão (code-review: padrões + spec) do diff desde a spec; depois perguntas da rodada 4 (Power BI).
+Esperar as respostas da rodada 4 (Q19 layout das três visões, Q20 curva S); com elas, escrever o roteiro
+de cliques do Power BI (ticket 06).
 
 ## Current Phase
-Phase 7
+Phase 8
 
 ## Phases
 
@@ -56,13 +57,15 @@ Phase 7
 - [x] Ticket 03: tela de sobrescrição
 - [x] Ticket 04: SITUAÇÃO OTD e SITUAÇÃO SAY-DO
 - [x] Ticket 05: ADR, KB, guias, README, CHANGELOG
-- [ ] Suíte inteira + ruff verdes; revisão (code-review) feita
-- **Status:** in_progress
+- [x] Suíte inteira + ruff verdes; revisão (code-review) feita
+- **Status:** complete
 
 ### Phase 8: Roteiro do Power BI (ticket 06)
+- [x] Protótipo das três visões (resposta à Q12 "como não ficar feio"), enviado
+- [x] Rodada 4 enviada (Q19, Q20)
 - [ ] Respostas da rodada 4 (Q19 três visões, Q20 curva S)
 - [ ] Roteiro de cliques detalhado, conferido contra o modelo atual
-- **Status:** pending
+- **Status:** in_progress
 
 ## Key Questions
 
@@ -132,11 +135,17 @@ Consequências tiradas por mim (informar ao usuário):
   de novo na próxima rodada).
 
 Rodada 4 (só Power BI; não bloqueia o DocManager):
-- Q19 Três visões no mesmo lugar com botões em segmento (ATUAL | OTD | SAY-DO, via
-  Navegador de indicadores), mesmo tamanho e posição, título muda por visão;
-  abre na ATUAL. Mostrar com um protótipo visual.
+- Q19 Qual das três variantes do protótipo (A botões no cabeçalho, B abas, C cartões
+  que são botões) e qual visão abre. Rec.: A, abrindo na ATUAL. A sai com UM gráfico
+  só e uma segmentação em blocos (tabelas desconectadas 'Visões' e 'Situações' + uma
+  medida com SWITCH e USERELATIONSHIP), sem indicadores; B e C pedem três gráficos
+  sobrepostos, botões e indicadores.
 - Q20 Curva S: acumular desde o começo do projeto (o filtro de mês só escolhe a
-  janela), previstos pela DATA PREVISTA. Resolve o exemplo 10/10 x 30/09.
+  janela), previstos pela DATA PREVISTA. Resolve o exemplo 10/10 x 30/09; em
+  compensação a curva de um mês não começa do zero. Rec.: sim.
+- Decidido por mim (não vira pergunta): os cartões contam a mesma população do
+  gráfico (NÍVEL = 2, sem cancelados) e respondem ao mesmo filtro de período; mês
+  sem backlog mostra "—" no SAY-DO, não 0% nem 100%.
 
 Fora do grilling (anotado para a spec):
 - Power BI: Calendario + relações inativas para DATA PREVISTA e DATA REPROGRAMADA,

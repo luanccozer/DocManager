@@ -135,3 +135,21 @@ Ponto fixo: 9c2fff6 (spec e tarefas) → HEAD.
   (teste novo).
 - Histórias 31-33 (Power BI) em aberto: ticket 06, depende da rodada 4.
 Resultado: 1133 passed, ruff limpo.
+
+## Session: 2026-10-29 (continuação: resposta à Q12)
+
+### Actions Taken
+- Skill prototype do Matt Pocock (ramo UI): protótipo descartável com três variantes
+  do seletor de visões (A botões no cabeçalho, B abas, C cartões que são botões), cada
+  uma com as visões ATUAL, OTD e SAY-DO e os dois cartões. Números reais agregados de
+  outubro; HTML só com CSS, gerado por script no scratchpad (não versionado: dados do
+  cliente). Conferido em captura: claro, escuro e 390 px; corrigidos barra com
+  cantos arredondados embaixo, subtítulo repetido na B, contraste do cartão escolhido
+  na C e dos botões no escuro.
+- Modelo do .pbix relido para saber como montar: interações da página (o slicer de
+  período só filtra o gráfico e o cartão do nível 3), eixo e legenda do gráfico,
+  Power Query (colunas novas entram sozinhas). Achado registrado em findings.md.
+- Rodada 4 enviada: Q19 (variante e visão inicial; rec. A com segmentação em blocos e
+  um gráfico só, abrindo na ATUAL) e Q20 (curva S acumulando desde o começo, previstos
+  pela DATA PREVISTA).
+
