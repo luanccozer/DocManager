@@ -95,3 +95,8 @@
 |------|----------|--------|--------|
 | suíte inteira após ticket 01 | verde | 1105 passed | ok |
 | ruff check docmanager tests | limpo | All checks passed | ok |
+- Ticket 02 (TDD): 6 testes de ponta a ponta no Doc List (aceitar, recusar e não
+  perguntar de novo, Controle muda e volta a perguntar, linha apagada da aba,
+  adiar, caso a caso) + 1 no Mapa. services/sobrescricao.py ganhou
+  DecisaoSobrescricao, aba "Sobrescrições recusadas" (ler/anotar) e `decidir`.
+  `decidir_cb` novo em atualizar_doclist e atualizar_mapeamento. Suíte: 1112 passed.

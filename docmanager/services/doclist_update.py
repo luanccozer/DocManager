@@ -32,7 +32,7 @@ from ..core.planejamento import COLUNA_PREVISTA
 from .controle_docs import ControleDocs, ControleMemo
 from .doclist_io import DocListSheet
 from .excel_io import aviso_datas_com_texto, carregar_base_aconex
-from .sobrescricao import IncidenciaDoc, linhas_log_nao_trocadas
+from .sobrescricao import IncidenciaDoc, decidir
 
 
 # Colunas de data que aceitam input manual (as outras o app calcula e grava).
@@ -177,7 +177,7 @@ def _incidencias_da_linha(ds: DocListSheet, ln: _Linha, datas) -> list[Incidenci
 def atualizar_doclist(
     path_aconex, path_doclist, *, sheet_aconex=0, sheet_doclist=None,
     controle: ControleDocs | None = None, hoje: date | None = None,
-    log_cb=print, progress_cb=None, retry_cb=None,
+    log_cb=print, progress_cb=None, retry_cb=None, decidir_cb=None,
 ) -> ResultadoDocList:
     """Atualiza a planilha do Doc List Mapping a partir da base Aconex (+
     Controle de Documentos, opcional).
@@ -185,6 +185,9 @@ def atualizar_doclist(
     Duas passadas: a primeira localiza cada documento e acha as incidências (as
     datas preenchidas que o Controle trocaria, ADR 0001); a segunda grava tudo
     com as datas finais. A busca no Controle é memorizada, então não custa dobrado.
+
+    `decidir_cb(pendentes) -> DecisaoSobrescricao | None` é a tela de
+    sobrescrição; sem ela, nenhuma data preenchida é trocada.
     """
     log_cb("Lendo base Aconex...")
     base = carregar_base_aconex(path_aconex, sheet_aconex)
@@ -236,7 +239,9 @@ def atualizar_doclist(
         ln.codigos = obter_codigos_historicos(ln.df_tracking) if not ln.df_tracking.empty else []
         incidencias += _incidencias_da_linha(ds, ln, _resolver_datas(ds, ln, controle))
 
-    for linha_log in linhas_log_nao_trocadas(incidencias):
+    # Decisão sobre as incidências: a tela (decidir_cb) ou, sem ela, nada trocado.
+    aceitas_por_linha, linhas_log = decidir(incidencias, wb, decidir_cb, hoje=hoje_ref)
+    for linha_log in linhas_log:
         log_cb(linha_log)
 
     # Passada 2: grava status, datas e aderência.
@@ -252,7 +257,7 @@ def atualizar_doclist(
 
         # Planejamento vindo do Controle (roda mesmo sem o doc no Aconex - é
         # justamente o não emitido que precisa da data prevista).
-        datas = _resolver_datas(ds, ln, controle)
+        datas = _resolver_datas(ds, ln, controle, aceitas_por_linha.get(row, frozenset()))
         if datas.prevista is not None and ds.set_data("data_prevista", row, datas.prevista):
             diag.previstas += 1
         if datas.reprogramada is not None and ds.set_data("data_reprogramada", row, datas.reprogramada):

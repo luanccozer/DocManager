@@ -8,12 +8,12 @@ resume preenchidas, incidências, aceitas, recusadas, adiadas e já recusadas.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Aceitar: a data do Controle é gravada e a data-alvo acompanha
-- [ ] Recusar: a planilha não muda e a aba de recusas ganha a linha (código, coluna, datas, quando, quem)
-- [ ] Rodada seguinte: a incidência recusada não chega à decisão
-- [ ] Controle muda de novo a data: a incidência volta a ser perguntada
-- [ ] Linha apagada da aba: a incidência volta a ser perguntada
-- [ ] Adiar: nada trocado, nada anotado
-- [ ] Doc List e Mapa
+- [x] Aceitar: a data do Controle é gravada e a data-alvo acompanha
+- [x] Recusar: a planilha não muda e a aba de recusas ganha a linha (código, coluna, datas, quando, quem)
+- [x] Rodada seguinte: a incidência recusada não chega à decisão
+- [x] Controle muda de novo a data: a incidência volta a ser perguntada
+- [x] Linha apagada da aba: a incidência volta a ser perguntada
+- [x] Adiar: nada trocado, nada anotado
+- [x] Doc List e Mapa

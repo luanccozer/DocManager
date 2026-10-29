@@ -26,7 +26,7 @@ from ..core.mapping import processar_documento, resolver_datas_controle
 from ..core.planejamento import COLUNA_PREVISTA
 from .controle_docs import ControleDocs, ControleMemo
 from .excel_io import COLUNAS_MAPA, MappingSheet, aviso_datas_com_texto, carregar_base_aconex
-from .sobrescricao import IncidenciaDoc, linhas_log_nao_trocadas
+from .sobrescricao import IncidenciaDoc, decidir
 
 TITULO_REPROGRAMADA_ETAPA1 = "DATA REPROGRAMADA (etapa 1)"
 
@@ -137,8 +137,15 @@ def _escrever_resultado(ms: MappingSheet, row: int, r) -> None:
 def atualizar_mapeamento(
     path_aconex, path_mapping, *, sheet_aconex=0, sheet_mapping=None,
     controle: ControleDocs | None = None, regra_estrita_vip: bool = False,
-    hoje: date | None = None, log_cb=print, progress_cb=None, retry_cb=None,
+    hoje: date | None = None, log_cb=print, progress_cb=None, retry_cb=None, decidir_cb=None,
 ) -> ResultadoMapa:
+    """Atualiza a planilha de mapeamento a partir da base Aconex (+ Controle).
+
+    Duas passadas, como no Doc List: a primeira acha as incidências (datas
+    preenchidas da etapa 1 que o Controle trocaria, ADR 0001), a segunda grava.
+    `decidir_cb(pendentes) -> DecisaoSobrescricao | None` é a tela de
+    sobrescrição; sem ela (linha de comando), nenhuma data preenchida é trocada.
+    """
     log_cb("Lendo base Aconex...")
     base = carregar_base_aconex(path_aconex, sheet_aconex)
     idx = AconexIndex(base)
@@ -152,6 +159,7 @@ def atualizar_mapeamento(
     log_cb(f"Processando linhas {ms.start_row} a {ms.max_row}...")
 
     total = max(ms.max_row - ms.start_row + 1, 1)
+    hoje_ref = hoje or date.today()
     controle = ControleMemo(controle) if controle is not None else None
     diag = DiagnosticoControle()
     datas_com_texto: list[str] = []
@@ -186,7 +194,9 @@ def atualizar_mapeamento(
             ln.codigos = obter_codigos_historicos(ln.df_tracking) if not ln.df_tracking.empty else []
             incidencias += _incidencias_da_linha(ms, ln, _resolver_datas(ms, ln, controle))
 
-    for linha_log in linhas_log_nao_trocadas(incidencias):
+    # Decisão sobre as incidências: a tela (decidir_cb) ou, sem ela, nada trocado.
+    aceitas_por_linha, linhas_log = decidir(incidencias, wb, decidir_cb, hoje=hoje_ref)
+    for linha_log in linhas_log:
         log_cb(linha_log)
 
     # Passada 2: grava datas, status, KPIs e atrasos.
@@ -196,7 +206,7 @@ def atualizar_mapeamento(
         row = ln.row
         data_ref, datas = None, None
         if controle is not None:
-            datas = _resolver_datas(ms, ln, controle)
+            datas = _resolver_datas(ms, ln, controle, aceitas_por_linha.get(row, frozenset()))
             if datas.prevista_para_celula is not None:
                 ms.set_data("data_previsao_etapa_1", row, datas.prevista_para_celula)
                 diag.previstas += 1

@@ -321,6 +321,53 @@ def test_mapa_end_to_end_respeita_input_manual(tmp_path):
     assert "2 datas preenchidas" in texto and "#IT-1" in texto
 
 
+def test_mapa_troca_so_o_que_foi_aceito_e_lembra_a_recusa(tmp_path):
+    """A tela de sobrescrição vale também para o Mapa (pedido do usuário)."""
+    from docmanager.services.sobrescricao import ABA_RECUSAS, DecisaoSobrescricao
+
+    b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "DOC")
+             .evento("0A", 1, "Em Processo", "01/09/2025", current=True))
+    base_path = tmp_path / "base.xlsx"
+    b.to_excel(base_path, index=False)
+    mapa_path = tmp_path / "mapa.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for c, nome in enumerate(_COLS_MAPA, 1):
+        ws.cell(1, c, nome)
+    ws.cell(3, 1, "SALAS"), ws.cell(3, 2, "CMI-1"), ws.cell(3, 3, "#IT-1")
+    ws.cell(3, 4, "DOC"), ws.cell(3, 5, "4")
+    ws.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1, date(2026, 1, 1))
+    ws.cell(3, _COLS_MAPA.index("DATA REPROGRAMADA") + 1, date(2026, 12, 25))
+    wb.save(mapa_path)
+    controle = ler_controle(escrever_controle_xlsx(tmp_path / "ctrl.xlsx", [
+        {"itaipu": "#IT-1", "cmi": "CMI-1", "prevista": "30-06-2026", "reprog": "5/5/2026"}]),
+        0, log_cb=lambda _m: None)
+
+    recebidas = []
+
+    def decidir(pendentes):
+        recebidas.append([(i.coluna, i.titulo_coluna) for i in pendentes])
+        prev = next(i for i, inc in enumerate(pendentes) if inc.coluna == "prevista")
+        reprog = next(i for i, inc in enumerate(pendentes) if inc.coluna == "reprogramada")
+        return DecisaoSobrescricao(aceitas=frozenset({prev}), recusadas=frozenset({reprog}))
+
+    assert atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle, hoje=HOJE,
+                                log_cb=lambda _m: None, decidir_cb=decidir).ok
+    assert sorted(recebidas[0]) == [("prevista", "DATA PREVISTA EMISSÃO ETAPA 1"),
+                                    ("reprogramada", "DATA REPROGRAMADA (etapa 1)")]
+    wb2 = openpyxl.load_workbook(mapa_path)
+    ws2 = wb2.active
+    assert str(ws2.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1).value).startswith("2026-06-30")
+    assert str(ws2.cell(3, _COLS_MAPA.index("DATA REPROGRAMADA") + 1).value).startswith("2026-12-25")
+    assert [c.value for c in wb2[ABA_RECUSAS][2]][:3] == ["#IT-1", "CMI-1", "DATA REPROGRAMADA (etapa 1)"]
+
+    # Na rodada seguinte, a recusa não volta e a prevista aceita já é igual à do Controle.
+    recebidas.clear()
+    assert atualizar_mapeamento(str(base_path), str(mapa_path), controle=controle, hoje=HOJE,
+                                log_cb=lambda _m: None, decidir_cb=decidir).ok
+    assert recebidas == []
+
+
 def test_mapa_descricao_segue_prioridade_aconex_controle_planilha(tmp_path):
     """§27.3: prioridade Aconex > Controle > planilha, igual ao Doc List."""
     b = base(HistoricoBuilder("T1", "#IT-1", "CMI-1", "TITULO DO ACONEX")
