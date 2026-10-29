@@ -122,9 +122,12 @@ que códigos numéricos virem `1234.0`.
 
 - **Mapa dos Planos** (`services/mapping_update.py`) e **Doc List Mapping**
   (`services/doclist_update.py`) usam a **mesma regra** de reconciliação
-  (`core/planejamento.py::reconciliar_datas`, §24.13):
-  - `DATA PREVISTA` — vence a **data mais recente** entre a planilha e o Controle;
-  - `DATA REPROGRAMADA` — só preenche o **vazio** (input manual tem a palavra final);
+  (`core/planejamento.py::reconciliar_datas`, §24.14, ADR 0001):
+  - `DATA PREVISTA` e `DATA REPROGRAMADA` — a célula **vazia** recebe a do Controle;
+    a **preenchida** (data, texto ou fórmula) só é trocada se quem roda a
+    atualização aceitar, na tela de sobrescrição. A recusa fica anotada na aba
+    "Sobrescrições recusadas" da planilha. Até 2026-10 a `DATA PREVISTA` ficava
+    com a mais recente (§24.13), e a data original se perdia;
   - o **atraso** (KPIs `SITUAÇÃO DO PRAZO`/`DIAS DE ATRASO`) usa a `data_ref`
     (`REPROGRAMAÇÃO > PREVISTA`) calculada sobre os valores **finais**, ou seja,
     os que ficam nas células — e não só sobre os do Controle;

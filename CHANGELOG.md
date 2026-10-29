@@ -5,6 +5,14 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.7.0 - 2026-10-29
+
+- Doc List Mapping e Mapa dos Planos: uma data já preenchida na planilha (prevista ou reprogramada, digitada à mão ou não) não é mais trocada pela do Controle de Documentos sem você aceitar. Quando o Controle trocaria alguma, o DocManager pergunta: aceitar todas, não sobrescrever ou ver caso a caso, com a lista das datas para marcar quais trocar. Célula vazia continua sendo preenchida pelo Controle.
+- A data prevista passa a ser a baseline: o Controle não a empurra mais para frente sozinho, e quem aceitar a troca é avisado de que o atraso passa a ser medido contra a data nova.
+- As trocas recusadas ficam anotadas numa aba nova da própria planilha, "Sobrescrições recusadas", e não são perguntadas de novo enquanto o Controle mantiver a mesma data. Fechar a pergunta sem escolher deixa para decidir na próxima atualização.
+- Texto como "A DEFINIR" ou uma fórmula numa coluna de data também contam como preenchidos: antes, o Controle escrevia por cima sem avisar.
+- Doc List Mapping: duas colunas novas, SITUAÇÃO OTD (o documento saiu na data prevista?) e SITUAÇÃO SAY-DO (o documento reprogramado saiu na data nova?), para os indicadores Baseline OTD e Say-do do Power BI. O app cria as colunas no fim da aba na primeira atualização. A SITUAÇÃO EMISSÃO continua como estava.
+
 ## 3.6.0 - 2026-10-27
 
 - O instalador passa a instalar sempre "somente para mim", na pasta do usuário, sem pedir senha de administrador e sem perguntar. É o jeito em que a atualização pequena funciona: as próximas versões chegam em segundos, sem pedir nada ao Windows.

@@ -110,3 +110,8 @@
   pela atualização e pelo script tools/criar_colunas_situacao_emissao.py.
   Conferido na planilha real (cópia): script criou AA/AB e é idempotente; backlog
   = 67 distintos, OTD com 94 pendentes vencidos (o painel de hoje mostra 62).
+- Ticket 05: docs/adr/0001-data-prevista-e-a-baseline.md; KB §24.13 marcada como
+  substituída, §24.14 nova (tela de sobrescrição), §27.2 atualizada, §27.5 (faltava,
+  o código já citava) e §27.7 nova (OTD e say-do); docs/doc_list_mapping.md,
+  docs/controle_de_documentos.md, docs/situacao_emissao_dashboard.md, README,
+  texto da tela do Doc List, GLOSSARY (Situação OTD) e CHANGELOG 3.7.0 (parser ok).

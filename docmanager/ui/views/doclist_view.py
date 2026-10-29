@@ -31,9 +31,10 @@ class DocListView(BaseView):
         self.sel_aconex = card.add(FileSelector("Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
         self.sel_doclist = card.add(FileSelector("Doc List Mapping", cfg, "doclist"))
         self.sel_ctrl = card.add(FileSelector("Controle de Documentos (opcional)", cfg, "controle"))
-        card.add(rotulo("Do Controle vêm DATA PREVISTA EMISSÃO (vence a data mais recente), DATA "
-                        "REPROGRAMADA (nunca sobrescreve o que já está preenchido) e a descrição dos "
-                        "documentos que o Aconex ainda não conhece. FASE DE PROJETO é preenchida à mão.",
+        card.add(rotulo("Do Controle vêm DATA PREVISTA EMISSÃO e DATA REPROGRAMADA, quando vazias, "
+                        "e a descrição dos documentos que o Aconex ainda não conhece. Uma data já "
+                        "preenchida só é trocada se você aceitar: o app pergunta no meio da "
+                        "atualização. FASE DE PROJETO é preenchida à mão.",
                         "legenda", quebra=True))
         body.addWidget(card)
 

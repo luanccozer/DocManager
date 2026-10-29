@@ -66,9 +66,12 @@ cada sobrescrição pendente de decisão.
 ### Aderência
 
 **Situação de emissão**:
-A categoria única de aderência de um documento à data prevista: emitido no prazo,
+A categoria única de aderência de um documento à data-alvo: emitido no prazo,
 emitido com atraso, pendente no prazo, pendente vencido, sem planejamento ou
-cancelado.
+cancelado. É a visão atual do painel.
+
+**Situação OTD**:
+A mesma categoria, medida contra a data prevista (a baseline).
 
 **Pendente vencido**:
 Documento ainda não emitido cuja data de referência já passou.
@@ -107,8 +110,9 @@ backlog, não existe.
 - A **Data-alvo** de um **Documento** é a **Data reprogramada** quando ela existe,
   senão a **Data prevista**.
 - A **Situação de emissão** compara a **1ª emissão** (ou o dia de hoje, se o
-  documento não saiu) com a **Data prevista**; a **Situação say-do** faz o mesmo com
-  a **Data reprogramada**, só para o **Backlog**.
+  documento não saiu) com a **Data-alvo**; a **Situação OTD**, com a **Data
+  prevista**; a **Situação say-do**, com a **Data reprogramada**, só para o
+  **Backlog**.
 - Um documento do **Backlog** conta como atrasado no **Baseline OTD** e fica em
   aberto no **Say-do** até a **Data reprogramada**.
 
@@ -121,3 +125,5 @@ backlog, não existe.
   o gráfico de say-do é o gráfico do **Backlog** (rodada 2).
 - Documento já emitido no prazo com data reprogramada (a data é de outra revisão)
   não é **Backlog** (rodada 2).
+- A **Situação de emissão** continua contra a **Data-alvo** (visão atual); a régua da
+  **Data prevista** é a **Situação OTD** (rodada 3: o painel mantém as três visões).

@@ -7,10 +7,10 @@ de datas e do Doc List) atualizada; guia do Doc List, README e textos das telas 
 
 **Blocked by:** 01, 02, 03, 04
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] ADR em docs/adr
-- [ ] KB §24.13 marcada como substituída e seção nova
-- [ ] Guia do Doc List e README atualizados
-- [ ] Textos das telas do Doc List e do Mapa atualizados
-- [ ] CHANGELOG com a versão nova
+- [x] ADR em docs/adr
+- [x] KB §24.13 marcada como substituída e seção nova
+- [x] Guia do Doc List e README atualizados
+- [x] Textos das telas do Doc List e do Mapa atualizados
+- [x] CHANGELOG com a versão nova
