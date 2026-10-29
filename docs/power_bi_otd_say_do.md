@@ -286,6 +286,10 @@ campos):
 2. **Eixo Y**: tire a contagem de **N° ITAIPU** e arraste a medida
    **Documentos (visão)**.
 3. **Legenda**: tire **SITUAÇÃO EMISSÃO** e arraste **Situacoes → Situacao**.
+4. **Dicas de ferramenta** e **Múltiplos pequenos**: deixe vazios. Campo da Unidade Geradora
+   ali (por exemplo DATA 1ª EMISSÃO ou DIAS DESVIO EMISSÃO, sugeridos no roteiro de setembro)
+   faz o Power BI mostrar "Não é possível determinar os relacionamentos entre os campos",
+   porque a tabela Situacoes não tem relação com nada. Só a medida pode ficar nos valores.
 
 O gráfico volta com as cores padrão do tema. Agora abra a aba **Formatar visual**:
 
@@ -497,6 +501,7 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | A fórmula é recusada e o erro aponta a vírgula | O Power BI está com separadores locais: troque `,` por `;` fora das aspas. |
 | "Não é possível encontrar a coluna SITUAÇÃO OTD" (ou SAY-DO) | A planilha ainda não tem a coluna: rode o DocManager 3.6.1 no Doc List e clique em **Atualizar**. |
 | Uma relação nova ficou com linha contínua | Clique duas vezes nela e desmarque **Tornar esta relação ativa**. A ativa tem de ser a da DATA-ALVO Aux. |
+| "Não é possível determinar os relacionamentos entre os campos" | Sobrou campo de tabela no gráfico além de Date (Eixo X) e Situacao (Legenda): confira Eixo Y (só a medida Documentos (visão), com ícone de calculadora), Dicas de ferramenta e Múltiplos pequenos (vazios) e se não ficou DATA-ALVO EMISSÃO no Eixo X. |
 | Gráfico vazio | Confira se há um botão escolhido, se **Documentos (visão)** está no Eixo Y e se o PERÍODO já é do Calendario (passo 8). |
 | Botões ou legenda fora de ordem | Faltou **Classificar por coluna → Ordem** (passo 4). |
 | As cores voltaram ao padrão | Refaça o item 4 do passo 6. |
