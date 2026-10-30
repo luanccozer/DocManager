@@ -851,3 +851,43 @@ def test_lampada_e_engrenagem_no_alto_como_na_cmi_suite(app):
     assert app._pilha.currentWidget() is app._views["sugestoes"]
     engrenagem.click()
     assert app._pilha.currentWidget() is app._views["config"]
+
+
+# ─────────────────── "O que mudou na vX" (igual ao da CMI Suite) ─────────────
+
+def _home(qtbot, versao_vista=None):
+    from docmanager.services.config import ConfigManager
+    from docmanager.ui.app_context import AppContext
+    from docmanager.ui.views.home_view import HomeView
+
+    if versao_vista is not None:
+        ConfigManager().set_setting("versao_vista", versao_vista)   # cria o config.json
+    ctx = AppContext(config=ConfigManager(), versao="3.6.1")
+    home = HomeView(ctx)
+    qtbot.addWidget(home)
+    return home, ctx
+
+
+def test_novidades_aparecem_uma_vez_depois_de_atualizar(qtbot):
+    home, ctx = _home(qtbot, versao_vista="3.6.0")
+    assert home.novidades_visiveis()
+    home.btn_entendi.click()
+    assert not home.novidades_visiveis()
+    assert ctx.config.settings.versao_vista == "3.6.1"
+    home2, _ = _home(qtbot)                       # a abertura seguinte: não aparece mais
+    assert not home2.novidades_visiveis()
+
+
+def test_primeira_instalacao_nao_mostra_novidades(qtbot):
+    home, ctx = _home(qtbot)
+    assert not home.novidades_visiveis()
+    assert ctx.config.settings.versao_vista == "3.6.1"   # anota para a próxima
+
+
+def test_quem_vem_de_antes_da_versao_vista_tambem_ve(qtbot):
+    """Até a 3.6.1 não se gravava a versão vista; quem já tinha config vê."""
+    from docmanager.services.config import ConfigManager
+
+    ConfigManager().set_setting("tema", "escuro")              # já usava o app
+    home, _ = _home(qtbot)
+    assert home.novidades_visiveis()

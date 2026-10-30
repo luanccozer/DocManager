@@ -44,11 +44,16 @@ class AppSettings:
     tema: str = "escuro"
     # Para onde vai o rascunho da tela Sugestões ("" = sem destinatário).
     email_sugestoes: str = ""
+    # A última versão aberta: "O que mudou" aparece uma vez depois de atualizar.
+    versao_vista: str = ""
 
 
 class ConfigManager:
     def __init__(self):
         self.caminho = _pasta_config() / "config.json"
+        # Havia config antes desta abertura? Diz se o app já foi usado (ver
+        # `versao_anterior`): a 1ª instalação não tem "antes" para comparar.
+        self.ja_usado = self.caminho.exists()
         self._data = self._carregar()
 
     def _carregar(self) -> dict:
@@ -101,7 +106,15 @@ class ConfigManager:
             versoes_de_teste=bool(s.get("versoes_de_teste", False)),
             tema=str(s.get("tema", "escuro")),
             email_sugestoes=str(s.get("email_sugestoes", "")),
+            versao_vista=str(s.get("versao_vista", "")),
         )
+
+    def versao_anterior(self) -> str:
+        """A última versão aberta ('' na primeira instalação). Quem vem de antes
+        da 3.7.0 não tem `versao_vista` gravada, mas tem config: conta como
+        atualização (de uma versão que não se sabe), para ver as novidades."""
+        vista = self.settings.versao_vista
+        return vista or ("?" if self.ja_usado else "")
 
     def set_setting(self, chave: str, valor) -> None:
         self._data.setdefault("settings", {})[chave] = valor
