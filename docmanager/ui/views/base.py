@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget
 
 from ..components import LogConsole, botao, linha, rotulo
+from ..idioma import t
 
 
 class BaseView(QWidget):
@@ -25,9 +26,9 @@ class BaseView(QWidget):
         lay.setContentsMargins(28, 22, 28, 18)
         lay.setSpacing(10)
 
-        lay.addWidget(rotulo(self.titulo_view, nome="titulo_view"))
+        lay.addWidget(rotulo(t(self.titulo_view), nome="titulo_view"))
         if self.subtitulo_view:
-            lay.addWidget(rotulo(self.subtitulo_view, nome="subtitulo_view", quebra=True))
+            lay.addWidget(rotulo(t(self.subtitulo_view), nome="subtitulo_view", quebra=True))
 
         self._rolagem = QScrollArea()
         self._rolagem.setWidgetResizable(True)
@@ -50,8 +51,8 @@ class BaseView(QWidget):
         cl.setContentsMargins(12, 8, 12, 10)
         cl.setSpacing(6)
         self.log = LogConsole()
-        titulo = rotulo("Registro de execução", nome="card_titulo")
-        limpar = botao("Limpar", variante="fantasma", icone="eraser", ao_clicar=self.log.clear)
+        titulo = rotulo(t("Registro de execução"), nome="card_titulo")
+        limpar = botao(t("Limpar"), variante="fantasma", icone="eraser", ao_clicar=self.log.clear)
         cl.addWidget(linha(titulo, QWidget(), limpar, esticar=1))
         cl.addWidget(self.log, 1)
         lay.addWidget(self._console)

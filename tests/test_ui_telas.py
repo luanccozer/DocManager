@@ -891,3 +891,30 @@ def test_quem_vem_de_antes_da_versao_vista_tambem_ve(qtbot):
     ConfigManager().set_setting("tema", "escuro")              # já usava o app
     home, _ = _home(qtbot)
     assert home.novidades_visiveis()
+
+
+# ──────────────────────────── letra grande ──────────────────────────────────
+
+def test_letra_grande_aumenta_a_folha_na_hora_e_fica_gravada(app):
+    from PySide6.QtWidgets import QApplication
+
+    from docmanager.ui import estilo, tema
+
+    normal = estilo.fontes()["corpo"]
+    try:
+        app.selecionar("config")
+        app._views["config"].seletor_letra.botoes["grande"].click()
+        assert estilo.LETRA_ATUAL == "grande"
+        assert estilo.fontes()["corpo"] == normal + 2
+        assert f"font-size: {normal + 2}px" in QApplication.instance().styleSheet()
+        assert app.ctx.config.settings.letra == "grande"
+    finally:
+        tema.aplicar_letra(QApplication.instance(), "normal")
+
+
+def test_trocar_o_idioma_grava_e_avisa_que_vale_ao_reabrir(app):
+    app.selecionar("config")
+    config = app._views["config"]
+    config.seletor_idioma.botoes["en"].click()
+    assert app.ctx.config.settings.idioma == "en"
+    assert not config._aviso_idioma.isHidden()

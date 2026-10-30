@@ -46,6 +46,10 @@ class AppSettings:
     email_sugestoes: str = ""
     # A última versão aberta: "O que mudou" aparece uma vez depois de atualizar.
     versao_vista: str = ""
+    # Letra "normal" ou "grande" (+2 px em tudo), como na CMI Suite.
+    letra: str = "normal"
+    # "es", "pt" ou "en"; "" = ainda não escolhido: segue o Windows.
+    idioma: str = ""
 
 
 class ConfigManager:
@@ -107,6 +111,8 @@ class ConfigManager:
             tema=str(s.get("tema", "escuro")),
             email_sugestoes=str(s.get("email_sugestoes", "")),
             versao_vista=str(s.get("versao_vista", "")),
+            letra=str(s.get("letra", "normal")),
+            idioma=str(s.get("idioma", "")),
         )
 
     def versao_anterior(self) -> str:

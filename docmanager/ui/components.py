@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from . import dialogos, icones
 from .dialogos import pedir_salvar  # noqa: F401 - reexportado para as telas
 from .ponte import na_ui
+from .idioma import marcar, t
 
 
 # ─────────────────────────────── peças miúdas ────────────────────────────────
@@ -165,7 +166,7 @@ def _listar_abas(caminho: str) -> list[str]:
         return []
 
 
-_PLACEHOLDER_ABA = "Selecione o arquivo primeiro"
+_PLACEHOLDER_ABA = marcar("Selecione o arquivo primeiro")
 LARGURA_ROTULO = 220
 
 
@@ -194,21 +195,21 @@ class FileSelector(QWidget):
         lay.setSpacing(4)
         nome = QLabel(label)
         nome.setFixedWidth(LARGURA_ROTULO)
-        self.lbl = rotulo("Nenhum arquivo", "suave")
+        self.lbl = rotulo(t("Nenhum arquivo"), "suave")
         self.lbl.setMinimumWidth(120)
-        self.btn = botao("Selecionar", icone="folder-open", ao_clicar=self._escolher)
+        self.btn = botao(t("Selecionar"), icone="folder-open", ao_clicar=self._escolher)
         lay.addWidget(linha(nome, self.lbl, self.btn, esticar=1))
 
         if escolher_aba:
-            aba = rotulo("Aba (Sheet):", "legenda")
+            aba = rotulo(t("Aba (Sheet):"), "legenda")
             aba.setFixedWidth(LARGURA_ROTULO)
-            self.opt_aba = Seletor([_PLACEHOLDER_ABA])
+            self.opt_aba = Seletor([t(_PLACEHOLDER_ABA)])
             self.opt_aba.setMinimumWidth(280)
             self.opt_aba.currentTextChanged.connect(self._set_aba)
             lay.addWidget(linha(aba, self.opt_aba))
 
     def _set_aba(self, nome: str) -> None:
-        self.sheet = nome if nome and nome != _PLACEHOLDER_ABA else 0
+        self.sheet = nome if nome and nome != t(_PLACEHOLDER_ABA) else 0
 
     def _escolher(self) -> None:
         caminho = dialogos.escolher_arquivo(self.config_mgr, self.tipo, self.filtro, parent=self)
@@ -230,7 +231,7 @@ class FileSelector(QWidget):
                 self.opt_aba.definir_itens(abas, escolhida)
                 self.sheet = escolhida
             else:
-                self.opt_aba.definir_itens([_PLACEHOLDER_ABA])
+                self.opt_aba.definir_itens([t(_PLACEHOLDER_ABA)])
                 self.sheet = 0
         if self.on_change:
             self.on_change(caminho)
@@ -302,7 +303,7 @@ class Abas(QWidget):
         self._botoes: dict[str, QPushButton] = {}
 
     def add(self, nome: str, icone: str | None = None) -> QWidget:
-        b = QPushButton(nome)
+        b = QPushButton(t(nome))   # a chave (get/set) continua o nome em português
         b.setCheckable(True)
         b.setCursor(Qt.CursorShape.PointingHandCursor)
         if icone:
@@ -386,7 +387,7 @@ class RunBar(QWidget):
         self._rodando = True
         RunBar.em_andamento.add(self)
         self.btn.setEnabled(False)
-        self.btn.setText("Processando...")
+        self.btn.setText(t("Processando..."))
         self.progress.setValue(0)
         threading.Thread(target=self._worker, daemon=True).start()
 

@@ -33,8 +33,9 @@ from .. import __version__
 from ..services import updater
 from ..services.config import ConfigManager
 from . import atualizacao_textos as txt
-from . import dialogos, estilo, icones, tema
+from . import dialogos, estilo, icones, idioma, tema
 from .app_context import AppContext
+from .idioma import marcar, t
 from .components import RunBar, linha, rotulo
 from .logo import icone_do_app, pixmap_do_logo
 from .ponte import na_ui
@@ -59,18 +60,18 @@ class ViewSpec:
     menu: bool = True       # False: sem linha própria na barra lateral
 
 VIEWS = [
-    ViewSpec("home", "Início", "house", HomeView),
-    ViewSpec("mapa", "Mapa dos Planos", "compass", MapaView),
-    ViewSpec("doclist", "Doc List Mapping", "list-checks", DocListView),
-    ViewSpec("status", "Status Documentos", "search", StatusDocsView),
-    ViewSpec("historico", "Histórico e Dashboard", "chart-column", HistoricoView),
-    ViewSpec("relatorios", "Relatórios", "clipboard-list", ReportsView),
-    ViewSpec("transpasse", "Transpasse de Fase", "calendar-range", TranspasseView),
-    ViewSpec("aconex", "Extração Aconex", "download", AconexView),
+    ViewSpec("home", marcar("Início"), "house", HomeView),
+    ViewSpec("mapa", marcar("Mapa dos Planos"), "compass", MapaView),
+    ViewSpec("doclist", marcar("Doc List Mapping"), "list-checks", DocListView),
+    ViewSpec("status", marcar("Status Documentos"), "search", StatusDocsView),
+    ViewSpec("historico", marcar("Histórico e Dashboard"), "chart-column", HistoricoView),
+    ViewSpec("relatorios", marcar("Relatórios"), "clipboard-list", ReportsView),
+    ViewSpec("transpasse", marcar("Transpasse de Fase"), "calendar-range", TranspasseView),
+    ViewSpec("aconex", marcar("Extração Aconex"), "download", AconexView),
     # Sem linha na barra lateral: a lâmpada e a engrenagem ficam no alto, à
     # direita, como na CMI Suite e no SIG-FT (`_montar_topo`).
-    ViewSpec("sugestoes", "Sugestões", "lightbulb", SugestoesView, menu=False),
-    ViewSpec("config", "Configurações", "settings", ConfigView, menu=False),
+    ViewSpec("sugestoes", marcar("Sugestões"), "lightbulb", SugestoesView, menu=False),
+    ViewSpec("config", marcar("Configurações"), "settings", ConfigView, menu=False),
 ]
 
 
@@ -101,7 +102,7 @@ class MainApp(QMainWindow):
 
     def __init__(self, config: ConfigManager | None = None):
         super().__init__()
-        self.setWindowTitle(f"DocManager Itaipu - v{__version__}")
+        self.setWindowTitle(t('DocManager Itaipu - v{version}', version=__version__))
         self.resize(1200, 760)
         self.setMinimumSize(980, 640)
         self.setWindowIcon(icone_do_app())
@@ -158,15 +159,15 @@ class MainApp(QMainWindow):
         if not (pix := pixmap_do_logo(40)).isNull():
             logo.setPixmap(pix)
             marca.addWidget(logo)
-        marca.addWidget(rotulo("DocManager", nome="app_nome"), 1)
+        marca.addWidget(rotulo(t("DocManager"), nome="app_nome"), 1)
         lay.addLayout(marca)
-        lay.addWidget(rotulo("Itaipu · Gestão Documental", nome="app_sub"))
+        lay.addWidget(rotulo(t("Itaipu · Gestão Documental"), nome="app_sub"))
         lay.addSpacing(18)
 
         for spec in VIEWS:
             if not spec.menu:
                 continue
-            lay.addWidget(self._botao_menu(spec, spec.label))
+            lay.addWidget(self._botao_menu(spec, t(spec.label)))
         lay.addStretch(1)
 
         # "Procurar atualizações" mora na engrenagem (Configurações) e no
@@ -180,8 +181,8 @@ class MainApp(QMainWindow):
         return barra
 
     # Dica de cada botão do alto (só ícone).
-    DICAS_TOPO = {"sugestoes": "Sugestões: mande uma ideia, um erro ou uma dúvida",
-                  "config": "Configurações"}
+    DICAS_TOPO = {"sugestoes": marcar("Sugestões: mande uma ideia, um erro ou uma dúvida"),
+                  "config": marcar("Configurações")}
 
     def _montar_topo(self) -> QWidget:
         """A faixa do alto, à direita: lâmpada (Sugestões) e engrenagem
@@ -190,7 +191,7 @@ class MainApp(QMainWindow):
         for key in ("sugestoes", "config"):
             spec = next(s for s in VIEWS if s.key == key)
             b = self._botao_menu(spec, "")
-            b.setToolTip(self.DICAS_TOPO[key])
+            b.setToolTip(t(self.DICAS_TOPO[key]))
             b.setFixedSize(40, 36)
             icones_topo.append(b)
         topo = linha(QWidget(), *icones_topo, esticar=0, espaco=4)
@@ -208,7 +209,7 @@ class MainApp(QMainWindow):
         return b
 
     def _marcar_rodape(self, info):
-        self._rodape.setText(f"v{info.versao} disponível - clique para ver")
+        self._rodape.setText(t("v{versao} disponível - clique para ver", versao=info.versao))
         estilo.definir_propriedade(self._rodape, "novo", True)
 
     def selecionar(self, key: str):
@@ -264,7 +265,7 @@ class MainApp(QMainWindow):
         if self._procurando:
             return   # clique repetido enquanto a primeira ainda responde
         if (motivo := updater.motivo_para_nao_verificar()):
-            dialogos.info("Atualização automática", motivo, self)
+            dialogos.info(t("Atualização automática"), motivo, self)
             return
         self._procurando = True
 
@@ -273,13 +274,13 @@ class MainApp(QMainWindow):
 
         def _erro(e):
             _fim()
-            dialogos.aviso("Não foi possível verificar",
-                           f"{e}\n\nVocê pode continuar usando o DocManager normalmente.", self)
+            dialogos.aviso(t("Não foi possível verificar"),
+                           t("{erro}\n\nVocê pode continuar usando o DocManager normalmente.", erro=e), self)
 
         def _resposta(info):
             _fim()
             if info is None:
-                dialogos.info("Tudo em dia", txt.em_dia(__version__), self)
+                dialogos.info(t("Tudo em dia"), txt.em_dia(__version__), self)
                 return
             self.ctx.anunciar_atualizacao(info)
             self.abrir_atualizacao()
@@ -330,9 +331,9 @@ class MainApp(QMainWindow):
         NÃO fechar. Saindo para atualizar, a janela da atualização já perguntou."""
         if (not self._saindo_para_atualizar and self.tarefa_em_andamento()
                 and not dialogos.perguntar(
-                    "Tarefa em andamento",
-                    "Há uma tarefa em andamento. Fechar o DocManager agora a interrompe.\n\n"
-                    "Fechar mesmo assim?", padrao_nao=True, parent=self)):
+                    t("Tarefa em andamento"),
+                    t("Há uma tarefa em andamento. Fechar o DocManager agora a interrompe.\n\n"
+                      "Fechar mesmo assim?"), padrao_nao=True, parent=self)):
             evento.ignore()
             return
         super().closeEvent(evento)
@@ -345,7 +346,7 @@ class MainApp(QMainWindow):
         view = self.view_ativa()
         if view is not None and hasattr(view, "log"):
             view.log.log(f"ERRO: {msg}")
-        dialogos.erro("Erro inesperado", msg, self)
+        dialogos.erro(t("Erro inesperado"), msg, self)
 
 
 # Nome do mutex do app. TEM QUE SER IGUAL ao `AppMutex` do installer/docmanager.iss:
@@ -389,6 +390,21 @@ def _fechar_splash_nativa() -> None:
         pass
 
 
+def _traduzir_o_qt(app, codigo: str) -> None:
+    """Os botões padrão do Qt (Sim/Não, Cancelar nos diálogos de arquivo) no
+    idioma escolhido, com as traduções que vêm com o próprio Qt. Melhor
+    esforço: sem o arquivo, ficam como o Qt os deixa."""
+    try:
+        from PySide6.QtCore import QLibraryInfo, QLocale, QTranslator
+
+        tradutor = QTranslator(app)
+        pasta = QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+        if tradutor.load(QLocale(codigo), "qtbase", "_", pasta):
+            app.installTranslator(tradutor)
+    except Exception:  # noqa: BLE001 - tradução do Qt é enfeite
+        pass
+
+
 def abrir(app, config: ConfigManager | None = None) -> MainApp:
     """Da tela de carregamento à janela pronta, sem troca visível de tela.
 
@@ -401,6 +417,9 @@ def abrir(app, config: ConfigManager | None = None) -> MainApp:
     splash = mostrar_splash()
     _fechar_splash_nativa()
     config = config or ConfigManager()
+    idioma.definir(idioma.efetivo(config.settings.idioma))
+    _traduzir_o_qt(app, idioma.atual())
+    estilo.LETRA_ATUAL = config.settings.letra if config.settings.letra in estilo.LETRAS else "normal"
     tema.aplicar(app, config.settings.tema)
     tema.seguir_o_sistema(app, config)
     janela = MainApp(config)

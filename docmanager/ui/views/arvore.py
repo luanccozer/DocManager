@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 from .. import dialogos, estilo, icones, tema
 from ..components import botao, rotulo
 from ..ponte import na_ui
+from ..idioma import t
 
 PAPEL_DOC = Qt.ItemDataRole.UserRole + 1     # código do documento (para copiar)
 PAPEL_ESTADO = Qt.ItemDataRole.UserRole + 2  # "alerta" / "apagado" / None
@@ -67,7 +68,7 @@ class ArvoreDialog(QDialog):
 
         self.tree = QTreeWidget()
         self.tree.setColumnCount(len(colunas))
-        self.tree.setHeaderLabels([c for c, _ in colunas])
+        self.tree.setHeaderLabels([t(c) for c, _ in colunas])   # nomes marcados com `marcar`
         self.tree.setUniformRowHeights(True)
         self.tree.setAlternatingRowColors(True)
         for i, (_, largura_col) in enumerate(colunas):
@@ -82,7 +83,7 @@ class ArvoreDialog(QDialog):
         self.rodape_lay.setContentsMargins(0, 0, 0, 0)
         self.lbl_status = rotulo("", "suave")
         self.rodape_lay.addWidget(self.lbl_status, 1)
-        self.btn_exportar = botao("Exportar Excel", icone="file-spreadsheet", ao_clicar=self._exportar)
+        self.btn_exportar = botao(t("Exportar Excel"), icone="file-spreadsheet", ao_clicar=self._exportar)
         self.btn_exportar.setEnabled(False)
         self.rodape_lay.addWidget(self.btn_exportar)
         lay.addWidget(rod)
@@ -142,7 +143,7 @@ class ArvoreDialog(QDialog):
         codigo = item.data(0, PAPEL_DOC)
         if codigo:
             QApplication.clipboard().setText(codigo)
-            dialogos.info("Copiado", f"Código copiado:\n{codigo}", self)
+            dialogos.info(t("Copiado"), t('Código copiado:\n{codigo}', codigo=codigo), self)
 
     # ------------------------------------------------------------- análise
     def rodar_em_thread(self, botao_acao, texto_rodando: str, trabalho, ao_concluir) -> None:

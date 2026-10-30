@@ -13,9 +13,10 @@ import os
 
 from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
+from .idioma import marcar, t
 from .ponte import na_ui_e_esperar
 
-FILTRO_EXCEL = "Excel (*.xlsx *.xlsm *.xls);;Todos (*.*)"
+FILTRO_EXCEL = "Excel (*.xlsx *.xlsm *.xls);;*.*"
 FILTRO_XLSX = "Excel (*.xlsx)"
 
 
@@ -63,18 +64,18 @@ def tentar_de_novo(titulo: str, msg: str, parent=None) -> bool:
 # ──────────────────────────────── arquivos ───────────────────────────────────
 
 def escolher_arquivo(config=None, tipo: str = "arquivo", filtro: str = FILTRO_EXCEL,
-                     titulo: str = "Selecionar arquivo", parent=None) -> str:
+                     titulo: str = marcar("Selecionar arquivo"), parent=None) -> str:
     """Abre no último diretório do `tipo` e o memoriza. '' se cancelar."""
     inicial = config.ultimo_dir(tipo) if config else ""
     caminho = na_ui_e_esperar(
-        lambda: QFileDialog.getOpenFileName(_pai(parent), titulo, inicial, filtro)[0])
+        lambda: QFileDialog.getOpenFileName(_pai(parent), t(titulo), inicial, filtro)[0])
     if caminho and config:
         config.lembrar_dir(tipo, caminho)
     return caminho or ""
 
 
 def pedir_salvar(config, tipo: str, nome_inicial: str, filtro: str = FILTRO_XLSX,
-                 titulo: str = "Salvar como", parent=None) -> str:
+                 titulo: str = marcar("Salvar como"), parent=None) -> str:
     """"Salvar como" que abre no ÚLTIMO diretório usado e o memoriza.
 
     `config` = ConfigManager (ou None). `tipo` = chave de memória (ex.: 'saida').
@@ -84,7 +85,7 @@ def pedir_salvar(config, tipo: str, nome_inicial: str, filtro: str = FILTRO_XLSX
     ext = os.path.splitext(nome_inicial)[1] or ".xlsx"
     sugestao = os.path.join(inicial, nome_inicial) if inicial else nome_inicial
     caminho = na_ui_e_esperar(
-        lambda: QFileDialog.getSaveFileName(_pai(parent), titulo, sugestao, filtro)[0])
+        lambda: QFileDialog.getSaveFileName(_pai(parent), t(titulo), sugestao, filtro)[0])
     if not caminho:
         return ""
     if not os.path.splitext(caminho)[1]:
@@ -94,11 +95,11 @@ def pedir_salvar(config, tipo: str, nome_inicial: str, filtro: str = FILTRO_XLSX
     return caminho
 
 
-def escolher_pasta(config=None, tipo: str = "pasta", titulo: str = "Escolher pasta",
+def escolher_pasta(config=None, tipo: str = "pasta", titulo: str = marcar("Escolher pasta"),
                    parent=None) -> str:
     inicial = config.ultimo_dir(tipo) if config else ""
     pasta = na_ui_e_esperar(
-        lambda: QFileDialog.getExistingDirectory(_pai(parent), titulo, inicial))
+        lambda: QFileDialog.getExistingDirectory(_pai(parent), t(titulo), inicial))
     if pasta and config:
         # lembrar_dir guarda o DIRNAME do caminho: passa um filho para
         # memorizar a própria pasta escolhida.

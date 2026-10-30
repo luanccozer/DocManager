@@ -52,6 +52,19 @@ TEMA_ATUAL = "escuro"
 IMAGENS: dict[str, str] = {"seta": "", "tique": ""}
 
 
+# A letra que está valendo ("normal" ou "grande"); `tema.aplicar_letra` muda.
+# "grande" soma 2 px a todos os tamanhos, como na CMI Suite e no SIG-FT.
+LETRA_ATUAL = "normal"
+LETRAS = ("normal", "grande")
+AUMENTO_DA_LETRA = {"normal": 0, "grande": 2}
+
+
+def fontes() -> dict[str, int]:
+    """Os tamanhos de `tokens.FONTE` com o aumento da letra que está valendo."""
+    a = AUMENTO_DA_LETRA.get(LETRA_ATUAL, 0)
+    return {k: v + a for k, v in tokens.FONTE.items()}
+
+
 def _tema(tema: str | None) -> str:
     return TEMA_ATUAL if tema is None else tema
 
@@ -107,7 +120,7 @@ def carregar_fontes() -> list[str]:
             familias.extend(QFontDatabase.applicationFontFamilies(indice))
     fonte = QFont()
     fonte.setFamilies(["Roboto", "Segoe UI"])
-    fonte.setPixelSize(tokens.FONTE["corpo"])
+    fonte.setPixelSize(fontes()["corpo"])
     QApplication.setFont(fonte)
     return familias
 
@@ -118,7 +131,7 @@ def folha_de_estilo(tema: str | None = None) -> str:
     tema = _tema(tema)
     p = tokens.paleta(tema)
     menu = MENU_ESCOLHIDO["claro" if tema == "claro" else "escuro"]
-    f = tokens.FONTE
+    f = fontes()
     raio, raio_cartao = tokens.RAIO["controle"], tokens.RAIO["cartao"]
     fam = '"Roboto", "Segoe UI"'
     mono = '"Cascadia Mono", "Consolas", "Menlo", "DejaVu Sans Mono", monospace'
