@@ -155,8 +155,8 @@ class ConfigView(BaseView):
         card.add(rotulo(
             "A verificação roda em segundo plano toda vez que o app abre (e, com ele aberto, a cada 6 "
             "horas) e funciona com o Zscaler e a VPN ligados. Quando dá, o download traz só o que mudou "
-            "desde a sua versão. O botão 'Procurar atualizações', também na barra lateral, verifica na "
-            "hora. 'Versões de teste' oferece também as versões ainda em teste. Suas configurações e "
+            "desde a sua versão. O botão 'Procurar atualizações' (ou Ctrl+K, de qualquer tela) verifica "
+            "na hora. 'Versões de teste' oferece também as versões ainda em teste. Suas configurações e "
             "credenciais ficam fora da pasta do programa, então a atualização não apaga nada.",
             "suave", quebra=True))
         body.addWidget(card)

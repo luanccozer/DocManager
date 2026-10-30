@@ -35,7 +35,7 @@ from ..services.config import ConfigManager
 from . import atualizacao_textos as txt
 from . import dialogos, estilo, icones, tema
 from .app_context import AppContext
-from .components import RunBar, botao, linha, rotulo
+from .components import RunBar, linha, rotulo
 from .logo import icone_do_app, pixmap_do_logo
 from .ponte import na_ui
 from .views.aconex_view import AconexView
@@ -67,10 +67,10 @@ VIEWS = [
     ViewSpec("relatorios", "Relatórios", "clipboard-list", ReportsView),
     ViewSpec("transpasse", "Transpasse de Fase", "calendar-range", TranspasseView),
     ViewSpec("aconex", "Extração Aconex", "download", AconexView),
-    # Sem linha própria no menu: a lâmpada ao lado de Configurações abre
-    # (como na CMI Suite, lâmpada ao lado da engrenagem).
+    # Sem linha na barra lateral: a lâmpada e a engrenagem ficam no alto, à
+    # direita, como na CMI Suite e no SIG-FT (`_montar_topo`).
     ViewSpec("sugestoes", "Sugestões", "lightbulb", SugestoesView, menu=False),
-    ViewSpec("config", "Configurações", "settings", ConfigView),
+    ViewSpec("config", "Configurações", "settings", ConfigView, menu=False),
 ]
 
 
@@ -90,8 +90,6 @@ class _Rodape(QLabel):
 
 
 class MainApp(QMainWindow):
-    TEXTO_PROCURAR = "Procurar atualizações"
-
     # A checagem automática se repete enquanto o app fica aberto: quem deixa o
     # DocManager aberto a semana inteira também precisa ser avisado. Aqui só se
     # PERGUNTA de hora em hora; quem decide se é hora de ir ao GitHub é
@@ -125,8 +123,13 @@ class MainApp(QMainWindow):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
         lay.addWidget(self._montar_sidebar())
+        direita = QVBoxLayout()
+        direita.setContentsMargins(0, 0, 0, 0)
+        direita.setSpacing(0)
+        direita.addWidget(self._montar_topo())
         self._pilha = QStackedWidget()
-        lay.addWidget(self._pilha, 1)
+        direita.addWidget(self._pilha, 1)
+        lay.addLayout(direita, 1)
         self.setCentralWidget(central)
         self.selecionar(VIEWS[0].key)
 
@@ -163,23 +166,11 @@ class MainApp(QMainWindow):
         for spec in VIEWS:
             if not spec.menu:
                 continue
-            b = self._botao_menu(spec, spec.label)
-            if spec.key == "config":
-                # A lâmpada das Sugestões fica ao lado da engrenagem.
-                sugestoes = next(s for s in VIEWS if s.key == "sugestoes")
-                lampada = self._botao_menu(sugestoes, "")
-                lampada.setToolTip("Sugestões: mande uma ideia, um erro ou uma dúvida")
-                lampada.setFixedWidth(44)
-                lay.addWidget(linha(b, lampada, esticar=0, espaco=4))
-            else:
-                lay.addWidget(b)
+            lay.addWidget(self._botao_menu(spec, spec.label))
         lay.addStretch(1)
 
-        # Procurar atualização na hora, de qualquer tela.
-        self._btn_procurar = botao(self.TEXTO_PROCURAR, icone="refresh-cw",
-                                   ao_clicar=lambda: self.verificar_atualizacao(True),
-                                   dica="Também pelo atalho Ctrl+K")
-        lay.addWidget(self._btn_procurar)
+        # "Procurar atualizações" mora na engrenagem (Configurações) e no
+        # Ctrl+K, de qualquer tela.
         # Rodapé: a versão instalada. Quando sai uma nova, este mesmo rótulo
         # vira o aviso - é o canto onde a pessoa já olha para conferir a versão.
         self._rodape = _Rodape(f"v{__version__}", self.abrir_atualizacao)
@@ -187,6 +178,24 @@ class MainApp(QMainWindow):
         lay.addWidget(self._rodape)
         self.ctx.ao_achar_atualizacao(lambda info: na_ui(self._marcar_rodape, info))
         return barra
+
+    # Dica de cada botão do alto (só ícone).
+    DICAS_TOPO = {"sugestoes": "Sugestões: mande uma ideia, um erro ou uma dúvida",
+                  "config": "Configurações"}
+
+    def _montar_topo(self) -> QWidget:
+        """A faixa do alto, à direita: lâmpada (Sugestões) e engrenagem
+        (Configurações), em qualquer tela - o lugar delas na CMI Suite."""
+        icones_topo = []
+        for key in ("sugestoes", "config"):
+            spec = next(s for s in VIEWS if s.key == key)
+            b = self._botao_menu(spec, "")
+            b.setToolTip(self.DICAS_TOPO[key])
+            b.setFixedSize(40, 36)
+            icones_topo.append(b)
+        topo = linha(QWidget(), *icones_topo, esticar=0, espaco=4)
+        topo.layout().setContentsMargins(28, 10, 28, 0)
+        return topo
 
     def _botao_menu(self, spec, texto: str) -> QPushButton:
         b = QPushButton(texto)
@@ -258,13 +267,9 @@ class MainApp(QMainWindow):
             dialogos.info("Atualização automática", motivo, self)
             return
         self._procurando = True
-        self._btn_procurar.setEnabled(False)
-        self._btn_procurar.setText("Procurando...")
 
         def _fim():
             self._procurando = False
-            self._btn_procurar.setEnabled(True)
-            self._btn_procurar.setText(self.TEXTO_PROCURAR)
 
         def _erro(e):
             _fim()

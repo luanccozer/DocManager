@@ -98,19 +98,22 @@ def test_trocar_o_tema_nas_configuracoes_grava_e_repinta(app):
     assert estilo.TEMA_ATUAL == "escuro"
 
 
-def test_botao_de_procurar_atualizacao_na_barra_lateral(app, qtbot, monkeypatch, caixas):
-    """Visível em qualquer tela; não aceita clique duplo e sempre responde."""
+def test_procurar_atualizacao_na_engrenagem_responde_uma_vez(app, qtbot, monkeypatch, caixas):
+    """Mora nas Configurações (a engrenagem) e no Ctrl+K; clique duplo não
+    abre duas consultas, e sempre responde."""
     from docmanager.services import updater
 
+    consultas = []
     monkeypatch.setattr(updater, "motivo_para_nao_verificar", lambda: "")
-    monkeypatch.setattr(updater, "checar", lambda _v, **_k: None)
-    assert app._btn_procurar.text() == app.TEXTO_PROCURAR
+    monkeypatch.setattr(updater, "checar", lambda _v, **_k: consultas.append(1))
+    assert not hasattr(app, "_btn_procurar")                   # saiu da barra lateral
 
-    app._btn_procurar.click()
-    assert not app._btn_procurar.isEnabled()                   # não aceita clique duplo
+    app.selecionar("config")
+    app._views["config"]._procurar()
+    app.verificar_atualizacao(True)                            # o 2º clique, ainda procurando
     qtbot.waitUntil(lambda: bool(caixas), timeout=5000)
     assert caixas[0][:2] == ("info", "Tudo em dia")
-    assert app._btn_procurar.isEnabled()
+    assert len(consultas) == 1
 
 
 def test_procurar_explica_por_que_esta_copia_nao_se_atualiza(app, monkeypatch, caixas):
@@ -834,10 +837,17 @@ def test_email_invalido_nas_configuracoes_nao_e_salvo(app, caixas):
     assert caixas and caixas[0][1] == "Sugestões"
 
 
-def test_lampada_ao_lado_de_configuracoes_abre_sugestoes(app):
-    """Como a CMI Suite: a lâmpada fica ao lado da engrenagem, sem linha própria no menu."""
-    lampada, config = app._botoes["sugestoes"], app._botoes["config"]
-    assert lampada.parentWidget() is config.parentWidget()      # mesma linha
-    assert lampada.text() == "" and "Sugestões" in lampada.toolTip()
+def test_lampada_e_engrenagem_no_alto_como_na_cmi_suite(app):
+    """Lâmpada e engrenagem lado a lado no alto, fora da barra lateral."""
+    from PySide6.QtWidgets import QFrame
+
+    lampada, engrenagem = app._botoes["sugestoes"], app._botoes["config"]
+    assert lampada.parentWidget() is engrenagem.parentWidget()   # mesma faixa
+    barra = app.findChild(QFrame, "sidebar")
+    assert not barra.isAncestorOf(lampada) and not barra.isAncestorOf(engrenagem)
+    assert lampada.text() == engrenagem.text() == ""
+    assert "Sugestões" in lampada.toolTip() and "Configurações" in engrenagem.toolTip()
     lampada.click()
     assert app._pilha.currentWidget() is app._views["sugestoes"]
+    engrenagem.click()
+    assert app._pilha.currentWidget() is app._views["config"]
