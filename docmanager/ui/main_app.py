@@ -35,7 +35,7 @@ from ..services.config import ConfigManager
 from . import atualizacao_textos as txt
 from . import dialogos, estilo, icones, tema
 from .app_context import AppContext
-from .components import RunBar, botao, rotulo
+from .components import RunBar, botao, linha, rotulo
 from .logo import icone_do_app, pixmap_do_logo
 from .ponte import na_ui
 from .views.aconex_view import AconexView
@@ -46,6 +46,7 @@ from .views.home_view import HomeView
 from .views.mapa_view import MapaView
 from .views.reports_view import ReportsView
 from .views.status_view import StatusDocsView
+from .views.sugestoes_view import SugestoesView
 from .views.transpasse_view import TranspasseView
 
 
@@ -55,7 +56,7 @@ class ViewSpec:
     label: str
     icone: str
     factory: Callable
-
+    menu: bool = True       # False: sem linha própria na barra lateral
 
 VIEWS = [
     ViewSpec("home", "Início", "house", HomeView),
@@ -66,6 +67,9 @@ VIEWS = [
     ViewSpec("relatorios", "Relatórios", "clipboard-list", ReportsView),
     ViewSpec("transpasse", "Transpasse de Fase", "calendar-range", TranspasseView),
     ViewSpec("aconex", "Extração Aconex", "download", AconexView),
+    # Sem linha própria no menu: a lâmpada ao lado de Configurações abre
+    # (como na CMI Suite, lâmpada ao lado da engrenagem).
+    ViewSpec("sugestoes", "Sugestões", "lightbulb", SugestoesView, menu=False),
     ViewSpec("config", "Configurações", "settings", ConfigView),
 ]
 
@@ -157,14 +161,18 @@ class MainApp(QMainWindow):
         lay.addSpacing(18)
 
         for spec in VIEWS:
-            b = QPushButton(spec.label)
-            b.setProperty("menu", True)
-            b.setCursor(Qt.CursorShape.PointingHandCursor)
-            icones.aplicar(b, spec.icone, papel_cor="texto_suave",
-                           papel_cor_ativo=estilo.PAPEL_MENU_ESCOLHIDO)
-            b.clicked.connect(lambda _=False, k=spec.key: self.selecionar(k))
-            lay.addWidget(b)
-            self._botoes[spec.key] = b
+            if not spec.menu:
+                continue
+            b = self._botao_menu(spec, spec.label)
+            if spec.key == "config":
+                # A lâmpada das Sugestões fica ao lado da engrenagem.
+                sugestoes = next(s for s in VIEWS if s.key == "sugestoes")
+                lampada = self._botao_menu(sugestoes, "")
+                lampada.setToolTip("Sugestões: mande uma ideia, um erro ou uma dúvida")
+                lampada.setFixedWidth(44)
+                lay.addWidget(linha(b, lampada, esticar=0, espaco=4))
+            else:
+                lay.addWidget(b)
         lay.addStretch(1)
 
         # Procurar atualização na hora, de qualquer tela.
@@ -179,6 +187,16 @@ class MainApp(QMainWindow):
         lay.addWidget(self._rodape)
         self.ctx.ao_achar_atualizacao(lambda info: na_ui(self._marcar_rodape, info))
         return barra
+
+    def _botao_menu(self, spec, texto: str) -> QPushButton:
+        b = QPushButton(texto)
+        b.setProperty("menu", True)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        icones.aplicar(b, spec.icone, papel_cor="texto_suave",
+                       papel_cor_ativo=estilo.PAPEL_MENU_ESCOLHIDO)
+        b.clicked.connect(lambda _=False, k=spec.key: self.selecionar(k))
+        self._botoes[spec.key] = b
+        return b
 
     def _marcar_rodape(self, info):
         self._rodape.setText(f"v{info.versao} disponível - clique para ver")

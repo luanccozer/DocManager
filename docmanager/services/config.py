@@ -42,6 +42,8 @@ class AppSettings:
     versoes_de_teste: bool = False
     # Aparência: "escuro", "claro" ou "sistema" (segue o Windows).
     tema: str = "escuro"
+    # Para onde vai o rascunho da tela Sugestões ("" = sem destinatário).
+    email_sugestoes: str = ""
 
 
 class ConfigManager:
@@ -98,6 +100,7 @@ class ConfigManager:
             ultima_verificacao=str(s.get("ultima_verificacao", "")),
             versoes_de_teste=bool(s.get("versoes_de_teste", False)),
             tema=str(s.get("tema", "escuro")),
+            email_sugestoes=str(s.get("email_sugestoes", "")),
         )
 
     def set_setting(self, chave: str, valor) -> None:

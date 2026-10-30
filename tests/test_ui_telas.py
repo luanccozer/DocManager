@@ -779,3 +779,65 @@ def test_mapa_pergunta_antes_de_trocar_uma_data_preenchida(app, qtbot, tmp_path)
     assert str(wb2.active.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1).value) \
         .startswith("2026-01-01")
     assert ABA_RECUSAS in wb2.sheetnames
+
+
+# ─────────────────────────────── sugestões ──────────────────────────────────
+
+def test_sugestao_abre_rascunho_para_o_email_configurado(app, monkeypatch, caixas):
+    from PySide6.QtGui import QDesktopServices
+
+    abertos = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: (abertos.append(url.toString()), True)[1])
+    app.selecionar("config")
+    config = app._views["config"]
+    config.email_sugestoes.setText("quem.cuida@empresa.com")
+    config._salvar_email_sugestoes()
+    app.selecionar("sugestoes")
+    tela = app._views["sugestoes"]
+    assert "quem.cuida@empresa.com" in tela.lbl_destino.text()
+    tela.sel_tipo.setCurrentText("Erro")
+    tela.texto.setPlainText("O Doc List não salvou.")
+    tela.btn_email.click()
+    assert len(abertos) == 1 and abertos[0].startswith("mailto:quem.cuida@empresa.com?")
+    assert not caixas
+
+
+def test_sugestao_vazia_avisa_e_nao_abre_nada(app, monkeypatch, caixas):
+    from PySide6.QtGui import QDesktopServices
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: pytest.fail("não devia abrir"))
+    app.selecionar("sugestoes")
+    app._views["sugestoes"].btn_email.click()
+    assert caixas and caixas[0][1] == "Sugestões"
+
+
+def test_sem_programa_de_email_copia_o_texto(app, monkeypatch, caixas):
+    from PySide6.QtGui import QDesktopServices
+    from PySide6.QtWidgets import QApplication
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: False)
+    app.selecionar("sugestoes")
+    tela = app._views["sugestoes"]
+    tela.texto.setPlainText("Ideia: exportar em PDF.")
+    tela.btn_email.click()
+    assert "Ideia: exportar em PDF." in QApplication.clipboard().text()
+    assert caixas and "copiado" in caixas[0][2]
+
+
+def test_email_invalido_nas_configuracoes_nao_e_salvo(app, caixas):
+    app.selecionar("config")
+    config = app._views["config"]
+    antes = app.ctx.config.settings.email_sugestoes
+    config.email_sugestoes.setText("isto não é e-mail")
+    config._salvar_email_sugestoes()
+    assert app.ctx.config.settings.email_sugestoes == antes
+    assert caixas and caixas[0][1] == "Sugestões"
+
+
+def test_lampada_ao_lado_de_configuracoes_abre_sugestoes(app):
+    """Como a CMI Suite: a lâmpada fica ao lado da engrenagem, sem linha própria no menu."""
+    lampada, config = app._botoes["sugestoes"], app._botoes["config"]
+    assert lampada.parentWidget() is config.parentWidget()      # mesma linha
+    assert lampada.text() == "" and "Sugestões" in lampada.toolTip()
+    lampada.click()
+    assert app._pilha.currentWidget() is app._views["sugestoes"]

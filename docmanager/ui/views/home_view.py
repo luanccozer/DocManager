@@ -36,7 +36,7 @@ MODULOS = [
     ("aconex", "download", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex. "
      "Na primeira vez, cadastre as suas credenciais na própria tela."),
     ("config", "settings", "Configurações", "Aparência, credenciais do Aconex, atualizações do app, Regra "
-     "da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
+     "da Aprovação Intermediária (VIP), a base do atraso CMI na 0A e o e-mail das sugestões."),
 ]
 
 

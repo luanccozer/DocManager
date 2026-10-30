@@ -5,6 +5,10 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.7.0 - 2026-10-30
+
+- Sugestões: a lâmpada ao lado de Configurações abre uma tela para mandar uma ideia, um erro ou uma dúvida sobre o DocManager. Ela abre um rascunho no seu programa de e-mail, com o tipo e a versão do app anotados; nada é enviado sem você clicar em Enviar. O e-mail que recebe fica em Configurações → Sugestões (vazio, o rascunho abre sem destinatário). Texto longo vai pela área de transferência: é só colar.
+
 ## 3.6.1 - 2026-10-29
 
 - Doc List Mapping e Mapa dos Planos: uma data já preenchida na planilha (prevista ou reprogramada, digitada à mão ou não) não é mais trocada pela do Controle de Documentos sem você aceitar. Quando o Controle trocaria alguma, o DocManager pergunta: aceitar todas, não sobrescrever ou ver caso a caso, com a lista das datas para marcar quais trocar. Célula vazia continua sendo preenchida pelo Controle.
