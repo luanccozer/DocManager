@@ -5,7 +5,7 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.7.0 - 2026-10-30
+## 3.6.2 - 2026-10-30
 
 - A engrenagem (Configurações) sai da barra lateral e vai para o alto, à direita, como na CMI Suite e no SIG-FT. "Procurar atualizações" passa a ficar só dentro dela (e no Ctrl+K, de qualquer tela).
 - As novidades ficam iguais às da CMI Suite: depois de atualizar, a tela inicial mostra uma vez o cartão "O que mudou na versão", que some no "Entendi". Na primeira instalação ele não aparece.
