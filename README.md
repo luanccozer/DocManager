@@ -89,8 +89,8 @@ ainda está em *Program Files* (instalação "para todos os usuários", até a
 v3.5.x) é passado para "somente para mim" na primeira atualização: o Windows
 pede a permissão de administrador uma vez, para remover a instalação antiga.
 
-Para procurar na hora, use o botão **🔄 Procurar atualizações** no rodapé da
-barra lateral, em **⚙️ Configurações → Atualizações** ou com **Ctrl+K**. Ao
+Para procurar na hora, use **Procurar atualizações** na engrenagem do alto
+(**Configurações → Atualizações**) ou **Ctrl+K**, de qualquer tela. Ao
 contrário da checagem automática, ele **sempre responde**: "já está na versão
 mais recente", o erro, ou por que esta cópia não se atualiza por ali (rodando
 pelo código-fonte, ou uma pasta copiada sem o instalador). Nas Configurações

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QButtonGroup, QCheckBox, QFrame, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import (
+    QApplication, QButtonGroup, QCheckBox, QFrame, QHBoxLayout, QLineEdit, QPushButton,
+)
 
 from ... import __version__
 from ...services import updater
@@ -57,6 +59,7 @@ class ConfigView(BaseView):
         self._atualizacoes(body)
         self._regra_vip(body)
         self._base_atraso(body)
+        self._sugestoes(body)
 
     def ao_exibir(self):
         # Cadastro feito pela tela da Extração, ou atualização achada depois que
@@ -152,8 +155,8 @@ class ConfigView(BaseView):
         card.add(rotulo(
             "A verificação roda em segundo plano toda vez que o app abre (e, com ele aberto, a cada 6 "
             "horas) e funciona com o Zscaler e a VPN ligados. Quando dá, o download traz só o que mudou "
-            "desde a sua versão. O botão 'Procurar atualizações', também na barra lateral, verifica na "
-            "hora. 'Versões de teste' oferece também as versões ainda em teste. Suas configurações e "
+            "desde a sua versão. O botão 'Procurar atualizações' (ou Ctrl+K, de qualquer tela) verifica "
+            "na hora. 'Versões de teste' oferece também as versões ainda em teste. Suas configurações e "
             "credenciais ficam fora da pasta do programa, então a atualização não apaga nada.",
             "suave", quebra=True))
         body.addWidget(card)
@@ -216,3 +219,24 @@ class ConfigView(BaseView):
             "• Data prevista (base): usa sempre a data prevista original, ignorando a reprogramação. "
             "Afeta o Histórico Consolidado e o Dashboard.", "suave", quebra=True))
         body.addWidget(card)
+
+    # ───────────────────────────────── sugestões ────────────────────────────
+    def _sugestoes(self, body):
+        card = Card("Sugestões")
+        self.email_sugestoes = QLineEdit(self.ctx.config.settings.email_sugestoes)
+        self.email_sugestoes.setPlaceholderText("nome@empresa.com")
+        self.email_sugestoes.editingFinished.connect(self._salvar_email_sugestoes)
+        card.add(linha(rotulo("E-mail que recebe"), self.email_sugestoes, esticar=1))
+        card.add(rotulo("A tela Sugestões abre um rascunho de e-mail para este endereço. Vazio, o "
+                        "rascunho abre sem destinatário.", "suave", quebra=True))
+        body.addWidget(card)
+
+    def _salvar_email_sugestoes(self):
+        email = self.email_sugestoes.text().strip()
+        if email and ("@" not in email or " " in email):
+            dialogos.aviso("Sugestões", f"{email!r} não parece um e-mail. Nada foi salvo.", self)
+            self.email_sugestoes.setText(self.ctx.config.settings.email_sugestoes)
+            return
+        if email != self.ctx.config.settings.email_sugestoes:
+            self.ctx.config.set_setting("email_sugestoes", email)
+            self.log.log(f"Sugestões vão para: {email}." if email else "Sugestões sem destinatário fixo.")

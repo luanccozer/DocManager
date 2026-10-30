@@ -1,7 +1,8 @@
 """Home - tela inicial neutra: boas-vindas, módulos e novidades.
 
 O app abre aqui. Não é um módulo de processamento (sem console de log): é um
-ponto de partida que mostra os blocos e, abaixo, as atualizações recentes.
+ponto de partida que mostra os blocos e, depois de uma atualização, o cartão
+"O que mudou na vX" (uma vez, como na CMI Suite).
 
 As novidades NÃO ficam escritas aqui: elas vêm do `CHANGELOG.md`, que é o
 mesmo texto publicado no Release do GitHub. Para anunciar algo, basta abrir um
@@ -36,7 +37,7 @@ MODULOS = [
     ("aconex", "download", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex. "
      "Na primeira vez, cadastre as suas credenciais na própria tela."),
     ("config", "settings", "Configurações", "Aparência, credenciais do Aconex, atualizações do app, Regra "
-     "da Aprovação Intermediária (VIP) e a base do atraso CMI na 0A."),
+     "da Aprovação Intermediária (VIP), a base do atraso CMI na 0A e o e-mail das sugestões."),
 ]
 
 
@@ -93,8 +94,8 @@ class HomeView(QWidget):
 
         self._hero()
         self._aviso_versao()      # some quando não há atualização
+        self._novidades()         # uma vez, depois de atualizar (como na CMI Suite)
         self._modulos()
-        self._novidades()
         self._body.addStretch(1)
         # A checagem termina depois desta tela existir; o contexto avisa quando
         # (e já avisa na hora se a resposta chegou antes de a Home ser criada).
@@ -164,22 +165,43 @@ class HomeView(QWidget):
             self.ctx.navegar(key)
 
     def _novidades(self):
+        """O cartão "O que mudou na vX", igual ao da CMI Suite: aparece UMA vez,
+        na primeira abertura depois de atualizar, e some no "Entendi". Na
+        primeira instalação não aparece (não há "antes" para comparar)."""
+        self.cartao_novidades = None
+        cfg = self.ctx.config
         bloco = novidades_svc.ler(self.ctx.versao)
-        if bloco is None or not bloco.itens:
+        anterior = cfg.versao_anterior()
+        if not novidades_svc.deve_mostrar(self.ctx.versao, anterior, bloco):
+            if anterior != self.ctx.versao:
+                self._leu_novidades()     # 1ª instalação ou versão sem nota: só anota
             return
         card = QFrame()
-        card.setObjectName("card")
+        card.setObjectName("novidades")
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(24, 18, 24, 18)
+        lay.setContentsMargins(18, 14, 18, 14)
         lay.setSpacing(6)
         topo = QHBoxLayout()
         ic = QLabel()
-        icones.aplicar(ic, "sparkles", papel_cor="primaria")
+        icones.aplicar(ic, "sparkles", papel_cor="primaria", tamanho=18)
         topo.addWidget(ic)
-        topo.addWidget(rotulo("O que há de novo", "secao"))
-        topo.addWidget(rotulo(bloco.titulo(), "legenda"))
-        topo.addStretch(1)
+        topo.addWidget(rotulo(f"O que mudou na v{self.ctx.versao}", nome="novidades_titulo"), 1)
         lay.addLayout(topo)
         for it in bloco.itens:
-            lay.addWidget(rotulo(f"•  {it}", "suave", quebra=True))
+            lay.addWidget(rotulo(f"•  {it}", quebra=True))
+        self.btn_entendi = botao("Entendi", variante="primario", ao_clicar=self._leu_novidades)
+        rod = QHBoxLayout()
+        rod.addStretch(1)
+        rod.addWidget(self.btn_entendi)
+        lay.addLayout(rod)
+        self.cartao_novidades = card
         self._body.addWidget(card)
+
+    def novidades_visiveis(self) -> bool:
+        """Para os testes (`isVisible()` depende da janela estar na tela)."""
+        return self.cartao_novidades is not None and not self.cartao_novidades.isHidden()
+
+    def _leu_novidades(self):
+        if self.cartao_novidades is not None:
+            self.cartao_novidades.setVisible(False)
+        self.ctx.config.set_setting("versao_vista", self.ctx.versao)

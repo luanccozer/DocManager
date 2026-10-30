@@ -184,6 +184,9 @@ QLabel[papel="ok"] {{ color: {p['primaria']}; }}
 QLabel[papel="info"] {{ color: {p['info']}; }}
 
 #card {{ background: {p['superficie']}; border: 1px solid {p['borda']}; border-radius: {raio_cartao}px; }}
+#novidades {{ background: {p['superficie']}; border: 1px solid {p['primaria']}; border-radius: {raio_cartao}px; }}
+#novidades QLabel {{ background: transparent; }}
+#novidades_titulo {{ color: {p['primaria']}; font-size: {f['secao']}px; font-weight: bold; }}
 #card[clicavel="true"]:hover, #card[destaque="true"] {{ border: 1px solid {p['primaria']}; }}
 #card_titulo {{ color: {p['texto_suave']}; font-size: {f['corpo']}px; font-weight: bold; }}
 #card QLabel, #card QCheckBox, #card QRadioButton {{ background: transparent; }}

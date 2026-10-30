@@ -146,7 +146,7 @@ que mudou"). Senão, ou se a pequena falhar, baixa o instalador completo, confer
 o SHA256, executa em modo silencioso, espera o instalador ficar pronto e fecha o
 app para que os arquivos possam ser trocados; no fim o instalador reabre o app. Enquanto o app fica
 aberto, a checagem se repete (o intervalo de 6 horas continua valendo), e o
-botão **🔄 Procurar atualizações** da barra lateral verifica na hora.
+botão **Procurar atualizações** (na engrenagem, Configurações) ou o Ctrl+K verifica na hora.
 
 Cinco armadilhas foram tratadas explicitamente - são as que costumam fazer um
 auto-update "existir mas não funcionar":
@@ -381,8 +381,8 @@ dbc, plotly, truststore, certifi, openpyxl, xlsxwriter e o `PySide6.QtSvg`.)
 
 **O app não avisa de versão nova** - nesta ordem: (1) o build tem token? As
 Configurações dizem *"este build não tem atualização automática"* quando não
-tem; (2) o `UPDATE_TOKEN` venceu? (3) rede: clique em **🔄 Procurar
-atualizações** na barra lateral - ao contrário da checagem automática, esse
+tem; (2) o `UPDATE_TOKEN` venceu? (3) rede: clique em **Procurar
+atualizações** na engrenagem (ou Ctrl+K) - ao contrário da checagem automática, esse
 botão **mostra o erro**.
 
 **O app fechou e a versão continuou a mesma** - o instalador desistiu. O log

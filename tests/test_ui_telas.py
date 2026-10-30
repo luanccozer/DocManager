@@ -98,19 +98,22 @@ def test_trocar_o_tema_nas_configuracoes_grava_e_repinta(app):
     assert estilo.TEMA_ATUAL == "escuro"
 
 
-def test_botao_de_procurar_atualizacao_na_barra_lateral(app, qtbot, monkeypatch, caixas):
-    """Visível em qualquer tela; não aceita clique duplo e sempre responde."""
+def test_procurar_atualizacao_na_engrenagem_responde_uma_vez(app, qtbot, monkeypatch, caixas):
+    """Mora nas Configurações (a engrenagem) e no Ctrl+K; clique duplo não
+    abre duas consultas, e sempre responde."""
     from docmanager.services import updater
 
+    consultas = []
     monkeypatch.setattr(updater, "motivo_para_nao_verificar", lambda: "")
-    monkeypatch.setattr(updater, "checar", lambda _v, **_k: None)
-    assert app._btn_procurar.text() == app.TEXTO_PROCURAR
+    monkeypatch.setattr(updater, "checar", lambda _v, **_k: consultas.append(1))
+    assert not hasattr(app, "_btn_procurar")                   # saiu da barra lateral
 
-    app._btn_procurar.click()
-    assert not app._btn_procurar.isEnabled()                   # não aceita clique duplo
+    app.selecionar("config")
+    app._views["config"]._procurar()
+    app.verificar_atualizacao(True)                            # o 2º clique, ainda procurando
     qtbot.waitUntil(lambda: bool(caixas), timeout=5000)
     assert caixas[0][:2] == ("info", "Tudo em dia")
-    assert app._btn_procurar.isEnabled()
+    assert len(consultas) == 1
 
 
 def test_procurar_explica_por_que_esta_copia_nao_se_atualiza(app, monkeypatch, caixas):
@@ -779,3 +782,112 @@ def test_mapa_pergunta_antes_de_trocar_uma_data_preenchida(app, qtbot, tmp_path)
     assert str(wb2.active.cell(3, _COLS_MAPA.index("DATA PREVISTA EMISSÃO ETAPA 1") + 1).value) \
         .startswith("2026-01-01")
     assert ABA_RECUSAS in wb2.sheetnames
+
+
+# ─────────────────────────────── sugestões ──────────────────────────────────
+
+def test_sugestao_abre_rascunho_para_o_email_configurado(app, monkeypatch, caixas):
+    from PySide6.QtGui import QDesktopServices
+
+    abertos = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: (abertos.append(url.toString()), True)[1])
+    app.selecionar("config")
+    config = app._views["config"]
+    config.email_sugestoes.setText("quem.cuida@empresa.com")
+    config._salvar_email_sugestoes()
+    app.selecionar("sugestoes")
+    tela = app._views["sugestoes"]
+    assert "quem.cuida@empresa.com" in tela.lbl_destino.text()
+    tela.sel_tipo.setCurrentText("Erro")
+    tela.texto.setPlainText("O Doc List não salvou.")
+    tela.btn_email.click()
+    assert len(abertos) == 1 and abertos[0].startswith("mailto:quem.cuida@empresa.com?")
+    assert not caixas
+
+
+def test_sugestao_vazia_avisa_e_nao_abre_nada(app, monkeypatch, caixas):
+    from PySide6.QtGui import QDesktopServices
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: pytest.fail("não devia abrir"))
+    app.selecionar("sugestoes")
+    app._views["sugestoes"].btn_email.click()
+    assert caixas and caixas[0][1] == "Sugestões"
+
+
+def test_sem_programa_de_email_copia_o_texto(app, monkeypatch, caixas):
+    from PySide6.QtGui import QDesktopServices
+    from PySide6.QtWidgets import QApplication
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: False)
+    app.selecionar("sugestoes")
+    tela = app._views["sugestoes"]
+    tela.texto.setPlainText("Ideia: exportar em PDF.")
+    tela.btn_email.click()
+    assert "Ideia: exportar em PDF." in QApplication.clipboard().text()
+    assert caixas and "copiado" in caixas[0][2]
+
+
+def test_email_invalido_nas_configuracoes_nao_e_salvo(app, caixas):
+    app.selecionar("config")
+    config = app._views["config"]
+    antes = app.ctx.config.settings.email_sugestoes
+    config.email_sugestoes.setText("isto não é e-mail")
+    config._salvar_email_sugestoes()
+    assert app.ctx.config.settings.email_sugestoes == antes
+    assert caixas and caixas[0][1] == "Sugestões"
+
+
+def test_lampada_e_engrenagem_no_alto_como_na_cmi_suite(app):
+    """Lâmpada e engrenagem lado a lado no alto, fora da barra lateral."""
+    from PySide6.QtWidgets import QFrame
+
+    lampada, engrenagem = app._botoes["sugestoes"], app._botoes["config"]
+    assert lampada.parentWidget() is engrenagem.parentWidget()   # mesma faixa
+    barra = app.findChild(QFrame, "sidebar")
+    assert not barra.isAncestorOf(lampada) and not barra.isAncestorOf(engrenagem)
+    assert lampada.text() == engrenagem.text() == ""
+    assert "Sugestões" in lampada.toolTip() and "Configurações" in engrenagem.toolTip()
+    lampada.click()
+    assert app._pilha.currentWidget() is app._views["sugestoes"]
+    engrenagem.click()
+    assert app._pilha.currentWidget() is app._views["config"]
+
+
+# ─────────────────── "O que mudou na vX" (igual ao da CMI Suite) ─────────────
+
+def _home(qtbot, versao_vista=None):
+    from docmanager.services.config import ConfigManager
+    from docmanager.ui.app_context import AppContext
+    from docmanager.ui.views.home_view import HomeView
+
+    if versao_vista is not None:
+        ConfigManager().set_setting("versao_vista", versao_vista)   # cria o config.json
+    ctx = AppContext(config=ConfigManager(), versao="3.6.1")
+    home = HomeView(ctx)
+    qtbot.addWidget(home)
+    return home, ctx
+
+
+def test_novidades_aparecem_uma_vez_depois_de_atualizar(qtbot):
+    home, ctx = _home(qtbot, versao_vista="3.6.0")
+    assert home.novidades_visiveis()
+    home.btn_entendi.click()
+    assert not home.novidades_visiveis()
+    assert ctx.config.settings.versao_vista == "3.6.1"
+    home2, _ = _home(qtbot)                       # a abertura seguinte: não aparece mais
+    assert not home2.novidades_visiveis()
+
+
+def test_primeira_instalacao_nao_mostra_novidades(qtbot):
+    home, ctx = _home(qtbot)
+    assert not home.novidades_visiveis()
+    assert ctx.config.settings.versao_vista == "3.6.1"   # anota para a próxima
+
+
+def test_quem_vem_de_antes_da_versao_vista_tambem_ve(qtbot):
+    """Até a 3.6.1 não se gravava a versão vista; quem já tinha config vê."""
+    from docmanager.services.config import ConfigManager
+
+    ConfigManager().set_setting("tema", "escuro")              # já usava o app
+    home, _ = _home(qtbot)
+    assert home.novidades_visiveis()

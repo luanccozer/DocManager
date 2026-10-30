@@ -110,3 +110,10 @@ def ler(versao: str | None = None) -> Bloco | None:
         return b
     blocos = analisar(texto)
     return blocos[0] if blocos else None
+
+
+def deve_mostrar(versao_atual: str, versao_vista: str, bloco: Bloco | None) -> bool:
+    """O cartão "O que mudou" aparece só depois de uma ATUALIZAÇÃO (havia uma
+    versão vista e é outra) e se a versão tem nota - como na CMI Suite."""
+    return bool(versao_vista) and versao_vista != versao_atual and bloco is not None \
+        and bool(bloco.itens)
