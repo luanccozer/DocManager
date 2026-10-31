@@ -117,7 +117,7 @@ class ConfigView(BaseView):
                         "usuário. Ele não vai para o GitHub e continua valendo depois das atualizações."),
                         "suave", quebra=True))
         self._lista_cred = card.add(rotulo("", quebra=True))
-        self._opt_cred = Seletor([t("(nenhum)")])
+        self._opt_cred = Seletor(opcoes=[(t("(nenhum)"), "")])
         self._opt_cred.setMinimumWidth(220)
         card.add(linha(botao(t("Cadastrar novo"), variante="primario", icone="user-plus",
                              ao_clicar=lambda: self._cadastrar(None)),
@@ -132,8 +132,8 @@ class ConfigView(BaseView):
         self._lista_cred.setText(
             t("Cadastrados: {nomes}", nomes=", ".join(nomes)) if nomes
             else t("Nenhum usuário cadastrado. A Extração Aconex só funciona depois que você cadastrar um."))
-        alvo = selecionar or self._opt_cred.get()
-        self._opt_cred.definir_itens(nomes or [t("(nenhum)")],
+        alvo = selecionar or self._opt_cred.chave()
+        self._opt_cred.definir_opcoes([(n, n) for n in nomes] or [(t("(nenhum)"), "")],
                                      alvo if alvo in nomes else (nomes[0] if nomes else t("(nenhum)")))
 
     def _cadastrar(self, nome: str | None):
@@ -144,13 +144,13 @@ class ConfigView(BaseView):
             self.log.log(f"Credenciais de '{salvo}' salvas nesta máquina.")
 
     def _editar(self):
-        nome = self._opt_cred.get()
-        if nome and nome != t("(nenhum)"):
+        nome = self._opt_cred.chave()
+        if nome:
             self._cadastrar(nome)
 
     def _remover(self):
-        nome = self._opt_cred.get()
-        if not nome or nome == t("(nenhum)"):
+        nome = self._opt_cred.chave()
+        if not nome:
             return
         if not dialogos.perguntar(
                 t("Remover credencial"),

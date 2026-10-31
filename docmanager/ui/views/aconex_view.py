@@ -27,6 +27,10 @@ class AconexView(BaseView):
         marcar("Original, sem comentários (como o emitente subiu)"): "original",
     }
     # Chaves do resultado da consulta; o cabeçalho da tabela mostra `t(...)`.
+    # O texto de `aconex_backend.OUTRO_USUARIO`, marcado para a tradução: o
+    # seletor mostra `t()` e guarda a constante como chave.
+    _ROTULO_OUTRO = marcar("Outro (inserir manualmente)")
+
     COLUNAS_CONSULTA = (marcar("Código Itaipu"), marcar("Código CMI"), marcar("Título"), marcar("Revisão"),
                         marcar("Data"), marcar("Status Aconex"), marcar("Status Real"))
 
@@ -42,12 +46,13 @@ class AconexView(BaseView):
         # mais recebe: desde a v3.1.0 o app é instalado, não descompactado).
         disponiveis = usuarios_disponiveis()
         self._usuarios_conhecidos = list(disponiveis)
-        self.opt_user = Seletor(disponiveis + [OUTRO_USUARIO])
+        self.opt_user = Seletor(opcoes=self._opcoes_usuario(disponiveis))
         self.opt_user.setMinimumWidth(260)
-        self.opt_user.setCurrentText(disponiveis[0] if disponiveis else OUTRO_USUARIO)
-        self.opt_user.currentTextChanged.connect(self._on_user)
+        self.opt_user.definir_opcoes(self._opcoes_usuario(disponiveis),
+                                     disponiveis[0] if disponiveis else OUTRO_USUARIO)
+        self.opt_user.currentIndexChanged.connect(self._on_user_indice)
         usuario = rotulo(t("Usuário"))
-        usuario.setFixedWidth(120)
+        usuario.setMinimumWidth(120)
         card.add(linha(usuario, self.opt_user,
                        botao(t("Cadastrar usuário"), variante="primario", icone="user-plus",
                              ao_clicar=self._cadastrar),
@@ -84,7 +89,7 @@ class AconexView(BaseView):
         self._montar_aba_download(self.tabs.add(marcar("Baixar por Lista"), "file"))
         abas_card.add(self.tabs)
         body.addWidget(abas_card)
-        self._on_user(self.opt_user.get())   # visibilidade, dica e aviso iniciais
+        self._on_user(self.opt_user.chave())   # visibilidade, dica e aviso iniciais
 
     def _montar_aba_consulta(self, aba):
         """Status e histórico de uma lista de códigos em segundos, direto da API
@@ -129,10 +134,10 @@ class AconexView(BaseView):
             t("Baixa os FLUXOS DE TRABALHO (a aba 'Fluxos de Trabalho' do Aconex): etapa, prazo e a quem "
             "cada documento está atribuído. Um período curto atualiza rápido, porque baixa só o que "
             "mudou desde então."), "suave", quebra=True))
-        self.opt_periodo_fluxo = Seletor([t(k) for k in self.PERIODOS_FLUXO])
+        self.opt_periodo_fluxo = Seletor(opcoes=[(t(k), k) for k in self.PERIODOS_FLUXO])
         self.opt_periodo_fluxo.setMinimumWidth(200)
         periodo = rotulo(t("Período"))
-        periodo.setFixedWidth(120)
+        periodo.setMinimumWidth(120)
         lay.addWidget(linha(periodo, self.opt_periodo_fluxo))
         lay.addWidget(RunBar(t("Extrair Fluxos de Trabalho"), self._tarefa_fluxos, self.log))
 
@@ -144,10 +149,10 @@ class AconexView(BaseView):
         self.txt_codigos.setObjectName("caixa_texto")
         self.txt_codigos.setFixedHeight(140)
         lay.addWidget(self.txt_codigos)
-        self.opt_modo_download = Seletor([t(k) for k in self.MODOS_DOWNLOAD])
+        self.opt_modo_download = Seletor(opcoes=[(t(k), v) for k, v in self.MODOS_DOWNLOAD.items()])
         self.opt_modo_download.setMinimumWidth(380)
         arquivo = rotulo(t("Arquivo"))
-        arquivo.setFixedWidth(120)
+        arquivo.setMinimumWidth(120)
         lay.addWidget(linha(arquivo, self.opt_modo_download))
         lay.addWidget(rotulo(
             t("Com comentários: a versão vigente, com as marcações da análise aplicadas (o de sempre). "
@@ -169,12 +174,18 @@ class AconexView(BaseView):
     # ------------------------------------------------------------------ estado
     def _estado(self) -> dict:
         """Foto da tela, lida na thread da interface (as tarefas rodam em outra)."""
-        return {"usuario": self.opt_user.get(), "proxy": self.entry_proxy.text().strip(),
+        return {"usuario": self.opt_user.chave(), "proxy": self.entry_proxy.text().strip(),
                 "client_id": self.entry_client.text().strip(), "user_id": self.entry_userid.text().strip(),
-                "secret": self.entry_secret.text().strip(), "periodo": self.opt_periodo_fluxo.get(),
+                "secret": self.entry_secret.text().strip(), "periodo": self.opt_periodo_fluxo.chave(),
                 "codigos": self.txt_codigos.toPlainText(),
-                "modo_download": {t(k): v for k, v in self.MODOS_DOWNLOAD.items()}[self.opt_modo_download.get()],
+                "modo_download": self.opt_modo_download.chave(),
                 "consulta": self.txt_consulta.toPlainText()}
+
+    def _opcoes_usuario(self, disponiveis) -> list[tuple[str, str]]:
+        return [(n, n) for n in disponiveis] + [(t(self._ROTULO_OUTRO), self._OUTRO)]
+
+    def _on_user_indice(self, _indice: int):
+        self._on_user(self.opt_user.chave())
 
     def _on_user(self, escolha: str):
         """Mostra os campos manuais só na opção 'Outro'; ajusta a dica."""
@@ -217,15 +228,15 @@ class AconexView(BaseView):
         from ...aconex_backend import escolher_usuario, usuarios_disponiveis
 
         disponiveis = usuarios_disponiveis()
-        alvo = escolher_usuario(disponiveis, atual=selecionar or self.opt_user.get(),
+        alvo = escolher_usuario(disponiveis, atual=selecionar or self.opt_user.chave(),
                                 conhecidos=self._usuarios_conhecidos,
                                 manual_preenchido=self._manual_preenchido())
         self._usuarios_conhecidos = list(disponiveis)
-        self.opt_user.definir_itens(disponiveis + [self._OUTRO], alvo)
+        self.opt_user.definir_opcoes(self._opcoes_usuario(disponiveis), alvo)
         self._on_user(alvo)
 
     def usuarios_na_lista(self) -> list[str]:
-        return [self.opt_user.itemText(i) for i in range(self.opt_user.count())]
+        return [self.opt_user.itemData(i) for i in range(self.opt_user.count())]
 
     def _cadastrar(self, nome: str | None = None):
         """Abre o cadastro. Só pode ser chamado na thread da interface."""
@@ -238,7 +249,7 @@ class AconexView(BaseView):
         return salvo
 
     def _editar(self):
-        escolha = self.opt_user.get()
+        escolha = self.opt_user.chave()
         self._cadastrar(None if escolha == self._OUTRO else escolha)
 
     def _garantir_credenciais(self, estado) -> bool:
@@ -290,7 +301,7 @@ class AconexView(BaseView):
             nome_arquivo_padrao_wf,
             salvar_excel_workflows,
         )
-        dias = {t(k): v for k, v in self.PERIODOS_FLUXO.items()}.get(estado["periodo"])
+        dias = self.PERIODOS_FLUXO[estado["periodo"]]
         updated_after = ""
         if dias:
             updated_after = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M:%SZ")

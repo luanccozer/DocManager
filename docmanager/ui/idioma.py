@@ -63,19 +63,32 @@ def marcar(texto: str) -> str:
     return texto
 
 
-def do_sistema() -> str:
-    """O idioma do Windows, se for um dos três; senão português (o da equipe)."""
-    try:
-        codigo = (locale.getlocale()[0] or "").lower()
-    except (ValueError, TypeError):
-        codigo = ""
+def _do_codigo(codigo: str) -> str | None:
+    codigo = (codigo or "").lower()
     for idioma in IDIOMAS:
         nome = {"es": "spanish", "pt": "portuguese", "en": "english"}[idioma]
         if codigo.startswith(idioma) or codigo.startswith(nome):
             return idioma
-    return "pt"
+    return None
 
 
-def efetivo(escolha: str) -> str:
+def do_sistema(idiomas_da_interface=()) -> str:
+    """O idioma do Windows, se for um dos três; senão português (o da equipe).
+
+    `idiomas_da_interface` é o `QLocale.system().uiLanguages()` (quem tem o Qt
+    passa): o idioma em que o Windows MOSTRA as coisas. Sem ele, o
+    `locale.getlocale()`, que é o formato regional (data, número) - um
+    Windows em inglês com formato do Brasil diria português."""
+    for codigo in idiomas_da_interface or ():
+        if (achado := _do_codigo(codigo)):
+            return achado
+    try:
+        codigo = locale.getlocale()[0] or ""
+    except (ValueError, TypeError):
+        codigo = ""
+    return _do_codigo(codigo) or "pt"
+
+
+def efetivo(escolha: str, idiomas_da_interface=()) -> str:
     """A escolha das Configurações; vazia ("ainda não escolhido"), a do Windows."""
-    return escolha if escolha in IDIOMAS else do_sistema()
+    return escolha if escolha in IDIOMAS else do_sistema(idiomas_da_interface)

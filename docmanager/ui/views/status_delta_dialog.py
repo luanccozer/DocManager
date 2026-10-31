@@ -39,7 +39,7 @@ class StatusDeltaDialog(ArvoreDialog):
         self.entry_fim = campo_data(hoje.strftime("%d/%m/%Y"))
         self.opt_agrup = Seletor(metadados)
         self.opt_agrup.setMinimumWidth(180)
-        self.opt_visao = Seletor(["Efetiva", "Bruta"])
+        self.opt_visao = Seletor(opcoes=[(t("Efetiva"), "Efetiva"), (t("Bruta"), "Bruta")])
         self.opt_visao.currentTextChanged.connect(lambda _v: self._repovoar())
         self.btn_filtrar = botao(t("Verificar Mudanças"), variante="primario", icone="search",
                                  ao_clicar=self._executar)
@@ -61,7 +61,7 @@ class StatusDeltaDialog(ArvoreDialog):
             dialogos.aviso(t("Aviso"), t("Preencha as duas datas."), self)
             return
         self.lbl_status.setText(t("Cruzando dados... aguarde."))
-        agrup, visao = self.opt_agrup.get(), self.opt_visao.get()
+        agrup, visao = self.opt_agrup.get(), self.opt_visao.chave()
 
         def trabalho():
             from ...common import carregar_base_aconex
@@ -94,7 +94,7 @@ class StatusDeltaDialog(ArvoreDialog):
         return [it for lst in self.arvore[grupo].values() for it in lst]
 
     def _aplicar_visao(self):
-        bruta = self.opt_visao.get() == "Bruta"
+        bruta = self.opt_visao.chave() == "Bruta"
         for c in _SO_BRUTA:
             self.tree.setColumnHidden(c, not bruta)
 

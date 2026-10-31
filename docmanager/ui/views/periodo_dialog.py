@@ -17,6 +17,11 @@ from ..components import Seletor, botao, rotulo
 from .arvore import ArvoreDialog, campo_data
 from ..idioma import marcar, t
 
+# Os rótulos de `core/doclist_periodo.janelas_padrao`, marcados para a tradução:
+# o botão mostra `t()` e a chave continua o rótulo em português.
+_ATALHOS_NA_TELA = (marcar("Vencidos (não emitidos)"), marcar("Próximos 7 dias"), marcar("Próximos 30 dias"),
+                    marcar("Próximos 90 dias"), marcar("Restante deste mês"), marcar("Mês que vem"),
+                    marcar("Este ano"))
 _AGRUPADORES = {marcar("Mês"): "mes", marcar("Grupo"): "grupo", marcar("Sistema"): "sistema",
                 marcar("Fase de Projeto"): "fase_projeto"}
 _COLUNAS = [(marcar("Agrupamento / Documento"), 300), (marcar("Data-Alvo"), 95), (marcar("Origem"), 100), (marcar("Dias"), 60),
@@ -44,13 +49,13 @@ class PeriodoDialog(ArvoreDialog):
         al.setContentsMargins(12, 8, 12, 8)
         al.addWidget(rotulo(t("Atalhos:"), "destaque"))
         for r in self._janelas:
-            al.addWidget(botao(r, ao_clicar=lambda r=r: self._usar_atalho(r)))
+            al.addWidget(botao(t(r), ao_clicar=lambda r=r: self._usar_atalho(r)))
         al.addStretch(1)
         self.layout().insertWidget(0, atalhos)
 
         self.entry_ini = campo_data(dica=t("DD/MM/AAAA (vazio = sem limite)"), largura=210)
         self.entry_fim = campo_data(dica=t("DD/MM/AAAA (vazio = sem limite)"), largura=210)
-        self.opt_agrup = Seletor([t(k) for k in _AGRUPADORES])
+        self.opt_agrup = Seletor(opcoes=[(t(k), v) for k, v in _AGRUPADORES.items()])
         self.opt_agrup.currentTextChanged.connect(lambda _v: self._repovoar())
         self.chk_emitidos = QCheckBox(t("Incluir já emitidos"))
         self.chk_emitidos.toggled.connect(lambda _v: self._executar())
@@ -124,7 +129,7 @@ class PeriodoDialog(ArvoreDialog):
             self.lbl_status.setText(t("Nenhum documento previsto nesse período."))
             return
         from ...doclist_backend import agrupar_por, resumo
-        chave = {t(k): v for k, v in _AGRUPADORES.items()}[self.opt_agrup.get()]
+        chave = self.opt_agrup.chave()
         self.tree.headerItem().setText(0, t("{agrupador} / Documento", agrupador=self.opt_agrup.get()))
         for rotulo_grupo, itens in agrupar_por(self._itens, chave).items():
             no = self.grupo(f"{rotulo_grupo} ({len(itens)})")

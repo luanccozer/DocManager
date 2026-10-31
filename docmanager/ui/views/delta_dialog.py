@@ -44,8 +44,8 @@ class DeltaDialog(ArvoreDialog):
 
         self.entry_ini = campo_data()
         self.entry_fim = campo_data(datetime.now().strftime("%d/%m/%Y"))
-        self.opt_agrup = Seletor(["Grupo", "Sistema"])
-        self.opt_visao = Seletor(["Efetiva", "Bruta"])
+        self.opt_agrup = Seletor(opcoes=[(t("Grupo"), "Grupo"), (t("Sistema"), "Sistema")])
+        self.opt_visao = Seletor(opcoes=[(t("Efetiva"), "Efetiva"), (t("Bruta"), "Bruta")])
         self.opt_visao.currentTextChanged.connect(lambda _v: self._repovoar())
         self.btn_filtrar = botao(t("Verificar Mudanças"), variante="primario", icone="search",
                                  ao_clicar=self._executar)
@@ -67,7 +67,7 @@ class DeltaDialog(ArvoreDialog):
             dialogos.aviso(t("Aviso"), t("Preencha as duas datas."), self)
             return
         self.lbl_status.setText(t("Cruzando dados... aguarde."))
-        agrup, visao = self.opt_agrup.get(), self.opt_visao.get()
+        agrup, visao = self.opt_agrup.chave(), self.opt_visao.chave()
 
         def trabalho():
             from ...mapa_backend import calcular_mudancas_periodo
@@ -94,7 +94,7 @@ class DeltaDialog(ArvoreDialog):
         self.btn_exportar.setEnabled(bool(total))
 
     def _aplicar_visao(self):
-        bruta = self.opt_visao.get() == "Bruta"
+        bruta = self.opt_visao.chave() == "Bruta"
         for c in _SO_BRUTA:
             self.tree.setColumnHidden(c, not bruta)
 
@@ -139,7 +139,7 @@ class DeltaDialog(ArvoreDialog):
         if not caminho:
             return
         from ...mapa_backend import exportar_delta_arvore
-        ok, msg = exportar_delta_arvore(self.dados_cache, caminho, agrupador=self.opt_agrup.get(),
-                                        visao=self.opt_visao.get(),
+        ok, msg = exportar_delta_arvore(self.dados_cache, caminho, agrupador=self.opt_agrup.chave(),
+                                        visao=self.opt_visao.chave(),
                                         ocultar_aprovados=self.chk_ocultar.isChecked())
         (dialogos.info if ok else dialogos.erro)(t("Exportação concluída") if ok else t("Erro"), msg, self)

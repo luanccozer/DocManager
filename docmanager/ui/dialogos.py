@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 from .idioma import marcar, t
 from .ponte import na_ui_e_esperar
 
-FILTRO_EXCEL = "Excel (*.xlsx *.xlsm *.xls);;*.*"
+FILTRO_EXCEL = "Excel (*.xlsx *.xlsm *.xls)"   # `escolher_arquivo` soma "Todos (*.*)" no idioma da tela
 FILTRO_XLSX = "Excel (*.xlsx)"
 
 
@@ -68,7 +68,8 @@ def escolher_arquivo(config=None, tipo: str = "arquivo", filtro: str = FILTRO_EX
     """Abre no último diretório do `tipo` e o memoriza. '' se cancelar."""
     inicial = config.ultimo_dir(tipo) if config else ""
     caminho = na_ui_e_esperar(
-        lambda: QFileDialog.getOpenFileName(_pai(parent), t(titulo), inicial, filtro)[0])
+        lambda: QFileDialog.getOpenFileName(_pai(parent), t(titulo), inicial,
+                                            f"{filtro};;{t('Todos')} (*.*)")[0])
     if caminho and config:
         config.lembrar_dir(tipo, caminho)
     return caminho or ""

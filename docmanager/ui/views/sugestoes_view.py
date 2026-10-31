@@ -15,13 +15,18 @@ from .base import BaseView
 from ..idioma import marcar, t
 
 
+# Os tipos de `services/sugestoes.TIPOS`, marcados para a tradução (o e-mail
+# leva o tipo em português; a tela mostra `t()`).
+_TIPOS_NA_TELA = (marcar("Sugestão"), marcar("Erro"), marcar("Dúvida"))
+
+
 class SugestoesView(BaseView):
     titulo_view = marcar("Sugestões")
     subtitulo_view = marcar("Mande uma ideia, um erro ou uma dúvida sobre o DocManager")
 
     def montar(self, body):
         card = Card(t("Escrever"))
-        self.sel_tipo = Seletor(sugestoes.TIPOS)
+        self.sel_tipo = Seletor(opcoes=[(t(tipo), tipo) for tipo in sugestoes.TIPOS])
         card.add(linha(rotulo(t("Tipo")), self.sel_tipo))
         self.texto = QPlainTextEdit()
         self.texto.setObjectName("caixa_texto")   # a caixa de texto da folha (cor do tema)
@@ -50,7 +55,7 @@ class SugestoesView(BaseView):
 
     def _rascunho(self) -> sugestoes.Rascunho | None:
         try:
-            return sugestoes.montar(self.sel_tipo.get(), self.texto.toPlainText(), __version__,
+            return sugestoes.montar(self.sel_tipo.chave(), self.texto.toPlainText(), __version__,
                                     self.ctx.config.settings.email_sugestoes)
         except ValueError as e:
             dialogos.aviso(t("Sugestões"), str(e), self)

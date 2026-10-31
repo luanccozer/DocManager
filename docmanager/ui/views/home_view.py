@@ -188,7 +188,7 @@ class HomeView(QWidget):
         topo.addWidget(rotulo(t('O que mudou na v{versao}', versao=self.ctx.versao), nome="novidades_titulo"), 1)
         lay.addLayout(topo)
         for it in bloco.itens:
-            lay.addWidget(rotulo(t('•  {it}', it=it), quebra=True))
+            lay.addWidget(rotulo(f"•  {it}", quebra=True))   # o CHANGELOG é em português
         self.btn_entendi = botao(t("Entendi"), variante="primario", ao_clicar=self._leu_novidades)
         rod = QHBoxLayout()
         rod.addStretch(1)

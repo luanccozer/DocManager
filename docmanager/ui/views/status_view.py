@@ -62,8 +62,9 @@ class StatusDocsView(BaseView):
         lay.addWidget(linha(rotulo(t("Linha do cabeçalho:")), self.header_row,
                             botao(t("Carregar Colunas"), icone="table", ao_clicar=self._carregar_colunas)))
 
-        self.col_itaipu = Seletor([t(_CARREGUE)])
-        self.col_cmi = Seletor([t(_CARREGUE)])
+        # Avisos ("Carregue as colunas", "- NENHUM -") têm chave ""; as colunas, o próprio nome.
+        self.col_itaipu = Seletor(opcoes=[(t(_CARREGUE), "")])
+        self.col_cmi = Seletor(opcoes=[(t(_CARREGUE), "")])
         for c in (self.col_itaipu, self.col_cmi):
             c.setMinimumWidth(240)
         form = QWidget()
@@ -88,9 +89,9 @@ class StatusDocsView(BaseView):
             row_idx = self._linha_cabecalho()
             df = pd.read_excel(self.sel_lista.path, sheet_name=self.sel_lista.sheet, header=row_idx, nrows=0)
             cols = [str(c) for c in df.columns if "Unnamed" not in str(c)]
-            opcoes = [t(_NENHUM)] + cols
-            self.col_itaipu.definir_itens(opcoes, cols[0] if cols else t(_NENHUM))
-            self.col_cmi.definir_itens(opcoes, cols[1] if len(cols) > 1 else t(_NENHUM))
+            opcoes = [(t(_NENHUM), "")] + [(c, c) for c in cols]
+            self.col_itaipu.definir_opcoes(opcoes, cols[0] if cols else "")
+            self.col_cmi.definir_opcoes(opcoes, cols[1] if len(cols) > 1 else "")
             self.log.log(f"Colunas carregadas da linha {row_idx + 1}: {len(cols)} colunas.")
         except Exception as e:  # noqa: BLE001
             self.log.log(f"Erro ao ler colunas: {e}")
@@ -102,15 +103,15 @@ class StatusDocsView(BaseView):
                            header=estado["linha"], dtype=str).fillna("")
         col_it, col_cmi = estado["col_itaipu"], estado["col_cmi"]
         vazio = pd.Series([""] * len(df))
-        serie_it = df[col_it] if col_it not in (t(_NENHUM), t(_CARREGUE)) and col_it in df.columns else vazio
-        serie_cmi = df[col_cmi] if col_cmi not in (t(_NENHUM), t(_CARREGUE)) and col_cmi in df.columns else vazio
+        serie_it = df[col_it] if col_it and col_it in df.columns else vazio
+        serie_cmi = df[col_cmi] if col_cmi and col_cmi in df.columns else vazio
         return [(str(a).strip(), str(b).strip()) for a, b in zip(serie_it, serie_cmi)
                 if str(a).strip() or str(b).strip()]
 
     # ---------------------------------------------------------- Aba 2: Lista
     def _montar_lista(self, aba):
         lay = aba.layout()
-        self.tipo_lista = Seletor([t("Código Itaipu"), t("Código CMI")])
+        self.tipo_lista = Seletor(opcoes=[(t("Código Itaipu"), "itaipu"), (t("Código CMI"), "cmi")])
         lay.addWidget(linha(rotulo(t("Tipo de código:")), self.tipo_lista))
         lay.addWidget(rotulo(t("Cole os códigos (um por linha):"), "suave"))
         self.txt_lista = QPlainTextEdit()
@@ -121,7 +122,7 @@ class StatusDocsView(BaseView):
     @staticmethod
     def _pares_da_lista(estado):
         codigos = [c.strip() for c in estado["lista"].splitlines() if c.strip()]
-        if estado["tipo_lista"] == t("Código Itaipu"):
+        if estado["tipo_lista"] == "itaipu":
             return [(c, "") for c in codigos]
         return [("", c) for c in codigos]
 
@@ -160,8 +161,8 @@ class StatusDocsView(BaseView):
         """Foto do que está na tela - lida na thread da interface, para a tarefa
         (que roda em outra thread) não tocar em widget."""
         return {"aba": self.tabs.get(), "linha": self._linha_cabecalho(),
-                "col_itaipu": self.col_itaipu.get(), "col_cmi": self.col_cmi.get(),
-                "tipo_lista": self.tipo_lista.get(), "lista": self.txt_lista.toPlainText()}
+                "col_itaipu": self.col_itaipu.chave(), "col_cmi": self.col_cmi.chave(),
+                "tipo_lista": self.tipo_lista.chave(), "lista": self.txt_lista.toPlainText()}
 
     def _carregar_base(self, run):
         from ...common import carregar_base_aconex

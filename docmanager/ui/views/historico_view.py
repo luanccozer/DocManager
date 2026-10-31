@@ -38,8 +38,8 @@ class HistoricoView(BaseView):
 
         abas_card = Card()
         self.tabs = Abas()
-        aba_plan = self.tabs.add("Planilha", "file-spreadsheet")
-        aba_dash = self.tabs.add("Dashboard", "chart-column")
+        aba_plan = self.tabs.add(marcar("Planilha"), "file-spreadsheet")
+        aba_dash = self.tabs.add(marcar("Dashboard"), "chart-column")
         abas_card.add(self.tabs)
         body.addWidget(abas_card)
 

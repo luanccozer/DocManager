@@ -918,3 +918,16 @@ def test_trocar_o_idioma_grava_e_avisa_que_vale_ao_reabrir(app):
     config.seletor_idioma.botoes["en"].click()
     assert app.ctx.config.settings.idioma == "en"
     assert not config._aviso_idioma.isHidden()
+
+
+def test_seletor_guarda_a_chave_atras_do_texto_traduzido(qtbot):
+    from docmanager.ui.components import Seletor
+
+    s = Seletor(opcoes=[("Last 7 days", "Últimos 7 dias"), ("Everything", "Tudo (~20 min)")])
+    qtbot.addWidget(s)
+    assert s.chave() == "Últimos 7 dias"
+    s.definir_opcoes([("A", "a"), ("B", "b")], "b")
+    assert (s.get(), s.chave()) == ("B", "b")
+    sem_chave = Seletor(["Aba 1"])
+    qtbot.addWidget(sem_chave)
+    assert sem_chave.chave() == "Aba 1"          # item sem chave: o próprio texto

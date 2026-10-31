@@ -1,6 +1,7 @@
 """A interface em espanhol, português ou inglês (`ui/idioma.py`), como a CMI
 Suite e o SIG-FT: texto de tela em `t("...")`, tradução em
 `ui/recursos/idiomas/es.json` e `en.json`."""
+import ast
 import json
 import re
 import string
@@ -63,16 +64,75 @@ def test_escolha_vazia_segue_o_windows(monkeypatch):
     assert idioma.efetivo("en") == "en"
 
 
+# Quem recebe texto de tela, e em que posição. `t("...")`/`marcar("...")` são
+# chamadas, não literais: o que aparece aqui como literal escapou da tradução.
+_TEXTO_NA_POSICAO = {
+    "rotulo": 0, "botao": 0, "Card": 0, "RunBar": 0, "FileSelector": 0, "QPushButton": 0,
+    "QLabel": 0, "QCheckBox": 0, "QRadioButton": 0, "setToolTip": 0, "setPlaceholderText": 0,
+    "setWindowTitle": 0, "setText": 0, "desabilitar": 0, "legenda": 0, "addRow": 0,
+    "info": 1, "aviso": 1, "erro": 1, "perguntar": 1, "tentar_de_novo": 0,
+}
+_TEXTO_EM_PALAVRA_CHAVE = {"dica", "placeholderText", "titulo"}
+
+
+def _literais_de_tela(arvore):
+    for no in ast.walk(arvore):
+        if not isinstance(no, ast.Call):
+            continue
+        nome = no.func.attr if isinstance(no.func, ast.Attribute) else getattr(no.func, "id", "")
+        candidatos = []
+        if nome in _TEXTO_NA_POSICAO:
+            fim = _TEXTO_NA_POSICAO[nome] + 1
+            candidatos += no.args[:fim] if nome in ("info", "aviso", "erro", "perguntar") else no.args[:1]
+        if nome == "add" and isinstance(no.func, ast.Attribute) and "tabs" in ast.unparse(no.func):
+            candidatos += no.args[:1]
+        if nome == "Seletor" and no.args and isinstance(no.args[0], ast.List):
+            candidatos += no.args[0].elts
+        candidatos += [kw.value for kw in no.keywords if kw.arg in _TEXTO_EM_PALAVRA_CHAVE]
+        for arg in candidatos:
+            if isinstance(arg, ast.JoinedStr):   # f-string: conta o texto fixo dela
+                texto = "".join(v.value for v in arg.values if isinstance(v, ast.Constant))
+            elif isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                texto = arg.value
+            else:
+                continue
+            if re.search(r"[A-Za-zÀ-ú]{3}", texto) and texto != "DocManager":
+                yield no.lineno
+
+
 def test_nenhum_texto_de_tela_fora_de_t():
-    """QPushButton("...")/QLabel("...")/QCheckBox("...") com português cru
-    escapariam da tradução."""
-    cru = re.compile(r'Q(?:PushButton|Label|CheckBox|RadioButton)\(\s*"[^"]*[a-zà-ú]{3}')
+    """Literal (ou f-string) passado a um widget ou a um helper de texto de
+    tela escaparia da tradução: tem de ir em `t("...")`."""
     culpados = []
-    for arquivo in (Path(textos.PACOTE) / "ui").rglob("*.py"):
-        for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
-            if cru.search(linha):
-                culpados.append(f"{arquivo.name}:{n}")
+    for arquivo in sorted((Path(textos.PACOTE) / "ui").rglob("*.py")):
+        arvore = ast.parse(arquivo.read_text(encoding="utf-8"))
+        culpados += [f"{arquivo.name}:{linha}" for linha in _literais_de_tela(arvore)]
     assert culpados == []
+
+
+def test_texto_do_outro_usuario_e_o_mesmo_do_backend():
+    """A tela marca o texto de `OUTRO_USUARIO` para traduzir; os dois têm de
+    continuar iguais, ou a opção manual sai sem tradução."""
+    from docmanager.aconex_backend import OUTRO_USUARIO
+    from docmanager.ui.views.aconex_view import AconexView
+
+    assert AconexView._ROTULO_OUTRO == OUTRO_USUARIO
+
+
+def test_atalhos_do_periodo_estao_todos_marcados():
+    from datetime import date
+
+    from docmanager.core.doclist_periodo import janelas_padrao
+    from docmanager.ui.views.periodo_dialog import _ATALHOS_NA_TELA
+
+    assert {j.rotulo for j in janelas_padrao(date(2026, 10, 31))} == set(_ATALHOS_NA_TELA)
+
+
+def test_tipos_da_sugestao_estao_marcados():
+    from docmanager.services import sugestoes
+    from docmanager.ui.views.sugestoes_view import _TIPOS_NA_TELA
+
+    assert set(sugestoes.TIPOS) == set(_TIPOS_NA_TELA)
 
 
 def test_a_janela_inteira_abre_em_espanhol_e_em_ingles(qtbot, monkeypatch):
@@ -92,3 +152,18 @@ def test_a_janela_inteira_abre_em_espanhol_e_em_ingles(qtbot, monkeypatch):
             janela.selecionar(spec.key)
         assert janela._botoes["home"].text() == inicio
         janela._saindo_para_atualizar = True
+
+
+def test_a_guarda_pega_os_helpers_de_texto():
+    """A guarda de verdade pega o que escapava da antiga (só QPushButton/QLabel)."""
+    for codigo in ('botao("Exportar")', 'self.tabs.add("Planilha", "x")', 'Seletor(["Grupo", "Sistema"])',
+                   'rotulo(f"Total: {n} documentos")', 'dialogos.aviso("Aviso", "Algo deu errado")'):
+        assert list(_literais_de_tela(ast.parse(codigo))), codigo
+    for codigo in ('botao(t("Exportar"))', 'rotulo(f"•  {it}")', 'self.tabs.add(marcar("Planilha"))'):
+        assert not list(_literais_de_tela(ast.parse(codigo))), codigo
+
+
+def test_idioma_do_windows_vem_da_interface_e_nao_do_formato_regional(monkeypatch):
+    monkeypatch.setattr(idioma.locale, "getlocale", lambda: ("Portuguese_Brazil", "1252"))
+    assert idioma.do_sistema(["en-US", "pt-BR"]) == "en"     # Windows em inglês, formato do Brasil
+    assert idioma.do_sistema([]) == "pt"                      # sem o Qt: o formato regional

@@ -390,6 +390,16 @@ def _fechar_splash_nativa() -> None:
         pass
 
 
+def _idiomas_do_windows() -> list[str]:
+    """Os idiomas em que o Windows mostra a interface (não o formato regional)."""
+    try:
+        from PySide6.QtCore import QLocale
+
+        return list(QLocale.system().uiLanguages())
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _traduzir_o_qt(app, codigo: str) -> None:
     """Os botões padrão do Qt (Sim/Não, Cancelar nos diálogos de arquivo) no
     idioma escolhido, com as traduções que vêm com o próprio Qt. Melhor
@@ -417,9 +427,11 @@ def abrir(app, config: ConfigManager | None = None) -> MainApp:
     splash = mostrar_splash()
     _fechar_splash_nativa()
     config = config or ConfigManager()
-    idioma.definir(idioma.efetivo(config.settings.idioma))
+    idioma.definir(idioma.efetivo(config.settings.idioma, _idiomas_do_windows()))
     _traduzir_o_qt(app, idioma.atual())
-    estilo.LETRA_ATUAL = config.settings.letra if config.settings.letra in estilo.LETRAS else "normal"
+    # A letra antes do tema: `tema.aplicar` regera a folha; a fonte do app
+    # (`criar_app` a pôs no tamanho normal) acompanha aqui.
+    tema.aplicar_letra(app, config.settings.letra)
     tema.aplicar(app, config.settings.tema)
     tema.seguir_o_sistema(app, config)
     janela = MainApp(config)
