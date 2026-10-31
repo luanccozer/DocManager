@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QApplication, QPlainTextEdit
+from PySide6.QtWidgets import QApplication, QCheckBox, QPlainTextEdit
 
 from ... import __version__
 from ...services import sugestoes
@@ -27,6 +27,7 @@ class SugestoesView(BaseView):
     def montar(self, body):
         card = Card(t("Escrever"))
         self.sel_tipo = Seletor(opcoes=[(t(tipo), tipo) for tipo in sugestoes.TIPOS])
+        self.sel_tipo.currentIndexChanged.connect(self._mudou_tipo)
         card.add(linha(rotulo(t("Tipo")), self.sel_tipo))
         self.texto = QPlainTextEdit()
         self.texto.setObjectName("caixa_texto")   # a caixa de texto da folha (cor do tema)
@@ -34,6 +35,11 @@ class SugestoesView(BaseView):
                                       "ou o que ficou difícil de entender."))
         self.texto.setMinimumHeight(180)
         card.add(self.texto)
+        # Num erro, as últimas linhas do diário vão junto (como o "Reportar um
+        # problema" da CMI Suite): quem recebe não precisa pedir o diario.log.
+        self.chk_diario = QCheckBox(t("Incluir as últimas linhas do diário do app (ajuda a achar o erro)"))
+        self.chk_diario.setChecked(True)
+        card.add(self.chk_diario)
         self.lbl_destino = rotulo("", "legenda", quebra=True)
         card.add(self.lbl_destino)
         self.btn_email = botao(t("Abrir rascunho no e-mail"), variante="primario", icone="mail",
@@ -43,7 +49,17 @@ class SugestoesView(BaseView):
         card.add(rotulo(t("O rascunho abre no seu programa de e-mail com a versão do DocManager "
                         "anotada. Nada é enviado sem você clicar em Enviar."), "suave", quebra=True))
         body.addWidget(card)
+        self._mudou_tipo()
         self.ao_exibir()
+
+    def _mudou_tipo(self, _indice: int = 0):
+        self.chk_diario.setVisible(self.sel_tipo.chave() == "Erro")
+
+    def _diario(self) -> str:
+        if self.sel_tipo.chave() != "Erro" or not self.chk_diario.isChecked():
+            return ""
+        from ...services import diario
+        return diario.ultimas_linhas()
 
     def ao_exibir(self):
         destino = self.ctx.config.settings.email_sugestoes.strip()
@@ -56,7 +72,7 @@ class SugestoesView(BaseView):
     def _rascunho(self) -> sugestoes.Rascunho | None:
         try:
             return sugestoes.montar(self.sel_tipo.chave(), self.texto.toPlainText(), __version__,
-                                    self.ctx.config.settings.email_sugestoes)
+                                    self.ctx.config.settings.email_sugestoes, diario=self._diario())
         except ValueError as e:
             dialogos.aviso(t("Sugestões"), str(e), self)
             return None

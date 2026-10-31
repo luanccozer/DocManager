@@ -931,3 +931,21 @@ def test_seletor_guarda_a_chave_atras_do_texto_traduzido(qtbot):
     sem_chave = Seletor(["Aba 1"])
     qtbot.addWidget(sem_chave)
     assert sem_chave.chave() == "Aba 1"          # item sem chave: o próprio texto
+
+
+def test_ctrl_virgula_abre_as_configuracoes(app, qtbot):
+    from PySide6.QtCore import Qt
+
+    app.selecionar("home")
+    app.activateWindow()
+    qtbot.keyClick(app, Qt.Key.Key_Comma, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: app._pilha.currentWidget() is app._views.get("config"), timeout=2000)
+
+
+def test_caixa_do_diario_so_aparece_no_erro(app):
+    app.selecionar("sugestoes")
+    tela = app._views["sugestoes"]
+    tela.sel_tipo.setCurrentIndex(tela.sel_tipo.findData("Sugestão"))
+    assert tela.chk_diario.isHidden() and tela._diario() == ""
+    tela.sel_tipo.setCurrentIndex(tela.sel_tipo.findData("Erro"))
+    assert not tela.chk_diario.isHidden()

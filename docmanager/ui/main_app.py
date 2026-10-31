@@ -142,6 +142,8 @@ class MainApp(QMainWindow):
         self._periodica.timeout.connect(lambda: self.verificar_atualizacao(False))
         # Ctrl+K: "Procurar atualizações" de qualquer tela.
         QShortcut(QKeySequence("Ctrl+K"), self, activated=lambda: self.verificar_atualizacao(True))
+        # Ctrl+, abre a engrenagem, como na CMI Suite e no SIG-FT.
+        QShortcut(QKeySequence("Ctrl+,"), self, activated=self._abrir_configuracoes)
 
     # ------------------------------------------------------------------ barra
     def _montar_sidebar(self) -> QFrame:
@@ -182,7 +184,7 @@ class MainApp(QMainWindow):
 
     # Dica de cada botão do alto (só ícone).
     DICAS_TOPO = {"sugestoes": marcar("Sugestões: mande uma ideia, um erro ou uma dúvida"),
-                  "config": marcar("Configurações")}
+                  "config": marcar("Configurações (Ctrl+,)")}
 
     def _montar_topo(self) -> QWidget:
         """A faixa do alto, à direita: lâmpada (Sugestões) e engrenagem
@@ -197,6 +199,9 @@ class MainApp(QMainWindow):
         topo = linha(QWidget(), *icones_topo, esticar=0, espaco=4)
         topo.layout().setContentsMargins(28, 10, 28, 0)
         return topo
+
+    def _abrir_configuracoes(self):
+        self.selecionar("config")
 
     def _botao_menu(self, spec, texto: str) -> QPushButton:
         b = QPushButton(texto)
