@@ -1,6 +1,6 @@
 # Tarefa: atualizar a planilha de mapeamento de pendências direto do Aconex (Campo → Questões)
 
-Status: ready-for-agent
+Status: done
 
 **Para:** a IA que vai implementar no repositório `luanccozer/DocManager` (Python 3.10+, Qt/PySide6, pytest, ruff).
 

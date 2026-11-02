@@ -10,7 +10,7 @@ mencionar que Doc List e Mapa passam a guardar cópia de segurança). Detalhes: 
 
 **Blocked by:** 06, 07
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] ADR 0002 com as perdas medidas do openpyxl e a prova no Excel
 - [ ] KB §32 no estilo da §24.12

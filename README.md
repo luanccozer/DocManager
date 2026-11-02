@@ -240,6 +240,16 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
 - **⚙️ Configurações** - **Credenciais do Aconex** (cadastrar, editar, remover),
   **Atualizações** do app, a *Regra da Aprovação Intermediária* (VIP) e a base do
   atraso CMI na 0A.
+- **📌 Pendências** - atualiza a planilha de mapeamento de pendências de
+  comissionamento direto do Aconex (Campo → Questões). É só escolher a planilha:
+  a atualização começa sozinha e grava, sem pergunta final. As pendências novas
+  entram no topo da tabela, as colunas do Aconex das que já estão ficam em dia e
+  as colunas preenchidas à mão não são tocadas; impeditivas não fechadas ficam com
+  a cor da legenda. Valor que o Aconex não tem mais só é apagado se você decidir.
+  Antes de trocar o arquivo, o app confere o resultado e guarda uma cópia em
+  `Documentos\DocManager_Itaipu\backups`. Precisa do usuário do Aconex já
+  cadastrado (usa o primeiro). Os dados precisam estar numa Tabela do Excel com a
+  coluna Issue Number; abra no Excel para as tabelas dinâmicas se atualizarem.
 
 ---
 

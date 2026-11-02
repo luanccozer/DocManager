@@ -103,6 +103,35 @@ _Evite_: Backlog Say-do (mesmo indicador)
 A categoria de aderência de um documento do backlog à data reprogramada; fora do
 backlog, não existe.
 
+### Pendências (Aconex Campo)
+
+**Questão**:
+O registro do módulo Campo (Field) do Aconex. Na API e na exportação, "Issue".
+_Evite_: issue (em texto para a equipe), ocorrência
+
+**Pendência de comissionamento**:
+Uma questão do Campo acompanhada pela equipe na planilha de mapeamento de pendências.
+_Evite_: pendência solta quando puder confundir com pendência de documento
+
+**Planilha de mapeamento de pendências**:
+A planilha da equipe ("ACONEX - MAPEAMENTO PENDÊNCIAS") que o módulo Pendências atualiza:
+uma Tabela do Excel com as questões, colunas manuais e tabelas dinâmicas com gráficos.
+_Evite_: Mapa dos Planos, mapeamento (são outra planilha)
+
+**Coluna do Aconex**:
+Coluna da planilha de pendências cujo nome é o de uma coluna da exportação do Aconex ou de
+um campo customizado dos tipos de questão em uso. O app a mantém igual ao Aconex.
+_Evite_: coluna automática
+
+**Coluna manual**:
+Qualquer outra coluna da planilha de pendências; preenchida pela equipe e nunca tocada.
+_Evite_: coluna extra
+
+**Destaque de impeditiva**:
+A cor da legenda pintada na linha inteira quando a pendência é Impeditiva e não está
+Closed. Entra e sai sozinha a cada atualização; só o preenchimento muda.
+_Evite_: cor de status, formatação condicional (não é uma)
+
 ## Relações
 
 - Um **Grupo** reúne vários **Documentos**; um **Documento** pode aparecer em mais
