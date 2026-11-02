@@ -11,7 +11,7 @@ apagamentos, mantendo o padrão do Doc List e do Mapa idêntico. Detalhes: spec,
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Módulo em `VIEWS`, abre nos dois temas; cartão da tela inicial navega até ele
 - [ ] Escolher a planilha chama o serviço uma vez com o caminho; o botão roda de novo

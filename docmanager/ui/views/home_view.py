@@ -35,6 +35,9 @@ MODULOS = [
      "Auditoria de Integração (documentos presos em 0AA).")),
     ("transpasse", "calendar-range", marcar("Transpasse de Fase"), marcar("Quadro dia a dia de cada grupo de equipamentos: "
      "convocação, inspeção IB, CCMLC, transpasse e início do comissionamento, desenhado a partir das planilhas.")),
+    ("pendencias", "file-spreadsheet", marcar("Pendências"), marcar("Atualiza a planilha de mapeamento de pendências "
+     "de comissionamento direto do Aconex (Campo → Questões): as novas entram no topo e as colunas do Aconex ficam "
+     "em dia; as colunas preenchidas à mão não são tocadas.")),
     ("aconex", "download", marcar("Extração Aconex"), marcar("Baixa a base completa do projeto direto da API do Aconex. "
      "Na primeira vez, cadastre as suas credenciais na própria tela.")),
     ("config", "settings", marcar("Configurações"), marcar("Aparência, credenciais do Aconex, atualizações do app, Regra "
