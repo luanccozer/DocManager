@@ -1306,7 +1306,15 @@ Arquivos: `field_backend.py` (API), `services/pendencias_update.py` (regras), `s
   `pendencias_mantidas.json` (pasta de dados) e não é perguntado de novo enquanto o valor for o mesmo; fechar a
   tela mantém sem memorizar;
 - data real do Excel com o mesmo dia não é mudança; data real que mudou continua data real;
-- destaque: linha inteira na cor da legenda se `Clasificación de pendencia` = `Impeditiva` e `Status` ≠
+- **cores (pedido da equipe, 2026-11-02; antes era o preenchimento laranja da legenda)**: o texto da linha
+  inteira fica VERMELHO (`FFFF0000`), sem preenchimento, se `Clasificación de pendencia` = `Impeditiva` e `Status` ≠
+  `Closed`; o que a atualização trouxe (linha nova, célula trocada ou preenchida) fica AZUL (`FF0070C0`, só nas
+  células com valor); o azul e o vermelho que deixaram de valer voltam a PRETO - o azul só quando a execução traz
+  algo novo, senão rodar duas vezes apagaria a marca. Vermelho prevalece sobre azul. O preenchimento laranja
+  sai das linhas que o tinham e do quadrado da legenda (o texto da legenda fica vermelho); a coluna T pintada à
+  mão em linhas normais fica como está. Só a cor muda: negrito, tamanho e borda ficam (fonte nova no fim de
+  `<fonts>`).
+- regra antiga, para referência: destaque = linha inteira na cor da legenda se `Clasificación de pendencia` = `Impeditiva` e `Status` ≠
   `Closed`, nas novas e nas existentes; só o preenchimento muda (fonte, borda, alinhamento e altura não). A
   cor, os modelos de linha e de célula saem dos dados da planilha; sem nenhuma linha destacada, o app não
   aplica a cor (nunca inventa uma);

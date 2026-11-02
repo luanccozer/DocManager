@@ -128,9 +128,14 @@ Qualquer outra coluna da planilha de pendências; preenchida pela equipe e nunca
 _Evite_: coluna extra
 
 **Destaque de impeditiva**:
-A cor da legenda pintada na linha inteira quando a pendência é Impeditiva e não está
-Closed. Entra e sai sozinha a cada atualização; só o preenchimento muda.
+O texto da linha inteira em vermelho, sem preenchimento, quando a pendência é Impeditiva
+e não está Closed. Entra e sai sozinho a cada atualização; só a cor do texto muda.
 _Evite_: cor de status, formatação condicional (não é uma)
+
+**Azul da atualização**:
+O texto em azul (#0070C0) das pendências novas e das células que a última atualização
+trocou ou preencheu. Na atualização seguinte que trouxer algo novo, volta ao preto.
+_Evite_: azul manual
 
 ## Relações
 
