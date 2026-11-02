@@ -203,3 +203,15 @@ Resultado: 1133 passed, ruff limpo.
   atualizações pequenas a partir da 3.6.1-rc.1 (113 KB), da 3.6.0 (197 KB) e da 3.5.2-rc.1.
 - Próximo: o usuário testa salvar (DocManager e Excel com o app aberto); aprovada a rc,
   PR para a main e tag v3.6.1 com o OK dele.
+
+### Power BI: cartão "índice · emitidos/previstos" e curva S pela data-alvo (2026-11-02)
+- O usuário mandou o .pbix montado até o passo 9 (lido com pbixray, fora do Git): modelo,
+  botões e cartão como o roteiro; curva S ainda com as medidas originais.
+- Pedidos: cartão sem título, "índice · emitidos/previstos" nas três visões; curva S =
+  documentos com data-alvo no período, previstos até o dia e quantos desses saíram de fato.
+- Roteiro: `Indicador (cartão)` reescrita (usa Documentos (visão) com a tabela Situacoes
+  filtrada), 5 medidas de texto saem; só `Emitidos Acum` muda (Previstos Acum é a original).
+- Números do .pbix enviado (emissões até 26/10), out/2026: cartão ATUAL 75,0% · 30/48, OTD
+  57,6% · 31/59, SAY-DO 100,0% · 0/5; curva S em 31/10: 48 previstos e 30 emitidos. O roteiro
+  usa os da planilha de 28/10 (77,1% · 28/48; 59,3% · 29/59; 100,0% · 0/5; 48 e 28).
+
