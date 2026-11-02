@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from . import dialogos, icones
 from .dialogos import pedir_salvar  # noqa: F401 - reexportado para as telas
 from .ponte import na_ui
+from .idioma import marcar, t
 
 
 # ─────────────────────────────── peças miúdas ────────────────────────────────
@@ -96,10 +97,13 @@ class Seletor(QComboBox):
     Corella Suite achou no seletor de lote). Com foco - a pessoa clicou nele -
     a roda vale."""
 
-    def __init__(self, itens=(), parent=None):
+    def __init__(self, itens=(), parent=None, *, opcoes=None):
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.addItems(list(itens))
+        if opcoes is not None:
+            self.definir_opcoes(opcoes)
+        else:
+            self.addItems(list(itens))
 
     def wheelEvent(self, evento):  # noqa: N802 - nome do Qt
         if self.hasFocus():
@@ -109,6 +113,25 @@ class Seletor(QComboBox):
 
     def get(self) -> str:
         return self.currentText()
+
+    def chave(self):
+        """A chave da opção escolhida (`definir_opcoes`); sem chave, o texto.
+
+        O texto mostrado é traduzido (`t()`); a chave não muda com o idioma,
+        e é ela que a tela passa adiante - comparar o texto traduzido quebraria
+        se duas traduções coincidissem ou se a tradução mudasse."""
+        dado = self.currentData()
+        return self.currentText() if dado is None else dado
+
+    def definir_opcoes(self, pares, chave=None) -> None:
+        """`pares` = [(texto mostrado, chave), ...]. Escolhe a `chave`, se vier."""
+        self.blockSignals(True)
+        self.clear()
+        for texto, valor in pares:
+            self.addItem(texto, valor)
+        if chave is not None and (i := self.findData(chave)) >= 0:
+            self.setCurrentIndex(i)
+        self.blockSignals(False)
 
     def definir_itens(self, itens, escolhido: str | None = None) -> None:
         """Troca os itens sem disparar `currentTextChanged` no meio."""
@@ -165,7 +188,7 @@ def _listar_abas(caminho: str) -> list[str]:
         return []
 
 
-_PLACEHOLDER_ABA = "Selecione o arquivo primeiro"
+_PLACEHOLDER_ABA = marcar("Selecione o arquivo primeiro")
 LARGURA_ROTULO = 220
 
 
@@ -193,22 +216,23 @@ class FileSelector(QWidget):
         lay.setContentsMargins(0, 2, 0, 2)
         lay.setSpacing(4)
         nome = QLabel(label)
-        nome.setFixedWidth(LARGURA_ROTULO)
-        self.lbl = rotulo("Nenhum arquivo", "suave")
+        nome.setMinimumWidth(LARGURA_ROTULO)   # cresce com letra grande ou texto mais longo
+        self.lbl = rotulo(t("Nenhum arquivo"), "suave")
         self.lbl.setMinimumWidth(120)
-        self.btn = botao("Selecionar", icone="folder-open", ao_clicar=self._escolher)
+        self.btn = botao(t("Selecionar"), icone="folder-open", ao_clicar=self._escolher)
         lay.addWidget(linha(nome, self.lbl, self.btn, esticar=1))
 
         if escolher_aba:
-            aba = rotulo("Aba (Sheet):", "legenda")
-            aba.setFixedWidth(LARGURA_ROTULO)
-            self.opt_aba = Seletor([_PLACEHOLDER_ABA])
+            aba = rotulo(t("Aba (Sheet):"), "legenda")
+            aba.setMinimumWidth(LARGURA_ROTULO)
+            # O aviso tem chave "" (não é aba); as abas têm o próprio nome.
+            self.opt_aba = Seletor(opcoes=[(t(_PLACEHOLDER_ABA), "")])
             self.opt_aba.setMinimumWidth(280)
-            self.opt_aba.currentTextChanged.connect(self._set_aba)
+            self.opt_aba.currentIndexChanged.connect(self._set_aba)
             lay.addWidget(linha(aba, self.opt_aba))
 
-    def _set_aba(self, nome: str) -> None:
-        self.sheet = nome if nome and nome != _PLACEHOLDER_ABA else 0
+    def _set_aba(self, _indice: int = 0) -> None:
+        self.sheet = self.opt_aba.chave() or 0
 
     def _escolher(self) -> None:
         caminho = dialogos.escolher_arquivo(self.config_mgr, self.tipo, self.filtro, parent=self)
@@ -227,10 +251,10 @@ class FileSelector(QWidget):
             abas = _listar_abas(caminho)
             if abas:
                 escolhida = self.aba_padrao if self.aba_padrao in abas else abas[0]
-                self.opt_aba.definir_itens(abas, escolhida)
+                self.opt_aba.definir_opcoes([(a, a) for a in abas], escolhida)
                 self.sheet = escolhida
             else:
-                self.opt_aba.definir_itens([_PLACEHOLDER_ABA])
+                self.opt_aba.definir_opcoes([(t(_PLACEHOLDER_ABA), "")])
                 self.sheet = 0
         if self.on_change:
             self.on_change(caminho)
@@ -302,7 +326,7 @@ class Abas(QWidget):
         self._botoes: dict[str, QPushButton] = {}
 
     def add(self, nome: str, icone: str | None = None) -> QWidget:
-        b = QPushButton(nome)
+        b = QPushButton(t(nome))   # a chave (get/set) continua o nome em português
         b.setCheckable(True)
         b.setCursor(Qt.CursorShape.PointingHandCursor)
         if icone:
@@ -386,7 +410,7 @@ class RunBar(QWidget):
         self._rodando = True
         RunBar.em_andamento.add(self)
         self.btn.setEnabled(False)
-        self.btn.setText("Processando...")
+        self.btn.setText(t("Processando..."))
         self.progress.setValue(0)
         threading.Thread(target=self._worker, daemon=True).start()
 

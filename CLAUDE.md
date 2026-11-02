@@ -19,3 +19,12 @@ Specs e tarefas são arquivos markdown em `.scratch/`. Ver `docs/agents/issue-tr
 ### Domain docs
 
 Um contexto só: `GLOSSARY.md` na raiz e ADRs em `docs/adr/`. Ver `docs/agents/domain.md`.
+
+## Idioma da interface
+
+Texto de tela vai em português dentro de `t("...")` (`docmanager/ui/idioma.py`;
+constante de módulo em `marcar()` e `t()` na hora de mostrar), com a tradução em
+`docmanager/ui/recursos/idiomas/es.json` e `en.json`. Texto novo na tela:
+`t()` + `python tools/textos_da_interface.py --faltando es` (e `en`);
+`tests/test_idioma.py` reprova o que faltar. O log, os erros dos serviços e os
+nomes de colunas e status das planilhas ficam em português.

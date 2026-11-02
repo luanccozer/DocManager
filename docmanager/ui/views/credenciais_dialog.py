@@ -13,8 +13,9 @@ from PySide6.QtWidgets import QCheckBox, QDialog, QLineEdit, QVBoxLayout
 from ...services.credenciais import cofre
 from .. import dialogos
 from ..components import botao, rodape, rotulo
+from ..idioma import marcar, t
 
-AJUDA = (
+AJUDA = marcar(
     "A Extração Aconex usa a API oficial, e ela exige uma credencial OAuth sua. "
     "São três dados, que o administrador do Aconex passa quando registra o "
     "aplicativo no seu nome:\n\n"
@@ -37,22 +38,22 @@ class CadastroCredencialDialog(QDialog):
         super().__init__(parent)
         self.resultado: str | None = None
         self._editando = nome
-        self.setWindowTitle("Cadastrar usuário do Aconex" if not nome else f"Editar - {nome}")
+        self.setWindowTitle(t("Cadastrar usuário do Aconex") if not nome else t("Editar - {nome}", nome=nome))
         self.setModal(True)
         self.setMinimumWidth(600)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(24, 20, 24, 20)
         lay.setSpacing(6)
-        lay.addWidget(rotulo("Credenciais do Aconex", "titulo"))
-        lay.addWidget(rotulo(AJUDA, "suave", quebra=True))
+        lay.addWidget(rotulo(t("Credenciais do Aconex"), "titulo"))
+        lay.addWidget(rotulo(t(AJUDA), "suave", quebra=True))
         lay.addSpacing(8)
 
         self._campos: dict[str, QLineEdit] = {}
-        for chave, texto, dica in (("nome", "Nome (como aparece na lista)", "Ex.: Luan Cozer"),
-                                   ("client_id", "Client ID (APP ID)", "SCP_SEU_NOME_ACONEX_client_APPID"),
-                                   ("user_id", "User ID (numérico)", "1208560183"),
-                                   ("secret", "Client Secret", "cole aqui o segredo")):
+        for chave, texto, dica in (("nome", t("Nome (como aparece na lista)"), t("Ex.: Luan Cozer")),
+                                   ("client_id", t("Client ID (APP ID)"), "SCP_SEU_NOME_ACONEX_client_APPID"),
+                                   ("user_id", t("User ID (numérico)"), "1208560183"),
+                                   ("secret", t("Client Secret"), t("cole aqui o segredo"))):
             lay.addWidget(rotulo(texto))
             campo = QLineEdit(placeholderText=dica)
             lay.addWidget(campo)
@@ -61,7 +62,7 @@ class CadastroCredencialDialog(QDialog):
         self._campos["secret"].setEchoMode(QLineEdit.EchoMode.Password)
 
         # Mostrar/ocultar o segredo: colar um secret às cegas é o erro mais comum.
-        self._ver = QCheckBox("Mostrar o Client Secret")
+        self._ver = QCheckBox(t("Mostrar o Client Secret"))
         self._ver.toggled.connect(lambda v: self._campos["secret"].setEchoMode(
             QLineEdit.EchoMode.Normal if v else QLineEdit.EchoMode.Password))
         lay.addWidget(self._ver)
@@ -72,10 +73,10 @@ class CadastroCredencialDialog(QDialog):
             self._campos["user_id"].setText(cred.user_id)
             self._campos["secret"].setText(cred.secret)
 
-        salvar = botao("Salvar", variante="primario", ao_clicar=self._salvar)
+        salvar = botao(t("Salvar"), variante="primario", ao_clicar=self._salvar)
         salvar.setDefault(True)
         lay.addSpacing(10)
-        lay.addWidget(rodape(salvar, botao("Cancelar", ao_clicar=self.reject)))
+        lay.addWidget(rodape(salvar, botao(t("Cancelar"), ao_clicar=self.reject)))
         self._campos["nome"].setFocus()
 
     def _valor(self, chave: str) -> str:
@@ -86,10 +87,10 @@ class CadastroCredencialDialog(QDialog):
             cred = cofre().salvar(self._valor("nome"), self._valor("client_id"),
                                   self._valor("user_id"), self._valor("secret"))
         except ValueError as e:
-            dialogos.aviso("Dados incompletos", str(e), self)
+            dialogos.aviso(t("Dados incompletos"), str(e), self)
             return
         except Exception as e:  # noqa: BLE001
-            dialogos.erro("Erro ao salvar", str(e), self)
+            dialogos.erro(t("Erro ao salvar"), str(e), self)
             return
         # Renomear = salvar com nome novo; apaga o registro antigo para não duplicar.
         if self._editando and self._editando != cred.nome:

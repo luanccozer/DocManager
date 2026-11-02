@@ -5,8 +5,12 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.7.0 - 2026-10-30
+## 3.6.4 - 2026-10-30
 
+- Idioma: a interface sai em espanhol, português ou inglês, como na CMI Suite e no SIG-FT (Configurações → Aparência → Idioma). Na primeira abertura segue o idioma do Windows; trocar vale ao abrir o DocManager de novo. O registro de execução, as mensagens de erro e as colunas das planilhas continuam em português.
+- Letra grande: Configurações → Aparência → Letra aumenta todos os textos do app, na hora.
+- Ctrl+, abre as Configurações de qualquer tela, como na CMI Suite e no SIG-FT.
+- Sugestões do tipo Erro levam, se você deixar marcado, as últimas linhas do diário do app: quem recebe já vê o que aconteceu, sem precisar pedir o diario.log.
 - A engrenagem (Configurações) sai da barra lateral e vai para o alto, à direita, como na CMI Suite e no SIG-FT. "Procurar atualizações" passa a ficar só dentro dela (e no Ctrl+K, de qualquer tela).
 - As novidades ficam iguais às da CMI Suite: depois de atualizar, a tela inicial mostra uma vez o cartão "O que mudou na versão", que some no "Entendi". Na primeira instalação ele não aparece.
 - Sugestões: a lâmpada ao lado da engrenagem abre uma tela para mandar uma ideia, um erro ou uma dúvida sobre o DocManager. Ela abre um rascunho no seu programa de e-mail, com o tipo e a versão do app anotados; nada é enviado sem você clicar em Enviar. O e-mail que recebe fica em Configurações → Sugestões (vazio, o rascunho abre sem destinatário). Texto longo vai pela área de transferência: é só colar.
