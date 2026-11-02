@@ -313,3 +313,26 @@ def test_cache_dinamico_por_intervalo_fixo_recusa_e_por_nome_da_tabela_nao(tmp_p
     assert com_cache('<worksheetSource name="tbRegistros"/>') == []
     assert any("tabela dinâmica" in m
                for m in com_cache('<worksheetSource ref="A4:V5" sheet="PENDÊNCIAS"/>'))
+
+
+def test_trocar_so_a_cor_do_texto_mantem_negrito_e_acrescenta_fonte_no_fim(tmp_path):
+    from openpyxl.styles import Font
+
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3)])
+    wb = openpyxl.load_workbook(caminho)   # só para montar o caso: E5 em negrito, tamanho 14
+    wb["PENDÊNCIAS"]["E5"].font = Font(bold=True, size=14)
+    wb.save(caminho)
+    p = xc.ler(caminho, CHAVE)
+    fontes_antes = len(p.estilos.fontes)
+    s_e5 = p.linha(5).celulas[5].s
+    novo = p.estilos.com(s_e5, cor_texto="FFFF0000")
+    assert p.estilos.com(s_e5, cor_texto="FFFF0000") == novo      # não duplica
+    assert p.estilos.cor_do_texto(novo) == "FFFF0000"
+    destino = tmp_path / "saida.xlsx"
+    _aplicar(p, xc.Edicao(celulas={(5, 5): (xc.MANTER, novo)}), destino)
+    estilos = dict(_partes(destino))["xl/styles.xml"].decode()
+    assert re.search(r'<fonts count="(\d+)"', estilos).group(1) == str(fontes_antes + 1)
+    e5 = openpyxl.load_workbook(destino)["PENDÊNCIAS"]["E5"]
+    assert e5.font.color.rgb == "FFFF0000" and e5.font.bold and e5.font.size == 14
+    assert e5.value == "Pendência fictícia 3"

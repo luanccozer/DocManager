@@ -39,6 +39,9 @@ COLUNA_COMENTARIOS = "Comments"
 IMPEDITIVA = "Impeditiva"
 FECHADA = "Closed"
 ARQUIVO_MANTIDAS = "pendencias_mantidas.json"
+AZUL = "FF0070C0"       # o que a última atualização trouxe
+VERMELHO = "FFFF0000"   # impeditiva não fechada
+PRETO = "FF000000"
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -335,57 +338,93 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
         finais[a.linha][a.col] = ""
     r.apagadas = len(apagar)
 
-    # D5: a cor de destaque, pelos valores finais.
-    modelos = None
-    d5 = col_classif is not None and col_status is not None
-    if not d5:
+    # Cores (pedido da equipe, 2026-11-02): o texto é que leva a cor, sem preenchimento.
+    # - impeditiva não fechada: o texto da linha inteira em VERMELHO (D5);
+    # - o que ESTA atualização trouxe (linha nova, célula trocada ou preenchida): AZUL;
+    # - o azul (e o vermelho que deixou de valer) das execuções anteriores volta a PRETO.
+    # O vermelho prevalece sobre o azul. O preenchimento laranja de antes sai das
+    # linhas que o tinham e da legenda.
+    regra = col_classif is not None and col_status is not None
+    if not regra:
         log(f"A tabela não tem as colunas '{COLUNA_CLASSIFICACAO}' e '{COLUNA_STATUS}': "
-            "a cor de destaque não foi aplicada.")
-    destacadas_hoje_regra = {x.r for x in corpo if d5 and _destacada(
+            "o vermelho das impeditivas não foi aplicado.")
+    destacadas_hoje_regra = {x.r for x in corpo if regra and _destacada(
         {c: (x.celulas[c].valor if c in x.celulas else None) for c in titulos}, col_classif, col_status)}
     modelos = _descobrir_modelos(pasta, corpo, destacadas_hoje_regra, log)
-    if d5 and modelos.fill_destaque is None:
-        log("Nenhuma linha da planilha está destacada hoje, então não há exemplo da cor: "
-            "a cor de destaque não foi aplicada (o app nunca inventa uma cor).")
-        d5 = False
     est = pasta.estilos
-    if d5:
-        for x in corpo:
-            cel_a = x.celulas.get(tb.col_ini)
-            hoje = cel_a is not None and est.fill(cel_a.s) == modelos.fill_destaque
-            depois = _destacada(finais[x.r], col_classif, col_status)
-            if hoje == depois:
+    fill_antigo = modelos.fill_destaque
+    if fill_antigo is not None and fill_antigo == modelos.fill_normal.get(tb.col_ini):
+        fill_antigo = None   # já não há preenchimento de destaque para tirar
+    mudadas = {k for k, (v, _s) in edicao.celulas.items() if _texto(v)}
+    ha_novidade = bool(novas or mudadas)
+
+    def fill_normal(c):
+        f = modelos.fill_normal.get(c)
+        return "0" if f is None or f == fill_antigo else f
+
+    for x in corpo:
+        depois = regra and _destacada(finais[x.r], col_classif, col_status)
+        cel_a = x.celulas.get(tb.col_ini)
+        tinha_fill = fill_antigo is not None and cel_a is not None and est.fill(cel_a.s) == fill_antigo
+        era_vermelha = tinha_fill or (cel_a is not None and est.cor_do_texto(cel_a.s) == VERMELHO)
+        for c, cel in x.celulas.items():
+            if c not in titulos:
                 continue
-            for c, cel in x.celulas.items():
-                if c not in titulos:
-                    continue
-                atual_fill = est.fill(cel.s)
-                if depois and atual_fill == modelos.fill_normal.get(c):
-                    novo_s = est.com_fill(cel.s, modelos.fill_destaque)
-                elif not depois and atual_fill == modelos.fill_destaque and modelos.fill_normal.get(c) is not None:
-                    novo_s = est.com_fill(cel.s, modelos.fill_normal[c])
-                else:
-                    continue
+            fill = fill_normal(c) if tinha_fill and est.fill(cel.s) == fill_antigo else None
+            atual = est.cor_do_texto(cel.s)
+            if depois:
+                cor = VERMELHO
+            elif (x.r, c) in mudadas:
+                cor = AZUL
+            elif atual == VERMELHO or (ha_novidade and atual == AZUL):
+                cor = PRETO   # o azul só sai quando há um lote novo para marcar
+            else:
+                cor = None
+            novo_s = est.com(cel.s, fill=fill, cor_texto=cor)
+            if novo_s != (cel.s or "0"):
                 valor, _s = edicao.celulas.get((x.r, c), (xc.MANTER, cel.s))
                 edicao.celulas[(x.r, c)] = (valor, novo_s)
-            if modelos.s_linha[depois] is not None:
-                edicao.estilo_linha[x.r] = modelos.s_linha[depois]
-            if depois:
-                r.ganharam_cor += 1
-            else:
-                r.perderam_cor += 1
+        if tinha_fill and est.fill(x.s) == fill_antigo and modelos.s_linha[False] is not None:
+            edicao.estilo_linha[x.r] = (modelos.s_linha[False]
+                                        if est.fill(modelos.s_linha[False]) != fill_antigo
+                                        else est.com(x.s, fill=fill_normal(tb.col_ini)))
+        if depois and not era_vermelha:
+            r.ganharam_cor += 1
+        elif era_vermelha and not depois:
+            r.perderam_cor += 1
 
-    # Novas no topo (D2), com o modelo do grupo.
+    # A legenda (acima da tabela): o quadrado laranja perde o preenchimento e o texto
+    # ao lado dele fica vermelho, como as linhas que ele explica.
+    if fill_antigo is not None:
+        for linha in pasta.linhas:
+            if linha.r >= tb.cabecalho:
+                continue
+            for c, cel in sorted(linha.celulas.items()):
+                if est.fill(cel.s) != fill_antigo:
+                    continue
+                edicao.celulas[(linha.r, c)] = (xc.MANTER, est.com(cel.s, fill="0"))
+                texto = next((t for cc, t in sorted(linha.celulas.items()) if cc > c and _texto(t.valor)), None)
+                if texto is not None:
+                    edicao.celulas[(linha.r, texto.col)] = (xc.MANTER, est.com(texto.s, cor_texto=VERMELHO))
+
+    # Novas no topo (D2), com o modelo das linhas normais; o texto em azul (ou vermelho).
     for numero in novas:
         valores = api[numero]
-        destacada = d5 and _destacada(valores, col_classif, col_status)
+        destacada = regra and _destacada(valores, col_classif, col_status)
         r.novas_destacadas += destacada
-        g = destacada if d5 else False
         linha_nova = []
         for c in titulos:
             v = valores.get(c, "") if c in cols_aconex else ""
-            linha_nova.append((v, modelos.s_celula[g].get(c)))
-        edicao.novas.append(xc.LinhaNova(modelos.abertura[g], linha_nova))
+            s_modelo = modelos.s_celula[False].get(c)
+            fill = fill_normal(c) if fill_antigo is not None and est.fill(s_modelo) == fill_antigo else None
+            cor = VERMELHO if destacada else (AZUL if _texto(v) else None)
+            s_final = est.com(s_modelo, fill=fill, cor_texto=cor) if (fill or cor) else s_modelo
+            linha_nova.append((v, s_final))
+        abertura = modelos.abertura[False]
+        if fill_antigo is not None and est.fill(xc._attrs(abertura).get("s")) == fill_antigo:
+            abertura = xc._trocar_attr(abertura, "s", est.com(xc._attrs(abertura).get("s"),
+                                                               fill=fill_normal(tb.col_ini)))
+        edicao.novas.append(xc.LinhaNova(abertura, linha_nova))
 
     progresso(0.85)
     if not (edicao.novas or edicao.celulas or edicao.estilo_linha):
@@ -500,7 +539,9 @@ def validar(tmp, pasta: xc.Pasta, alteradas: dict[str, bytes], esp: _Esperado) -
     if nova.tabela.ref != xc._ref_intervalo(tb.col_ini, tb.cabecalho, tb.col_fim, tb.ultima + k):
         problemas.append(f"a tabela ficou em {nova.tabela.ref}")
     for linha in pasta.linhas:
-        if linha.r < tb.primeira and (nova.linha(linha.r) is None or nova.linha(linha.r).xml != linha.xml):
+        planejada_acima = any(r == linha.r for r, _c in esp.edicao.celulas)
+        if linha.r < tb.primeira and not planejada_acima and (
+                nova.linha(linha.r) is None or nova.linha(linha.r).xml != linha.xml):
             problemas.append(f"a linha {linha.r}, acima da tabela, mudou")
     col_chave = tb.coluna(CHAVE)
     ordem_antiga = [_numero(x.celulas[col_chave].valor) for x in pasta.corpo()]

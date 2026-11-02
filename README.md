@@ -245,7 +245,7 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   a atualização começa sozinha e grava, sem pergunta final. As pendências novas
   entram no topo da tabela, as colunas do Aconex das que já estão ficam em dia e
   as colunas preenchidas à mão não são tocadas; impeditivas não fechadas ficam com
-  a cor da legenda. Valor que o Aconex não tem mais só é apagado se você decidir.
+  texto vermelho, e o que a atualização trouxe fica em azul. Valor que o Aconex não tem mais só é apagado se você decidir.
   Antes de trocar o arquivo, o app confere o resultado e guarda uma cópia em
   `Documentos\DocManager_Itaipu\backups`. Precisa do usuário do Aconex já
   cadastrado (usa o primeiro). Os dados precisam estar numa Tabela do Excel com a

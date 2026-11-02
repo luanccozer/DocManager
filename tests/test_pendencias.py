@@ -21,6 +21,7 @@ from docmanager.services.sobrescricao import DecisaoSobrescricao
 CONFIG = ab.AconexConfig(client_id="c", client_secret="s", user_id="u", project_id="1")
 IMPEDITIVA = {"Clasificación de pendencia": "Impeditiva"}
 DESTAQUE = "FFF4B183"
+AZUL, VERMELHO, PRETO = "FF0070C0", "FFFF0000", "FF000000"
 
 CAMPOS = [  # rótulo → (family_id, tipo)
     ("TAG RDS-PP", "F-TAG", "single_select"),
@@ -144,13 +145,27 @@ def test_cenario_completo(tmp_path, api):
     linha = {n: r for r, n in enumerate(numeros, 5)}
     cor = lambda n, col="A": ws[f"{col}{linha[n]}"].fill.fgColor.rgb  # noqa: E731
 
-    assert cor(12) == DESTAQUE and cor(12, "V") == DESTAQUE          # nova impeditiva aberta
-    assert cor(11) != DESTAQUE and cor(11, "H") == "FFD9D9D9"         # nova normal: H cinza
-    assert cor(10) != DESTAQUE and ws[f"H{linha[10]}"].value == "Closed"
+    def texto(n, col="A"):
+        c = ws[f"{col}{linha[n]}"].font.color
+        return c.rgb if c is not None and c.type == "rgb" else None   # None = automática (preta)
+    sem_laranja = lambda n: all(cor(n, c) != DESTAQUE for c in "ABCHJV")  # noqa: E731
+
+    # O destaque agora é o texto vermelho, sem preenchimento (pedido de 2026-11-02).
+    assert texto(12) == VERMELHO and texto(12, "V") == VERMELHO and texto(12, "J") == VERMELHO
+    assert sem_laranja(12)                                           # nova impeditiva: vermelha
+    assert texto(11) == AZUL and texto(11, "H") == AZUL               # nova normal: azul
+    assert cor(11, "H") == "FFD9D9D9"                                 # H continua cinza
+    assert sem_laranja(10) and texto(10) in (None, PRETO)             # fechou: sem cor; a célula
+    assert texto(10, "H") == AZUL and ws[f"H{linha[10]}"].value == "Closed"   # trocada fica azul
+    assert texto(10, "B") in (None, PRETO)                            # o resto da linha, preto
     assert cor(10, "H") == "FFD9D9D9" and cor(10, "J") == "FFDDEBF7"  # voltou ao modelo normal
-    assert cor(8) == DESTAQUE and cor(8, "J") == DESTAQUE             # ganhou a cor
+    assert texto(9) == VERMELHO and sem_laranja(9)                    # continua impeditiva
+    assert texto(8) == VERMELHO and texto(8, "J") == VERMELHO         # ganhou o vermelho
     assert ws[f"J{linha[8]}"].value == "PESSOA MANUAL"                # manual intacta
-    assert ws[f"A{linha[9]}"].font.color.rgb == "FF0070C0"             # fonte azul preservada
+    assert texto(7, "H") == AZUL and texto(7, "D") == AZUL            # trocada e preenchida
+    assert texto(7, "B") != AZUL                                      # o resto não
+    assert ws["A2"].fill.fgColor.rgb != DESTAQUE                      # legenda sem laranja
+    assert ws["B2"].font.color.rgb == VERMELHO                        # e o texto vermelho
     assert ws[f"E{linha[10]}"].border.bottom.style == "thin"           # borda preservada
     assert ws[f"H{linha[7]}"].value == "Work Done"
     assert ws[f"D{linha[7]}"].value == "PAINEL-7"
@@ -258,15 +273,45 @@ def test_validador_aceita_o_resultado_do_proprio_plano(tmp_path, api, monkeypatc
     assert chamadas == [1]
 
 
-def test_sem_linha_destacada_nao_inventa_cor(tmp_path, api):
+def test_impeditiva_fica_vermelha_mesmo_sem_exemplo_na_planilha(tmp_path, api):
+    """O vermelho é a cor do texto, não um preenchimento descoberto pelos dados:
+    funciona mesmo que a planilha não tenha nenhuma linha destacada."""
     caminho = tmp_path / "p.xlsx"
     escrever_planilha_pendencias(caminho, [linha_pendencia(3)])
     api["questoes"] = [questao(4, **IMPEDITIVA), questao(3)]
-    r = _rodar(caminho)
-    assert r.gravou and any("nunca inventa" in m for m in r.logs)
+    assert _rodar(caminho).gravou
     ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
-    assert ws["A5"].value == 4 and ws["A5"].fill.fgColor.rgb != DESTAQUE
+    assert ws["A5"].value == 4 and ws["A5"].font.color.rgb == VERMELHO
+    assert ws["A5"].fill.fgColor.rgb != DESTAQUE
 
+
+def test_azul_da_execucao_anterior_vira_preto_quando_chega_algo_novo(tmp_path, api):
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3)], fonte_azul=(3,))   # azul à mão
+    api["questoes"] = [questao(4), questao(3)]
+    assert _rodar(caminho).gravou
+    ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
+    assert ws["A5"].font.color.rgb == AZUL                       # a nova: azul
+    assert ws["A6"].font.color.rgb == PRETO                      # o azul de antes: preto
+
+    api["questoes"] = [questao(5), questao(4), questao(3)]
+    assert _rodar(caminho).gravou
+    ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
+    assert [ws.cell(r, 1).value for r in (5, 6, 7)] == [5, 4, 3]
+    assert ws["A5"].font.color.rgb == AZUL                       # o lote de agora
+    assert ws["A6"].font.color.rgb == PRETO                      # o lote anterior
+    assert ws["A6"].font.bold == ws["A7"].font.bold              # só a cor muda
+
+
+def test_sem_nada_novo_o_azul_fica(tmp_path, api):
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3)])
+    api["questoes"] = [questao(4), questao(3)]
+    assert _rodar(caminho).gravou
+    antes = caminho.read_bytes()
+    assert not _rodar(caminho).gravou                            # nada novo: nada muda
+    assert caminho.read_bytes() == antes
+    assert openpyxl.load_workbook(caminho)["PENDÊNCIAS"]["A5"].font.color.rgb == AZUL
 
 def test_so_atualizacoes_sem_novas(tmp_path, api):
     caminho = tmp_path / "p.xlsx"

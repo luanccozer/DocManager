@@ -57,7 +57,8 @@ class PendenciasView(BaseView):
         card.add(rotulo(t("Ao escolher a planilha, o DocManager busca as pendências no Aconex e já grava: "
                           "as novas entram no topo, as colunas do Aconex das que já estão na planilha "
                           "são atualizadas e as colunas preenchidas à mão não são tocadas. Impeditivas "
-                          "não fechadas ficam com a cor da legenda. Antes de trocar o arquivo, o app "
+                          "não fechadas ficam em vermelho, e o que a atualização trouxe fica em azul. "
+                          "Antes de trocar o arquivo, o app "
                           "confere o resultado e guarda uma cópia de segurança. Abra no Excel para as "
                           "tabelas dinâmicas e os gráficos se atualizarem."), "suave", quebra=True))
         body.addWidget(card)

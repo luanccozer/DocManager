@@ -149,8 +149,9 @@ class Tabela:
 
 
 class Estilos:
-    """O `<cellXfs>` do `styles.xml`: qual fill e se é data, por índice; e os `<xf>`
-    que precisarem ser acrescentados (no FIM - nenhum índice existente muda)."""
+    """O `styles.xml`: por índice de `<cellXfs>`, qual fill, qual fonte (e a cor dela)
+    e se é data; e o que precisar ser acrescentado - `<font>` no fim de `<fonts>` e
+    `<xf>` no fim de `<cellXfs>`. Nenhum índice existente muda."""
 
     def __init__(self, xml: str):
         self.xml = xml
@@ -160,6 +161,11 @@ class Estilos:
         self._bloco = m
         self.xfs: list[str] = re.findall(r"<xf\b[^>]*?/>|<xf\b[^>]*>.*?</xf>", m.group(1), re.S)
         self.novos: list[str] = []
+        f = re.search(r"<fonts\b[^>]*>(.*?)</fonts>", xml, re.S)
+        self._bloco_fontes = f
+        self.fontes: list[str] = re.findall(r"<font\b[^>]*?/>|<font\b[^>]*>.*?</font>",
+                                            f.group(1), re.S) if f else []
+        self.fontes_novas: list[str] = []
         self._datas_personalizadas = self._formatos_de_data(xml)
 
     @staticmethod
@@ -184,43 +190,115 @@ class Estilos:
     def fill(self, s) -> str:
         return self._attr(self._xf(s), "fillId")
 
+    def fonte(self, s) -> str:
+        return self._attr(self._xf(s), "fontId")
+
     def e_data(self, s) -> bool:
         n = int(self._attr(self._xf(s), "numFmtId"))
         return n in _FORMATOS_DATA_EMBUTIDOS or n in self._datas_personalizadas
 
+    # --- fontes -------------------------------------------------------------------------
+
+    def _font(self, font_id) -> str:
+        todas = self.fontes + self.fontes_novas
+        i = int(font_id or 0)
+        return todas[i] if 0 <= i < len(todas) else ""
+
+    @staticmethod
+    def _cor_da_fonte(font: str) -> str:
+        m = re.search(r"<color\b[^>]*>", font)
+        if not m:
+            return ""
+        a = _attrs(m.group(0))
+        if "rgb" in a and not ({"theme", "indexed", "tint"} & set(a)):
+            return a["rgb"].upper()
+        for chave in ("theme", "indexed"):
+            if chave in a:
+                return f"{chave}:{a[chave]}" + (f":{a['tint']}" if "tint" in a else "")
+        return ""
+
+    def cor_do_texto(self, s) -> str:
+        """A cor da fonte do estilo `s`: 'FF0070C0' (rgb, maiúsculas), 'theme:1',
+        'indexed:8', ou '' (automática)."""
+        return self._cor_da_fonte(self._font(self.fonte(s)))
+
+    @staticmethod
+    def _sem_cor(font: str) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"<color\b[^>]*?/>|<color\b[^>]*>.*?</color>", "", font, flags=re.S)).strip()
+
+    def _fonte_com_cor(self, font_id, rgb: str) -> str:
+        """O índice de uma `<font>` igual à `font_id` em tudo, menos a cor = `rgb`."""
+        base = self._font(font_id)
+        alvo = self._sem_cor(base)
+        for i, f in enumerate(self.fontes + self.fontes_novas):
+            if self._sem_cor(f) == alvo and self._cor_da_fonte(f) == rgb:
+                return str(i)
+        cor = f'<color rgb="{rgb}"/>'
+        sem = re.sub(r"<color\b[^>]*?/>|<color\b[^>]*>.*?</color>", "", base, flags=re.S)
+        if sem.endswith("/>") or not sem:
+            nova = (sem[:-2] if sem else "<font") + ">" + cor + "</font>"
+        else:
+            m = re.search(r"<(?:name|family|charset|scheme)\b", sem)
+            pos = m.start() if m else sem.rindex("</font>")
+            nova = sem[:pos] + cor + sem[pos:]
+        self.fontes_novas.append(nova)
+        return str(len(self.fontes) + len(self.fontes_novas) - 1)
+
+    # --- estilos de célula ---------------------------------------------------------------
+
     def _assinatura(self, xf: str):
         abertura, _, resto = xf.partition(">")
         attrs = dict(re.findall(r'\s([\w:]+)="([^"]*)"', abertura))
-        for ignorado in ("fillId", "applyFill"):
+        for ignorado in ("fillId", "applyFill", "fontId", "applyFont"):
             attrs.pop(ignorado, None)
         return tuple(sorted(attrs.items())), re.sub(r"\s+", " ", resto.strip())
 
-    def com_fill(self, s, fill_id: str) -> str:
-        """O índice de um `<xf>` igual ao de `s` em tudo, menos o fill = `fill_id`;
-        acrescenta um no fim se não existir."""
+    def com(self, s, *, fill: str | None = None, cor_texto: str | None = None) -> str:
+        """O índice de um `<xf>` igual ao de `s` em tudo, menos o fill (se dado) e a
+        cor do texto (se dada, rgb como 'FF0070C0'); acrescenta no fim se não existir.
+        A fonte nova é a mesma (negrito, tamanho, nome) com só a cor trocada."""
         base = self._xf(s)
-        if self.fill(s) == fill_id:
+        alvo_fill = fill if fill is not None else self.fill(s)
+        alvo_fonte = self.fonte(s)
+        if cor_texto is not None and self.cor_do_texto(s) != cor_texto.upper():
+            alvo_fonte = self._fonte_com_cor(self.fonte(s), cor_texto.upper())
+        if alvo_fill == self.fill(s) and alvo_fonte == self.fonte(s):
             return str(int(s or 0))
         alvo = self._assinatura(base)
         for i, xf in enumerate(self.xfs + self.novos):
-            if self._attr(xf, "fillId") == fill_id and self._assinatura(xf) == alvo:
+            if (self._attr(xf, "fillId") == alvo_fill and self._attr(xf, "fontId") == alvo_fonte
+                    and self._assinatura(xf) == alvo):
                 return str(i)
-        novo = _trocar_attr(base, "fillId", fill_id, so_abertura=True)
-        novo = _trocar_attr(novo, "applyFill", "1", so_abertura=True)
+        novo = base or "<xf/>"
+        if alvo_fill != self.fill(s):
+            novo = _trocar_attr(novo, "fillId", alvo_fill, so_abertura=True)
+            novo = _trocar_attr(novo, "applyFill", "1", so_abertura=True)
+        if alvo_fonte != self.fonte(s):
+            novo = _trocar_attr(novo, "fontId", alvo_fonte, so_abertura=True)
+            novo = _trocar_attr(novo, "applyFont", "1", so_abertura=True)
         self.novos.append(novo)
         return str(len(self.xfs) + len(self.novos) - 1)
 
+    def com_fill(self, s, fill_id: str) -> str:
+        return self.com(s, fill=fill_id)
+
     def xml_novo(self) -> str | None:
-        """O `styles.xml` com os `<xf>` novos, ou None se nada mudou."""
-        if not self.novos:
+        """O `styles.xml` com as `<font>` e os `<xf>` novos no fim, ou None se nada mudou."""
+        if not (self.novos or self.fontes_novas):
             return None
-        m = self._bloco
-        abertura = re.match(r"<cellXfs\b[^>]*>", m.group(0)).group(0)
-        nova_abertura = _trocar_attr(abertura, "count", str(len(self.xfs) + len(self.novos)),
-                                     so_abertura=True)
-        fim_interno = m.end(1)
-        return (self.xml[:m.start()] + nova_abertura + self.xml[m.start(1):fim_interno]
-                + "".join(self.novos) + self.xml[fim_interno:])
+        trocas = []   # (início, fim, texto) do bloco interno, de trás para frente
+        for bloco, lista, novos in ((self._bloco, self.xfs, self.novos),
+                                    (self._bloco_fontes, self.fontes, self.fontes_novas)):
+            if not novos:
+                continue
+            abertura = re.match(r"<\w+\b[^>]*>", bloco.group(0)).group(0)
+            nova = _trocar_attr(abertura, "count", str(len(lista) + len(novos)), so_abertura=True)
+            trocas.append((bloco.start(), bloco.start() + len(abertura), nova))
+            trocas.append((bloco.end(1), bloco.end(1), "".join(novos)))
+        xml = self.xml
+        for ini, fim, texto in sorted(trocas, key=lambda t: t[0], reverse=True):
+            xml = xml[:ini] + texto + xml[fim:]
+        return xml
 
 
 @dataclass
