@@ -49,10 +49,13 @@ def assunto(tipo: str, texto: str) -> str:
     return f"[DocManager] {tipo}: {primeira}" if primeira else f"[DocManager] {tipo}"
 
 
-def corpo(tipo: str, texto: str, versao: str, sistema_op: str = "") -> str:
+def corpo(tipo: str, texto: str, versao: str, sistema_op: str = "", diario: str = "") -> str:
     linhas = [texto.strip(), "", "---", f"Tipo: {tipo}", f"DocManager v{versao}"]
     if sistema_op:
         linhas.append(f"Sistema: {sistema_op}")
+    if diario.strip():
+        # O que o app registrou por último: num erro, poupa pedir o diario.log.
+        linhas += ["", "--- Diário do app (últimas linhas) ---", diario.strip()]
     return "\n".join(linhas)
 
 
@@ -64,7 +67,7 @@ def _mailto(destino: str, assunto_: str, corpo_: str) -> str:
 
 
 def montar(tipo: str, texto: str, versao: str, destino: str = "",
-           sistema_op: str | None = None) -> Rascunho:
+           sistema_op: str | None = None, diario: str = "") -> Rascunho:
     """O rascunho do e-mail. Levanta ValueError sem texto ou com tipo desconhecido."""
     if not texto.strip():
         raise ValueError("Escreva a sugestão antes de enviar.")
@@ -72,7 +75,7 @@ def montar(tipo: str, texto: str, versao: str, destino: str = "",
         raise ValueError(f"Tipo desconhecido: {tipo!r}")
     sistema_op = sistema() if sistema_op is None else sistema_op
     a = assunto(tipo, texto)
-    c = corpo(tipo, texto, versao, sistema_op)
+    c = corpo(tipo, texto, versao, sistema_op, diario)
     link = _mailto(destino, a, c)
     cortado = len(link) > LIMITE_LINK
     if cortado:

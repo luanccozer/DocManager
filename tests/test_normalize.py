@@ -42,3 +42,10 @@ def test_normalizar_codigo_remove_ponto_zero_fantasma():
 def test_remover_acentos():
     assert nz.remover_acentos("Comissão Ú") == "Comissao U"
     assert nz.remover_acentos(None) == ""
+
+
+def test_normalizar_cabecalho_ignora_acento_caixa_e_quebra_de_linha():
+    from docmanager.core.normalize import normalizar_cabecalho
+
+    assert normalizar_cabecalho(" Clasificación de\npendencia ") == "CLASIFICACION DE PENDENCIA"
+    assert normalizar_cabecalho("¿Pasó a\xa0comisionamiento?") == "¿PASO A COMISIONAMIENTO?"

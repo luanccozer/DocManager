@@ -16,16 +16,17 @@ from .. import dialogos
 from ..components import Seletor, botao, rotulo
 from .arvore import ArvoreDialog, campo_data
 from .delta_dialog import _SO_BRUTA, info_revisao
+from ..idioma import marcar, t
 
 _APROVADOS = {"Aprovado", "Aprovado com Comentários", "Para Assinatura"}
-_COLUNAS = [("Classificação / Documento", 300), ("Rev/Data (Antes)", 130), ("Aconex (Antes)", 145),
-            ("Efetivo (Antes)", 145), ("", 34), ("Rev/Data (Depois)", 130), ("Aconex (Depois)", 145),
-            ("Efetivo (Depois)", 145)]
+_COLUNAS = [(marcar("Classificação / Documento"), 300), (marcar("Rev/Data (Antes)"), 130), (marcar("Aconex (Antes)"), 145),
+            (marcar("Efetivo (Antes)"), 145), ("", 34), (marcar("Rev/Data (Depois)"), 130), (marcar("Aconex (Depois)"), 145),
+            (marcar("Efetivo (Depois)"), 145)]
 
 
 class StatusDeltaDialog(ArvoreDialog):
     def __init__(self, parent, *, path_aconex, sheet_aconex, codigos, is_todos, metadados, config=None):
-        super().__init__(parent, titulo="Análise de Mudanças por Período - Status Documentos",
+        super().__init__(parent, titulo=t("Análise de Mudanças por Período - Status Documentos"),
                          colunas=_COLUNAS, config=config, largura=1120, altura=600)
         self.path_aconex, self.sheet_aconex = path_aconex, sheet_aconex
         self.codigos = codigos
@@ -38,29 +39,29 @@ class StatusDeltaDialog(ArvoreDialog):
         self.entry_fim = campo_data(hoje.strftime("%d/%m/%Y"))
         self.opt_agrup = Seletor(metadados)
         self.opt_agrup.setMinimumWidth(180)
-        self.opt_visao = Seletor(["Efetiva", "Bruta"])
+        self.opt_visao = Seletor(opcoes=[(t("Efetiva"), "Efetiva"), (t("Bruta"), "Bruta")])
         self.opt_visao.currentTextChanged.connect(lambda _v: self._repovoar())
-        self.btn_filtrar = botao("Verificar Mudanças", variante="primario", icone="search",
+        self.btn_filtrar = botao(t("Verificar Mudanças"), variante="primario", icone="search",
                                  ao_clicar=self._executar)
-        self.chk_ocultar = QCheckBox("Ocultar se já estava Aprovado")
+        self.chk_ocultar = QCheckBox(t("Ocultar se já estava Aprovado"))
         self.chk_ocultar.toggled.connect(lambda _v: self._repovoar())
-        self.adicionar_na_barra(rotulo("Período:", "destaque"), self.entry_ini, rotulo("até", "suave"),
-                                self.entry_fim, rotulo("Classificar por:", "destaque"), self.opt_agrup,
-                                rotulo("Visão:", "destaque"), self.opt_visao, self.btn_filtrar,
+        self.adicionar_na_barra(rotulo(t("Período:"), "destaque"), self.entry_ini, rotulo(t("até"), "suave"),
+                                self.entry_fim, rotulo(t("Classificar por:"), "destaque"), self.opt_agrup,
+                                rotulo(t("Visão:"), "destaque"), self.opt_visao, self.btn_filtrar,
                                 self.chk_ocultar)
         self.barra_lay.addStretch(1)
-        alvo = "toda a base vigente" if is_todos else f"{len(codigos or [])} documento(s) da aba"
-        self.lbl_status.setText(f"Analisando {alvo}. Informe o período e clique em Verificar Mudanças.")
+        alvo = t("toda a base vigente") if is_todos else t("{n} documento(s) da aba", n=len(codigos or []))
+        self.lbl_status.setText(t('Analisando {alvo}. Informe o período e clique em Verificar Mudanças.', alvo=alvo))
         self._aplicar_visao()
 
     # ------------------------------------------------------------ ações
     def _executar(self):
         dt_ini, dt_fim = self.entry_ini.text().strip(), self.entry_fim.text().strip()
         if not dt_ini or not dt_fim:
-            dialogos.aviso("Aviso", "Preencha as duas datas.", self)
+            dialogos.aviso(t("Aviso"), t("Preencha as duas datas."), self)
             return
-        self.lbl_status.setText("Cruzando dados... aguarde.")
-        agrup, visao = self.opt_agrup.get(), self.opt_visao.get()
+        self.lbl_status.setText(t("Cruzando dados... aguarde."))
+        agrup, visao = self.opt_agrup.get(), self.opt_visao.chave()
 
         def trabalho():
             from ...common import carregar_base_aconex
@@ -79,13 +80,13 @@ class StatusDeltaDialog(ArvoreDialog):
     def _concluir(self, resultado):
         ok, arvore, total = resultado
         if not ok:
-            dialogos.erro("Erro", f"Falha: {arvore}", self)
-            self.lbl_status.setText("Erro na análise.")
+            dialogos.erro(t("Erro"), t('Falha: {arvore}', arvore=arvore), self)
+            self.lbl_status.setText(t("Erro na análise."))
             self.btn_exportar.setEnabled(False)
             return
         self.arvore = arvore
         self._repovoar()
-        self.lbl_status.setText(f"Análise concluída. {total} mudança(s) por {self.opt_agrup.get()}.")
+        self.lbl_status.setText(t('Análise concluída. {total} mudança(s) por {valor}.', total=total, valor=self.opt_agrup.get()))
         self.btn_exportar.setEnabled(bool(total))
 
     def _itens_do_grupo(self, grupo):
@@ -93,7 +94,7 @@ class StatusDeltaDialog(ArvoreDialog):
         return [it for lst in self.arvore[grupo].values() for it in lst]
 
     def _aplicar_visao(self):
-        bruta = self.opt_visao.get() == "Bruta"
+        bruta = self.opt_visao.chave() == "Bruta"
         for c in _SO_BRUTA:
             self.tree.setColumnHidden(c, not bruta)
 
@@ -107,7 +108,7 @@ class StatusDeltaDialog(ArvoreDialog):
         self._aplicar_visao()
         if not self.arvore:
             return
-        self.tree.headerItem().setText(0, f"{self.opt_agrup.get()} / Documento")
+        self.tree.headerItem().setText(0, t("{agrupador} / Documento", agrupador=self.opt_agrup.get()))
         exibidos = 0
         for grupo in sorted(self.arvore.keys()):
             itens = self._visiveis(grupo)
@@ -120,7 +121,7 @@ class StatusDeltaDialog(ArvoreDialog):
                                (info_revisao(d, "antes"), d["raw_antes"], d["real_antes"], "➜",
                                 info_revisao(d, "depois"), d["raw_depois"], d["real_depois"]))
         if self.chk_ocultar.isChecked():
-            self.lbl_status.setText(f"Exibindo {exibidos} documento(s) (filtro ativo).")
+            self.lbl_status.setText(t('Exibindo {exibidos} documento(s) (filtro ativo).', exibidos=exibidos))
 
     def _exportar(self):
         if not self.arvore:
@@ -137,7 +138,7 @@ class StatusDeltaDialog(ArvoreDialog):
             "Rev (Depois)": d.get("rev_depois", "-"), "Data (Depois)": d.get("data_depois", "-"),
         } for grupo in sorted(self.arvore.keys()) for d in self._visiveis(grupo)]
         if not linhas:
-            dialogos.info("Delta", "Nada a exportar.", self)
+            dialogos.info(t("Delta"), t("Nada a exportar."), self)
             return
         d1 = self.entry_ini.text().strip().replace("/", ".")
         d2 = self.entry_fim.text().strip().replace("/", ".")

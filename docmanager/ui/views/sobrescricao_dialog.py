@@ -11,26 +11,59 @@ interface pela `ponte`, como os outros diálogos do app.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Callable
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QHeaderView, QTreeWidget, QTreeWidgetItem, QVBoxLayout
 
 from ...controle_backend import COLUNA_PREVISTA, DecisaoSobrescricao, formatar_valor
 from ..components import botao, linha, rodape, rotulo
 from ..ponte import na_ui_e_esperar
+from ..idioma import marcar, t
 
-_COLUNAS = [("Documento", 230), ("Descrição", 330), ("Coluna", 190), ("Na planilha", 105),
-            ("No Controle", 105)]
+_COLUNAS = [(marcar("Documento"), 230), (marcar("Descrição"), 330), (marcar("Coluna"), 190), (marcar("Na planilha"), 105),
+            (marcar("No Controle"), 105)]
 
 
 def _resumo(pendentes) -> str:
     n = len(pendentes)
     previstas = sum(1 for p in pendentes if p.coluna == COLUNA_PREVISTA)
-    partes = [f"{previstas} data{'s' if previstas != 1 else ''} prevista{'s' if previstas != 1 else ''}"]
-    if n - previstas:
-        partes.append(f"{n - previstas} data{'s' if n - previstas != 1 else ''} "
-                      f"reprogramada{'s' if n - previstas != 1 else ''}")
-    return (f"O Controle de Documentos trocaria {n} data{'s' if n != 1 else ''} já "
-            f"preenchida{'s' if n != 1 else ''} na planilha ({' e '.join(partes)}).")
+    reprog = n - previstas
+    detalhe = (t("{n} data prevista", n=previstas) if previstas == 1
+               else t("{n} datas previstas", n=previstas))
+    if reprog:
+        detalhe = t("{a} e {b}", a=detalhe, b=(t("{n} data reprogramada", n=reprog) if reprog == 1
+                                              else t("{n} datas reprogramadas", n=reprog)))
+    if n == 1:
+        return t("O Controle de Documentos trocaria {n} data já preenchida na planilha ({detalhe}).",
+                 n=n, detalhe=detalhe)
+    return t("O Controle de Documentos trocaria {n} datas já preenchidas na planilha ({detalhe}).",
+             n=n, detalhe=detalhe)
+
+
+@dataclass(frozen=True)
+class TextosSobrescricao:
+    """Os textos da tela, para ela servir a mais de uma pergunta do mesmo formato
+    (todas / nenhuma / caso a caso). O padrão é o das datas do Controle."""
+    titulo: str = marcar("Datas que o Controle trocaria")
+    resumo: Callable = _resumo
+    aviso: str = marcar("A data prevista é a baseline: trocá-la faz o Baseline OTD medir contra a data "
+                        "nova, e o atraso contra a antiga deixa de aparecer. O que você não trocar fica "
+                        "como está e não é perguntado de novo enquanto o Controle mantiver a mesma data.")
+    colunas: tuple = tuple(_COLUNAS)
+    aceitar: str = marcar("Aceitar todas")
+    recusar: str = marcar("Não sobrescrever")
+    caso_a_caso: str = marcar("Ver caso a caso")
+    titulo_caso: str = marcar("Escolher quais datas trocar")
+    instrucao_caso: str = marcar("Marque as datas que devem ficar com a do Controle. As desmarcadas "
+                                 "ficam como estão e são anotadas como recusadas na aba "
+                                 "'Sobrescrições recusadas' da planilha.")
+    confirmar_caso: str = marcar("Trocar as marcadas")
+    valor_novo: Callable = lambda inc: formatar_valor(inc.data_controle)  # noqa: E731
+
+
+TEXTOS_PADRAO = TextosSobrescricao()
 
 
 class EscolhaSobrescricao(QDialog):
@@ -38,25 +71,21 @@ class EscolhaSobrescricao(QDialog):
 
     ACEITAR, RECUSAR, CASO_A_CASO = "aceitar", "recusar", "caso_a_caso"
 
-    def __init__(self, pendentes, parent=None):
+    def __init__(self, pendentes, parent=None, textos: TextosSobrescricao = TEXTOS_PADRAO):
         super().__init__(parent)
-        self.setWindowTitle("Datas que o Controle trocaria")
+        self.setWindowTitle(t(textos.titulo))
         self.escolha: str | None = None
         lay = QVBoxLayout(self)
         lay.setContentsMargins(18, 16, 18, 16)
         lay.setSpacing(12)
-        self.lbl_resumo = rotulo(_resumo(pendentes), "destaque", quebra=True)
-        self.lbl_aviso = rotulo(
-            "A data prevista é a baseline: trocá-la faz o Baseline OTD medir contra a data "
-            "nova, e o atraso contra a antiga deixa de aparecer. O que você não trocar fica "
-            "como está e não é perguntado de novo enquanto o Controle mantiver a mesma data.",
-            "suave", quebra=True)
+        self.lbl_resumo = rotulo(textos.resumo(pendentes), "destaque", quebra=True)
+        self.lbl_aviso = rotulo(t(textos.aviso), "suave", quebra=True)
         lay.addWidget(self.lbl_resumo)
         lay.addWidget(self.lbl_aviso)
-        self.btn_caso = botao("Ver caso a caso", icone="list-checks",
+        self.btn_caso = botao(t(textos.caso_a_caso), icone="list-checks",
                               ao_clicar=lambda: self._escolher(self.CASO_A_CASO))
-        self.btn_recusar = botao("Não sobrescrever", ao_clicar=lambda: self._escolher(self.RECUSAR))
-        self.btn_aceitar = botao("Aceitar todas", variante="primario", icone="check",
+        self.btn_recusar = botao(t(textos.recusar), ao_clicar=lambda: self._escolher(self.RECUSAR))
+        self.btn_aceitar = botao(t(textos.aceitar), variante="primario", icone="check",
                                  ao_clicar=lambda: self._escolher(self.ACEITAR))
         lay.addWidget(rodape(self.btn_aceitar, self.btn_recusar, self.btn_caso))
         self.resize(560, 220)
@@ -69,42 +98,41 @@ class EscolhaSobrescricao(QDialog):
 class CasoACasoDialog(QDialog):
     """Lista das incidências: as marcadas são trocadas, as outras ficam e viram recusa."""
 
-    def __init__(self, pendentes, parent=None):
+    def __init__(self, pendentes, parent=None, textos: TextosSobrescricao = TEXTOS_PADRAO):
         super().__init__(parent)
-        self.setWindowTitle("Escolher quais datas trocar")
+        self.setWindowTitle(t(textos.titulo_caso))
         self.resize(1040, 520)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 14, 14, 14)
         lay.setSpacing(10)
-        lay.addWidget(rotulo("Marque as datas que devem ficar com a do Controle. As desmarcadas "
-                             "ficam como estão e são anotadas como recusadas na aba "
-                             "'Sobrescrições recusadas' da planilha.", "suave", quebra=True))
+        lay.addWidget(rotulo(t(textos.instrucao_caso), "suave", quebra=True))
 
         self.tree = QTreeWidget()
-        self.tree.setColumnCount(len(_COLUNAS))
-        self.tree.setHeaderLabels([c for c, _ in _COLUNAS])
+        colunas = textos.colunas
+        self.tree.setColumnCount(len(colunas))
+        self.tree.setHeaderLabels([t(c) for c, _ in colunas])
         self.tree.setRootIsDecorated(False)
         self.tree.setAlternatingRowColors(True)
-        for i, (_, largura) in enumerate(_COLUNAS):
+        for i, (_, largura) in enumerate(colunas):
             self.tree.setColumnWidth(i, largura)
         self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         for inc in pendentes:
             item = QTreeWidgetItem([inc.codigo, inc.descricao, inc.titulo_coluna,
                                     formatar_valor(inc.valor_planilha),
-                                    formatar_valor(inc.data_controle)])
+                                    textos.valor_novo(inc)])
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(0, Qt.CheckState.Unchecked)
             self.tree.addTopLevelItem(item)
         self.tree.itemChanged.connect(lambda *_: self._atualizar_contagem())
         lay.addWidget(self.tree, 1)
 
-        self.btn_marcar = botao("Marcar todas", ao_clicar=lambda: self._marcar_todas(True))
-        self.btn_desmarcar = botao("Desmarcar todas", ao_clicar=lambda: self._marcar_todas(False))
+        self.btn_marcar = botao(t("Marcar todas"), ao_clicar=lambda: self._marcar_todas(True))
+        self.btn_desmarcar = botao(t("Desmarcar todas"), ao_clicar=lambda: self._marcar_todas(False))
         self.lbl_contagem = rotulo("", "suave")
         lay.addWidget(linha(self.btn_marcar, self.btn_desmarcar, self.lbl_contagem))
-        self.btn_trocar = botao("Trocar as marcadas", variante="primario", icone="check",
+        self.btn_trocar = botao(t(textos.confirmar_caso), variante="primario", icone="check",
                                 ao_clicar=self.accept)
-        self.btn_cancelar = botao("Decidir depois", ao_clicar=self.reject)
+        self.btn_cancelar = botao(t("Decidir depois"), ao_clicar=self.reject)
         lay.addWidget(rodape(self.btn_trocar, self.btn_cancelar))
         self._atualizar_contagem()
 
@@ -121,7 +149,7 @@ class CasoACasoDialog(QDialog):
                          if self.tree.topLevelItem(i).checkState(0) == Qt.CheckState.Checked)
 
     def _atualizar_contagem(self) -> None:
-        self.lbl_contagem.setText(f"Marcadas: {len(self._marcadas())} de {self.tree.topLevelItemCount()}")
+        self.lbl_contagem.setText(t('Marcadas: {n_valor} de {valor}', n_valor=len(self._marcadas()), valor=self.tree.topLevelItemCount()))
 
     def decisao(self) -> DecisaoSobrescricao:
         marcadas = self._marcadas()
@@ -129,7 +157,8 @@ class CasoACasoDialog(QDialog):
         return DecisaoSobrescricao(aceitas=marcadas, recusadas=todas - marcadas)
 
 
-def decidir_sobrescricoes(pendentes, parent=None) -> DecisaoSobrescricao | None:
+def decidir_sobrescricoes(pendentes, parent=None, *,
+                          textos: TextosSobrescricao = TEXTOS_PADRAO) -> DecisaoSobrescricao | None:
     """Pergunta o que fazer com as incidências. None = decidir depois (janela fechada).
 
     Cada janela é apagada (`deleteLater`) assim que responde: com dono, ela
@@ -145,14 +174,14 @@ def decidir_sobrescricoes(pendentes, parent=None) -> DecisaoSobrescricao | None:
 
     def _abrir():
         n = len(pendentes)
-        escolha = EscolhaSobrescricao(pendentes, parent)
+        escolha = EscolhaSobrescricao(pendentes, parent, textos)
         if not _responder(escolha):
             return None
         if escolha.escolha == EscolhaSobrescricao.ACEITAR:
             return DecisaoSobrescricao.aceitar_todas(n)
         if escolha.escolha == EscolhaSobrescricao.RECUSAR:
             return DecisaoSobrescricao.recusar_todas(n)
-        caso = CasoACasoDialog(pendentes, parent)
+        caso = CasoACasoDialog(pendentes, parent, textos)
         if not _responder(caso):
             return None
         return caso.decisao()

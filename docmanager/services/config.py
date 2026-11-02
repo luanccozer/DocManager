@@ -46,6 +46,10 @@ class AppSettings:
     email_sugestoes: str = ""
     # A última versão aberta: "O que mudou" aparece uma vez depois de atualizar.
     versao_vista: str = ""
+    # Letra "normal" ou "grande" (+2 px em tudo), como na CMI Suite.
+    letra: str = "normal"
+    # "es", "pt" ou "en"; "" = ainda não escolhido: segue o Windows.
+    idioma: str = ""
 
 
 class ConfigManager:
@@ -107,11 +111,13 @@ class ConfigManager:
             tema=str(s.get("tema", "escuro")),
             email_sugestoes=str(s.get("email_sugestoes", "")),
             versao_vista=str(s.get("versao_vista", "")),
+            letra=str(s.get("letra", "normal")),
+            idioma=str(s.get("idioma", "")),
         )
 
     def versao_anterior(self) -> str:
         """A última versão aberta ('' na primeira instalação). Quem vem de antes
-        da 3.7.0 não tem `versao_vista` gravada, mas tem config: conta como
+        da 3.6.2 não tem `versao_vista` gravada, mas tem config: conta como
         atualização (de uma versão que não se sabe), para ver as novidades."""
         vista = self.settings.versao_vista
         return vista or ("?" if self.ja_usado else "")

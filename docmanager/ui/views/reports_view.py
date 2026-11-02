@@ -5,26 +5,27 @@ from datetime import datetime
 from .. import dialogos
 from ..components import Card, FileSelector, RunBar
 from .base import BaseView
+from ..idioma import marcar, t
 
 
 class ReportsView(BaseView):
-    titulo_view = "Relatórios"
-    subtitulo_view = ("Avanço (prazos de devolução), Auditoria de Integração (0AA) "
+    titulo_view = marcar("Relatórios")
+    subtitulo_view = marcar("Avanço (prazos de devolução), Auditoria de Integração (0AA) "
                       "e Fluxos em Andamento (onde está e com quem)")
 
     def montar(self, body):
-        card = Card("Base Aconex")
-        self.sel = card.add(FileSelector("Base Aconex", self.ctx.config, "aconex", aba_padrao="Documentos"))
-        card.add(RunBar("Relatório de Avanço", self._avanco, self.log))
-        card.add(RunBar("Auditoria de Integração", self._integracao, self.log))
+        card = Card(t("Base Aconex"))
+        self.sel = card.add(FileSelector(t("Base Aconex"), self.ctx.config, "aconex", aba_padrao="Documentos"))
+        card.add(RunBar(t("Relatório de Avanço"), self._avanco, self.log))
+        card.add(RunBar(t("Auditoria de Integração"), self._integracao, self.log))
         body.addWidget(card)
 
         # Fluxos vêm de OUTRA base (a Workflows API), com seletor próprio - juntar
         # os dois seletores num só faria o usuário apontar o arquivo errado.
-        card_wf = Card("Base de Fluxos de Trabalho (extraída na aba Extração Aconex)")
-        self.sel_wf = card_wf.add(FileSelector("Base de Fluxos", self.ctx.config, "fluxos",
+        card_wf = Card(t("Base de Fluxos de Trabalho (extraída na aba Extração Aconex)"))
+        self.sel_wf = card_wf.add(FileSelector(t("Base de Fluxos"), self.ctx.config, "fluxos",
                                                aba_padrao="Fluxos"))
-        card_wf.add(RunBar("Fluxos em Andamento", self._fluxos, self.log))
+        card_wf.add(RunBar(t("Fluxos em Andamento"), self._fluxos, self.log))
         body.addWidget(card_wf)
 
     def _carregar(self):
@@ -51,7 +52,7 @@ class ReportsView(BaseView):
         run.set_progress(1.0)
         self.log.log(msg)
         if ok2:
-            dialogos.info("Relatórios", f"{len(obj)} linhas geradas.")
+            dialogos.info(t("Relatórios"), t('{n_obj} linhas geradas.', n_obj=len(obj)))
 
     def _avanco(self, run: RunBar):
         base = self._carregar()
@@ -109,4 +110,4 @@ class ReportsView(BaseView):
         run.set_progress(1.0)
         self.log.log(msg)
         if ok:
-            dialogos.info("Fluxos em Andamento", f"{len(detalhe)} etapas em aberto ({atrasados} atrasadas).")
+            dialogos.info(t("Fluxos em Andamento"), t('{n_detalhe} etapas em aberto ({atrasados} atrasadas).', n_detalhe=len(detalhe), atrasados=atrasados))

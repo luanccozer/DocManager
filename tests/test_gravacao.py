@@ -174,3 +174,151 @@ def test_no_windows_diz_qual_programa_esta_com_o_arquivo(tmp_path):
     finally:
         outro.stdin.close()
         outro.wait(timeout=30)
+
+
+# --- Substituição segura (temporário conferido + backup + troca atômica) ---
+
+def _restos(pasta):
+    return sorted(p.name for p in pasta.iterdir() if p.name.startswith("~$docmanager-"))
+
+
+def _escrever_planilha(texto):
+    def escrever(tmp):
+        wb = openpyxl.Workbook()
+        wb.active["A1"] = texto
+        wb.save(tmp)
+    return escrever
+
+
+def test_falha_no_meio_da_escrita_deixa_o_original_e_nenhum_temporario(tmp_path):
+    caminho = _planilha(tmp_path)
+    antes = caminho.read_bytes()
+
+    def escreve_pela_metade(tmp):
+        with open(tmp, "wb") as f:
+            f.write(b"PK\x03\x04 meio arquivo")
+        raise RuntimeError("a luz acabou")
+
+    with pytest.raises(RuntimeError):
+        gravacao.substituir_com_seguranca(caminho, escreve_pela_metade)
+    assert caminho.read_bytes() == antes
+    assert _restos(tmp_path) == []
+
+
+def test_arquivo_novo_corrompido_nao_substitui(tmp_path):
+    caminho = _planilha(tmp_path)
+    antes = caminho.read_bytes()
+
+    def escreve_lixo(tmp):
+        with open(tmp, "wb") as f:
+            f.write(b"isto nao e um xlsx")
+
+    msg = gravacao.substituir_com_seguranca(caminho, escreve_lixo)
+    assert msg and "conferência" in msg
+    assert caminho.read_bytes() == antes
+    assert _restos(tmp_path) == []
+
+
+def test_validador_que_reprova_deixa_o_original(tmp_path):
+    caminho = _planilha(tmp_path)
+    antes = caminho.read_bytes()
+    msg = gravacao.substituir_com_seguranca(caminho, _escrever_planilha("novo"),
+                                            validar=lambda _t: ["linha 7 trocada"])
+    assert "linha 7 trocada" in msg
+    assert caminho.read_bytes() == antes
+    assert _restos(tmp_path) == []
+
+
+def test_assinatura_diferente_aborta(tmp_path):
+    caminho = _planilha(tmp_path)
+    assinatura = gravacao.assinatura_de(caminho)
+    wb = openpyxl.Workbook()
+    wb.active["A1"] = "alguém salvou no Excel"
+    wb.save(caminho)
+    os.utime(caminho, ns=(assinatura[0] + 10**9, assinatura[0] + 10**9))
+    antes = caminho.read_bytes()
+    msg = gravacao.substituir_com_seguranca(caminho, _escrever_planilha("novo"),
+                                            assinatura=assinatura)
+    assert "alterada enquanto o app trabalhava" in msg
+    assert caminho.read_bytes() == antes
+    assert _restos(tmp_path) == []
+
+
+def test_troca_guarda_backup_do_original(tmp_path):
+    caminho = _planilha(tmp_path)
+    antes = caminho.read_bytes()
+    info, logs = {}, []
+    assert gravacao.substituir_com_seguranca(caminho, _escrever_planilha("novo"),
+                                             assinatura=gravacao.assinatura_de(caminho),
+                                             info=info, log_cb=logs.append) is None
+    assert openpyxl.load_workbook(caminho).active["A1"].value == "novo"
+    assert info["backup"].read_bytes() == antes
+    assert info["backup"].parent == gravacao.pasta_backups()
+    assert info["backup"].name.startswith("Doc List Mapping__")
+    assert any(str(info["backup"]) in m for m in logs)
+    assert _restos(tmp_path) == []
+
+
+def test_mantem_so_os_20_backups_mais_novos(tmp_path):
+    caminho = _planilha(tmp_path)
+    pasta = gravacao.pasta_backups()
+    for i in range(25):
+        (pasta / f"Doc List Mapping__20200101-0000{i:02d}.xlsx").write_bytes(b"x")
+    (pasta / "Outro__20200101-000000.xlsx").write_bytes(b"x")
+    assert gravacao.salvar_planilha(openpyxl.load_workbook(caminho), caminho) is None
+    meus = sorted(pasta.glob("Doc List Mapping__*.xlsx"))
+    assert len(meus) == gravacao.BACKUPS_POR_ARQUIVO
+    assert meus[0].name == "Doc List Mapping__20200101-000006.xlsx"   # os 5 mais velhos saíram
+    assert (pasta / "Outro__20200101-000000.xlsx").exists()
+
+
+def test_sem_backup_nao_troca(tmp_path, monkeypatch):
+    caminho = _planilha(tmp_path)
+    antes = caminho.read_bytes()
+
+    def falha(*_a, **_k):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr("shutil.copy2", falha)
+    msg = gravacao.substituir_com_seguranca(caminho, _escrever_planilha("novo"))
+    assert "cópia de segurança" in msg
+    assert caminho.read_bytes() == antes
+    assert _restos(tmp_path) == []
+
+
+def test_recusa_na_troca_pergunta_e_ao_resolver_troca(tmp_path, monkeypatch):
+    caminho = _planilha(tmp_path)
+    _sem_motivo_conhecido(monkeypatch)
+    replace_de_verdade = os.replace
+    preso = {"excel": True}
+
+    def replace(origem, destino):
+        if preso["excel"]:
+            raise PermissionError(13, "Permission denied")
+        replace_de_verdade(origem, destino)
+
+    def fechar_e_tentar(_msg):
+        preso["excel"] = False
+        return True
+
+    monkeypatch.setattr(gravacao.os, "replace", replace)
+    assert gravacao.substituir_com_seguranca(caminho, _escrever_planilha("novo"),
+                                             retry_cb=fechar_e_tentar, espera_s=0) is None
+    assert openpyxl.load_workbook(caminho).active["A1"].value == "novo"
+    assert _restos(tmp_path) == []
+    assert len(list(gravacao.pasta_backups().iterdir())) == 1   # um backup só, mesmo com 4 tentativas
+
+
+def test_backup_recusado_pelo_windows_tenta_de_novo_e_pergunta(tmp_path, monkeypatch):
+    """Programa com a planilha aberta sem deixar ler (WinError 32): a cópia de
+    segurança falha como a troca falharia - o app tenta de novo e diz quem está com ela."""
+    caminho = _planilha(tmp_path)
+    _sem_motivo_conhecido(monkeypatch)
+    monkeypatch.setattr(gravacao, "_programas_com_o_arquivo", lambda c: ["Microsoft Excel"])
+    monkeypatch.setattr("shutil.copy2", _recusa)
+    perguntas = []
+    msg = gravacao.substituir_com_seguranca(caminho, _escrever_planilha("novo"), espera_s=0,
+                                            retry_cb=lambda m: perguntas.append(m) or False)
+    assert len(perguntas) == 1 and "Microsoft Excel" in perguntas[0]
+    assert "Microsoft Excel" in msg
+    assert _restos(tmp_path) == []

@@ -52,3 +52,20 @@ def test_assunto_curto_mesmo_com_primeira_linha_longa():
 def test_texto_vazio_ou_tipo_desconhecido_e_recusado(tipo, texto):
     with pytest.raises(ValueError):
         sugestoes.montar(tipo, texto, "3.6.1")
+
+
+def test_erro_leva_as_ultimas_linhas_do_diario():
+    r = sugestoes.montar("Erro", "Travou ao salvar.", "3.6.4", "", sistema_op="",
+                         diario="2026-10-31 10:00:00 ABERTO 3.6.4\n2026-10-31 10:01:00 erro X")
+    _, _, corpo = _partes(r.link)
+    assert "--- Diário do app (últimas linhas) ---" in corpo and "erro X" in corpo
+
+
+def test_ultimas_linhas_do_diario(tmp_path, monkeypatch):
+    from docmanager.services import diario
+
+    assert diario.ultimas_linhas() == ""                     # sem diário: vazio, sem erro
+    for i in range(50):
+        diario.registrar(f"evento {i}")
+    linhas = diario.ultimas_linhas(5).splitlines()
+    assert len(linhas) == 5 and linhas[-1].endswith("evento 49")

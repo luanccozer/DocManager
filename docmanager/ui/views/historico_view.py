@@ -8,11 +8,12 @@ from .. import dialogos
 from ..components import Abas, Card, FileSelector, RunBar, rotulo
 from ..ponte import na_ui_e_esperar
 from .base import BaseView
+from ..idioma import marcar, t
 
 
 class HistoricoView(BaseView):
-    titulo_view = "Histórico Consolidado"
-    subtitulo_view = "Gera a planilha detalhada ou o dashboard executivo, a partir da mesma base"
+    titulo_view = marcar("Histórico Consolidado")
+    subtitulo_view = marcar("Gera a planilha detalhada ou o dashboard executivo, a partir da mesma base")
 
     def __init__(self, ctx, parent=None):
         self._server = None
@@ -20,14 +21,14 @@ class HistoricoView(BaseView):
 
     def montar(self, body):
         cfg = self.ctx.config
-        card = Card("Arquivos")
-        self.sel_aconex = card.add(FileSelector("Base Aconex", cfg, "aconex", aba_padrao="Documentos"))
-        self.sel_ctrl = card.add(FileSelector("Controle de Documentos (obrigatório)", cfg, "controle"))
+        card = Card(t("Arquivos"))
+        self.sel_aconex = card.add(FileSelector(t("Base Aconex"), cfg, "aconex", aba_padrao="Documentos"))
+        self.sel_ctrl = card.add(FileSelector(t("Controle de Documentos (obrigatório)"), cfg, "controle"))
         body.addWidget(card)
 
-        rem = Card("Remover documentos (opcional)")
-        rem.add(rotulo("Cole os códigos Itaipu dos documentos que não devem entrar no histórico, um por "
-                       "linha (copie do Excel). Também aceita código CMI. Vale para a Planilha e o Dashboard.",
+        rem = Card(t("Remover documentos (opcional)"))
+        rem.add(rotulo(t("Cole os códigos Itaipu dos documentos que não devem entrar no histórico, um por "
+                       "linha (copie do Excel). Também aceita código CMI. Vale para a Planilha e o Dashboard."),
                        "suave", quebra=True))
         self.txt_excluir = QPlainTextEdit()
         self.txt_excluir.setObjectName("caixa_texto")
@@ -37,21 +38,21 @@ class HistoricoView(BaseView):
 
         abas_card = Card()
         self.tabs = Abas()
-        aba_plan = self.tabs.add("Planilha", "file-spreadsheet")
-        aba_dash = self.tabs.add("Dashboard", "chart-column")
+        aba_plan = self.tabs.add(marcar("Planilha"), "file-spreadsheet")
+        aba_dash = self.tabs.add(marcar("Dashboard"), "chart-column")
         abas_card.add(self.tabs)
         body.addWidget(abas_card)
 
         aba_plan.layout().addWidget(rotulo(
-            "Excel com 1 linha por revisão + colunas de atraso (Itaipu e CMI).", "suave", quebra=True))
-        aba_plan.layout().addWidget(RunBar("Gerar Planilha", self._gerar_planilha, self.log))
+            t("Excel com 1 linha por revisão + colunas de atraso (Itaipu e CMI)."), "suave", quebra=True))
+        aba_plan.layout().addWidget(RunBar(t("Gerar Planilha"), self._gerar_planilha, self.log))
 
         aba_dash.layout().addWidget(rotulo(
-            "Dashboard web: First Time Right, ciclo de aprovação, status vigente, fluxo de envios/retornos, "
+            t("Dashboard web: First Time Right, ciclo de aprovação, status vigente, fluxo de envios/retornos, "
             "evolução do atraso no tempo e gargalos por especialidade.\nEm desenvolvimento. Será liberado "
-            "em breve.", "suave", quebra=True))
-        run_dash = RunBar("Gerar e Abrir Dashboard", self._abrir_dashboard, self.log)
-        run_dash.desabilitar("Dashboard (em desenvolvimento)")
+            "em breve."), "suave", quebra=True))
+        run_dash = RunBar(t("Gerar e Abrir Dashboard"), self._abrir_dashboard, self.log)
+        run_dash.desabilitar(t("Dashboard (em desenvolvimento)"))
         aba_dash.layout().addWidget(run_dash)
 
     def _base(self, run):
@@ -94,7 +95,7 @@ class HistoricoView(BaseView):
         run.set_progress(1.0)
         self.log.log(msg)
         if ok:
-            dialogos.info("Histórico", f"{len(wide)} revisões geradas.")
+            dialogos.info(t("Histórico"), t('{n_wide} revisões geradas.', n_wide=len(wide)))
 
     def _abrir_dashboard(self, run: RunBar):
         base, controle = self._base(run)

@@ -10,26 +10,27 @@ from pathlib import Path
 from .. import dialogos
 from ..components import Card, FileSelector, RunBar, rotulo
 from .base import BaseView
+from ..idioma import marcar, t
 
 
 class TranspasseView(BaseView):
-    titulo_view = "Transpasse de Fase"
-    subtitulo_view = ("Quadro dia a dia de cada grupo de equipamentos: convocação, inspeção IB, emissão do CCMLC, "
+    titulo_view = marcar("Transpasse de Fase")
+    subtitulo_view = marcar("Quadro dia a dia de cada grupo de equipamentos: convocação, inspeção IB, emissão do CCMLC, "
                       "transpasse de fase e início do comissionamento")
 
     def montar(self, body):
         cfg = self.ctx.config
-        card = Card("Planilhas")
-        self.sel_principal = card.add(FileSelector("Acompanhamento do transpasse", cfg, "transpasse",
+        card = Card(t("Planilhas"))
+        self.sel_principal = card.add(FileSelector(t("Acompanhamento do transpasse"), cfg, "transpasse",
                                                    escolher_aba=False))
-        self.sel_complementar = card.add(FileSelector("Planilha complementar (opcional)", cfg,
+        self.sel_complementar = card.add(FileSelector(t("Planilha complementar (opcional)"), cfg,
                                                       "transpasse_complementar", escolher_aba=False))
-        card.add(rotulo("A complementar é a de controle do início do comissionamento: traz a data em que a "
+        card.add(rotulo(t("A complementar é a de controle do início do comissionamento: traz a data em que a "
                         "manutenção começou (o preto do quadro) e, com ela, a coluna Dias. Também completa as "
-                        "datas que faltarem na principal.", "suave", quebra=True))
+                        "datas que faltarem na principal."), "suave", quebra=True))
         body.addWidget(card)
 
-        self.run = RunBar("Gerar e Abrir Painel", self._tarefa, self.log)
+        self.run = RunBar(t("Gerar e Abrir Painel"), self._tarefa, self.log)
         body.addWidget(self.run)
 
     def _tarefa(self, run: RunBar):
@@ -51,4 +52,4 @@ class TranspasseView(BaseView):
         if r.ok:
             webbrowser.open(Path(saida).as_uri())
         else:
-            dialogos.aviso("Transpasse de Fase", r.mensagem)
+            dialogos.aviso(t("Transpasse de Fase"), r.mensagem)

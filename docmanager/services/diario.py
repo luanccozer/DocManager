@@ -61,6 +61,16 @@ def registrar(evento: str, detalhe: str = "") -> None:
         pass
 
 
+def ultimas_linhas(n: int = 40) -> str:
+    """As `n` últimas linhas do diário ('' sem diário). Nunca levanta: serve
+    para anexar ao relato de um erro (tela Sugestões)."""
+    try:
+        linhas = caminho().read_text(encoding="utf-8", errors="replace").splitlines()
+    except Exception:  # noqa: BLE001
+        return ""
+    return "\n".join(linhas[-n:])
+
+
 def ultima_sessao_terminou_bem() -> bool | None:
     """A sessão anterior fechou pela janela? `None` se não há sessão anterior."""
     try:

@@ -52,6 +52,19 @@ TEMA_ATUAL = "escuro"
 IMAGENS: dict[str, str] = {"seta": "", "tique": ""}
 
 
+# A letra que está valendo ("normal" ou "grande"); `tema.aplicar_letra` muda.
+# "grande" soma 2 px a todos os tamanhos, como na CMI Suite e no SIG-FT.
+LETRA_ATUAL = "normal"
+LETRAS = ("normal", "grande")
+AUMENTO_DA_LETRA = {"normal": 0, "grande": 2}
+
+
+def fontes() -> dict[str, int]:
+    """Os tamanhos de `tokens.FONTE` com o aumento da letra que está valendo."""
+    a = AUMENTO_DA_LETRA.get(LETRA_ATUAL, 0)
+    return {k: v + a for k, v in tokens.FONTE.items()}
+
+
 def _tema(tema: str | None) -> str:
     return TEMA_ATUAL if tema is None else tema
 
@@ -107,7 +120,7 @@ def carregar_fontes() -> list[str]:
             familias.extend(QFontDatabase.applicationFontFamilies(indice))
     fonte = QFont()
     fonte.setFamilies(["Roboto", "Segoe UI"])
-    fonte.setPixelSize(tokens.FONTE["corpo"])
+    fonte.setPixelSize(fontes()["corpo"])
     QApplication.setFont(fonte)
     return familias
 
@@ -118,7 +131,7 @@ def folha_de_estilo(tema: str | None = None) -> str:
     tema = _tema(tema)
     p = tokens.paleta(tema)
     menu = MENU_ESCOLHIDO["claro" if tema == "claro" else "escuro"]
-    f = tokens.FONTE
+    f = fontes()
     raio, raio_cartao = tokens.RAIO["controle"], tokens.RAIO["cartao"]
     fam = '"Roboto", "Segoe UI"'
     mono = '"Cascadia Mono", "Consolas", "Menlo", "DejaVu Sans Mono", monospace'
@@ -141,7 +154,7 @@ QWidget {{ font-family: {fam}; color: {p['texto']}; font-size: {f['corpo']}px; }
 QToolTip {{ background: {p['superficie_alta']}; color: {p['texto']}; border: 1px solid {p['borda']};
     padding: 4px 8px; }}
 #sidebar {{ background: {p['superficie']}; border: none; border-right: 1px solid {p['borda']}; }}
-#app_nome {{ font-size: 20px; font-weight: bold; }}
+#app_nome {{ font-size: {f['titulo'] - 2}px; font-weight: bold; }}
 #app_sub, #rodape_versao {{ color: {p['texto_suave']}; font-size: {f['legenda']}px; }}
 #rodape_versao[novo="true"] {{ color: {p['primaria']}; font-weight: bold; }}
 #titulo_view {{ font-size: {f['titulo'] + 2}px; font-weight: bold; }}
@@ -192,9 +205,9 @@ QLabel[papel="info"] {{ color: {p['info']}; }}
 #card QLabel, #card QCheckBox, #card QRadioButton {{ background: transparent; }}
 
 #console {{ background: {p['console_fundo']}; border: none; border-radius: {raio}px;
-    color: {p['console_texto']}; font-family: {mono}; font-size: 12px; padding: 4px; }}
+    color: {p['console_texto']}; font-family: {mono}; font-size: {f['legenda']}px; padding: 4px; }}
 QPlainTextEdit#caixa_texto, QTextEdit#caixa_texto {{ background: {p['superficie_alta']}; color: {p['texto']};
-    border: 1px solid {p['borda']}; border-radius: {raio}px; font-family: {mono}; font-size: 12px; }}
+    border: 1px solid {p['borda']}; border-radius: {raio}px; font-family: {mono}; font-size: {f['legenda']}px; }}
 QPlainTextEdit#caixa_texto:focus {{ border-color: {p['primaria']}; }}
 #notas {{ background: {p['superficie_alta']}; border: 1px solid {p['borda']}; border-radius: {raio}px;
     color: {p['texto']}; padding: 4px; }}
@@ -248,7 +261,7 @@ QScrollBar::add-line, QScrollBar::sub-line {{ width: 0; height: 0; }}
 QScrollBar::add-page, QScrollBar::sub-page {{ background: transparent; }}
 
 QTreeView {{ background: {p['superficie']}; color: {p['texto']}; border: 1px solid {p['borda']};
-    border-radius: {raio}px; outline: none; font-size: 12px; alternate-background-color: {p['superficie_alta']};
+    border-radius: {raio}px; outline: none; font-size: {f['legenda']}px; alternate-background-color: {p['superficie_alta']};
     selection-background-color: {menu['fundo']}; selection-color: {menu['texto']}; }}
 QTreeView::item {{ min-height: {ALTURA_LINHA_TABELA}px; padding-left: 2px; border: none; }}
 QTreeView::item:hover {{ background: {p['superficie_alta']}; }}
@@ -256,7 +269,7 @@ QTreeView::item:selected {{ background: {menu['fundo']}; color: {menu['texto']};
 QHeaderView {{ background: {p['superficie_alta']}; }}
 QHeaderView::section {{ background: {p['superficie_alta']}; color: {p['texto']}; padding: 0 6px;
     border: none; border-right: 1px solid {p['borda']}; border-bottom: 1px solid {p['borda']};
-    min-height: {ALTURA_LINHA_TABELA}px; font-size: 12px; font-weight: bold; }}
+    min-height: {ALTURA_LINHA_TABELA}px; font-size: {f['legenda']}px; font-weight: bold; }}
 
 #barra_ferramentas {{ background: {p['superficie']}; border: 1px solid {p['borda']};
     border-radius: {raio_cartao}px; }}

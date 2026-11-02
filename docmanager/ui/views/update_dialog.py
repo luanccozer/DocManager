@@ -22,6 +22,7 @@ from ...services import updater
 from .. import atualizacao_textos as txt
 from .. import dialogos, icones
 from ..components import botao, rotulo
+from ..idioma import t
 
 
 class AtualizacaoDialog(QDialog):
@@ -52,7 +53,7 @@ class AtualizacaoDialog(QDialog):
         self._tarefa_em_andamento = tarefa_em_andamento or (lambda: False)
         self._baixando = False
         self._pequena = updater.pode_pequena(info)
-        self.setWindowTitle("Atualização disponível")
+        self.setWindowTitle(t("Atualização disponível"))
         self.setModal(True)
         self.setMinimumWidth(620)
 
@@ -68,15 +69,15 @@ class AtualizacaoDialog(QDialog):
         self.lbl_resumo = rotulo(txt.resumo(info, versao_atual, self._pequena), "suave", quebra=True)
         lay.addWidget(self.lbl_resumo)
 
-        notas = QPlainTextEdit(info.notas or "(esta versão não trouxe notas)")
+        notas = QPlainTextEdit(info.notas or t("(esta versão não trouxe notas)"))
         notas.setObjectName("notas")
         notas.setReadOnly(True)
         notas.setMinimumHeight(200)
         lay.addWidget(notas, 1)
 
-        lay.addWidget(rotulo(txt.TEXTO_REABRE, "legenda", quebra=True))
+        lay.addWidget(rotulo(t(txt.TEXTO_REABRE), "legenda", quebra=True))
         if not self._pequena and updater.precisa_elevacao():
-            lay.addWidget(rotulo(txt.TEXTO_UAC, "legenda", quebra=True))
+            lay.addWidget(rotulo(t(txt.TEXTO_UAC), "legenda", quebra=True))
 
         self.barra = QProgressBar()
         self.barra.setRange(0, 1000)
@@ -87,10 +88,10 @@ class AtualizacaoDialog(QDialog):
         lay.addWidget(self.barra)
         lay.addWidget(self.status)
 
-        self.btn_pular = botao(f"Pular a v{info.versao}", variante="fantasma", ao_clicar=self._pular)
-        self.btn_atualizar = botao("Atualizar agora", variante="primario", icone="download",
+        self.btn_pular = botao(t('Pular a v{versao}', versao=info.versao), variante="fantasma", ao_clicar=self._pular)
+        self.btn_atualizar = botao(t("Atualizar agora"), variante="primario", icone="download",
                                    ao_clicar=self._atualizar)
-        self.btn_depois = botao("Agora não", ao_clicar=self._fechar)
+        self.btn_depois = botao(t("Agora não"), ao_clicar=self._fechar)
         rod = QWidget()
         rl = QHBoxLayout(rod)
         rl.setContentsMargins(0, 10, 0, 0)
@@ -130,7 +131,7 @@ class AtualizacaoDialog(QDialog):
         if self._baixando:
             return
         if self._tarefa_em_andamento() and not dialogos.perguntar(
-                "Tarefa em andamento", txt.PERGUNTA_TAREFA, padrao_nao=True, parent=self):
+                t("Tarefa em andamento"), t(txt.PERGUNTA_TAREFA), padrao_nao=True, parent=self):
             return
         self._baixando = True
         self.btn_atualizar.setEnabled(False)
@@ -140,7 +141,7 @@ class AtualizacaoDialog(QDialog):
         self.barra.setValue(0)
         self.barra.show()
         self.status.show()
-        self._dizer("Baixando a atualização..." if self._pequena else "Baixando o instalador...")
+        self._dizer(t("Baixando a atualização...") if self._pequena else t("Baixando o instalador..."))
         threading.Thread(target=self._trabalho, daemon=True).start()
 
     def _trabalho(self):
@@ -165,7 +166,7 @@ class AtualizacaoDialog(QDialog):
         try:
             caminho = updater.baixar(self.info, progresso_cb=self._progresso.emit,
                                      log_cb=self._dizer)
-            self._dizer(txt.TEXTO_CONFERIDO)
+            self._dizer(t(txt.TEXTO_CONFERIDO))
             updater.instalar(caminho, log_cb=self._dizer)
         except Exception as e:  # noqa: BLE001 - qualquer falha vira aviso na tela
             self._falha.emit(e)
@@ -176,34 +177,32 @@ class AtualizacaoDialog(QDialog):
         self._baixando = False
         self.barra.hide()
         self.btn_atualizar.setEnabled(True)
-        self.btn_atualizar.setText("Tentar de novo")
+        self.btn_atualizar.setText(t("Tentar de novo"))
         self.btn_pular.setEnabled(True)
         self.btn_depois.setEnabled(True)
         self._dizer("")
-        dialogos.erro("Não foi possível atualizar",
-                      f"{erro}\n\nVocê pode seguir usando esta versão normalmente. Para baixar a nova "
-                      f"à mão:\n{self.info.url_pagina}", self)
+        dialogos.erro(t("Não foi possível atualizar"),
+                      t('{erro}\n\nVocê pode seguir usando esta versão normalmente. Para baixar a nova à mão:\n{url_pagina}', erro=erro, url_pagina=self.info.url_pagina), self)
 
     def _reabrir(self, exe: str):
         """A pequena foi aplicada: abre o .exe novo e este processo sai.
 
         Sai na HORA, sem nada pelo caminho: o `.exe` em execução já foi trocado
         no disco, e um import tardio deste processo leria o arquivo novo."""
-        self._dizer(txt.TEXTO_APLICADO)
+        self._dizer(t(txt.TEXTO_APLICADO))
         try:
             updater.reabrir(exe)
         except OSError as e:
             self._baixando = False
             self.btn_depois.setEnabled(True)
-            self.btn_atualizar.setText("Atualizado")
-            dialogos.erro("Atualizado, mas não reabriu",
-                          f"A versão nova já está instalada, mas o Windows não deixou abri-la "
-                          f"({e}).\n\nFeche o DocManager e abra de novo.", self)
+            self.btn_atualizar.setText(t("Atualizado"))
+            dialogos.erro(t("Atualizado, mas não reabriu"),
+                          t('A versão nova já está instalada, mas o Windows não deixou abri-la ({e}).\n\nFeche o DocManager e abra de novo.', e=e), self)
             return
         self._encerrar_para_instalar()
 
     def _encerrar_para_instalar(self):
-        self._dizer("O DocManager vai fechar e abrir de novo, já atualizado.")
+        self._dizer(t("O DocManager vai fechar e abrir de novo, já atualizado."))
         if self._fechar_app:
             self._fechar_app()
         else:

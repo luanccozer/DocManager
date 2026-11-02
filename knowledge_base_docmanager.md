@@ -1266,6 +1266,72 @@ janela de pergunta é apagada com `deleteLater()` assim que responde (`decidir_s
 roda na thread de trabalho chama `gc.collect()`; nos testes, `tests/conftest.py` coleta o lixo de todo
 teste de tela ao fim dele, na thread da interface.
 
+## 32. ✅ Pendências de comissionamento (Campo → Questões) (2026-11-02, pedido da equipe)
+
+**O que faz**: o módulo **Pendências** atualiza a planilha de mapeamento de pendências de comissionamento
+(a "ACONEX - MAPEAMENTO PENDÊNCIAS.xlsx") com as Questões do módulo Campo do Aconex. Escolher a planilha já
+dispara a atualização e grava sem pergunta final. Spec completa: `.scratch/pendencias-comissionamento/spec.md`.
+Arquivos: `field_backend.py` (API), `services/pendencias_update.py` (regras), `services/xlsx_cirurgico.py`
+(escrita, ADR 0002), `services/gravacao.py::substituir_com_seguranca`, `ui/views/pendencias_view.py`.
+
+**Contrato da API (medido ao vivo em 11/2026)**:
+- base `{instância}/field-management/api/projects/{projeto}` - não o `/api/projects/...` do register;
+  mesmo token Bearer; `Accept: application/json` (a V2 só acrescenta `permissions`);
+- rotas (só GET): `/areas` (a árvore inteira; as raízes são o 1º nível, descobertas a cada execução),
+  `/customfields`, `/issue_types`, `/areas/{raiz}/issues?include_child_areas=true&include_shared=true&page_size=200`
+  (no máximo 200 por página; deduplicar por `issue_id`), `/issues/{id}/conversations/all?supportPublicConversation=true`;
+- cota de 5 req/s e 10 simultâneas por ORGANIZAÇÃO: uma chamada por vez, 250 ms entre elas; retentativa pelo
+  `aconex_backend._get_resiliente` (o mesmo dos Workflows): backoff, 401 renova o token, reconexão;
+- tudo ou nada: falha definitiva levanta `ErroField` e nada é gravado.
+
+**Armadilhas**:
+- o bloco `conversations` da listagem vem com `comments: []` mesmo com comentários; o texto sai da rota de
+  conversas, e sem `supportPublicConversation=true` os "With Everyone" não vêm;
+- campo customizado casa pelo `family_id` antes do `id` (o `id` muda a cada versão da definição);
+- as colunas do Aconex são as padrão da exportação mais os campos dos **tipos de questão em uso**, nunca todos
+  os de `/customfields` (há campos de outros módulos, e uma coluna manual com o nome de um deles seria
+  esvaziada);
+- `Assigned to/By` e `Closed By Organization` usam o nome fantasia (`trading_name`), como a exportação;
+- booleano `Yes`/`No` vira `Sim`/`Não`; `Captured On` e as datas de instante vão para UTC−3 fixo (sem horário
+  de verão); `Due Date` e os campos do tipo data são dias, sem converter fuso;
+- `/issues/count` responde num formato diferente do documentado: usar `total_results`.
+
+**Regras da planilha** (decisões do usuário D1-D6 e do planejador C1-C12 na spec):
+- novas no topo da tabela, em ordem decrescente de Issue Number, com o modelo de linha e de célula do grupo;
+- nas existentes, só as colunas do Aconex mudam (pelo nome do cabeçalho); colunas manuais nunca; o app nunca
+  cria, remove ou reordena coluna; `Pinned To DocNumber`, `Doc Title` e `Source` não têm fonte validada e não
+  são tocadas;
+- valor diferente e não vazio troca sozinho; vazio na planilha é preenchido; valor que o Aconex perdeu só é
+  apagado com decisão na tela (apagar todas, manter todas, caso a caso). O mantido fica em
+  `pendencias_mantidas.json` (pasta de dados) e não é perguntado de novo enquanto o valor for o mesmo; fechar a
+  tela mantém sem memorizar;
+- data real do Excel com o mesmo dia não é mudança; data real que mudou continua data real;
+- destaque: linha inteira na cor da legenda se `Clasificación de pendencia` = `Impeditiva` e `Status` ≠
+  `Closed`, nas novas e nas existentes; só o preenchimento muda (fonte, borda, alinhamento e altura não). A
+  cor, os modelos de linha e de célula saem dos dados da planilha; sem nenhuma linha destacada, o app não
+  aplica a cor (nunca inventa uma);
+- pendência que sumiu do Aconex fica intacta e vai para o log; nada mudou → não grava;
+- texto: sem caracteres de controle, cortado em 32.767 caracteres com aviso; o Aconex é limpo ANTES de
+  comparar, senão a mesma pendência viraria "troca" a cada execução.
+
+**Achado na 1ª execução real (3.6.5-rc.1)**: a planilha real tem Issue Number guardado como TEXTO em
+algumas linhas ("131"), não só como número. A conferência comparava texto com número e recusava tudo
+("a ordem das pendências não é a planejada"). Toda comparação do número passa por `_numero`.
+Velocidade: as conversas (Comments, uma chamada por questão) iam uma a uma, ~85 s para 151 questões;
+agora vão 4 ao mesmo tempo, com o início das chamadas espaçado em 250 ms (4 por segundo, abaixo da
+cota de 5 da organização).
+
+**Gravação**: temporário `~$docmanager-*` na mesma pasta → conferência (zip, openpyxl, e o validador: mesmas
+partes na mesma ordem, as não alteradas byte a byte, raiz e namespaces iguais, ordem das pendências, manuais
+intactas, Aconex = planejado, pandas lê) → assinatura do arquivo igual à da leitura → cópia em
+`Documentos\DocManager_Itaipu\backups` (20 por nome) → `os.replace`. O Doc List e o Mapa passaram a usar a
+mesma substituição (via `salvar_planilha`).
+
+**Não verificado** (defensivo e no log): o rótulo do status `ReadyToInspect`; a ordem entre blocos de duas
+organizações nos Comments e se o título usa `trading_name` ou `name`; o formato de `Listed In` com várias
+listas, de `Source` e dos campos `user` e `multi_select`; pré-visualização do Box ou do Excel Online com as
+tabelas dinâmicas desatualizadas até alguém abrir no Excel de mesa.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

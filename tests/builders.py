@@ -98,3 +98,171 @@ def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True,
         ws.append([lin.get(k, "") for k in chaves])
     wb.save(path)
     return path
+
+
+# --- Planilha de mapeamento de pendências (estrutura da real, dados fictícios) -----
+
+COLUNAS_PENDENCIAS = [
+    "Issue Number", "Issue Type", "Area", "Location Detail", "Issue Description",
+    "Captured On", "Captured by", "Status", "Departamento Responsável", "Responsável",
+    "Acompanhamento da Ação", "Respondida Aconex", "Due Date", "TAG RDS-PP",
+    "Clasificación de pendencia", "Documentos de referencia", "Fecha prevista para corrección",
+    "Cierre", "Área del Solicitante", "¿Pasó a comisionamiento?", "Área responsable SM.DT",
+    "Comments",
+]
+MANUAIS_PENDENCIAS = ("Departamento Responsável", "Responsável", "Acompanhamento da Ação",
+                      "Respondida Aconex")
+
+
+def linha_pendencia(numero, **valores) -> dict:
+    """Uma linha da planilha: os campos do Aconex com valores fictícios coerentes."""
+    base = {
+        "Issue Number": numero,
+        "Issue Type": "05. Pendencia de Comisionamiento",
+        "Area": "PROJETO EXEMPLO > GRUPO EXEMPLO",
+        "Location Detail": f"PAINEL-{numero}",
+        "Issue Description": f"Pendência fictícia {numero}",
+        "Captured On": "2026-10-01",
+        "Captured by": "FULANO DE TAL",
+        "Status": "Open",
+        "Due Date": "2026-11-05",
+        "TAG RDS-PP": f"#XX00=Z{numero:03d}: EQUIPAMENTO",
+        "Clasificación de pendencia": "No impeditiva",
+        "Área del Solicitante": "AREA X",
+        "¿Pasó a comisionamiento?": "Não",
+        "Área responsable SM.DT": "SM.DT X",
+    }
+    base.update(valores)
+    return base
+
+
+def escrever_planilha_pendencias(path, linhas: list[dict], *, com_destaque: bool = True,
+                                 fonte_azul: tuple = (), parte_extra: bool = True,
+                                 colunas: list[str] | None = None) -> None:
+    """Imita a "ACONEX - MAPEAMENTO PENDÊNCIAS.xlsx" (spec, seção 3).
+
+    Aba PENDÊNCIAS com a legenda na linha 2; Tabela tbRegistros a partir de A4
+    com as 22 colunas; linhas normais (H cinza, I-L em tom claro) e destacadas
+    (Impeditiva e não Closed: a linha inteira na cor da legenda); coluna M
+    oculta; painel congelado em C5; alturas personalizadas; uma segunda aba com
+    gráfico; e, depois de salvo, uma parte extra no zip para provar que o que o
+    app não conhece passa byte a byte.
+    """
+
+    import openpyxl
+    from openpyxl.chart import BarChart, Reference
+    from openpyxl.styles import Border, Font, PatternFill, Side
+    from openpyxl.worksheet.table import Table, TableStyleInfo
+
+    destaque = PatternFill("solid", fgColor="FFF4B183")
+    cinza = PatternFill("solid", fgColor="FFD9D9D9")
+    claro = PatternFill("solid", fgColor="FFDDEBF7")
+    borda = Border(bottom=Side(style="thin"))
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "PENDÊNCIAS"
+    ws["A2"].fill = destaque
+    ws["B2"] = 'IMPEDITIVAS SITUAÇÃO "OPEN"'
+    colunas = colunas or COLUNAS_PENDENCIAS
+    for i, nome in enumerate(colunas, 1):
+        ws.cell(4, i, nome)
+    for r, dados in enumerate(linhas, 5):
+        destacada = com_destaque and (dados.get("Clasificación de pendencia") == "Impeditiva"
+                                      and dados.get("Status") != "Closed")
+        for i, nome in enumerate(colunas, 1):
+            c = ws.cell(r, i, dados.get(nome))
+            c.border = borda
+            if destacada:
+                c.fill = destaque
+            elif nome == "Status":
+                c.fill = cinza
+            elif i in (9, 10, 11, 12):   # I-L, as manuais
+                c.fill = claro
+            if dados.get("Issue Number") in fonte_azul:
+                c.font = Font(color="FF0070C0")
+        ws.row_dimensions[r].height = 25.5 if r % 2 else 50.15
+    ultima = 4 + len(linhas)
+    tabela = Table(displayName="tbRegistros", ref=f"A4:{chr(64 + len(colunas))}{ultima}")
+    tabela.tableStyleInfo = TableStyleInfo(name="TableStyleLight1", showRowStripes=False)
+    ws.add_table(tabela)
+    ws.column_dimensions["M"].hidden = True
+    ws.freeze_panes = "C5"
+
+    graf = wb.create_sheet("GRÁFICO SITUAÇÃO")
+    graf.append(["Status", "Quantidade"])
+    graf.append(["Open", 3])
+    graf.append(["Closed", 1])
+    barra = BarChart()
+    barra.add_data(Reference(graf, min_col=2, min_row=1, max_row=3), titles_from_data=True)
+    graf.add_chart(barra, "D2")
+    wb.save(path)
+
+    _como_o_excel(path, parte_extra)
+
+
+def _como_o_excel(path, parte_extra: bool) -> None:
+    """Deixa o XML com o jeito do que o Excel grava e o openpyxl não: raiz com
+    `mc:Ignorable="x14ac"`, `<row s=.. customFormat="1" x14ac:dyDescent=..>` e a
+    coluna Issue Type em textos compartilhados (sharedStrings)."""
+    import re
+    import zipfile
+
+    with zipfile.ZipFile(path) as z:
+        partes = [(i, z.read(i)) for i in z.infolist()]
+    textos: list[str] = []
+
+    def compartilhar(m):
+        texto = m.group(2)
+        if texto not in textos:
+            textos.append(texto)
+        return f'{m.group(1)} t="s"><v>{textos.index(texto)}</v></c>'
+
+    def linha(m):
+        r = int(m.group(1))
+        if r < 5:
+            return m.group(0)
+        s_a = re.search(rf'<c r="A{r}" s="(\d+)"', m.string)
+        extra = f' s="{s_a.group(1)}" customFormat="1"' if s_a else ""
+        return m.group(0).replace(f'<row r="{r}"', f'<row r="{r}"{extra}', 1).replace(
+            ">", ' x14ac:dyDescent="0.35">', 1)
+
+    novas = []
+    for info, dados in partes:
+        if info.filename == "xl/worksheets/sheet1.xml":
+            x = dados.decode("utf-8")
+            x = x.replace(
+                '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+                '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+                'mc:Ignorable="x14ac" '
+                'xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac">', 1)
+            x = re.sub(r'<row r="(\d+)"[^>]*>', linha, x)
+            x = re.sub(r'(<c r="B(?:[5-9]|\d\d+)" s="\d+") t="inlineStr"><is><t>([^<]*)</t></is></c>',
+                       compartilhar, x)
+            dados = x.encode("utf-8")
+        elif info.filename == "[Content_Types].xml":
+            extra = (b'<Override PartName="/xl/sharedStrings.xml" ContentType="application/'
+                     b'vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>')
+            if parte_extra:
+                extra += b'<Override PartName="/customXml/item1.xml" ContentType="application/xml"/>'
+            dados = dados.replace(b"</Types>", extra + b"</Types>")
+        elif info.filename == "xl/_rels/workbook.xml.rels":
+            dados = dados.replace(
+                b"</Relationships>",
+                b'<Relationship Id="rIdSst" Target="sharedStrings.xml" Type="http://schemas.'
+                b'openxmlformats.org/officeDocument/2006/relationships/sharedStrings"/>'
+                b"</Relationships>")
+        novas.append((info, dados))
+    sst = "".join(f"<si><t>{t}</t></si>" for t in textos)
+    novas.append((zipfile.ZipInfo("xl/sharedStrings.xml"), (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        f'count="{len(textos)}" uniqueCount="{len(textos)}">{sst}</sst>').encode("utf-8")))
+    if parte_extra:
+        novas.append((zipfile.ZipInfo("customXml/item1.xml"),
+                      b'<?xml version="1.0"?><dados x="1">extra</dados>'))
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for info, dados in novas:
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, dados)

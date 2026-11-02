@@ -5,8 +5,16 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.7.0 - 2026-10-30
+## 3.6.2 - 2026-11-02
 
+- Módulo novo, Pendências: atualiza a planilha de mapeamento de pendências de comissionamento direto do Aconex (Campo → Questões). É só escolher a planilha: o DocManager busca as pendências e já grava. As novas entram no topo da tabela, em ordem decrescente; nas que já estão, as colunas do Aconex ficam em dia; as colunas preenchidas à mão nunca são tocadas. Impeditivas que não estão fechadas ficam com a cor da legenda, e perdem a cor quando fecham. Tabelas dinâmicas, gráficos, coluna oculta e formatação ficam como estavam: abra no Excel para eles se atualizarem.
+- Pendências: quando o Aconex não tem mais um valor que está na planilha, o app pergunta antes de apagar (apagar todas, manter todas ou ver caso a caso). O que você mantém não é perguntado de novo enquanto o valor for o mesmo.
+- Pendências: se a planilha tiver algo que não dá para deslocar com segurança (fórmula, células mescladas, validação, dado abaixo da tabela...), nada é gravado e a mensagem diz o que foi encontrado.
+- Doc List Mapping, Mapa dos Planos e Pendências passam a guardar uma cópia de segurança da planilha antes de salvar, em Documentos\DocManager_Itaipu\backups (as 20 mais recentes de cada arquivo). O arquivo novo é conferido antes de trocar o original: uma falha no meio nunca deixa a planilha pela metade.
+- Idioma: a interface sai em espanhol, português ou inglês, como na CMI Suite e no SIG-FT (Configurações → Aparência → Idioma). Na primeira abertura segue o idioma do Windows; trocar vale ao abrir o DocManager de novo. O registro de execução, as mensagens de erro e as colunas das planilhas continuam em português.
+- Letra grande: Configurações → Aparência → Letra aumenta todos os textos do app, na hora.
+- Ctrl+, abre as Configurações de qualquer tela, como na CMI Suite e no SIG-FT.
+- Sugestões do tipo Erro levam, se você deixar marcado, as últimas linhas do diário do app: quem recebe já vê o que aconteceu, sem precisar pedir o diario.log.
 - A engrenagem (Configurações) sai da barra lateral e vai para o alto, à direita, como na CMI Suite e no SIG-FT. "Procurar atualizações" passa a ficar só dentro dela (e no Ctrl+K, de qualquer tela).
 - As novidades ficam iguais às da CMI Suite: depois de atualizar, a tela inicial mostra uma vez o cartão "O que mudou na versão", que some no "Entendi". Na primeira instalação ele não aparece.
 - Sugestões: a lâmpada ao lado da engrenagem abre uma tela para mandar uma ideia, um erro ou uma dúvida sobre o DocManager. Ela abre um rascunho no seu programa de e-mail, com o tipo e a versão do app anotados; nada é enviado sem você clicar em Enviar. O e-mail que recebe fica em Configurações → Sugestões (vazio, o rascunho abre sem destinatário). Texto longo vai pela área de transferência: é só colar.

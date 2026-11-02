@@ -18,26 +18,30 @@ from .. import icones
 from ..components import botao, rotulo
 from ..logo import pixmap_do_logo
 from ..ponte import na_ui
+from ..idioma import marcar, t
 
 # (key da view, ícone, título, descrição) de cada bloco. A `key` casa com as
 # ViewSpec da MainApp: clicar no bloco navega para o módulo.
 MODULOS = [
-    ("mapa", "compass", "Mapa dos Planos", "Atualiza a planilha de mapeamento: status real, hierarquia, "
-     "KPIs e atrasos. Traz também o Delta (Máquina do Tempo) por Grupo/Nível."),
-    ("doclist", "list-checks", "Doc List Mapping", "Follow-up da lista de documentos (dois níveis, agrupamento "
-     "por escopo). Traz o planejamento do Controle e a Análise por Período: o que está previsto para emitir."),
-    ("status", "search", "Status Documentos", "Status real de uma lista, de um arquivo Excel ou de toda a "
-     "base vigente. Gera Excel com gráfico e abre o Delta por período (por classificação)."),
-    ("historico", "chart-column", "Histórico e Dashboard", "Planilha detalhada (1 linha por revisão + "
-     "atrasos Itaipu/CMI) e o painel executivo com evolução do atraso, First Time Right e gargalos."),
-    ("relatorios", "clipboard-list", "Relatórios", "Relatório de Avanço (prazos de devolução da Itaipu) e "
-     "Auditoria de Integração (documentos presos em 0AA)."),
-    ("transpasse", "calendar-range", "Transpasse de Fase", "Quadro dia a dia de cada grupo de equipamentos: "
-     "convocação, inspeção IB, CCMLC, transpasse e início do comissionamento, desenhado a partir das planilhas."),
-    ("aconex", "download", "Extração Aconex", "Baixa a base completa do projeto direto da API do Aconex. "
-     "Na primeira vez, cadastre as suas credenciais na própria tela."),
-    ("config", "settings", "Configurações", "Aparência, credenciais do Aconex, atualizações do app, Regra "
-     "da Aprovação Intermediária (VIP), a base do atraso CMI na 0A e o e-mail das sugestões."),
+    ("mapa", "compass", marcar("Mapa dos Planos"), marcar("Atualiza a planilha de mapeamento: status real, hierarquia, "
+     "KPIs e atrasos. Traz também o Delta (Máquina do Tempo) por Grupo/Nível.")),
+    ("doclist", "list-checks", marcar("Doc List Mapping"), marcar("Follow-up da lista de documentos (dois níveis, agrupamento "
+     "por escopo). Traz o planejamento do Controle e a Análise por Período: o que está previsto para emitir.")),
+    ("status", "search", marcar("Status Documentos"), marcar("Status real de uma lista, de um arquivo Excel ou de toda a "
+     "base vigente. Gera Excel com gráfico e abre o Delta por período (por classificação).")),
+    ("historico", "chart-column", marcar("Histórico e Dashboard"), marcar("Planilha detalhada (1 linha por revisão + "
+     "atrasos Itaipu/CMI) e o painel executivo com evolução do atraso, First Time Right e gargalos.")),
+    ("relatorios", "clipboard-list", marcar("Relatórios"), marcar("Relatório de Avanço (prazos de devolução da Itaipu) e "
+     "Auditoria de Integração (documentos presos em 0AA).")),
+    ("transpasse", "calendar-range", marcar("Transpasse de Fase"), marcar("Quadro dia a dia de cada grupo de equipamentos: "
+     "convocação, inspeção IB, CCMLC, transpasse e início do comissionamento, desenhado a partir das planilhas.")),
+    ("pendencias", "file-spreadsheet", marcar("Pendências"), marcar("Atualiza a planilha de mapeamento de pendências "
+     "de comissionamento direto do Aconex (Campo → Questões): as novas entram no topo e as colunas do Aconex ficam "
+     "em dia; as colunas preenchidas à mão não são tocadas.")),
+    ("aconex", "download", marcar("Extração Aconex"), marcar("Baixa a base completa do projeto direto da API do Aconex. "
+     "Na primeira vez, cadastre as suas credenciais na própria tela.")),
+    ("config", "settings", marcar("Configurações"), marcar("Aparência, credenciais do Aconex, atualizações do app, Regra "
+     "da Aprovação Intermediária (VIP), a base do atraso CMI na 0A e o e-mail das sugestões.")),
 ]
 
 
@@ -55,14 +59,14 @@ class _BlocoModulo(QFrame):
         lay.setSpacing(6)
         ic = QLabel()
         icones.aplicar(ic, icone, papel_cor="primaria", tamanho=20)
-        titulo = rotulo(nome, "secao")
+        titulo = rotulo(t(nome), "secao")
         titulo.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         topo = QHBoxLayout()
         topo.setSpacing(10)
         topo.addWidget(ic)
         topo.addWidget(titulo, 1)
         lay.addLayout(topo)
-        texto = rotulo(desc, "suave", quebra=True)
+        texto = rotulo(t(desc), "suave", quebra=True)
         texto.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         lay.addWidget(texto)
         lay.addStretch(1)
@@ -74,7 +78,7 @@ class _BlocoModulo(QFrame):
 
 
 class HomeView(QWidget):
-    titulo_view = "Início"
+    titulo_view = marcar("Início")
 
     def __init__(self, ctx, parent=None):
         super().__init__(parent)
@@ -113,9 +117,9 @@ class HomeView(QWidget):
             lay.addWidget(logo, 0, Qt.AlignmentFlag.AlignTop)
         texto = QVBoxLayout()
         texto.setSpacing(4)
-        texto.addWidget(rotulo("DocManager Itaipu", "titulo"))
-        texto.addWidget(rotulo(f"Gestão documental · CMI ↔ Itaipu · v{self.ctx.versao}", "suave"))
-        texto.addWidget(rotulo("Clique em um módulo abaixo (ou use a barra lateral) para começar.",
+        texto.addWidget(rotulo(t("DocManager Itaipu"), "titulo"))
+        texto.addWidget(rotulo(t('Gestão documental · CMI ↔ Itaipu · v{versao}', versao=self.ctx.versao), "suave"))
+        texto.addWidget(rotulo(t("Clique em um módulo abaixo (ou use a barra lateral) para começar."),
                                "suave", quebra=True))
         lay.addLayout(texto, 1)
         self._body.addWidget(card)
@@ -133,15 +137,14 @@ class HomeView(QWidget):
         self._faixa_txt = rotulo("", quebra=True)
         lay.addWidget(ic)
         lay.addWidget(self._faixa_txt, 1)
-        lay.addWidget(botao("Ver e atualizar", variante="primario", icone="download",
+        lay.addWidget(botao(t("Ver e atualizar"), variante="primario", icone="download",
                             ao_clicar=lambda: self.ctx.abrir_atualizacao and self.ctx.abrir_atualizacao()))
         self._faixa.hide()
         self._body.addWidget(self._faixa)
 
     def _mostrar_aviso(self, info):
         try:
-            self._faixa_txt.setText(f"Saiu a versão v{info.versao}. Você está na v{self.ctx.versao}. "
-                                    f"Clique para ver o que mudou e atualizar.")
+            self._faixa_txt.setText(t('Saiu a versão v{versao}. Você está na v{versao2}. Clique para ver o que mudou e atualizar.', versao=info.versao, versao2=self.ctx.versao))
             self._faixa.show()
         except RuntimeError:   # a tela pode já ter sido destruída
             pass
@@ -150,7 +153,7 @@ class HomeView(QWidget):
         return not self._faixa.isHidden()
 
     def _modulos(self):
-        self._body.addWidget(rotulo("Módulos", "secao"))
+        self._body.addWidget(rotulo(t("Módulos"), "secao"))
         grade = QGridLayout()
         grade.setHorizontalSpacing(12)
         grade.setVerticalSpacing(12)
@@ -185,11 +188,11 @@ class HomeView(QWidget):
         ic = QLabel()
         icones.aplicar(ic, "sparkles", papel_cor="primaria", tamanho=18)
         topo.addWidget(ic)
-        topo.addWidget(rotulo(f"O que mudou na v{self.ctx.versao}", nome="novidades_titulo"), 1)
+        topo.addWidget(rotulo(t('O que mudou na v{versao}', versao=self.ctx.versao), nome="novidades_titulo"), 1)
         lay.addLayout(topo)
         for it in bloco.itens:
-            lay.addWidget(rotulo(f"•  {it}", quebra=True))
-        self.btn_entendi = botao("Entendi", variante="primario", ao_clicar=self._leu_novidades)
+            lay.addWidget(rotulo(f"•  {it}", quebra=True))   # o CHANGELOG é em português
+        self.btn_entendi = botao(t("Entendi"), variante="primario", ao_clicar=self._leu_novidades)
         rod = QHBoxLayout()
         rod.addStretch(1)
         rod.addWidget(self.btn_entendi)

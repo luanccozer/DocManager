@@ -73,6 +73,16 @@ def remover_acentos(texto) -> str:
     return "".join(c for c in nfkd if not unicodedata.combining(c))
 
 
+def normalizar_cabecalho(v) -> str:
+    """Cabeçalho comparável: sem acento, MAIÚSCULAS, espaços colapsados.
+
+    O colapso cobre as quebras de linha que o Excel esconde dentro da célula -
+    a mesma armadilha que escondia as colunas do Controle de Documentos.
+    """
+    s = remover_acentos(str(v)).replace("\xa0", " ")
+    return re.sub(r"\s+", " ", s).strip().upper()
+
+
 # Serial de data do Excel: 20000 ≈ 1954, 60000 ≈ 2064. Fora dessa janela o
 # número não é data (é código, quantidade, etc.).
 _SERIAL_MIN, _SERIAL_MAX = 20000, 60000

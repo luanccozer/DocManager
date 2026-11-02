@@ -68,6 +68,27 @@ def aplicar(app, escolha: str, config=None) -> str:
     return escolha
 
 
+def aplicar_letra(app, letra: str, config=None) -> str:
+    """Troca a letra do app inteiro ("normal" ou "grande"; inválida: normal),
+    na hora, e devolve a que valeu. Com `config`, grava a escolha."""
+    from PySide6.QtWidgets import QApplication
+
+    letra = letra if letra in estilo.LETRAS else "normal"
+    if config is not None:
+        try:
+            config.set_setting("letra", letra)
+        except Exception:  # noqa: BLE001 - lembrar não pode impedir a troca
+            pass
+    estilo.LETRA_ATUAL = letra
+    fonte = QApplication.font()
+    fonte.setPixelSize(estilo.fontes()["corpo"])
+    QApplication.setFont(fonte)
+    app.setStyleSheet(estilo.folha_de_estilo())
+    for janela in app.topLevelWidgets():
+        janela.update()
+    return letra
+
+
 def _preparar_imagens() -> None:
     """A seta dos seletores e o tique da caixa de marcar, na cor do tema: a folha
     só os aceita como arquivo de imagem."""
