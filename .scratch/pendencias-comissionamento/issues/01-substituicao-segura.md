@@ -12,7 +12,7 @@ openpyxl abre, `validar`) → assinatura do arquivo inalterada → backup em
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Os testes atuais de `tests/test_gravacao.py` continuam passando sem mudar o que verificam
 - [ ] Falha no meio da escrita: original byte a byte igual e nenhum `~$docmanager-*` sobrando
