@@ -90,9 +90,9 @@ def test_linhas_novas_no_topo_e_existentes_renumeradas(planilha, tmp_path):
     assert ws["B2"].value == 'IMPEDITIVAS SITUAÇÃO "OPEN"'      # acima do corpo: intacto
     assert ws.tables["tbRegistros"].ref == "A4:V9"
     aba = dict(_partes(destino))[p.aba_parte].decode()
-    assert '<dimension ref="A2:V9"/>' in aba
+    assert re.search(r'<dimension ref="A2:V9"\s*/>', aba)
     tabela = dict(_partes(destino))[p.tabela.parte].decode()
-    assert 'ref="A4:V9"' in tabela and '<autoFilter ref="A4:V9"/>' in tabela
+    assert 'ref="A4:V9"' in tabela and re.search(r'<autoFilter ref="A4:V9"\s*/>', tabela)
 
 
 def test_partes_nao_alteradas_saem_byte_a_byte_e_na_mesma_ordem(planilha, tmp_path):
