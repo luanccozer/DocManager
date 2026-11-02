@@ -307,3 +307,18 @@ def test_recusa_na_troca_pergunta_e_ao_resolver_troca(tmp_path, monkeypatch):
     assert openpyxl.load_workbook(caminho).active["A1"].value == "novo"
     assert _restos(tmp_path) == []
     assert len(list(gravacao.pasta_backups().iterdir())) == 1   # um backup só, mesmo com 4 tentativas
+
+
+def test_backup_recusado_pelo_windows_tenta_de_novo_e_pergunta(tmp_path, monkeypatch):
+    """Programa com a planilha aberta sem deixar ler (WinError 32): a cópia de
+    segurança falha como a troca falharia - o app tenta de novo e diz quem está com ela."""
+    caminho = _planilha(tmp_path)
+    _sem_motivo_conhecido(monkeypatch)
+    monkeypatch.setattr(gravacao, "_programas_com_o_arquivo", lambda c: ["Microsoft Excel"])
+    monkeypatch.setattr("shutil.copy2", _recusa)
+    perguntas = []
+    msg = gravacao.substituir_com_seguranca(caminho, _escrever_planilha("novo"), espera_s=0,
+                                            retry_cb=lambda m: perguntas.append(m) or False)
+    assert len(perguntas) == 1 and "Microsoft Excel" in perguntas[0]
+    assert "Microsoft Excel" in msg
+    assert _restos(tmp_path) == []

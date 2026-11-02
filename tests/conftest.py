@@ -35,3 +35,17 @@ def lixo_do_qt_coletado_na_thread_da_interface(request):
     yield
     if "qtbot" in request.fixturenames:
         gc.collect()
+
+
+@pytest.fixture(autouse=True)
+def interface_em_portugues(request, monkeypatch):
+    """Os testes conferem os textos em português, a língua de origem. Sem isto, a
+    tela seguiria o idioma do Windows de quem roda - e o runner do Release, em
+    inglês, reprovava os testes de tela (3.6.5-rc.1)."""
+    from docmanager.ui import idioma
+
+    idioma.definir("pt")
+    if "qtbot" in request.fixturenames:
+        monkeypatch.setattr("docmanager.ui.main_app._idiomas_do_windows", lambda: ["pt-BR"])
+    yield
+    idioma.definir("pt")

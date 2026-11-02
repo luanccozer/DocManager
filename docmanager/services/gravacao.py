@@ -172,6 +172,10 @@ def _guardar_backup(caminho: Path, log) -> Path:
             destino = pasta / f"{caminho.stem}__{carimbo}-{n}{caminho.suffix}"
             n += 1
         shutil.copy2(caminho, destino)
+    except PermissionError:
+        # Outro programa com a planilha aberta sem deixar ler (WinError 32): é o
+        # mesmo caso da troca recusada - tentar de novo e dizer quem está com ela.
+        raise
     except OSError as e:
         raise _Abortar(f"não foi possível guardar a cópia de segurança ({e}); "
                        "a planilha ficou como estava.") from e
