@@ -542,13 +542,20 @@ def recusas(pasta: Pasta, coluna_chave: str) -> list[str]:
 _CONTROLE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
 
 
-def texto_para_celula(texto: str, avisar=None) -> str:
-    """Escapa, tira o que o XML proíbe e corta no limite do Excel."""
+def limpar_texto(texto: str, avisar=None) -> str:
+    """O texto como ele vai ficar na célula: sem o que o XML proíbe e cortado no
+    limite do Excel. Quem compara com o que está gravado compara com ISTO."""
     texto = _CONTROLE.sub("", str(texto))
     if len(texto) > LIMITE_TEXTO:
         texto = texto[:LIMITE_TEXTO - len(MARCA_CORTE)] + MARCA_CORTE
         if avisar:
             avisar("Um texto passou do limite de 32.767 caracteres do Excel e foi cortado.")
+    return texto
+
+
+def texto_para_celula(texto: str, avisar=None) -> str:
+    """Limpa (`limpar_texto`) e escapa para dentro do XML."""
+    texto = limpar_texto(texto, avisar)
     return texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 

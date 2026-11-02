@@ -137,7 +137,8 @@ def linha_pendencia(numero, **valores) -> dict:
 
 
 def escrever_planilha_pendencias(path, linhas: list[dict], *, com_destaque: bool = True,
-                                 fonte_azul: tuple = (), parte_extra: bool = True) -> None:
+                                 fonte_azul: tuple = (), parte_extra: bool = True,
+                                 colunas: list[str] | None = None) -> None:
     """Imita a "ACONEX - MAPEAMENTO PENDÊNCIAS.xlsx" (spec, seção 3).
 
     Aba PENDÊNCIAS com a legenda na linha 2; Tabela tbRegistros a partir de A4
@@ -163,25 +164,26 @@ def escrever_planilha_pendencias(path, linhas: list[dict], *, com_destaque: bool
     ws.title = "PENDÊNCIAS"
     ws["A2"].fill = destaque
     ws["B2"] = 'IMPEDITIVAS SITUAÇÃO "OPEN"'
-    for i, nome in enumerate(COLUNAS_PENDENCIAS, 1):
+    colunas = colunas or COLUNAS_PENDENCIAS
+    for i, nome in enumerate(colunas, 1):
         ws.cell(4, i, nome)
     for r, dados in enumerate(linhas, 5):
         destacada = com_destaque and (dados.get("Clasificación de pendencia") == "Impeditiva"
                                       and dados.get("Status") != "Closed")
-        for i, nome in enumerate(COLUNAS_PENDENCIAS, 1):
+        for i, nome in enumerate(colunas, 1):
             c = ws.cell(r, i, dados.get(nome))
             c.border = borda
             if destacada:
                 c.fill = destaque
             elif nome == "Status":
                 c.fill = cinza
-            elif nome in MANUAIS_PENDENCIAS:
+            elif i in (9, 10, 11, 12):   # I-L, as manuais
                 c.fill = claro
             if dados.get("Issue Number") in fonte_azul:
                 c.font = Font(color="FF0070C0")
         ws.row_dimensions[r].height = 25.5 if r % 2 else 50.15
     ultima = 4 + len(linhas)
-    tabela = Table(displayName="tbRegistros", ref=f"A4:V{ultima}")
+    tabela = Table(displayName="tbRegistros", ref=f"A4:{chr(64 + len(colunas))}{ultima}")
     tabela.tableStyleInfo = TableStyleInfo(name="TableStyleLight1", showRowStripes=False)
     ws.add_table(tabela)
     ws.column_dimensions["M"].hidden = True

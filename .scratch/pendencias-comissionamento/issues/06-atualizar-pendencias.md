@@ -10,7 +10,7 @@ com o validador da seção 13. Sem pergunta final: grava direto e devolve o resu
 
 **Blocked by:** 01, 03, 04, 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Fixture 128 pendências + API simulada com 147: 19 novas no topo, decrescentes
 - [ ] Colunas manuais intactas (valor e estilo) em todas as existentes
