@@ -6,7 +6,7 @@ usá-la no `DocListSheet` e no módulo de pendências. Comportamento do Doc List
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Uma função só no repositório (nenhuma cópia em outro módulo)
 - [ ] `tests/test_doclist.py` verde sem alteração de expectativa

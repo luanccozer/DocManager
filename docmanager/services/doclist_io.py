@@ -20,7 +20,7 @@ from ..core.doclist import (
     COLUNAS_DOCLIST,
     LinhaDocList,
 )
-from ..core.normalize import remover_acentos
+from ..core.normalize import normalizar_cabecalho
 from .excel_io import (
     FORMATO_DATA,
     celula_para_date,
@@ -28,17 +28,6 @@ from .excel_io import (
     gravar_data_ou_texto,
     normalizar_celula_data,
 )
-
-
-def _norm_cabecalho(v) -> str:
-    """Cabeçalho comparável: sem acento, MAIÚSCULAS, espaços colapsados.
-
-    O colapso cobre as quebras de linha que o Excel esconde dentro da célula -
-    a mesma armadilha que escondia as colunas do Controle de Documentos.
-    """
-    import re
-    s = remover_acentos(str(v)).replace("\xa0", " ")
-    return re.sub(r"\s+", " ", s).strip().upper()
 
 
 # Leitura de célula de data: implementação única, compartilhada com o Mapa.
@@ -71,12 +60,12 @@ class DocListSheet:
     # ------------------------------------------------------------------
     @staticmethod
     def _find_headers(ws):
-        alvo = _norm_cabecalho(ANCORA_DOCLIST)
+        alvo = normalizar_cabecalho(ANCORA_DOCLIST)
         for r in range(1, 11):
             headers = {}
             for cell in ws[r]:
                 if cell.value is not None and str(cell.value).strip():
-                    headers[_norm_cabecalho(cell.value)] = cell.column
+                    headers[normalizar_cabecalho(cell.value)] = cell.column
             if alvo in headers:
                 return headers, r
         return {}, 0
@@ -87,7 +76,7 @@ class DocListSheet:
         for chave, titulo in COLUNAS_DOCLIST.items():
             nomes = (titulo, *CABECALHOS_LEGADOS.get(chave, ()))
             for nome in nomes:
-                col = self.headers.get(_norm_cabecalho(nome))
+                col = self.headers.get(normalizar_cabecalho(nome))
                 if col:
                     mapa[chave] = col
                     break
@@ -168,8 +157,8 @@ class DocListSheet:
         for chave, (modelos, formato, largura) in novas.items():
             if chave in self._col_por_chave:
                 continue
-            col_modelo = next((self.headers[_norm_cabecalho(m)] for m in modelos
-                               if _norm_cabecalho(m) in self.headers), None)
+            col_modelo = next((self.headers[normalizar_cabecalho(m)] for m in modelos
+                               if normalizar_cabecalho(m) in self.headers), None)
             alvo = self.ws.cell(self.row_header, destino)
             alvo.value = COLUNAS_DOCLIST[chave]
             if col_modelo:
@@ -202,7 +191,7 @@ class DocListSheet:
                 continue
             cell = self.ws.cell(row=self.row_header, column=col)
             atual = str(cell.value or "").strip()
-            if _norm_cabecalho(atual) != _norm_cabecalho(titulo):
+            if normalizar_cabecalho(atual) != normalizar_cabecalho(titulo):
                 cell.value = titulo
                 trocas.append((atual, titulo))
         if trocas:
