@@ -14,8 +14,8 @@ dos passos 9 a 11.
   - **OTD** conta pela data prevista, a baseline.
   - **SAY-DO** mostra só o backlog, pela data reprogramada.
   - O painel abre na ATUAL.
-- Um cartão que acompanha os botões, no formato **índice · emitidos/previstos**
-  (por exemplo, "59,3% · 29/59"). Ele segue o filtro PERÍODO e os filtros do topo
+- Um cartão que acompanha os botões: o índice em destaque (por exemplo, "59,3%") e, no
+  título, emitidos/previstos ("29/59"). Ele segue o filtro PERÍODO e os filtros do topo
   (sistema, fase, responsável).
 - **Página 1**: a curva S pega os documentos com data-alvo no período e mostra, dia a dia,
   quantos estavam previstos e quantos deles foram emitidos de fato.
@@ -236,12 +236,12 @@ Say-do = DIVIDE([Backlog] - [Backlog atrasado], [Backlog])
 No painel Dados, clique em **Baseline OTD**. Na faixa **Ferramentas de medida**, clique
 no botão **%** e deixe **1** casa decimal. Faça o mesmo em **Say-do**.
 
-**Confira:** são 8 medidas novas em Calendario (o passo 9 cria mais uma), e nenhuma tem o
+**Confira:** são 8 medidas novas em Calendario (o passo 9 cria mais duas), e nenhuma tem o
 triângulo amarelo de erro.
 
 > Montou o painel por uma versão anterior deste roteiro? As medidas
-> `Baseline OTD (cartão)`, `Baseline OTD (título)`, `Say-do (cartão)`, `Say-do (título)` e
-> `Indicador (título)` não são mais usadas. Podem ficar; para limpar, clique com o botão
+> `Baseline OTD (cartão)`, `Baseline OTD (título)`, `Say-do (cartão)` e `Say-do (título)`
+> não são mais usadas. Podem ficar; para limpar, clique com o botão
 > direito em cada uma → **Excluir do modelo**, depois de fazer o passo 9.
 
 ---
@@ -345,21 +345,22 @@ PERÍODO continua agindo só no gráfico, no cartão do nível 3 e nos cartões 
 
 ## Passo 9: um cartão que acompanha os botões
 
-Um cartão só, sem título, no formato **índice · emitidos/previstos** (decisão do usuário,
-2026-11-02). Os três botões usam a mesma regra, cada um contra a sua data:
+Um cartão só: o **índice** no número e **emitidos/previstos** no título (decisão do
+usuário, 2026-11-02). Os três botões usam a mesma regra, cada um contra a sua data:
 
-| Botão | Previstos (o "/N") | Índice (o %) | Outubro, planilha de 28/10 |
+| Botão | Previstos (o "/N" do título) | Índice (o número) | Outubro, planilha de 28/10 |
 |---|---|---|---|
-| ATUAL | data-alvo no período | o que não está atrasado ÷ previstos | 77,1% · 28/48 |
-| OTD | data prevista no período | Baseline OTD | 59,3% · 29/59 |
-| SAY-DO | backlog com data reprogramada no período | Say-do | 100,0% · 0/5 |
+| ATUAL | data-alvo no período | o que não está atrasado ÷ previstos | 77,1%, título 28/48 |
+| OTD | data prevista no período | Baseline OTD | 59,3%, título 29/59 |
+| SAY-DO | backlog com data reprogramada no período | Say-do | 100,0%, título 0/5 |
 
 "Não está atrasado" = emitido no prazo ou pendente que ainda não venceu. Por isso o índice
 pode ser maior que emitidos/previstos: no SAY-DO de outubro, nenhum dos 5 saiu (0/5), mas
 nenhum venceu ainda (100%).
 
-1. Crie a medida, como no passo 5 (botão direito em **Calendario → Nova medida**). Se ela
-   já existe, clique nela, selecione tudo (**Ctrl+A**), cole por cima e tecle **Enter**:
+1. Crie as duas medidas, como no passo 5 (botão direito em **Calendario → Nova medida**).
+   Se a medida já existe, clique nela, selecione tudo (**Ctrl+A**), cole por cima e tecle
+   **Enter**:
 
 ```dax
 Indicador (cartão) =
@@ -367,16 +368,18 @@ VAR previstos = CALCULATE([Documentos (visão)], 'Unidade Geradora'[NÍVEL] = 2)
 VAR atrasados =
     CALCULATE([Documentos (visão)], 'Unidade Geradora'[NÍVEL] = 2,
               Situacoes[Situacao] IN {"EMITIDO COM ATRASO", "PENDENTE VENCIDO"})
+RETURN
+IF(ISBLANK(previstos), "—", FORMAT(DIVIDE(previstos - atrasados, previstos), "0.0%"))
+```
+
+```dax
+Indicador (título) =
+VAR previstos = CALCULATE([Documentos (visão)], 'Unidade Geradora'[NÍVEL] = 2)
 VAR emitidos =
     CALCULATE([Documentos (visão)], 'Unidade Geradora'[NÍVEL] = 2,
               Situacoes[Situacao] IN {"EMITIDO NO PRAZO", "EMITIDO COM ATRASO"})
 RETURN
-IF(
-    ISBLANK(previstos),
-    "—",
-    FORMAT(DIVIDE(previstos - atrasados, previstos), "0.0%")
-        & " · " & COALESCE(emitidos, 0) & "/" & previstos
-)
+COALESCE(emitidos, 0) & "/" & COALESCE(previstos, 0)
 ```
 
 2. Se ainda não tem o cartão, copie um que já existe, para herdar o estilo (número
@@ -384,12 +387,14 @@ IF(
    da página, ao lado do logo da CMI, e tecle **Ctrl+C** e **Ctrl+V**. Com a cópia
    selecionada, em **Criar visual → Campos**, tire o campo que está lá e arraste
    **Indicador (cartão)**.
-3. Em **Formatar visual → Geral → Título**, **desligue** o título.
-4. O texto é mais comprido que um número só. Em **Geral → Propriedades**, use Largura
-   **168** (Altura 60 basta) e, na parte do número em **Formatar visual → Visual**, fonte
-   **15**. Se ainda cortar, diminua a fonte.
-   - No canto de cima do gráfico, onde fica o cartão, isso pede estreitar os botões, sem
-     mudar a posição deles: botões com Largura **195**; cartão em Horizontal **1112**.
+3. Em **Formatar visual → Geral → Título**:
+   - ligue o título;
+   - em **Texto**, clique no **fx**, escolha **Valor do campo → Indicador (título)** e
+     clique **OK**;
+   - fonte 11, negrito, centralizado, na cor azul-marinho do número.
+4. Tamanho: o número volta a ser curto ("59,3%"), então o cartão do tamanho original
+   (Largura 106, fonte 19) basta, e os botões não precisam ser estreitados. Se o texto
+   cortar, aumente a largura do cartão ou diminua a fonte.
 5. Interações: o cartão **tem** de ouvir os botões ATUAL | OTD | SAY-DO e o PERÍODO.
    1. Selecione a segmentação dos botões.
    2. Na faixa **Formato**, clique em **Editar interações**.
@@ -533,7 +538,7 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | `Título (visão)` | O título do gráfico em cada visão. |
 | `OTD previstos`, `OTD atrasados`, `Baseline OTD` | (previstos no período − atrasados) ÷ previstos, no nível 2. O que não venceu conta como cumprido. |
 | `Backlog`, `Backlog atrasado`, `Say-do` | A mesma conta sobre o backlog, pela data reprogramada. |
-| `Indicador (cartão)` | O cartão único: índice da visão escolhida (o que não está atrasado ÷ previstos) e emitidos/previstos. |
+| `Indicador (cartão)`, `Indicador (título)` | O cartão único: o índice da visão escolhida (o que não está atrasado ÷ previstos) no número e emitidos/previstos no título. |
 | `Previstos Acum`, `Emitidos Acum` | A curva S do período pela data-alvo: os documentos previstos até o dia e, desses, os que já foram emitidos (em qualquer data). |
 
 As situações são gravadas pelo DocManager (KB §27.5 e §27.7). O Power BI só conta.

@@ -1163,9 +1163,9 @@ pendentes vencidos contra a DATA PREVISTA (o painel atual, contra a DATA-ALVO, m
 criação das colunas). O roteiro de cliques do Power BI (ticket 06 de `.scratch/otd-say-do/`)
 está em `docs/power_bi_otd_say_do.md`: um gráfico só, com as tabelas soltas `Visoes`
 (segmentação em blocos ATUAL | OTD | SAY-DO) e `Situacoes` (legenda), medidas com
-`USERELATIONSHIP` para a DATA PREVISTA e a DATA REPROGRAMADA, e um cartão único que segue o botão, sem título, no formato "índice · emitidos/previstos"
+`USERELATIONSHIP` para a DATA PREVISTA e a DATA REPROGRAMADA, e um cartão único que segue o botão: o índice no número e emitidos/previstos no título
 (o índice é o que não está atrasado ÷ previstos, contra a data de cada visão; ex.: SAY-DO
-"100,0% · 0/5" = nenhum venceu, nenhum saiu). Curva S (decisão do usuário, 2026-11-02, depois
+100,0% com 0/5 = nenhum venceu, nenhum saiu). Curva S (decisão do usuário, 2026-11-02, depois
 de duas versões descartadas - acumular desde o início, e coorte pela DATA PREVISTA contando
 pela data da emissão): coorte pela **DATA-ALVO** no período; previstos = data-alvo até o dia
 (medida original, intocada); emitidos = desses, os que têm 1ª emissão em qualquer data
