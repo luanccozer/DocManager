@@ -284,12 +284,45 @@ def test_sem_comentarios_nao_chama_conversas(monkeypatch, sem_espera):
     assert not [c for c in sessao.chamadas if "conversations" in c[0]]
 
 
-def test_pausa_entre_chamadas(monkeypatch):
-    pausas = []
-    monkeypatch.setattr("time.sleep", pausas.append)
-    _plugar(monkeypatch, _SessaoField(_questoes(1)))
-    fb.extrair_questoes(CONFIG, log_cb=lambda _m: None, com_comentarios=False)
-    assert pausas and set(pausas) == {fb.PAUSA_ENTRE_CHAMADAS_S}
+def test_cota_respeitada_mesmo_com_conversas_em_paralelo(monkeypatch):
+    """As conversas vão em paralelo (era ~85 s uma a uma), mas o início das chamadas
+    continua espaçado pela pausa (a cota de chamadas por segundo é da organização)
+    e nunca há mais que CONVERSAS_EM_PARALELO no ar."""
+    import threading
+    import time as tempo
+
+    monkeypatch.setattr(fb, "PAUSA_ENTRE_CHAMADAS_S", 0.02)
+    inicios, no_ar, pico = [], [0], [0]
+    trava = threading.Lock()
+    base = _SessaoField(_questoes(20))
+    original = base.get
+
+    def get(url, **kw):
+        with trava:
+            inicios.append(tempo.monotonic())
+            no_ar[0] += 1
+            pico[0] = max(pico[0], no_ar[0])
+        tempo.sleep(0.06)            # a latência da rede
+        try:
+            return original(url, **kw)
+        finally:
+            with trava:
+                no_ar[0] -= 1
+
+    base.get = get
+    _plugar(monkeypatch, base)
+    r = fb.extrair_questoes(CONFIG, log_cb=lambda _m: None)
+    assert len(r.comentarios_por_issue) == 20
+    intervalos = [b - a for a, b in zip(sorted(inicios), sorted(inicios)[1:])]
+    assert min(intervalos) >= 0.018
+    assert 1 < pico[0] <= fb.CONVERSAS_EM_PARALELO
+
+
+def test_falha_numa_conversa_cancela_e_levanta(monkeypatch, sem_espera):
+    sessao = _SessaoField(_questoes(10), falhas={"issues/id-5/conversations/all": [503] * 20})
+    _plugar(monkeypatch, sessao)
+    with pytest.raises(fb.ErroField, match="503"):
+        fb.extrair_questoes(CONFIG, log_cb=lambda _m: None)
 
 
 def test_401_renova_o_token(monkeypatch, sem_espera):

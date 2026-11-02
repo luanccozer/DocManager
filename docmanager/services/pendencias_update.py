@@ -76,10 +76,25 @@ class ResultadoPendencias:
 
 
 class _Recusa(Exception):
-    pass
+    def __init__(self, motivo: str, *, ja_no_log: bool = False):
+        super().__init__(motivo)
+        self.ja_no_log = ja_no_log
 
 
 # --- Comparação ----------------------------------------------------------------------
+
+def _numero(v) -> int | None:
+    """O Issue Number como inteiro, esteja a célula como número (131 ou 131.0) ou
+    como texto ("131") - a planilha real tem dos dois jeitos."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, float) and v.is_integer():
+        return int(v)
+    if isinstance(v, int):
+        return v
+    texto = str(v).strip()
+    return int(texto) if texto.isdigit() else None
+
 
 def _texto(v) -> str:
     """O valor como texto comparável: vazio = None, espaços colapsados, data = AAAA-MM-DD."""
@@ -189,7 +204,8 @@ def atualizar_pendencias(config, caminho, *, log_cb=print, progress_cb=None, ret
     try:
         return _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb)
     except _Recusa as e:
-        log(f"Nada foi gravado: {e}")
+        if not e.ja_no_log:
+            log(f"Nada foi gravado: {e}")
         return ResultadoPendencias(False, f"A planilha não foi alterada.\n{e}")
 
 
@@ -256,7 +272,7 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
         log(f"Campos do Aconex sem coluna na planilha (ignorados): {', '.join(sorted(sem_coluna))}.")
 
     corpo = pasta.corpo()
-    planilha = {int(x.celulas[col_chave].valor): x for x in corpo}
+    planilha = {_numero(x.celulas[col_chave].valor): x for x in corpo}
     novas = sorted(set(api) - set(planilha), reverse=True)
     so_na_planilha = sorted(set(planilha) - set(api), reverse=True)
     r = ResultadoPendencias(True, "", novas=novas, so_na_planilha=so_na_planilha)
@@ -387,7 +403,7 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
         validar=lambda tmp: validar(tmp, pasta, alteradas, esperado),
         assinatura=assinatura, retry_cb=retry_cb, log_cb=log, info=info)
     if erro is not None:
-        raise _Recusa(erro)
+        raise _Recusa(erro, ja_no_log=True)   # a substituição segura já o escreveu
     _gravar_mantidas(manter_e_lembrar)
     r.gravou = True
     r.backup = str(info.get("backup") or "")
@@ -487,10 +503,16 @@ def validar(tmp, pasta: xc.Pasta, alteradas: dict[str, bytes], esp: _Esperado) -
         if linha.r < tb.primeira and (nova.linha(linha.r) is None or nova.linha(linha.r).xml != linha.xml):
             problemas.append(f"a linha {linha.r}, acima da tabela, mudou")
     col_chave = tb.coluna(CHAVE)
-    ordem_antiga = [int(x.celulas[col_chave].valor) for x in pasta.corpo()]
-    ordem_nova = [x.celulas[col_chave].valor if col_chave in x.celulas else None for x in nova.corpo()]
-    if ordem_nova != esp.novas + ordem_antiga:
-        problemas.append("a ordem das pendências não é a planejada")
+    ordem_antiga = [_numero(x.celulas[col_chave].valor) for x in pasta.corpo()]
+    ordem_nova = [_numero(x.celulas[col_chave].valor) if col_chave in x.celulas else None
+                  for x in nova.corpo()]
+    planejada = esp.novas + ordem_antiga
+    if ordem_nova != planejada:
+        i = next((i for i, (a, b) in enumerate(zip(ordem_nova, planejada)) if a != b),
+                 min(len(ordem_nova), len(planejada)))
+        problemas.append(f"a ordem das pendências não é a planejada (linha {tb.primeira + i}: "
+                         f"{ordem_nova[i] if i < len(ordem_nova) else 'nada'} no lugar de "
+                         f"{planejada[i] if i < len(planejada) else 'nada'})")
         return problemas
     for i, plano in enumerate(esp.edicao.novas):
         linha = nova.linha(tb.primeira + i)

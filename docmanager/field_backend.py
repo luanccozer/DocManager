@@ -23,6 +23,7 @@ grava nada.
 """
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -31,7 +32,8 @@ from . import aconex_backend as ab
 
 ACCEPT_FIELD = "application/json"
 PAGE_SIZE_QUESTOES = 200
-PAUSA_ENTRE_CHAMADAS_S = 0.25
+PAUSA_ENTRE_CHAMADAS_S = 0.25      # no máximo 4 chamadas por segundo, somando todas
+CONVERSAS_EM_PARALELO = 4          # a cota é 10 simultâneas por organização
 
 
 class ErroField(RuntimeError):
@@ -59,11 +61,22 @@ class _Cliente:
         self.headers = {"Authorization": f"Bearer {token}", "Accept": ACCEPT_FIELD,
                         "Accept-Encoding": "gzip, deflate"}
         self.chamadas = 0
+        self._trava = threading.Lock()
+        self._proxima = 0.0
+
+    def _esperar_a_vez(self) -> None:
+        """Espaça o INÍCIO das chamadas em `PAUSA_ENTRE_CHAMADAS_S`, venham de uma
+        thread ou de várias: é o que mantém a cota de chamadas por segundo."""
+        with self._trava:
+            agora = time.monotonic()
+            espera = self._proxima - agora
+            self._proxima = max(agora, self._proxima) + PAUSA_ENTRE_CHAMADAS_S
+            self.chamadas += 1
+        if espera > 0:
+            time.sleep(espera)
 
     def get(self, rota: str, params: dict | None = None) -> dict:
-        if self.chamadas:
-            time.sleep(PAUSA_ENTRE_CHAMADAS_S)
-        self.chamadas += 1
+        self._esperar_a_vez()
 
         def interpretar(r):
             if r.status_code == 200:
@@ -126,19 +139,41 @@ def extrair_questoes(config, *, log_cb=print, progress_cb=None,
         progresso(0.15)
 
         comentarios: dict[str, list[dict]] = {}
-        if com_comentarios:
-            for i, q in enumerate(questoes, 1):
-                dados = cliente.get(f"issues/{q['issue_id']}/conversations/all",
-                                    {"supportPublicConversation": "true"})
-                comentarios[str(q["issue_id"])] = list(
-                    (dados.get("_embedded") or {}).get("conversations") or [])
-                progresso(0.15 + 0.75 * i / len(questoes))
-                if i % 25 == 0:
-                    log_cb(f"Comentários: {i}/{len(questoes)}")
+        if com_comentarios and questoes:
+            comentarios = _baixar_conversas(cliente, questoes, log_cb, progresso)
         progresso(0.9)
         return ExtracaoQuestoes(questoes, definicoes, tipos, comentarios)
     finally:
         cliente.fechar()
+
+
+def _baixar_conversas(cliente: _Cliente, questoes: list[dict], log_cb, progresso) -> dict[str, list[dict]]:
+    """As conversas de cada questão, várias ao mesmo tempo (uma chamada por questão
+    era ~85 s para 150 questões; em paralelo, ~40 s). A cota continua respeitada
+    pelo `_esperar_a_vez`. Uma falha definitiva cancela o resto e sobe (tudo ou nada)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def uma(q):
+        dados = cliente.get(f"issues/{q['issue_id']}/conversations/all",
+                            {"supportPublicConversation": "true"})
+        return str(q["issue_id"]), list((dados.get("_embedded") or {}).get("conversations") or [])
+
+    resultado: dict[str, list[dict]] = {}
+    total = len(questoes)
+    with ThreadPoolExecutor(max_workers=CONVERSAS_EM_PARALELO) as pool:
+        futuros = [pool.submit(uma, q) for q in questoes]
+        try:
+            for i, futuro in enumerate(as_completed(futuros), 1):
+                chave, conversas = futuro.result()
+                resultado[chave] = conversas
+                progresso(0.15 + 0.75 * i / total)
+                if i % 25 == 0 or i == total:
+                    log_cb(f"Comentários: {i}/{total}")
+        except BaseException:
+            for f in futuros:
+                f.cancel()
+            raise
+    return resultado
 
 
 # --- Questão → colunas da exportação (validado: 4.263/4.263 células) ---------

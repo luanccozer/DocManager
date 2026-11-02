@@ -333,3 +333,15 @@ def test_data_real_que_mudou_vira_data_real(tmp_path, api):
     assert _rodar(caminho).gravou
     celula = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]["F5"]
     assert celula.is_date and celula.value.date() == date(2026, 10, 5)
+
+
+def test_issue_number_guardado_como_texto_nao_reprova_a_conferencia(tmp_path, api):
+    """Na planilha real há Issue Number digitado como texto ("131"); a conferência
+    comparava texto com número e recusava tudo ("a ordem das pendências não é a planejada")."""
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3, **{"Issue Number": "3"}), linha_pendencia(2)])
+    api["questoes"] = [questao(4), questao(3), questao(2)]
+    r = _rodar(caminho)
+    assert r.ok and r.gravou, r.mensagem
+    ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
+    assert [ws.cell(n, 1).value for n in (5, 6, 7)] == [4, "3", 2]

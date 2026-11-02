@@ -1314,6 +1314,13 @@ Arquivos: `field_backend.py` (API), `services/pendencias_update.py` (regras), `s
 - texto: sem caracteres de controle, cortado em 32.767 caracteres com aviso; o Aconex é limpo ANTES de
   comparar, senão a mesma pendência viraria "troca" a cada execução.
 
+**Achado na 1ª execução real (3.6.5-rc.1)**: a planilha real tem Issue Number guardado como TEXTO em
+algumas linhas ("131"), não só como número. A conferência comparava texto com número e recusava tudo
+("a ordem das pendências não é a planejada"). Toda comparação do número passa por `_numero`.
+Velocidade: as conversas (Comments, uma chamada por questão) iam uma a uma, ~85 s para 151 questões;
+agora vão 4 ao mesmo tempo, com o início das chamadas espaçado em 250 ms (4 por segundo, abaixo da
+cota de 5 da organização).
+
 **Gravação**: temporário `~$docmanager-*` na mesma pasta → conferência (zip, openpyxl, e o validador: mesmas
 partes na mesma ordem, as não alteradas byte a byte, raiz e namespaces iguais, ordem das pendências, manuais
 intactas, Aconex = planejado, pandas lê) → assinatura do arquivo igual à da leitura → cópia em
