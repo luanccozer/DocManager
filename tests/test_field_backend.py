@@ -291,7 +291,8 @@ def test_cota_respeitada_mesmo_com_conversas_em_paralelo(monkeypatch):
     import threading
     import time as tempo
 
-    monkeypatch.setattr(fb, "PAUSA_ENTRE_CHAMADAS_S", 0.02)
+    pausa = 0.05
+    monkeypatch.setattr(fb, "PAUSA_ENTRE_CHAMADAS_S", pausa)
     inicios, no_ar, pico = [], [0], [0]
     trava = threading.Lock()
     base = _SessaoField(_questoes(20))
@@ -313,8 +314,10 @@ def test_cota_respeitada_mesmo_com_conversas_em_paralelo(monkeypatch):
     _plugar(monkeypatch, base)
     r = fb.extrair_questoes(CONFIG, log_cb=lambda _m: None)
     assert len(r.comentarios_por_issue) == 20
-    intervalos = [b - a for a, b in zip(sorted(inicios), sorted(inicios)[1:])]
-    assert min(intervalos) >= 0.018
+    # A taxa, não o intervalo mínimo: no Windows o relógio anda de ~16 em ~16 ms,
+    # e duas chamadas espaçadas podem cair no mesmo tique.
+    inicios.sort()
+    assert inicios[-1] - inicios[0] >= 0.9 * pausa * (len(inicios) - 1)
     assert 1 < pico[0] <= fb.CONVERSAS_EM_PARALELO
 
 
