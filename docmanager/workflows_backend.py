@@ -27,12 +27,12 @@ from datetime import datetime
 import pandas as pd
 
 from .aconex_backend import (
-    ESPERAS_BACKOFF,
     TENTATIVAS_POR_PAGINA,
     AconexConfig,
+    FalhaRetentavel,
     ResultadoExtracao,
     _estabelecer_sessao,
-    _get_token,
+    _get_resiliente,
 )
 
 # O header que faz a API existir (ver docstring do módulo).
@@ -185,51 +185,28 @@ def _chave_checkpoint_wf(config: AconexConfig, rota: str, updated_after: str) ->
 
 
 def _baixar_pagina_wf(session, config, url, headers, params, page, log_cb):
-    """Uma página com retentativas/backoff - mesma política da extração de docs.
+    """Uma página com retentativas/backoff - mesma política da extração de docs
+    (`aconex_backend._get_resiliente`).
 
     Devolve `(linhas, fim, erro, session)`; a sessão volta junto porque uma
     reconexão a SUBSTITUI.
     """
-    import time
+    def interpretar(r):
+        if r.status_code == 200:
+            try:
+                return parse_pagina_workflows(r.content), False
+            except Exception as e:  # noqa: BLE001 - XML truncado: vale retentar
+                raise FalhaRetentavel(f"XML inválido na página {page}: {e}") from e
+        if r.status_code == 400:
+            return [], True   # fim normal da paginação (page_number além do total)
+        raise FalhaRetentavel(f"HTTP {r.status_code}")
 
-    p = dict(params, page_number=page)
-    ultimo_erro, renovacoes, tentativa = "", 0, 0
-    while tentativa < TENTATIVAS_POR_PAGINA:
-        try:
-            r = session.get(url, headers=headers, params=p, timeout=120)
-            if r.status_code == 200:
-                try:
-                    return parse_pagina_workflows(r.content), False, "", session
-                except Exception as e:  # noqa: BLE001 - XML truncado: vale retentar
-                    ultimo_erro = f"XML inválido na página {page}: {e}"
-            elif r.status_code == 400:
-                # Fim normal da paginação (page_number além do total).
-                return [], True, "", session
-            elif r.status_code == 401 and renovacoes < 3:
-                renovacoes += 1
-                log_cb("Token expirado. Renovando...")
-                novo = _get_token(session, config, log_cb)
-                if novo:
-                    headers["Authorization"] = f"Bearer {novo}"
-                    continue
-                ultimo_erro = "não foi possível renovar o token"
-            else:
-                ultimo_erro = f"HTTP {r.status_code}"
-        except Exception as e:  # noqa: BLE001
-            ultimo_erro = f"{type(e).__name__}: {e}"
-        tentativa += 1
-        if tentativa < TENTATIVAS_POR_PAGINA:
-            espera = ESPERAS_BACKOFF[min(tentativa - 1, len(ESPERAS_BACKOFF) - 1)]
-            log_cb(f" [{ultimo_erro}] tentativa {tentativa + 1}/{TENTATIVAS_POR_PAGINA} "
-                   f"em {espera}s...")
-            time.sleep(espera)
-            if tentativa >= 2:
-                try:
-                    session, token = _estabelecer_sessao(config, log_cb)
-                    headers["Authorization"] = f"Bearer {token}"
-                except Exception as e:  # noqa: BLE001
-                    log_cb(f" (falha ao reconectar: {e})")
-    return [], False, ultimo_erro, session
+    resultado, erro, session = _get_resiliente(session, config, url, headers,
+                                               dict(params, page_number=page), log_cb, interpretar)
+    if erro:
+        return [], False, erro, session
+    linhas, fim = resultado
+    return linhas, fim, "", session
 
 
 def extrair_workflows(config: AconexConfig, *, log_cb=print, rota: str = "todos",

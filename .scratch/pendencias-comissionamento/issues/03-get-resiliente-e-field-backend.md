@@ -11,7 +11,7 @@ levanta exceção (tudo ou nada). Pausa de 250 ms entre chamadas; só GET.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `tests/test_fluxos.py` verde com os Workflows usando o ajudante
 - [ ] O `_baixar_pagina` do register não muda

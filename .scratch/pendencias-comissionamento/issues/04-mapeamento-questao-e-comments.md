@@ -8,7 +8,7 @@ UTC−3 em inglês e 12 h).
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Cada linha da tabela da seção 6 da spec tem teste
 - [ ] UTC → UTC−3 que muda o dia; `Due Date` sem conversão

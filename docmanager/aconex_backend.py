@@ -422,6 +422,55 @@ TENTATIVAS_POR_PAGINA = 5
 ESPERAS_BACKOFF = (5, 15, 30, 60)   # segundos entre tentativas
 
 
+class FalhaRetentavel(Exception):
+    """Resposta que não serve, mas que vale pedir de novo (HTTP 5xx, XML truncado)."""
+
+
+def _get_resiliente(session, config: AconexConfig, url: str, headers: dict, params, log_cb,
+                    interpretar, *, timeout: int = 120):
+    """GET com a política de retentativa da extração (backoff, 401 renova o token, reconexão).
+
+    `interpretar(resposta)` devolve o resultado, ou levanta `FalhaRetentavel`
+    (ou qualquer exceção) para tentar de novo; o 401 é tratado aqui. Devolve
+    `(resultado, erro, session)`: `erro` vazio no sucesso; a sessão volta junto
+    porque uma reconexão a SUBSTITUI. `headers` é atualizado no lugar quando o
+    token é renovado, para as próximas chamadas já irem com o novo.
+    """
+    import time
+
+    ultimo_erro, renovacoes, tentativa = "", 0, 0
+    while tentativa < TENTATIVAS_POR_PAGINA:
+        try:
+            r = session.get(url, headers=headers, params=params, timeout=timeout)
+            if r.status_code == 401 and renovacoes < 3:
+                renovacoes += 1
+                log_cb("Token expirado. Renovando...")
+                novo = _get_token(session, config, log_cb)
+                if novo:
+                    headers["Authorization"] = f"Bearer {novo}"
+                    continue
+                ultimo_erro = "não foi possível renovar o token"
+            else:
+                return interpretar(r), "", session
+        except FalhaRetentavel as e:
+            ultimo_erro = str(e)
+        except Exception as e:  # noqa: BLE001
+            ultimo_erro = f"{type(e).__name__}: {e}"
+        tentativa += 1
+        if tentativa < TENTATIVAS_POR_PAGINA:
+            espera = ESPERAS_BACKOFF[min(tentativa - 1, len(ESPERAS_BACKOFF) - 1)]
+            log_cb(f" [{ultimo_erro}] tentativa {tentativa + 1}/{TENTATIVAS_POR_PAGINA} "
+                   f"em {espera}s...")
+            time.sleep(espera)
+            if tentativa >= 2:
+                try:
+                    session, token = _estabelecer_sessao(config, log_cb)
+                    headers["Authorization"] = f"Bearer {token}"
+                except Exception as e:  # noqa: BLE001
+                    log_cb(f" (falha ao reconectar: {e})")
+    return None, ultimo_erro, session
+
+
 @dataclass
 class ResultadoExtracao:
     """Desfecho de uma extração - inclusive quando ela NÃO terminou.
