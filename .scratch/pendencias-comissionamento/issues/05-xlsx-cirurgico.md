@@ -10,7 +10,7 @@ Nunca salvar a pasta com openpyxl, pandas ou XlsxWriter; nunca reserializar com 
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Partes não alteradas byte a byte iguais (inclui gráfico e uma parte desconhecida injetada na fixture)
 - [ ] Declaração XML e tag raiz das partes alteradas textualmente iguais
