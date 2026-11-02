@@ -5,7 +5,7 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.6.5 - 2026-11-02
+## 3.6.2 - 2026-11-02
 
 - Módulo novo, Pendências: atualiza a planilha de mapeamento de pendências de comissionamento direto do Aconex (Campo → Questões). É só escolher a planilha: o DocManager busca as pendências e já grava. As novas entram no topo da tabela, em ordem decrescente; nas que já estão, as colunas do Aconex ficam em dia; as colunas preenchidas à mão nunca são tocadas. Impeditivas que não estão fechadas ficam com a cor da legenda, e perdem a cor quando fecham. Tabelas dinâmicas, gráficos, coluna oculta e formatação ficam como estavam: abra no Excel para eles se atualizarem.
 - Pendências: quando o Aconex não tem mais um valor que está na planilha, o app pergunta antes de apagar (apagar todas, manter todas ou ver caso a caso). O que você mantém não é perguntado de novo enquanto o valor for o mesmo.

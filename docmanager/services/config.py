@@ -117,7 +117,7 @@ class ConfigManager:
 
     def versao_anterior(self) -> str:
         """A última versão aberta ('' na primeira instalação). Quem vem de antes
-        da 3.6.5 não tem `versao_vista` gravada, mas tem config: conta como
+        da 3.6.2 não tem `versao_vista` gravada, mas tem config: conta como
         atualização (de uma versão que não se sabe), para ver as novidades."""
         vista = self.settings.versao_vista
         return vista or ("?" if self.ja_usado else "")
