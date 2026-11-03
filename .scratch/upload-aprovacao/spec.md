@@ -1,6 +1,6 @@
 # Upload de documentos → Para aprovação (RPA)
 
-Status: ready-for-agent (Fase 1) · needs-info (Fase 2: precisa de sessão na máquina do usuário)
+Status: done (Fase 1) · needs-info (Fase 2: precisa de sessão na máquina do usuário)
 
 Pedido do Jonathan (2026-11-03). Desenho combinado na conversa, com capturas do Aconex, do
 arquivo de envio e do Controle de Documentos. Nenhum dado real neste arquivo: os códigos abaixo
@@ -53,9 +53,13 @@ que já está em `0C` para aprovação (revisão `0`), do Box ao Aconex e de vol
    Achar o código no arquivo de envio (link do Box) e no Controle (`0C`?).
 2. **Box (Chrome):** abrir o link e deixar a aba aberta; baixar o PDF e o editável para uma pasta
    de trabalho em `pasta_dados()/upload/<código>/`.
-3. **Aconex (API, só leitura):** documento pelo `Controle do Emissor` (busca do register); o
-   **modelo** do último workflow desse documento pela Workflows API (`WorkflowTemplate`; se vier
-   vazio, o `WorkflowName`, que é o "Nome" que o usuário copia hoje).
+3. **Aconex (API, só leitura):** documento pelo `Controle do Emissor` (a busca exata do register
+   que o app já usa, `aconex_backend.consultar_codigos`). O **modelo** do workflow é o "Nome" do
+   último fluxo do documento (clique em "Apto para Firma" → Pesquisar Fluxos de Trabalho → linha
+   `No. do Fluxo de Trabalho: WF-… Nome : …`). A Workflows API traz `WorkflowTemplate` e
+   `WorkflowName`, mas **não tem filtro por documento conhecido** (KB §24.12: as grafias testadas
+   deram 404); varrer todos os fluxos leva minutos. Por isso o modelo sai na **Fase 2, pela tela**,
+   salvo se o mapeamento achar uma rota da API por documento.
 4. **Confirmação** (D9).
 5. **Aconex (gravação):** nova revisão `0`, status "Para Aprovação", com os dois arquivos; iniciar
    o workflow com o modelo e o prazo. API se ela permitir; senão, a tela (`Atualizar` →
@@ -77,14 +81,26 @@ que já está em `0C` para aprovação (revisão `0`), do Box ao Aconex e de vol
 
 **Fase 1 (dá para fazer e testar aqui):** o módulo e as três abas (duas "em breve"); a tela de
 aprovação; a janelinha do código; leitura do arquivo de envio (.docx e .xlsx) e do Controle;
-o aviso de "não está em 0C"; a busca no Aconex pela API (documento e modelo do workflow); a janela
-de confirmação. Nenhuma gravação no Aconex nem no Box. Testes com arquivos sintéticos e sessão
-simulada; a busca real o usuário confere na máquina dele.
+o aviso de "não está em 0C"; a busca do documento no Aconex pela API; um **ensaio** que mostra o
+resumo do que seria feito (nada é gravado no Aconex nem no Box); e a ferramenta **Capturar telas**
+(seção 8). Testes com arquivos sintéticos e sessão simulada; a busca real o usuário confere na
+máquina dele.
 
-**Fase 2 (precisa da máquina do usuário, com o Chrome, a VPN e um documento de teste):** Box
-(baixar e subir), gravação no Aconex (API ou tela), impressão. Mapear cada tela ao vivo, numa
-sessão ligada ao computador dele (Remote Control). Antes disso, verificar na documentação da API
-do Aconex se ela sobe revisão com dois arquivos e se inicia workflow.
+**Fase 2 (com as capturas do usuário):** Box (baixar e subir), modelo do workflow, gravação no
+Aconex (API ou tela), impressão. O Claude Desktop não pode ser instalado no computador da empresa,
+então o mapeamento é feito pelo próprio DocManager (seção 8): o usuário faz o processo à mão uma
+vez com um documento de teste, captura cada tela e manda o .zip. Cada ajuste volta numa rc.
+
+## 8. Capturar telas (ferramenta de mapeamento, Fase 1)
+
+- Um cartão "Mapear telas para o robô" na aba Para aprovação, com o botão **Capturar telas**.
+- Abre o Chrome do robot (perfil `pasta_dados()/navegador`), com um botão flutuante **Capturar**
+  só na página principal (não nos frames).
+- Cada clique grava, numa pasta `pasta_dados()/capturas/<data-hora>/NN-<título>/`: a imagem da
+  tela (`tela.png`), o HTML da página e de cada frame (`pagina.html`, `frame-N.html`), o endereço e
+  o título (`info.json`). O Aconex usa frames: sem eles os botões não aparecem no HTML.
+- Fechar o Chrome termina a captura; o app junta tudo num `.zip` e mostra onde ficou.
+- As capturas têm dados reais (nomes, documentos): **nunca entram no repositório**.
 
 ## 7. Não verificado
 

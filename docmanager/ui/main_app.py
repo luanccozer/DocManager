@@ -50,6 +50,7 @@ from .views.status_view import StatusDocsView
 from .views.sugestoes_view import SugestoesView
 from .views.transpasse_view import TranspasseView
 from .views.pendencias_view import PendenciasView
+from .views.upload_view import UploadView
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,7 @@ VIEWS = [
     ViewSpec("relatorios", marcar("Relatórios"), "clipboard-list", ReportsView),
     ViewSpec("transpasse", marcar("Transpasse de Fase"), "calendar-range", TranspasseView),
     ViewSpec("pendencias", marcar("Pendências"), "file-spreadsheet", PendenciasView),
+    ViewSpec("upload", marcar("Upload de documentos"), "upload", UploadView),
     ViewSpec("aconex", marcar("Extração Aconex"), "download", AconexView),
     # Sem linha na barra lateral: a lâmpada e a engrenagem ficam no alto, à
     # direita, como na CMI Suite e no SIG-FT (`_montar_topo`).

@@ -17,7 +17,9 @@ from PyInstaller.utils.hooks import collect_all
 # descobre sozinho - collect_all pega datas + binaries + imports. O PySide6 tem
 # hook próprio no PyInstaller (leva só os módulos do Qt que o app importa).
 _datas, _binaries, _hidden = [], [], []
-for _pkg in ("dash", "dash_bootstrap_components", "plotly", "truststore", "certifi"):
+# playwright: o driver (node + pacote JS) vem como dado do pacote; sem ele o robô do
+# Upload de documentos não abre o Chrome.
+for _pkg in ("dash", "dash_bootstrap_components", "plotly", "truststore", "certifi", "playwright"):
     d, b, h = collect_all(_pkg)
     _datas += d
     _binaries += b

@@ -61,7 +61,7 @@ def base(*builders: HistoricoBuilder) -> pd.DataFrame:
 
 
 def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True,
-                           incluir_fase=False, cabecalhos=None):
+                           incluir_fase=False, cabecalhos=None, incluir_ultima=False):
     """Escreve um Controle de Documentos sintético (cabeçalho na linha 4).
 
     `linhas`: list[dict] com chaves itaipu, cmi, titulo, prevista, reprog, fase.
@@ -80,7 +80,7 @@ def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True,
 
     cab = {"itaipu": CTRL_COL_ITAIPU, "cmi": CTRL_COL_CMI, "titulo": "DESCRIÇÃO",
            "prevista": CTRL_COL_DATA_PREVISTA, "reprog": "REPROGRAMAÇÃO",
-           "fase": "FASE DE PROJETO"}
+           "fase": "FASE DE PROJETO", "ultima": "ÚLTIMA REVISÃO EMITIDA"}
     cab.update(cabecalhos or {})
 
     wb = Workbook()
@@ -93,6 +93,8 @@ def escrever_controle_xlsx(path, linhas, *, incluir_reprogramacao=True,
         chaves.append("reprog")
     if incluir_fase:
         chaves.append("fase")
+    if incluir_ultima:
+        chaves.append("ultima")
     ws.append([cab[k] for k in chaves])
     for lin in linhas:
         ws.append([lin.get(k, "") for k in chaves])

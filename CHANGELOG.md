@@ -5,6 +5,11 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.6.3 - 2026-11-03
+
+- Módulo novo, Upload de documentos, com três opções: Documento novo, Para revisão e Para aprovação. Por enquanto só Para aprovação, e em ensaio: você escolhe o arquivo de envio (Word ou Excel, com o código CMI e o link do Box) e o Controle de Documentos, informa o prazo do workflow em dias e cola o código CMI. O DocManager confere o código nos dois arquivos, avisa se a última revisão emitida não é 0C, acha o documento no Aconex e mostra tudo o que o robô vai fazer. Nada é enviado ainda.
+- Upload de documentos: o botão Capturar telas abre o Google Chrome com um botão "Capturar". Faça o envio para aprovação à mão uma vez e aperte Capturar em cada tela do Box e do Aconex; ao fechar o Chrome, o DocManager junta as telas num .zip. É com ele que o robô aprende onde clicar.
+
 ## 3.6.2 - 2026-11-02
 
 - Módulo novo, Pendências: atualiza a planilha de mapeamento de pendências de comissionamento direto do Aconex (Campo → Questões). É só escolher a planilha: o DocManager busca as pendências e já grava. As novas entram no topo da tabela, em ordem decrescente; nas que já estão, as colunas do Aconex ficam em dia; as colunas preenchidas à mão nunca são tocadas. Impeditivas que não estão fechadas ficam com o texto em vermelho (sem preenchimento), e voltam ao preto quando fecham. O que a atualização trouxe (pendência nova, célula trocada ou preenchida) fica em azul; o azul da atualização anterior volta ao preto. Numa pendência nova e impeditiva, vale o vermelho. Tabelas dinâmicas, gráficos, coluna oculta e formatação ficam como estavam: abra no Excel para eles se atualizarem.

@@ -237,6 +237,12 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   Na aba **🔀 Fluxos de Trabalho** baixa os workflows (etapa, prazo e a quem cada
   documento está atribuído), com seletor de período: "tudo" leva ~20 min, mas
   "últimos 30 dias" atualiza em ~1 min.
+- **⬆️ Upload de documentos** - o robô que sobe documentos no Aconex a partir da
+  pasta do Box. Por enquanto, **Para aprovação** em ensaio: escolha o arquivo de envio
+  (Word ou Excel) e o Controle de Documentos, informe o prazo e cole o código CMI; o app
+  confere (precisa estar em 0C), acha o documento no Aconex e mostra o que vai fazer, sem
+  enviar nada. **Capturar telas** grava as telas do Box e do Aconex (num .zip) para o robô
+  aprender os botões. Usa o Google Chrome instalado.
 - **⚙️ Configurações** - **Credenciais do Aconex** (cadastrar, editar, remover),
   **Atualizações** do app, a *Regra da Aprovação Intermediária* (VIP) e a base do
   atraso CMI na 0A.

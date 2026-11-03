@@ -16,6 +16,10 @@ requests>=2.31
 urllib3>=1.26,<3
 truststore>=0.8
 
+# Upload de documentos: o robô usa o Google Chrome INSTALADO (channel="chrome"),
+# então nenhum navegador é baixado nem empacotado - só a biblioteca e o driver.
+playwright>=1.48,<2
+
 dash>=2.18,<3
 dash-bootstrap-components>=1.6,<2
 plotly>=5.24,<6
