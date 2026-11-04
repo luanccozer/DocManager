@@ -38,7 +38,7 @@ MODULOS = [
     ("pendencias", "file-spreadsheet", marcar("Pendências"), marcar("Atualiza a planilha de mapeamento de pendências "
      "de comissionamento direto do Aconex (Campo → Questões): as novas entram no topo e as colunas do Aconex ficam "
      "em dia; as colunas preenchidas à mão não são tocadas.")),
-    ("upload", "lock", marcar("Upload de documentos"), marcar("O robô sobe documentos no Aconex a partir da "
+    ("upload", "upload", marcar("Upload de documentos"), marcar("O robô sobe documentos no Aconex a partir da "
      "pasta do Box. Por enquanto, o envio para aprovação: confere o código e mostra o que vai fazer.")),
     ("aconex", "download", marcar("Extração Aconex"), marcar("Baixa a base completa do projeto direto da API do Aconex. "
      "Na primeira vez, cadastre as suas credenciais na própria tela.")),

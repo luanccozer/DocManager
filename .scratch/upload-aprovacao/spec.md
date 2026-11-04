@@ -23,14 +23,24 @@ que já está em `0C` para aprovação (revisão `0`), do Box ao Aconex e de vol
 - **D4 – Arquivos:** a pasta do Box tem **PDF + editável**; os dois sobem no documento.
 - **D5 – Revisão:** sempre **`0`** neste módulo; status **"Para Aprovação"**.
 - **D6 – Prazo:** **número de dias**, perguntado na tela antes de começar.
-- **D7 – Código CMI:** o usuário **cola o código** numa janelinha (como faz hoje).
+- **D7 – Tabela colada (2026-11-04):** não há arquivo de envio. A lista chega por e-mail e o usuário
+  **cola a tabela** na tela; ela pode ter **vários documentos**, e o robô faz **um de cada vez**, na
+  ordem da tabela. (Substitui a janelinha do código e o arquivo .docx/.xlsx da primeira versão.)
 - **D8 – PDF final:** "imprimir estilo de tela / sem tópicos" da tela do workflow, salvo como
   `<nº do correio> - <nº do workflow> - <data>.pdf` e **subido na pasta do Box**, substituindo o
   de mesmo nome. O nº do correio e o do workflow aparecem na tela final do workflow.
 - **D9 – Confirmação:** antes de qualquer gravação no Aconex, uma janela resume o que vai ser
   feito e só segue com **"Enviar"**.
 
-## 3. Os arquivos de entrada (medidos nas capturas)
+## 3. As entradas (medidas nas capturas)
+
+**Tabela colada** (2026-11-04): colunas `IDENTIFICAÇÃO DOCUMENTO CMI`, `IDENTIFICAÇÃO DOCUMENTO ITAIPU`,
+`ESPECIFICAÇÃO TÉCNICA (EQUIPAMENTO/SISTEMA)`, `CAPÍTULO ESPECIFICAÇÃO TÉCNICA (EQUIPAMENTO/SISTEMA)`,
+`DESCRIÇÃO`, `TIPO DE DOCUMENTO`, `SUBTIPO DE DOCUMENTO`, `REVISÃO` (a atual, ex. `0C`) e `LINK GE BOX` (o
+endereço do Box escrito na célula). Separada por TAB (Outlook, Word e Excel colam assim), com ou sem o
+cabeçalho, com linhas em branco entre os documentos. `services/upload_envio.ler_tabela`.
+
+(Primeira versão, substituída:)
 
 **Arquivo de envio** (Word ou Excel; o usuário não sabe qual - o app aceita os dois):
 - frase "Seguem documentos para envio via ACONEX análise de ITAIPU:" e uma tabela;
@@ -96,6 +106,8 @@ vez com um documento de teste, captura cada tela e manda o .zip. Cada ajuste vol
 - Um cartão "Mapear telas para o robô" na aba Para aprovação, com o botão **Capturar telas**.
 - Abre o Chrome do robot (perfil `pasta_dados()/navegador`), com um botão flutuante **Capturar**
   só na página principal (não nos frames).
+- Também pela tecla **F8**, que funciona com o foco em qualquer frame (mover o mouse fecha menus
+  e listas abertas do Aconex; a tecla não).
 - Cada clique grava, numa pasta `pasta_dados()/capturas/<data-hora>/NN-<título>/`: a imagem da
   tela (`tela.png`), o HTML da página e de cada frame (`pagina.html`, `frame-N.html`), o endereço e
   o título (`info.json`). O Aconex usa frames: sem eles os botões não aparecem no HTML.

@@ -5,11 +5,11 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.6.3 - 2026-11-03
+## 3.6.3 - 2026-11-04
 
-- Módulo novo, Upload de documentos, com três opções: Documento novo, Para revisão e Para aprovação. Por enquanto só Para aprovação, e em ensaio: você escolhe o arquivo de envio (Word ou Excel, com o código CMI e o link do Box) e o Controle de Documentos, informa o prazo do workflow em dias e cola o código CMI. O DocManager confere o código nos dois arquivos, avisa se a última revisão emitida não é 0C, acha o documento no Aconex e mostra tudo o que o robô vai fazer. Nada é enviado ainda.
-- Upload de documentos é protegido por senha (o cadeado na barra lateral e no início): ela é pedida uma vez a cada vez que o DocManager é aberto. Peça a senha ao responsável.
-- Upload de documentos: o botão Capturar telas abre o Google Chrome com um botão "Capturar". Faça o envio para aprovação à mão uma vez e aperte Capturar em cada tela do Box e do Aconex; ao fechar o Chrome, o DocManager junta as telas num .zip. É com ele que o robô aprende onde clicar.
+- Módulo novo, Upload de documentos, com três opções: Documento novo, Para revisão e Para aprovação. Por enquanto só Para aprovação, e em ensaio: cole a tabela de envio que chega por e-mail (com ou sem o cabeçalho, quantos documentos vierem), escolha o Controle de Documentos e informe o prazo do workflow em dias. O DocManager faz um documento de cada vez, na ordem da tabela: confere o código no Controle (avisa se a última revisão emitida não é 0C), acha o documento no Aconex e mostra tudo o que o robô vai fazer. Nada é enviado ainda.
+- Upload de documentos é protegido por senha: o cadeado à direita do nome, na barra lateral, mostra que está bloqueado, e some quando a senha é aceita. Ela é pedida uma vez a cada vez que o DocManager é aberto. Peça a senha ao responsável.
+- Upload de documentos: o botão Capturar telas abre o Google Chrome. Faça o envio para aprovação à mão uma vez e, em cada tela do Box e do Aconex, aperte F8 (ou o botão Capturar, no canto): a tecla não fecha os menus abertos, como o mouse faz. Ao fechar o Chrome, o DocManager junta as telas num .zip. É com ele que o robô aprende onde clicar.
 
 ## 3.6.2 - 2026-11-02
 

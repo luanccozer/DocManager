@@ -21,24 +21,35 @@ from pathlib import Path
 
 URL_ACONEX = "https://us1.aconex.com"
 ID_BOTAO = "dm-capturar"
+TECLA = "F8"   # capturar sem mexer o mouse (mover o mouse fecha menus e listas abertas)
 
 _SCRIPT_CAPTURADA = """(n) => {
   const b = document.getElementById('%(id)s');
   if (!b) return;
   b.style.visibility = 'visible';
   b.textContent = 'Capturada (' + n + ')';
-  setTimeout(() => { b.disabled = false; b.textContent = 'Capturar'; }, 1500);
-}""" % {"id": ID_BOTAO}
+  setTimeout(() => { b.disabled = false; b.textContent = 'Capturar (%(tecla)s)'; }, 1500);
+}""" % {"id": ID_BOTAO, "tecla": TECLA}
 
 _SCRIPT_BOTAO = """
 (() => {
-  if (window.top !== window) return;   // só na página principal, não nos frames
+  // A tecla vale em qualquer frame (o foco costuma estar dentro de um frame do Aconex).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '%(tecla)s' || e.repeat) return;
+    e.preventDefault();
+    try {   // frame de outro endereço não pode mexer no botão: captura igual
+      const b = window.top.document.getElementById('%(id)s');
+      if (b) { b.disabled = true; b.textContent = 'Capturando...'; }
+    } catch (erro) {}
+    window.dmCapturar();
+  }, true);
+  if (window.top !== window) return;   // o botão: só na página principal
   const montar = () => {
     if (document.getElementById('%(id)s')) return;
     const b = document.createElement('button');
     b.id = '%(id)s';
-    b.textContent = 'Capturar';
-    b.title = 'DocManager: grava esta tela para o mapeamento do robô';
+    b.textContent = 'Capturar (%(tecla)s)';
+    b.title = 'DocManager: grava esta tela para o mapeamento do robô (ou aperte %(tecla)s)';
     b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;' +
       'padding:10px 18px;background:#1f6feb;color:#fff;border:0;border-radius:6px;' +
       'font:600 14px sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:pointer';
@@ -53,7 +64,7 @@ _SCRIPT_BOTAO = """
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar);
   else montar();
 })();
-""" % {"id": ID_BOTAO}
+""" % {"id": ID_BOTAO, "tecla": TECLA}
 
 
 class ErroNavegador(RuntimeError):
@@ -161,8 +172,8 @@ def capturar_telas(*, log_cb=print, url_inicial: str = URL_ACONEX, destino: Path
                     pagina.goto(url_inicial)
                 except Exception as e:  # noqa: BLE001 - sem rede/VPN: a pessoa navega à mão
                     log_cb(f"Não abriu {url_inicial} ({str(e).splitlines()[0]}); navegue à mão.")
-            log_cb("Chrome do robô aberto. Faça o processo à mão e aperte 'Capturar' em cada tela; "
-                   "feche o Chrome para terminar.")
+            log_cb(f"Chrome do robô aberto. Faça o processo à mão e, em cada tela, aperte {TECLA} "
+                   "(ou o botão Capturar); feche o Chrome para terminar.")
             while contexto.pages:
                 try:
                     contexto.pages[0].wait_for_timeout(500)

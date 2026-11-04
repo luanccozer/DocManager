@@ -7,8 +7,9 @@ import pytest
 from test_ui_telas import app, caixas  # noqa: F401 - fixtures
 
 from docmanager import aconex_backend as ab
-from docmanager.services import navegador
+from docmanager.services import controle_docs, navegador
 from docmanager.services import upload_aprovacao as ua
+from test_upload_envio import CABECALHO, LINHA_1, LINHA_2
 
 
 def _tela(app):
@@ -20,12 +21,15 @@ def _tela(app):
 def preparar(monkeypatch):
     chamadas = []
 
-    def falso(config, envio, controle, codigo, prazo, **kw):
-        chamadas.append((config, envio, controle, codigo, prazo, kw))
-        return ua.Preparacao(True, "ok", codigo=codigo, prazo_dias=prazo,
+    def falso(config, linha, controle, prazo, **kw):
+        chamadas.append((config, linha, controle, prazo, kw))
+        if linha.cod_cmi.endswith("-03"):
+            return ua.Preparacao(False, "não está em 0C. Documento pulado.", codigo=linha.cod_cmi)
+        return ua.Preparacao(True, "ok", codigo=linha.cod_cmi, prazo_dias=prazo, envio=linha,
                              documento={"No. do Documento": "#XX00=EXEMPLO", "Revisão": "0C"})
 
     monkeypatch.setattr(ua, "preparar_aprovacao", falso)
+    monkeypatch.setattr(controle_docs, "ler_controle", lambda *a, **k: "controle lido")
     monkeypatch.setattr(ab, "usuarios_disponiveis", lambda: ["FULANO"])
     monkeypatch.setattr(ab.AconexConfig, "para_usuario", classmethod(lambda cls, n, **_k: f"config {n}"))
     return chamadas
@@ -37,35 +41,39 @@ def test_tres_opcoes_e_aprovacao_aberta(app):
     assert tela.tabs._nomes == ["Documento novo", "Para revisão", "Para aprovação"]
 
 
-def test_iniciar_pede_o_codigo_e_mostra_o_ensaio(app, qtbot, preparar, caixas, monkeypatch, tmp_path):
-    from PySide6.QtWidgets import QInputDialog
-
-    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: (" 0000CMI-AA01-01 ", True))
+def test_tabela_colada_mostra_quantos_documentos(app):
     tela = _tela(app)
-    tela.sel_envio.definir(str(tmp_path / "envio.docx"))
+    tela.tabela.setPlainText(f"{CABECALHO}\n{LINHA_1}\n\n{LINHA_2}\n")
+    assert "2 documento(s)" in tela.lbl_reconhecidos.text()
+    assert "0000CMI-AA01-04, 0000CMI-AA01-03" in tela.lbl_reconhecidos.text()
+
+
+def test_iniciar_faz_um_documento_de_cada_vez(app, qtbot, preparar, caixas, tmp_path):
+    tela = _tela(app)
+    tela.tabela.setPlainText(f"{CABECALHO}\n{LINHA_1}\n\n{LINHA_2}\n")
     tela.sel_controle.path = str(tmp_path / "controle.xlsx")
     tela.prazo.setValue(7)
     with qtbot.waitSignal(tela.run.terminou, timeout=10000):
         tela.run.btn.click()
-    assert len(preparar) == 1
-    config, _envio, _ctrl, codigo, prazo, kw = preparar[0]
-    assert (config, codigo, prazo) == ("config FULANO", "0000CMI-AA01-01", 7)
+    assert [c[1].cod_cmi for c in preparar] == ["0000CMI-AA01-04", "0000CMI-AA01-03"]   # na ordem
+    config, _linha, controle, prazo, kw = preparar[0]
+    assert (config, controle, prazo) == ("config FULANO", "controle lido", 7)
     assert kw["perguntar_cb"] is not None
-    assert [c[0] for c in caixas] == ["info"] and "nada foi enviado" in caixas[0][2]
+    assert caixas[0][0] == "info"
+    texto = caixas[0][2]
+    assert "1 de 2" in texto and "Documento pulado" in texto and "nada foi enviado" in texto
+    assert "Documento 2 de 2" in tela.log.texto()
 
 
-def test_sem_arquivos_ou_sem_codigo_nao_busca(app, qtbot, preparar, monkeypatch, tmp_path):
-    from PySide6.QtWidgets import QInputDialog
-
+def test_sem_tabela_ou_sem_controle_nao_busca(app, qtbot, preparar, tmp_path):
     tela = _tela(app)
     with qtbot.waitSignal(tela.run.terminou, timeout=10000):
         tela.run.btn.click()
-    assert "Escolha o arquivo de envio" in tela.log.texto()
-    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("", False))
-    tela.sel_envio.path = str(tmp_path / "e.docx")
-    tela.sel_controle.path = str(tmp_path / "c.xlsx")
+    assert "Cole a tabela" in tela.log.texto()
+    tela.tabela.setPlainText(LINHA_1)
     with qtbot.waitSignal(tela.run.terminou, timeout=10000):
         tela.run.btn.click()
+    assert "Escolha o Controle" in tela.log.texto()
     assert preparar == []
 
 

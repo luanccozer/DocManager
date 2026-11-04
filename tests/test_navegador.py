@@ -37,8 +37,9 @@ def test_capturar_grava_tela_pagina_e_frames(tmp_path):
             p.click(f"#{navegador.ID_BOTAO}")
             cliques.append(1)
             return False
+        cliques.append(1)
         texto = p.inner_text(f"#{navegador.ID_BOTAO}")
-        return texto.startswith("Capturada")
+        return texto.startswith("Capturada") or len(cliques) > 40   # ~20 s no máximo
 
     destino = tmp_path / "capturas" / "sessao"
     arquivo = navegador.capturar_telas(log_cb=lambda _m: None, url_inicial=pagina.as_uri(),
@@ -85,3 +86,34 @@ def test_sem_chrome_a_mensagem_diz_o_que_fazer(tmp_path):
 
     with pytest.raises(navegador.ErroNavegador, match="Google Chrome não foi encontrado"):
         navegador.abrir_chrome(_Pw(), perfil=tmp_path)
+
+
+def test_f8_dentro_de_um_frame_captura_sem_o_mouse(tmp_path):
+    """Mexer o mouse fecha menus do Aconex: a tecla captura, mesmo com o foco num frame."""
+    frame = tmp_path / "f.html"
+    frame.write_text("<html><body><input id='campo'></body></html>")
+    pagina = tmp_path / "p.html"
+    pagina.write_text(f"<html><head><title>Tela</title></head><body>"
+                      f"<iframe name='f' src='{frame.as_uri()}'></iframe></body></html>")
+    estado = {"apertou": False, "voltas": 0}
+
+    def parar(contexto):
+        p = contexto.pages[0]
+        estado["voltas"] += 1
+        if estado["voltas"] > 40:   # ~20 s: não trava a suíte se a tecla não capturar
+            return True
+        if not estado["apertou"]:
+            p.wait_for_selector(f"#{navegador.ID_BOTAO}")
+            alvo = p.frame(name="f")
+            alvo.wait_for_selector("#campo")
+            alvo.focus("#campo")
+            p.keyboard.press(navegador.TECLA)
+            estado["apertou"] = True
+            return False
+        return p.inner_text(f"#{navegador.ID_BOTAO}").startswith("Capturada")
+
+    destino = tmp_path / "c"
+    arquivo = navegador.capturar_telas(log_cb=lambda _m: None, url_inicial=pagina.as_uri(),
+                                       destino=destino, executavel=_executavel(),
+                                       perfil=tmp_path / "perfil", headless=True, parar=parar)
+    assert arquivo is not None and (destino / "01-Tela" / "tela.png").exists()

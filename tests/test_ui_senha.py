@@ -39,8 +39,12 @@ def test_a_senha_confere_e_o_texto_dela_nao_esta_no_codigo():
 
 
 def test_senha_certa_abre_e_nao_pergunta_de_novo(app, senha_de_verdade, digitar):
+    cadeado = app._cadeados["upload"]
+    assert not cadeado.isHidden()                       # bloqueada: o cadeado à direita
+    assert cadeado.parent() is app._botoes["upload"]
     digitar["respostas"] = ["cmi1234"]
     app.selecionar("upload")
+    assert cadeado.isHidden()                           # senha aceita: o cadeado some
     assert app._key_ativa == "upload"
     app.selecionar("home")
     app.selecionar("upload")
@@ -52,6 +56,7 @@ def test_senha_errada_avisa_e_fica_na_tela_de_antes(app, senha_de_verdade, digit
     digitar["respostas"] = ["errada"]
     app.selecionar("upload")
     assert app._key_ativa == "pendencias" and "upload" not in app._views
+    assert not app._cadeados["upload"].isHidden()
     assert caixas == [("aviso", "Acesso restrito", "Senha incorreta.")]
 
 

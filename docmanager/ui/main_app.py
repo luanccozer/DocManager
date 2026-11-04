@@ -71,7 +71,7 @@ VIEWS = [
     ViewSpec("relatorios", marcar("Relatórios"), "clipboard-list", ReportsView),
     ViewSpec("transpasse", marcar("Transpasse de Fase"), "calendar-range", TranspasseView),
     ViewSpec("pendencias", marcar("Pendências"), "file-spreadsheet", PendenciasView),
-    ViewSpec("upload", marcar("Upload de documentos"), "lock", UploadView, senha=True),
+    ViewSpec("upload", marcar("Upload de documentos"), "upload", UploadView, senha=True),
     ViewSpec("aconex", marcar("Extração Aconex"), "download", AconexView),
     # Sem linha na barra lateral: a lâmpada e a engrenagem ficam no alto, à
     # direita, como na CMI Suite e no SIG-FT (`_montar_topo`).
@@ -123,6 +123,7 @@ class MainApp(QMainWindow):
         self._botoes: dict[str, QPushButton] = {}
         self._key_ativa: str | None = None
         self._liberadas: set[str] = set()   # telas com senha já liberadas nesta sessão
+        self._cadeados: dict[str, QLabel] = {}   # o cadeado ao lado de cada tela com senha
 
         central = QWidget()
         central.setObjectName("conteudo")
@@ -217,6 +218,17 @@ class MainApp(QMainWindow):
                        papel_cor_ativo=estilo.PAPEL_MENU_ESCOLHIDO)
         b.clicked.connect(lambda _=False, k=spec.key: self.selecionar(k))
         self._botoes[spec.key] = b
+        if spec.senha and texto:
+            # O cadeado à direita diz "bloqueada"; some quando a senha é aceita.
+            cadeado = QLabel()
+            cadeado.setObjectName("cadeado")
+            cadeado.setToolTip(t("Protegido por senha"))
+            icones.aplicar(cadeado, "lock", papel_cor="texto_suave", tamanho=14)
+            por_dentro = QHBoxLayout(b)
+            por_dentro.setContentsMargins(0, 0, 10, 0)
+            por_dentro.addStretch(1)
+            por_dentro.addWidget(cadeado)
+            self._cadeados[spec.key] = cadeado
         return b
 
     def _marcar_rodape(self, info):
@@ -232,6 +244,8 @@ class MainApp(QMainWindow):
                     self.selecionar(self._key_ativa)
                 return
             self._liberadas.add(key)
+            if (cadeado := self._cadeados.get(key)) is not None:
+                cadeado.hide()
         for k, b in self._botoes.items():
             estilo.definir_propriedade(b, "ativo", k == key)
             icones.reaplicar(b)

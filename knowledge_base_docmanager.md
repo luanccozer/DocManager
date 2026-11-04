@@ -1344,9 +1344,10 @@ tabelas dinâmicas desatualizadas até alguém abrir no Excel de mesa.
 
 Spec: `.scratch/upload-aprovacao/spec.md` (o processo inteiro do Box ao Aconex, com as decisões do usuário).
 
-**Fase 1 (feita):** `services/upload_envio.py` lê o arquivo de envio (.docx pelo XML: `w:hyperlink` +
-rels ou campo `HYPERLINK`; .xlsx pelo `cell.hyperlink.target`) e devolve o DESTINO do hiperlink de `LINK`
-(o texto é "R0 | Pov…"). `ControleRow.ultima_revisao` vem de `ÚLTIMA REVISÃO EMITIDA` (fórmula PROCV:
+**Fase 1 (feita):** a lista de envio é COLADA na tela (não há arquivo; 2026-11-04): `services/
+upload_envio.ler_tabela` lê o texto separado por TAB, com ou sem cabeçalho (sem ele vale a ordem da lista),
+e o robô faz um documento de cada vez. Linha de uma célula só (a frase "Seguem documentos…") não conta. O
+link é o endereço escrito em `LINK GE BOX`. `ControleRow.ultima_revisao` vem de `ÚLTIMA REVISÃO EMITIDA` (fórmula PROCV:
 vale o valor salvo). `services/upload_aprovacao.preparar_aprovacao` confere tudo e acha o documento pela
 busca exata do register (`consultar_codigos`, a mesma da consulta rápida) - nada é gravado.
 
@@ -1355,7 +1356,9 @@ empacotado), perfil persistente em `pasta_dados()/navegador`. Botão flutuante s
 captura grava `tela.png`, `pagina.html`, `frame-N.html` (o Aconex é feito de frames) e `info.json`, e o fim
 gera um .zip. **Armadilha medida:** na API síncrona do Playwright, mexer na página dentro do callback do
 `expose_binding` TRAVA (o callback roda no laço de eventos que a chamada espera). O botão só põe o pedido
-numa fila; o laço principal grava e devolve "Capturada (n)" ao botão.
+numa fila; o laço principal grava e devolve "Capturada (n)" ao botão. A tecla **F8** captura de
+qualquer frame (mover o mouse fecha menus do Aconex). **Armadilha medida:** num frame de OUTRO endereço,
+`window.top.document` levanta erro de segurança - o aviso no botão vai num `try`, e a captura segue.
 
 **Modelo do workflow:** é o "Nome" do último fluxo do documento (Apto para Firma → Fluxos de Trabalho). A
 Workflows API traz `WorkflowTemplate`/`WorkflowName`, mas sem filtro por documento conhecido (§24.12):

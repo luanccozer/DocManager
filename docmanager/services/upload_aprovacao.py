@@ -1,9 +1,9 @@
 """Upload de documentos → Para aprovação: a parte que não grava nada (Fase 1).
 
-Confere o código CMI no arquivo de envio (link do Box) e no Controle de Documentos
-(a última revisão emitida precisa ser 0C; senão, a pessoa decide se segue), acha o
-documento no Aconex pela API (busca exata pelo código, a mesma da consulta rápida) e
-devolve o resumo do que o robô vai fazer.
+Para cada documento da tabela colada (um de cada vez, na ordem dela): confere o código
+no Controle de Documentos (a última revisão emitida precisa ser 0C; senão, a pessoa decide
+se segue), acha o documento no Aconex pela API (busca exata pelo código, a mesma da
+consulta rápida) e devolve o resumo do que o robô vai fazer.
 
 A gravação (Box, nova revisão, workflow, impressão) é a Fase 2 e depende do mapeamento
 das telas (spec `.scratch/upload-aprovacao/spec.md`).
@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .controle_docs import chave_codigo, ler_controle
-from .upload_envio import ErroEnvio, LinhaEnvio, buscar, ler_envio
+from .controle_docs import ControleDocs, chave_codigo
+from .upload_envio import LinhaEnvio
 
 REVISAO_ESPERADA = "0C"
 REVISAO_NOVA = "0"
@@ -46,34 +46,22 @@ class Preparacao:
         ])
 
 
-def preparar_aprovacao(config, caminho_envio, caminho_controle, codigo: str, prazo_dias: int, *,
-                       aba_controle=0, log_cb=print, perguntar_cb=None,
-                       consultar=None) -> Preparacao:
-    """Confere tudo o que dá para conferir sem gravar. `perguntar_cb(mensagem) -> bool`
+def preparar_aprovacao(config, linha: LinhaEnvio, controle: ControleDocs, prazo_dias: int, *,
+                       log_cb=print, perguntar_cb=None, consultar=None) -> Preparacao:
+    """Confere UM documento da tabela sem gravar nada. `perguntar_cb(mensagem) -> bool`
     decide se segue quando a revisão não é 0C; `consultar` é a busca no Aconex
     (padrão: `aconex_backend.consultar_codigos`)."""
-    codigo = (codigo or "").strip()
+    codigo = (linha.cod_cmi or "").strip()
     if not codigo:
-        return Preparacao(False, "Nenhum código CMI informado.")
+        return Preparacao(False, "Linha da tabela sem código CMI.")
     if not prazo_dias or prazo_dias <= 0:
         return Preparacao(False, "Informe o prazo do workflow em dias.")
-    r = Preparacao(False, "", codigo=codigo, prazo_dias=prazo_dias)
-
-    try:
-        linha = buscar(ler_envio(caminho_envio), codigo)
-    except ErroEnvio as e:
-        r.mensagem = str(e)
-        return r
-    if linha is None:
-        r.mensagem = f"O código {codigo} não está no arquivo de envio."
-        return r
+    r = Preparacao(False, "", codigo=codigo, prazo_dias=prazo_dias, envio=linha)
     if not linha.link:
-        r.mensagem = f"O código {codigo} está no arquivo de envio, mas a coluna LINK não tem o link do Box."
+        r.mensagem = f"{codigo}: a tabela não tem o link do Box (coluna LINK GE BOX)."
         return r
-    r.envio = linha
-    log_cb(f"Arquivo de envio: {codigo} → {linha.cod_itaipu or '(sem código Itaipu)'}; link do Box ok.")
+    log_cb(f"{codigo}: {linha.cod_itaipu or '(sem código Itaipu)'}; link do Box ok.")
 
-    controle = ler_controle(caminho_controle, aba_controle, log_cb=log_cb)
     linha_ctrl = controle.linha_por_codigo(codigo)
     r.ultima_revisao = linha_ctrl.ultima_revisao if linha_ctrl else ""
     if linha_ctrl is None:
@@ -85,8 +73,8 @@ def preparar_aprovacao(config, caminho_envio, caminho_controle, codigo: str, pra
         aviso = ""
     if aviso:
         log_cb(aviso)
-        if not (perguntar_cb and perguntar_cb(f"{aviso}\n\nContinuar mesmo assim?")):
-            r.mensagem = f"{aviso} Envio cancelado."
+        if not (perguntar_cb and perguntar_cb(f"{aviso}\n\nContinuar mesmo assim com este documento?")):
+            r.mensagem = f"{aviso} Documento pulado."
             return r
         log_cb("Continuando por decisão do usuário.")
     else:
