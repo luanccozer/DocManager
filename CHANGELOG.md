@@ -8,6 +8,7 @@ dela aqui **antes** de criar a tag.
 ## 3.6.3 - 2026-11-03
 
 - Módulo novo, Upload de documentos, com três opções: Documento novo, Para revisão e Para aprovação. Por enquanto só Para aprovação, e em ensaio: você escolhe o arquivo de envio (Word ou Excel, com o código CMI e o link do Box) e o Controle de Documentos, informa o prazo do workflow em dias e cola o código CMI. O DocManager confere o código nos dois arquivos, avisa se a última revisão emitida não é 0C, acha o documento no Aconex e mostra tudo o que o robô vai fazer. Nada é enviado ainda.
+- Upload de documentos é protegido por senha (o cadeado na barra lateral e no início): ela é pedida uma vez a cada vez que o DocManager é aberto. Peça a senha ao responsável.
 - Upload de documentos: o botão Capturar telas abre o Google Chrome com um botão "Capturar". Faça o envio para aprovação à mão uma vez e aperte Capturar em cada tela do Box e do Aconex; ao fechar o Chrome, o DocManager junta as telas num .zip. É com ele que o robô aprende onde clicar.
 
 ## 3.6.2 - 2026-11-02

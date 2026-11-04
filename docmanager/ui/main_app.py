@@ -60,6 +60,7 @@ class ViewSpec:
     icone: str
     factory: Callable
     menu: bool = True       # False: sem linha própria na barra lateral
+    senha: bool = False     # True: pede a senha (core/acesso.py) uma vez por sessão
 
 VIEWS = [
     ViewSpec("home", marcar("Início"), "house", HomeView),
@@ -70,7 +71,7 @@ VIEWS = [
     ViewSpec("relatorios", marcar("Relatórios"), "clipboard-list", ReportsView),
     ViewSpec("transpasse", marcar("Transpasse de Fase"), "calendar-range", TranspasseView),
     ViewSpec("pendencias", marcar("Pendências"), "file-spreadsheet", PendenciasView),
-    ViewSpec("upload", marcar("Upload de documentos"), "upload", UploadView),
+    ViewSpec("upload", marcar("Upload de documentos"), "lock", UploadView, senha=True),
     ViewSpec("aconex", marcar("Extração Aconex"), "download", AconexView),
     # Sem linha na barra lateral: a lâmpada e a engrenagem ficam no alto, à
     # direita, como na CMI Suite e no SIG-FT (`_montar_topo`).
@@ -121,6 +122,7 @@ class MainApp(QMainWindow):
         self._views: dict[str, QWidget] = {}
         self._botoes: dict[str, QPushButton] = {}
         self._key_ativa: str | None = None
+        self._liberadas: set[str] = set()   # telas com senha já liberadas nesta sessão
 
         central = QWidget()
         central.setObjectName("conteudo")
@@ -222,6 +224,14 @@ class MainApp(QMainWindow):
         estilo.definir_propriedade(self._rodape, "novo", True)
 
     def selecionar(self, key: str):
+        spec = next((s for s in VIEWS if s.key == key), None)
+        if spec is not None and spec.senha and key not in self._liberadas:
+            if not self._senha_confirmada(spec):
+                # Fica na tela de antes: o botão da barra lateral volta a marcar ela.
+                if self._key_ativa and self._key_ativa != key:
+                    self.selecionar(self._key_ativa)
+                return
+            self._liberadas.add(key)
         for k, b in self._botoes.items():
             estilo.definir_propriedade(b, "ativo", k == key)
             icones.reaplicar(b)
@@ -236,6 +246,23 @@ class MainApp(QMainWindow):
         # nas Configurações, que tem de aparecer na Extração).
         if (ao_exibir := getattr(self._views[key], "ao_exibir", None)) is not None:
             ao_exibir()
+
+    def _senha_confirmada(self, spec: ViewSpec) -> bool:
+        """Pede a senha da tela restrita. Errada avisa; cancelar só não abre."""
+        from PySide6.QtWidgets import QInputDialog, QLineEdit
+
+        from ..core import acesso
+
+        texto, ok = QInputDialog.getText(
+            self, t("Acesso restrito"),
+            t("{tela} é protegido por senha. Digite a senha:", tela=t(spec.label)),
+            QLineEdit.EchoMode.Password)
+        if not ok:
+            return False
+        if acesso.confere(texto):
+            return True
+        dialogos.aviso(t("Acesso restrito"), t("Senha incorreta."), self)
+        return False
 
     def view_ativa(self):
         return self._views.get(self._key_ativa)

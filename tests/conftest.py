@@ -49,3 +49,12 @@ def interface_em_portugues(request, monkeypatch):
         monkeypatch.setattr("docmanager.ui.main_app._idiomas_do_windows", lambda: ["pt-BR"])
     yield
     idioma.definir("pt")
+
+
+@pytest.fixture(autouse=True)
+def telas_com_senha_liberadas(request, monkeypatch):
+    """Testes de tela não param na senha do Upload (ela abriria uma janela modal e
+    travaria a suíte). Os testes do candado (`tests/test_ui_senha.py`) usam a de verdade."""
+    if "qtbot" in request.fixturenames and "senha_de_verdade" not in request.fixturenames:
+        monkeypatch.setattr("docmanager.ui.main_app.MainApp._senha_confirmada", lambda self, spec: True)
+    yield

@@ -242,7 +242,8 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   (Word ou Excel) e o Controle de Documentos, informe o prazo e cole o código CMI; o app
   confere (precisa estar em 0C), acha o documento no Aconex e mostra o que vai fazer, sem
   enviar nada. **Capturar telas** grava as telas do Box e do Aconex (num .zip) para o robô
-  aprender os botões. Usa o Google Chrome instalado.
+  aprender os botões. Usa o Google Chrome instalado. A tela é **protegida por senha**
+  (pedida uma vez por sessão; a senha fica com o responsável, nunca no repositório).
 - **⚙️ Configurações** - **Credenciais do Aconex** (cadastrar, editar, remover),
   **Atualizações** do app, a *Regra da Aprovação Intermediária* (VIP) e a base do
   atraso CMI na 0A.
