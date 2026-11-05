@@ -1340,6 +1340,34 @@ organizações nos Comments e se o título usa `trading_name` ou `name`; o forma
 listas, de `Source` e dos campos `user` e `multi_select`; pré-visualização do Box ou do Excel Online com as
 tabelas dinâmicas desatualizadas até alguém abrir no Excel de mesa.
 
+## 33. 🚧 Upload de documentos → Para aprovação (Fase 1, 2026-11-03, pedido do Jonathan)
+
+Spec: `.scratch/upload-aprovacao/spec.md` (o processo inteiro do Box ao Aconex, com as decisões do usuário).
+
+**Fase 1 (feita):** a lista de envio é COLADA na tela (não há arquivo; 2026-11-04): `services/
+upload_envio.ler_tabela` lê o texto separado por TAB, com ou sem cabeçalho (sem ele vale a ordem da lista),
+e o robô faz um documento de cada vez. Linha de uma célula só (a frase "Seguem documentos…") não conta. O
+link é o endereço escrito em `LINK GE BOX`. `ControleRow.ultima_revisao` vem de `ÚLTIMA REVISÃO EMITIDA` (fórmula PROCV:
+vale o valor salvo). `services/upload_aprovacao.preparar_aprovacao` confere tudo e acha o documento pela
+busca exata do register (`consultar_codigos`, a mesma da consulta rápida) - nada é gravado.
+
+**Capturar telas** (`services/navegador.py`): Chrome instalado via Playwright (`channel="chrome"`, nada
+empacotado), perfil persistente em `pasta_dados()/navegador`. Botão flutuante só no frame principal; cada
+captura grava `tela.png`, `pagina.html`, `frame-N.html` (o Aconex é feito de frames) e `info.json`, e o fim
+gera um .zip. **Armadilha medida:** na API síncrona do Playwright, mexer na página dentro do callback do
+`expose_binding` TRAVA (o callback roda no laço de eventos que a chamada espera). O botão só põe o pedido
+numa fila; o laço principal grava e devolve "Capturada (n)" ao botão. A tecla **F8** captura de
+qualquer frame (mover o mouse fecha menus do Aconex). **Armadilha medida:** num frame de OUTRO endereço,
+`window.top.document` levanta erro de segurança - o aviso no botão vai num `try`, e a captura segue.
+
+**Modelo do workflow:** é o "Nome" do último fluxo do documento (Apto para Firma → Fluxos de Trabalho). A
+Workflows API traz `WorkflowTemplate`/`WorkflowName`, mas sem filtro por documento conhecido (§24.12):
+fica para a Fase 2, pela tela, salvo se o mapeamento achar uma rota.
+
+**Fase 2 (pendente, depende das capturas):** baixar do Box, subir a revisão 0 "Para Aprovação" com PDF +
+editável, iniciar o workflow (modelo + prazo em dias), imprimir "estilo de tela / sem tópicos" como
+`<correio> - <WF> - <data>.pdf` e subir na pasta do Box. Nenhuma retentativa automática depois de gravar.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

@@ -58,6 +58,7 @@ class ControleRow:
     subespecialidade: str = ""   # REFERÊNCIA DA ESPECIFICAÇÃO TÉCNICA  → Subespecialidade
     tipo_documento: str = ""     # TIPO DE DOCUMENTO                    → Tipo do Documento DCC
     subtipo: str = ""            # SUBTIPO                              → Subtipo DCC
+    ultima_revisao: str = ""     # ÚLTIMA REVISÃO EMITIDA (Upload → aprovação: precisa estar em 0C)
 
     @property
     def data_ref(self) -> date | None:
@@ -472,6 +473,7 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
                       "REFERENCIA DA ESPECIFICACAO TECNICA", "ESPECIFICACAO TECNICA")
     col_tipodoc = _col(df, "TIPO DE DOCUMENTO")
     col_subtipo = _col(df, "SUBTIPO")
+    col_ultima = _col(df, "ÚLTIMA REVISÃO EMITIDA", "ULTIMA REVISAO EMITIDA")
     if col_prev is None:
         log(f"Aviso: aba '{aba}' sem coluna '{CTRL_COL_DATA_PREVISTA}'. "
             f"Cabeçalhos lidos: {', '.join(str(c) for c in list(df.columns)[:25])}")
@@ -499,6 +501,7 @@ def _ler_aba(caminho, aba, log) -> list[ControleRow]:
             subespecialidade=str(df.iloc[i][col_esptec]).strip() if col_esptec else "",
             tipo_documento=str(df.iloc[i][col_tipodoc]).strip() if col_tipodoc else "",
             subtipo=str(df.iloc[i][col_subtipo]).strip() if col_subtipo else "",
+            ultima_revisao=str(df.iloc[i][col_ultima]).strip() if col_ultima else "",
         ))
     if col_prev is not None or col_reprog is not None:
         achadas = [n for n, c in (("DATA PREVISTA", col_prev), ("REPROGRAMAÇÃO", col_reprog)) if c]

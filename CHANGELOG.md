@@ -5,6 +5,12 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.6.3 - 2026-11-05
+
+- Módulo novo, Upload de documentos, com três opções: Documento novo, Para revisão e Para aprovação. Por enquanto só Para aprovação, e em ensaio: cole a tabela de envio que chega por e-mail (com ou sem o cabeçalho, quantos documentos vierem), escolha o Controle de Documentos e informe o prazo do workflow em dias. O DocManager faz um documento de cada vez, na ordem da tabela: confere o código no Controle (avisa se a última revisão emitida não é 0C), acha o documento no Aconex e mostra tudo o que o robô vai fazer. Nada é enviado ainda.
+- Upload de documentos é protegido por senha: o cadeado à direita do nome, na barra lateral, mostra que está bloqueado, e some quando a senha é aceita. Ela é pedida uma vez a cada vez que o DocManager é aberto. Peça a senha ao responsável.
+- Upload de documentos: o botão Capturar telas abre o Google Chrome. Faça o envio para aprovação à mão uma vez e, em cada tela do Box e do Aconex, aperte F8 (ou o botão Capturar, no canto): a tecla não fecha os menus abertos, como o mouse faz. Ao fechar o Chrome, o DocManager junta as telas num .zip. É com ele que o robô aprende onde clicar.
+
 ## 3.6.2 - 2026-11-02
 
 - Módulo novo, Pendências: atualiza a planilha de mapeamento de pendências de comissionamento direto do Aconex (Campo → Questões). É só escolher a planilha: o DocManager busca as pendências e já grava. As novas entram no topo da tabela, em ordem decrescente; nas que já estão, as colunas do Aconex ficam em dia; as colunas preenchidas à mão nunca são tocadas. Impeditivas que não estão fechadas ficam com o texto em vermelho (sem preenchimento), e voltam ao preto quando fecham. O que a atualização trouxe (pendência nova, célula trocada ou preenchida) fica em azul; o azul da atualização anterior volta ao preto. Numa pendência nova e impeditiva, vale o vermelho. Tabelas dinâmicas, gráficos, coluna oculta e formatação ficam como estavam: abra no Excel para eles se atualizarem.
