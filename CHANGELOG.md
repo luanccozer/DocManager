@@ -5,7 +5,7 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.6.3 - 2026-11-04
+## 3.6.3 - 2026-11-05
 
 - Módulo novo, Upload de documentos, com três opções: Documento novo, Para revisão e Para aprovação. Por enquanto só Para aprovação, e em ensaio: cole a tabela de envio que chega por e-mail (com ou sem o cabeçalho, quantos documentos vierem), escolha o Controle de Documentos e informe o prazo do workflow em dias. O DocManager faz um documento de cada vez, na ordem da tabela: confere o código no Controle (avisa se a última revisão emitida não é 0C), acha o documento no Aconex e mostra tudo o que o robô vai fazer. Nada é enviado ainda.
 - Upload de documentos é protegido por senha: o cadeado à direita do nome, na barra lateral, mostra que está bloqueado, e some quando a senha é aceita. Ela é pedida uma vez a cada vez que o DocManager é aberto. Peça a senha ao responsável.
