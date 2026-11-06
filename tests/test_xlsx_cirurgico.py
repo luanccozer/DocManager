@@ -266,15 +266,39 @@ def test_recusa_formula_na_aba(planilha):
 def test_recusa_dado_abaixo_e_ao_lado_da_tabela(planilha):
     problemas = _com(planilha, lambda x: x.replace(
         "</sheetData>", '<row r="20"><c r="A20" t="inlineStr"><is><t>solto</t></is></c></row></sheetData>'))
-    assert any("abaixo da tabela" in m for m in problemas)
+    assert any("abaixo da tabela" in m and "linha 20" in m and "Redimensionar Tabela" in m
+               for m in problemas), problemas
 
 
 def test_recusa_chave_ausente_ou_repetida(tmp_path):
     caminho = tmp_path / "p.xlsx"
-    escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(3)])
-    assert any("mais de uma vez" in m for m in xc.recusas(xc.ler(caminho, CHAVE), CHAVE))
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(2), linha_pendencia(3)])
+    repetida = [m for m in xc.recusas(xc.ler(caminho, CHAVE), CHAVE) if "mais de uma vez" in m]
+    assert repetida == ["'Issue Number' 3 aparece mais de uma vez na tabela (linhas 5 e 7)."]
     escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(2, **{CHAVE: None})])
     assert any("não tem 'Issue Number'" in m for m in xc.recusas(xc.ler(caminho, CHAVE), CHAVE))
+
+
+def test_linha_sem_chave_so_passa_quando_o_chamador_aceita(tmp_path):
+    """Chave vazia ou com letras (linha feita à mão): recusada por padrão; aceita com
+    `aceitar_sem_chave`, e número repetido continua recusado, com a dica."""
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), {CHAVE: "M-01"}, {}])
+    p = xc.ler(caminho, CHAVE)
+    assert any("A linha 6 da tabela não tem 'Issue Number'" in m for m in xc.recusas(p, CHAVE))
+    assert xc.recusas(p, CHAVE, aceitar_sem_chave=True) == []
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), {CHAVE: "M-01"}, {CHAVE: "3"}])
+    problemas = xc.recusas(xc.ler(caminho, CHAVE), CHAVE, aceitar_sem_chave=True)
+    assert len(problemas) == 1 and "(linhas 5 e 7)" in problemas[0] and "use letras" in problemas[0]
+
+
+@pytest.mark.parametrize("valor, numero", [
+    (131, 131), (131.0, 131), ("131", 131), (" 131 ", 131),
+    ("M-01", None), ("131A", None), ("", None), ("  ", None), (None, None),
+    (0, None), (-3, None), (12.5, None), (True, None), ("²", None), (date(2026, 1, 5), None),
+])
+def test_numero_da_chave(valor, numero):
+    assert xc.numero_da_chave(valor) == numero
 
 
 def test_formula_de_outra_aba_que_aponta_para_o_corpo_recusa(tmp_path):

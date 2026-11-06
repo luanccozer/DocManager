@@ -1322,6 +1322,30 @@ Arquivos: `field_backend.py` (API), `services/pendencias_update.py` (regras), `s
 - texto: sem caracteres de controle, cortado em 32.767 caracteres com aviso; o Aconex é limpo ANTES de
   comparar, senão a mesma pendência viraria "troca" a cada execução.
 
+**Registros manuais (pedido da equipe, 2026-11-06)**: a equipe pode registrar à mão, no fim da tabela,
+pendências que não estão no Aconex. A linha é reconhecida pelo Issue Number: **número inteiro positivo**
+(131, 131.0 ou o texto "131") é pendência do Aconex; **vazio ou com letras** ("M-01") é registro manual
+(`xlsx_cirurgico.numero_da_chave`). Regras:
+- registro manual nunca é tocado, nem valor nem formato (sem o vermelho de impeditiva, sem a volta do azul ao
+  preto): só desce junto com o resto quando entram novas no topo. O validador confere que o XML da linha saiu
+  igual, fora o número da linha; os modelos de linha e de célula das novas saem só das pendências do Aconex;
+- `recusas(..., aceitar_sem_chave=True)`: linha sem número deixa de ser recusada; número repetido continua, e a
+  mensagem diz as linhas e pede letras se uma delas foi feita à mão;
+- **armadilha 1**: registro manual com só número vira pendência do Aconex. Repetido → recusa; acima do último
+  número do Aconex (a equipe numerando na sequência, 151 com o Aconex no 150) → fica como está e o aviso final
+  manda trocar por letras, porque quando o Aconex chegar ao 151 a linha passaria a ser atualizada como a
+  pendência 151 (colunas do Aconex trocadas);
+- **armadilha 2**: com o Issue Number vazio, o registro não entra na "Contagem de Issue Number" das tabelas
+  dinâmicas (o Excel não conta vazio); o aviso final pede letras. Texto conta;
+- linha da tabela totalmente vazia (tabela estendida para digitar depois) não é registro e fica onde está; o
+  pandas descarta as vazias do fim, e a conferência conta só até a última linha com valor;
+- dado digitado abaixo da tabela, FORA dela (Excel não estendeu a tabela), continua recusado: fora da Tabela
+  nem as tabelas dinâmicas o enxergam. A mensagem manda estender (Design da Tabela → Redimensionar Tabela);
+- se alguém ordenar a tabela pelo Issue Number no Excel, os registros com letras sobem para o topo (na ordem
+  decrescente o Excel põe texto antes de número): a atualização continua certa, só a posição deles muda;
+- quando uma pendência feita à mão for registrada no Aconex, ela entra no topo como nova; o registro manual
+  fica até a equipe apagá-lo (o app não junta os dois).
+
 **Achado na 1ª execução real (3.6.5-rc.1)**: a planilha real tem Issue Number guardado como TEXTO em
 algumas linhas ("131"), não só como número. A conferência comparava texto com número e recusava tudo
 ("a ordem das pendências não é a planejada"). Toda comparação do número passa por `_numero`.

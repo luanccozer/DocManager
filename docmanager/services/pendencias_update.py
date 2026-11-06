@@ -11,7 +11,10 @@ pergunta final:
 - impeditiva não fechada fica com a cor da legenda, e perde a cor quando deixa
   de ser - só o preenchimento muda, nunca fonte, borda ou altura (D5);
 - tudo ou nada: qualquer falha (API, recusa, conferência) não grava (C2), e a
-  troca do arquivo passa pela substituição segura, com cópia de segurança.
+  troca do arquivo passa pela substituição segura, com cópia de segurança;
+- registro manual (linha da tabela sem número do Aconex no Issue Number: vazio
+  ou com letras, como "M-01") nunca é tocado, nem valor nem formato; só desce
+  junto com o resto quando entram pendências novas no topo.
 
 Nenhum número de estilo é fixo: o fill de destaque, os modelos de linha e de
 célula saem dos dados da própria planilha (8.4 da spec).
@@ -74,6 +77,10 @@ class ResultadoPendencias:
     ganharam_cor: int = 0
     perderam_cor: int = 0
     so_na_planilha: list[int] = field(default_factory=list)
+    manuais: int = 0              # registros manuais (sem número do Aconex), intocados
+    manuais_sem_numero: int = 0   # deles, os com o Issue Number vazio
+    acima_do_aconex: list[int] = field(default_factory=list)   # só na planilha, acima do último
+    maior_do_aconex: int = 0
     backup: str = ""
     gravou: bool = False
 
@@ -86,17 +93,9 @@ class _Recusa(Exception):
 
 # --- Comparação ----------------------------------------------------------------------
 
-def _numero(v) -> int | None:
-    """O Issue Number como inteiro, esteja a célula como número (131 ou 131.0) ou
-    como texto ("131") - a planilha real tem dos dois jeitos."""
-    if isinstance(v, bool) or v is None:
-        return None
-    if isinstance(v, float) and v.is_integer():
-        return int(v)
-    if isinstance(v, int):
-        return v
-    texto = str(v).strip()
-    return int(texto) if texto.isdigit() else None
+def _valor(linha: xc.Linha, col: int | None):
+    cel = linha.celulas.get(col)
+    return cel.valor if cel else None
 
 
 def _texto(v) -> str:
@@ -164,7 +163,7 @@ class _Modelos:
 
 def _modelo_de_abertura(linhas: list[xc.Linha], s: str | None) -> str:
     sem_r = [re.sub(r'(\sr=")\d+(")', r"\g<1>0\g<2>", x.abertura, count=1) for x in linhas]
-    abertura = xc.mais_comum(sem_r)
+    abertura = xc.mais_comum(sem_r) or '<row r="0">'   # tabela sem nenhuma linha para copiar
     if s is not None:
         abertura = xc._trocar_attr(abertura, "s", s)
     return abertura
@@ -223,12 +222,24 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
         raise _Recusa(f"Não foi possível abrir a planilha ({e}).") from e
     except xc.ErroXlsx as e:
         raise _Recusa(f"A planilha não serve para a atualização: {e}") from e
-    if (problemas := xc.recusas(pasta, CHAVE)):
+    if (problemas := xc.recusas(pasta, CHAVE, aceitar_sem_chave=True)):
         raise _Recusa("Para não arriscar a planilha, nada foi gravado. Encontrado:\n- "
                       + "\n- ".join(problemas))
     tb = pasta.tabela
-    log(f"Tabela '{tb.nome}' na aba '{pasta.aba_nome}' ({tb.ref}): "
-        f"{tb.ultima - tb.cabecalho} pendências na planilha.")
+    col_chave = tb.coluna(CHAVE)
+    titulos = {tb.col_ini + i: n for i, n in enumerate(tb.colunas)}
+
+    # Pendências do Aconex × registros manuais: a linha sem número do Aconex no Issue
+    # Number (vazio ou com letras) foi feita pela equipe e nunca é tocada, nem o valor
+    # nem o formato; só desce junto com o resto quando entram pendências novas.
+    corpo = pasta.corpo()
+    sem_numero = {x.r for x in corpo if xc.numero_da_chave(_valor(x, col_chave)) is None}
+    linhas_aconex = [x for x in corpo if x.r not in sem_numero]
+    manuais = [x for x in corpo if x.r in sem_numero
+               and any(_texto(_valor(x, c)) for c in titulos)]   # linha vazia não é registro
+    log(f"Tabela '{tb.nome}' na aba '{pasta.aba_nome}' ({tb.ref}): {len(linhas_aconex)} pendências "
+        f"do Aconex" + (f" e {_registros(len(manuais))} (sem número do Aconex, não são tocados)"
+                        if manuais else "") + " na planilha.")
 
     col_comentarios = tb.coluna(COLUNA_COMENTARIOS)
     try:
@@ -241,13 +252,11 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
     rotulos = fb.rotulos_dos_campos_das_questoes(ext.tipos, ext.questoes)
     do_aconex = {normalizar_cabecalho(n) for n in (*fb.COLUNAS_PADRAO, *rotulos)}
     sem_fonte = {normalizar_cabecalho(n) for n in fb.COLUNAS_SEM_FONTE}
-    titulos = {tb.col_ini + i: n for i, n in enumerate(tb.colunas)}
     cols_aconex = {c: normalizar_cabecalho(n) for c, n in titulos.items()
                    if normalizar_cabecalho(n) in do_aconex and normalizar_cabecalho(n) not in sem_fonte}
     repetidas = [n for n, q in Counter(cols_aconex.values()).items() if q > 1]
     if repetidas:
         raise _Recusa(f"A coluna do Aconex '{repetidas[0]}' aparece mais de uma vez na tabela.")
-    col_chave = tb.coluna(CHAVE)
     col_classif, col_status = tb.coluna(COLUNA_CLASSIFICACAO), tb.coluna(COLUNA_STATUS)
 
     # Valores do Aconex por pendência, já pela coluna da planilha.
@@ -274,15 +283,21 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
     if sem_coluna:
         log(f"Campos do Aconex sem coluna na planilha (ignorados): {', '.join(sorted(sem_coluna))}.")
 
-    corpo = pasta.corpo()
-    planilha = {_numero(x.celulas[col_chave].valor): x for x in corpo}
+    planilha = {xc.numero_da_chave(_valor(x, col_chave)): x for x in linhas_aconex}
     novas = sorted(set(api) - set(planilha), reverse=True)
     so_na_planilha = sorted(set(planilha) - set(api), reverse=True)
-    r = ResultadoPendencias(True, "", novas=novas, so_na_planilha=so_na_planilha)
-    if so_na_planilha:
-        log(f"{len(so_na_planilha)} pendência(s) da planilha não existem mais no Aconex e ficaram "
-            f"como estão: {', '.join(map(str, so_na_planilha[:20]))}"
-            + (" …" if len(so_na_planilha) > 20 else ""))
+    r = ResultadoPendencias(True, "", novas=novas, so_na_planilha=so_na_planilha, manuais=len(manuais),
+                            manuais_sem_numero=sum(not _texto(_valor(x, col_chave)) for x in manuais))
+    # Número acima do último do Aconex não é pendência que sumiu: é um registro feito à
+    # mão numerado na sequência, que viraria a pendência do Aconex quando ela chegar
+    # a esse número (e teria as colunas do Aconex trocadas). Fica como está, com aviso.
+    r.maior_do_aconex = max(api, default=0)
+    r.acima_do_aconex = [n for n in so_na_planilha if api and n > r.maior_do_aconex]
+    sumiram = [n for n in so_na_planilha if n not in r.acima_do_aconex]
+    if sumiram:
+        log(f"{len(sumiram)} pendência(s) da planilha não existem mais no Aconex e ficaram "
+            f"como estão: {', '.join(map(str, sumiram[:20]))}"
+            + (" …" if len(sumiram) > 20 else ""))
 
     # 8.3: trocas, preenchimentos e apagamentos nas existentes.
     edicao = xc.Edicao()
@@ -348,9 +363,11 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
     if not regra:
         log(f"A tabela não tem as colunas '{COLUNA_CLASSIFICACAO}' e '{COLUNA_STATUS}': "
             "o vermelho das impeditivas não foi aplicado.")
-    destacadas_hoje_regra = {x.r for x in corpo if regra and _destacada(
+    # Os modelos das linhas novas saem das pendências do Aconex (os registros manuais
+    # podem ter o formato que a equipe quiser); só sem nenhuma, das linhas que houver.
+    destacadas_hoje_regra = {x.r for x in linhas_aconex if regra and _destacada(
         {c: (x.celulas[c].valor if c in x.celulas else None) for c in titulos}, col_classif, col_status)}
-    modelos = _descobrir_modelos(pasta, corpo, destacadas_hoje_regra, log)
+    modelos = _descobrir_modelos(pasta, linhas_aconex or corpo, destacadas_hoje_regra, log)
     est = pasta.estilos
     fill_antigo = modelos.fill_destaque
     if fill_antigo is not None and fill_antigo == modelos.fill_normal.get(tb.col_ini):
@@ -362,7 +379,7 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
         f = modelos.fill_normal.get(c)
         return "0" if f is None or f == fill_antigo else f
 
-    for x in corpo:
+    for x in linhas_aconex:   # registro manual: nem a cor muda
         depois = regra and _destacada(finais[x.r], col_classif, col_status)
         cel_a = x.celulas.get(tb.col_ini)
         tinha_fill = fill_antigo is not None and cel_a is not None and est.fill(cel_a.s) == fill_antigo
@@ -429,13 +446,13 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
     progresso(0.85)
     if not (edicao.novas or edicao.celulas or edicao.estilo_linha):
         _gravar_mantidas(manter_e_lembrar)
-        r.mensagem = "A planilha já está atualizada; nada foi gravado."
+        r.mensagem = "\n".join(["A planilha já está atualizada; nada foi gravado.", *_sobre_manuais(r)])
         log(r.mensagem)
         progresso(1.0)
         return r
 
     alteradas = xc.aplicar(pasta, edicao, avisar=log)
-    esperado = _Esperado(pasta, edicao, novas, finais, cols_aconex, titulos, set(planilha))
+    esperado = _Esperado(pasta, edicao, novas, finais, cols_aconex, titulos, sem_numero)
     info: dict = {}
     erro = gravacao.substituir_com_seguranca(
         caminho, lambda tmp: xc.gravar_zip(pasta, alteradas, tmp),
@@ -469,15 +486,48 @@ def _mensagem(r: ResultadoPendencias) -> str:
         linhas.append(f"{r.ganharam_cor} linha(s) ganharam a cor (ficaram impeditivas abertas).")
     if r.perderam_cor:
         linhas.append(f"{r.perderam_cor} linha(s) perderam a cor (fecharam ou deixaram de ser impeditivas).")
-    if r.so_na_planilha:
-        linhas.append(f"{len(r.so_na_planilha)} pendência(s) da planilha não estão mais no Aconex "
+    sumiram = [n for n in r.so_na_planilha if n not in r.acima_do_aconex]
+    if sumiram:
+        linhas.append(f"{len(sumiram)} pendência(s) da planilha não estão mais no Aconex "
                       "e ficaram como estavam.")
     else:
         linhas.append("Nenhuma pendência da planilha sumiu do Aconex.")
+    linhas += _sobre_manuais(r)
     if r.backup:
         linhas.append(f"Cópia de segurança: {r.backup}")
     linhas.append("Abra no Excel para as tabelas dinâmicas e os gráficos se atualizarem.")
     return "\n".join(linhas)
+
+
+def _registros(n: int) -> str:
+    return "1 registro manual" if n == 1 else f"{n} registros manuais"
+
+
+def _sobre_manuais(r: ResultadoPendencias) -> list[str]:
+    """As linhas do aviso final sobre os registros manuais (nenhuma, se não há)."""
+    linhas = []
+    if r.manuais:
+        linhas.append(f"{_registros(r.manuais)}, sem número do Aconex, "
+                      + ("ficou como estava." if r.manuais == 1 else "ficaram como estavam."))
+    if r.acima_do_aconex:
+        numeros = ", ".join(map(str, sorted(r.acima_do_aconex)))
+        um = len(r.acima_do_aconex) == 1
+        linhas.append(
+            ("Atenção: o Issue Number " if um else "Atenção: os Issue Number ") + numeros
+            + (" é maior" if um else " são maiores") + f" que o último do Aconex ({r.maior_do_aconex}). "
+            + ("Se é um registro feito à mão, troque por letras (como M-01): quando o Aconex "
+               "chegar a esse número, a linha passaria a ser atualizada como a pendência dele."
+               if um else
+               "Se são registros feitos à mão, troque por letras (como M-01): quando o Aconex "
+               "chegar a esses números, as linhas passariam a ser atualizadas como as pendências dele."))
+    if r.manuais_sem_numero:
+        um = r.manuais_sem_numero == 1
+        linhas.append(f"Atenção: {_registros(r.manuais_sem_numero)} "
+                      + ("está com o Issue Number vazio e não entra" if um
+                         else "estão com o Issue Number vazio e não entram")
+                      + " na contagem das tabelas dinâmicas que contam o Issue Number. "
+                        "Preencha com letras, como M-01.")
+    return linhas
 
 
 # --- Validador (seção 13 da spec) ---------------------------------------------------------------
@@ -490,7 +540,14 @@ class _Esperado:
     finais: dict[int, dict[int, object]]
     cols_aconex: dict[int, str]
     titulos: dict[int, str]
-    existentes: set[int]
+    sem_numero: set[int]   # linhas do corpo sem número do Aconex: têm de sair iguais, só deslocadas
+
+
+def _sem_enderecos(linha: xc.Linha) -> tuple:
+    """A linha sem os números de linha (o `r` do `<row>` e dos `<c>`), para conferir
+    que um registro manual saiu exatamente como estava, só deslocado."""
+    return (re.sub(r'\sr="\d+"', "", linha.abertura, count=1),
+            tuple(re.sub(r'(\sr="[A-Z]+)\d+(")', r"\g<1>\g<2>", seg, count=1) for seg in linha.segmentos))
 
 
 def _declaracao_e_raiz(texto: str) -> tuple:
@@ -544,26 +601,34 @@ def validar(tmp, pasta: xc.Pasta, alteradas: dict[str, bytes], esp: _Esperado) -
                 nova.linha(linha.r) is None or nova.linha(linha.r).xml != linha.xml):
             problemas.append(f"a linha {linha.r}, acima da tabela, mudou")
     col_chave = tb.coluna(CHAVE)
-    ordem_antiga = [_numero(x.celulas[col_chave].valor) for x in pasta.corpo()]
-    ordem_nova = [_numero(x.celulas[col_chave].valor) if col_chave in x.celulas else None
-                  for x in nova.corpo()]
-    planejada = esp.novas + ordem_antiga
+    # A chave como texto: "131" e 131 são a mesma pendência; o registro manual vale
+    # pelo que estiver escrito ("M-01", ou vazio).
+    ordem_antiga = [_texto(_valor(x, col_chave)) for x in pasta.corpo()]
+    ordem_nova = [_texto(_valor(x, col_chave)) for x in nova.corpo()]
+    planejada = [_texto(n) for n in esp.novas] + ordem_antiga
     if ordem_nova != planejada:
         i = next((i for i, (a, b) in enumerate(zip(ordem_nova, planejada)) if a != b),
                  min(len(ordem_nova), len(planejada)))
         problemas.append(f"a ordem das pendências não é a planejada (linha {tb.primeira + i}: "
-                         f"{ordem_nova[i] if i < len(ordem_nova) else 'nada'} no lugar de "
-                         f"{planejada[i] if i < len(planejada) else 'nada'})")
+                         f"{(ordem_nova[i] or '(vazio)') if i < len(ordem_nova) else 'nada'} no lugar de "
+                         f"{(planejada[i] or '(vazio)') if i < len(planejada) else 'nada'})")
         return problemas
     for i, plano in enumerate(esp.edicao.novas):
         linha = nova.linha(tb.primeira + i)
         for j, (valor, _s) in enumerate(plano.valores):
-            cel = linha.celulas.get(tb.col_ini + j)
+            cel = linha.celulas.get(tb.col_ini + j) if linha else None
             if _texto(cel.valor if cel else None) != _texto(valor):
                 problemas.append(f"a pendência nova {esp.novas[i]} não ficou como planejado")
                 break
     for antiga in pasta.corpo():
         depois = nova.linha(antiga.r + k)
+        if depois is None:
+            problemas.append(f"a linha {antiga.r} não está na linha {antiga.r + k}, como planejado")
+            continue
+        if antiga.r in esp.sem_numero:
+            if _sem_enderecos(depois) != _sem_enderecos(antiga):
+                problemas.append(f"o registro manual da linha {antiga.r} mudou")
+            continue
         if {a: v for a, v in depois.attrs.items() if a not in ("r", "s")} != \
                 {a: v for a, v in antiga.attrs.items() if a not in ("r", "s")}:
             problemas.append(f"os atributos da linha {antiga.r} mudaram")
@@ -590,8 +655,12 @@ def validar(tmp, pasta: xc.Pasta, alteradas: dict[str, bytes], esp: _Esperado) -
 
         df = pd.read_excel(tmp, sheet_name=pasta.aba_nome, header=tb.cabecalho - 1, dtype=str,
                            keep_default_na=False)
-        if len(df) < tb.ultima - tb.primeira + 1 + k:
-            problemas.append(f"o pandas leu {len(df)} linhas, menos que as {tb.ultima - tb.primeira + 1 + k} da tabela")
+        # O pandas descarta as linhas vazias do fim (uma linha da tabela ainda sem nada
+        # digitado): conta até a última com algum valor.
+        com_valor = [x.r for x in nova.corpo() if any(_texto(c.valor) for c in x.celulas.values())]
+        esperado = max(com_valor, default=tb.cabecalho) - tb.cabecalho
+        if len(df) < esperado:
+            problemas.append(f"o pandas leu {len(df)} linhas, menos que as {esperado} da tabela")
     except Exception as e:  # noqa: BLE001
         problemas.append(f"o pandas não leu a aba ({e})")
     return problemas

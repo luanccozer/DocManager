@@ -282,6 +282,7 @@
  "Pasta para salvar os documentos": "Folder to save the documents",
  "Pendência": "Issue",
  "Pendências": "Issues",
+ "Pendências que não estão no Aconex podem ser registradas à mão no fim da tabela, com letras no Issue Number (como M-01): o app não mexe nelas, só as desloca para baixo quando entram pendências novas. Issue Number só com números é sempre pendência do Aconex.": "Issues that are not in Aconex can be entered by hand at the end of the table, with letters in the Issue Number (such as M-01): the app leaves them alone and only moves them down when new issues come in. An Issue Number with digits only is always an Aconex issue.",
  "Período": "Period",
  "Período:": "Period:",
  "Planilha": "Spreadsheet",
