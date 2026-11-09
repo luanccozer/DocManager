@@ -253,11 +253,10 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   entram no topo da tabela, as colunas do Aconex das que já estão ficam em dia e
   as colunas preenchidas à mão não são tocadas; impeditivas não fechadas ficam com
   texto vermelho, e o que a atualização trouxe fica em azul. Valor que o Aconex não tem mais só é apagado se você decidir.
-  Pendências que não estão no Aconex podem ser **registradas à mão no fim da
-  tabela**, com letras no Issue Number (M-01, M-02...): o app não mexe nelas, nem
-  no valor nem na cor, só as desloca para baixo quando entram novas. Issue Number
-  só com números é sempre pendência do Aconex; vazio fica fora da contagem das
-  tabelas dinâmicas.
+  **Registros extraoficiais**, que não estão no Aconex, podem ser feitos à mão no
+  fim da tabela ou logo abaixo dela: o app não mexe neles, nem no valor nem na
+  cor, só os desloca para baixo quando entram novas. Na tabela, use letras no
+  Issue Number (GRUPO 01, GRUPO 02...): só número é sempre pendência do Aconex.
   Antes de trocar o arquivo, o app confere o resultado e guarda uma cópia em
   `Documentos\DocManager_Itaipu\backups`. Precisa do usuário do Aconex já
   cadastrado (usa o primeiro). Os dados precisam estar numa Tabela do Excel com a

@@ -12,9 +12,10 @@ pergunta final:
   de ser - só o preenchimento muda, nunca fonte, borda ou altura (D5);
 - tudo ou nada: qualquer falha (API, recusa, conferência) não grava (C2), e a
   troca do arquivo passa pela substituição segura, com cópia de segurança;
-- registro manual (linha da tabela sem número do Aconex no Issue Number: vazio
-  ou com letras, como "M-01") nunca é tocado, nem valor nem formato; só desce
-  junto com o resto quando entram pendências novas no topo.
+- registro extraoficial (linha feita pela equipe: na tabela, sem número do Aconex
+  no Issue Number - vazio ou com letras, como "GRUPO 01"; ou qualquer linha abaixo
+  da tabela, fora dela) nunca é tocado, nem valor nem formato; só desce junto com o
+  resto quando entram pendências novas no topo.
 
 Nenhum número de estilo é fixo: o fill de destaque, os modelos de linha e de
 célula saem dos dados da própria planilha (8.4 da spec).
@@ -77,8 +78,7 @@ class ResultadoPendencias:
     ganharam_cor: int = 0
     perderam_cor: int = 0
     so_na_planilha: list[int] = field(default_factory=list)
-    manuais: int = 0              # registros manuais (sem número do Aconex), intocados
-    manuais_sem_numero: int = 0   # deles, os com o Issue Number vazio
+    extraoficiais: int = 0        # linhas feitas pela equipe (na tabela sem número, ou abaixo dela)
     acima_do_aconex: list[int] = field(default_factory=list)   # só na planilha, acima do último
     maior_do_aconex: int = 0
     backup: str = ""
@@ -96,6 +96,10 @@ class _Recusa(Exception):
 def _valor(linha: xc.Linha, col: int | None):
     cel = linha.celulas.get(col)
     return cel.valor if cel else None
+
+
+def _tem_valor(linha: xc.Linha) -> bool:
+    return any(_texto(c.valor) for c in linha.celulas.values())
 
 
 def _texto(v) -> str:
@@ -222,24 +226,26 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
         raise _Recusa(f"Não foi possível abrir a planilha ({e}).") from e
     except xc.ErroXlsx as e:
         raise _Recusa(f"A planilha não serve para a atualização: {e}") from e
-    if (problemas := xc.recusas(pasta, CHAVE, aceitar_sem_chave=True)):
+    if (problemas := xc.recusas(pasta, CHAVE, aceitar_sem_chave=True, aceitar_abaixo=True)):
         raise _Recusa("Para não arriscar a planilha, nada foi gravado. Encontrado:\n- "
                       + "\n- ".join(problemas))
     tb = pasta.tabela
     col_chave = tb.coluna(CHAVE)
     titulos = {tb.col_ini + i: n for i, n in enumerate(tb.colunas)}
 
-    # Pendências do Aconex × registros manuais: a linha sem número do Aconex no Issue
-    # Number (vazio ou com letras) foi feita pela equipe e nunca é tocada, nem o valor
-    # nem o formato; só desce junto com o resto quando entram pendências novas.
+    # Pendências do Aconex × registros extraoficiais: a linha da tabela sem número do
+    # Aconex no Issue Number (vazio ou com letras) e qualquer linha abaixo da tabela
+    # foram feitas pela equipe e nunca são tocadas, nem o valor nem o formato; só
+    # descem junto com o resto quando entram pendências novas no topo.
     corpo = pasta.corpo()
     sem_numero = {x.r for x in corpo if xc.numero_da_chave(_valor(x, col_chave)) is None}
     linhas_aconex = [x for x in corpo if x.r not in sem_numero]
-    manuais = [x for x in corpo if x.r in sem_numero
-               and any(_texto(_valor(x, c)) for c in titulos)]   # linha vazia não é registro
+    na_tabela = [x.r for x in corpo if x.r in sem_numero and _tem_valor(x)]   # linha vazia não conta
+    abaixo = [x.r for x in pasta.linhas if x.r > tb.ultima and _tem_valor(x)]
     log(f"Tabela '{tb.nome}' na aba '{pasta.aba_nome}' ({tb.ref}): {len(linhas_aconex)} pendências "
-        f"do Aconex" + (f" e {_registros(len(manuais))} (sem número do Aconex, não são tocados)"
-                        if manuais else "") + " na planilha.")
+        f"do Aconex" + (f" e {_registros(len(na_tabela))} sem número do Aconex" if na_tabela else "")
+        + "." + (f" Abaixo da tabela: {len(abaixo)} linha(s) com dados, que descem junto, sem mudança."
+                 if abaixo else ""))
 
     col_comentarios = tb.coluna(COLUNA_COMENTARIOS)
     try:
@@ -286,8 +292,8 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
     planilha = {xc.numero_da_chave(_valor(x, col_chave)): x for x in linhas_aconex}
     novas = sorted(set(api) - set(planilha), reverse=True)
     so_na_planilha = sorted(set(planilha) - set(api), reverse=True)
-    r = ResultadoPendencias(True, "", novas=novas, so_na_planilha=so_na_planilha, manuais=len(manuais),
-                            manuais_sem_numero=sum(not _texto(_valor(x, col_chave)) for x in manuais))
+    r = ResultadoPendencias(True, "", novas=novas, so_na_planilha=so_na_planilha,
+                            extraoficiais=len(na_tabela) + len(abaixo))
     # Número acima do último do Aconex não é pendência que sumiu: é um registro feito à
     # mão numerado na sequência, que viraria a pendência do Aconex quando ela chegar
     # a esse número (e teria as colunas do Aconex trocadas). Fica como está, com aviso.
@@ -363,7 +369,7 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
     if not regra:
         log(f"A tabela não tem as colunas '{COLUNA_CLASSIFICACAO}' e '{COLUNA_STATUS}': "
             "o vermelho das impeditivas não foi aplicado.")
-    # Os modelos das linhas novas saem das pendências do Aconex (os registros manuais
+    # Os modelos das linhas novas saem das pendências do Aconex (os registros extraoficiais
     # podem ter o formato que a equipe quiser); só sem nenhuma, das linhas que houver.
     destacadas_hoje_regra = {x.r for x in linhas_aconex if regra and _destacada(
         {c: (x.celulas[c].valor if c in x.celulas else None) for c in titulos}, col_classif, col_status)}
@@ -379,7 +385,7 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
         f = modelos.fill_normal.get(c)
         return "0" if f is None or f == fill_antigo else f
 
-    for x in linhas_aconex:   # registro manual: nem a cor muda
+    for x in linhas_aconex:   # registro extraoficial: nem a cor muda
         depois = regra and _destacada(finais[x.r], col_classif, col_status)
         cel_a = x.celulas.get(tb.col_ini)
         tinha_fill = fill_antigo is not None and cel_a is not None and est.fill(cel_a.s) == fill_antigo
@@ -446,7 +452,7 @@ def _atualizar(config, caminho, log, progresso, retry_cb, decidir_cb) -> Resulta
     progresso(0.85)
     if not (edicao.novas or edicao.celulas or edicao.estilo_linha):
         _gravar_mantidas(manter_e_lembrar)
-        r.mensagem = "\n".join(["A planilha já está atualizada; nada foi gravado.", *_sobre_manuais(r)])
+        r.mensagem = "\n".join(["A planilha já está atualizada; nada foi gravado.", *_sobre_extraoficiais(r)])
         log(r.mensagem)
         progresso(1.0)
         return r
@@ -492,7 +498,7 @@ def _mensagem(r: ResultadoPendencias) -> str:
                       "e ficaram como estavam.")
     else:
         linhas.append("Nenhuma pendência da planilha sumiu do Aconex.")
-    linhas += _sobre_manuais(r)
+    linhas += _sobre_extraoficiais(r)
     if r.backup:
         linhas.append(f"Cópia de segurança: {r.backup}")
     linhas.append("Abra no Excel para as tabelas dinâmicas e os gráficos se atualizarem.")
@@ -500,33 +506,27 @@ def _mensagem(r: ResultadoPendencias) -> str:
 
 
 def _registros(n: int) -> str:
-    return "1 registro manual" if n == 1 else f"{n} registros manuais"
+    return "1 registro extraoficial" if n == 1 else f"{n} registros extraoficiais"
 
 
-def _sobre_manuais(r: ResultadoPendencias) -> list[str]:
-    """As linhas do aviso final sobre os registros manuais (nenhuma, se não há)."""
+def _sobre_extraoficiais(r: ResultadoPendencias) -> list[str]:
+    """As linhas do aviso final sobre os registros extraoficiais (nenhuma, se não há)."""
     linhas = []
-    if r.manuais:
-        linhas.append(f"{_registros(r.manuais)}, sem número do Aconex, "
-                      + ("ficou como estava." if r.manuais == 1 else "ficaram como estavam."))
+    if r.extraoficiais:
+        linhas.append(f"{_registros(r.extraoficiais)}, "
+                      + ("feito à mão, ficou como estava." if r.extraoficiais == 1
+                         else "feitos à mão, ficaram como estavam."))
     if r.acima_do_aconex:
         numeros = ", ".join(map(str, sorted(r.acima_do_aconex)))
         um = len(r.acima_do_aconex) == 1
         linhas.append(
             ("Atenção: o Issue Number " if um else "Atenção: os Issue Number ") + numeros
             + (" é maior" if um else " são maiores") + f" que o último do Aconex ({r.maior_do_aconex}). "
-            + ("Se é um registro feito à mão, troque por letras (como M-01): quando o Aconex "
+            + ("Se é um registro extraoficial, troque por letras (como GRUPO 01): quando o Aconex "
                "chegar a esse número, a linha passaria a ser atualizada como a pendência dele."
                if um else
-               "Se são registros feitos à mão, troque por letras (como M-01): quando o Aconex "
+               "Se são registros extraoficiais, troque por letras (como GRUPO 01): quando o Aconex "
                "chegar a esses números, as linhas passariam a ser atualizadas como as pendências dele."))
-    if r.manuais_sem_numero:
-        um = r.manuais_sem_numero == 1
-        linhas.append(f"Atenção: {_registros(r.manuais_sem_numero)} "
-                      + ("está com o Issue Number vazio e não entra" if um
-                         else "estão com o Issue Number vazio e não entram")
-                      + " na contagem das tabelas dinâmicas que contam o Issue Number. "
-                        "Preencha com letras, como M-01.")
     return linhas
 
 
@@ -545,7 +545,8 @@ class _Esperado:
 
 def _sem_enderecos(linha: xc.Linha) -> tuple:
     """A linha sem os números de linha (o `r` do `<row>` e dos `<c>`), para conferir
-    que um registro manual saiu exatamente como estava, só deslocado."""
+    que um registro extraoficial (ou o que está abaixo da tabela) saiu exatamente
+    como estava, só deslocado."""
     return (re.sub(r'\sr="\d+"', "", linha.abertura, count=1),
             tuple(re.sub(r'(\sr="[A-Z]+)\d+(")', r"\g<1>\g<2>", seg, count=1) for seg in linha.segmentos))
 
@@ -595,14 +596,23 @@ def validar(tmp, pasta: xc.Pasta, alteradas: dict[str, bytes], esp: _Esperado) -
         return [f"o arquivo novo não pôde ser relido ({e})"]
     if nova.tabela.ref != xc._ref_intervalo(tb.col_ini, tb.cabecalho, tb.col_fim, tb.ultima + k):
         problemas.append(f"a tabela ficou em {nova.tabela.ref}")
+    # O Excel exige linhas em ordem crescente e, em cada linha, células em ordem de coluna;
+    # fora disso ele pede reparo ao abrir.
+    numeros = [x.r for x in nova.linhas]
+    if any(b <= a for a, b in zip(numeros, numeros[1:])):
+        return problemas + ["as linhas da aba ficaram fora de ordem"]
+    for linha in nova.linhas:
+        cols = [xc._celula(xc._attrs(re.match(r"<c\b[^>]*>", seg).group(0))["r"])[0] for seg in linha.segmentos]
+        if any(b <= a for a, b in zip(cols, cols[1:])):
+            return problemas + [f"as células da linha {linha.r} ficaram fora de ordem"]
     for linha in pasta.linhas:
         planejada_acima = any(r == linha.r for r, _c in esp.edicao.celulas)
         if linha.r < tb.primeira and not planejada_acima and (
                 nova.linha(linha.r) is None or nova.linha(linha.r).xml != linha.xml):
             problemas.append(f"a linha {linha.r}, acima da tabela, mudou")
     col_chave = tb.coluna(CHAVE)
-    # A chave como texto: "131" e 131 são a mesma pendência; o registro manual vale
-    # pelo que estiver escrito ("M-01", ou vazio).
+    # A chave como texto: "131" e 131 são a mesma pendência; o registro extraoficial
+    # vale pelo que estiver escrito ("GRUPO 01", ou vazio).
     ordem_antiga = [_texto(_valor(x, col_chave)) for x in pasta.corpo()]
     ordem_nova = [_texto(_valor(x, col_chave)) for x in nova.corpo()]
     planejada = [_texto(n) for n in esp.novas] + ordem_antiga
@@ -620,14 +630,15 @@ def validar(tmp, pasta: xc.Pasta, alteradas: dict[str, bytes], esp: _Esperado) -
             if _texto(cel.valor if cel else None) != _texto(valor):
                 problemas.append(f"a pendência nova {esp.novas[i]} não ficou como planejado")
                 break
-    for antiga in pasta.corpo():
+    for antiga in (x for x in pasta.linhas if x.r >= tb.primeira):
         depois = nova.linha(antiga.r + k)
         if depois is None:
             problemas.append(f"a linha {antiga.r} não está na linha {antiga.r + k}, como planejado")
             continue
-        if antiga.r in esp.sem_numero:
+        if antiga.r > tb.ultima or antiga.r in esp.sem_numero:   # abaixo da tabela, ou extraoficial
             if _sem_enderecos(depois) != _sem_enderecos(antiga):
-                problemas.append(f"o registro manual da linha {antiga.r} mudou")
+                problemas.append(f"a linha {antiga.r}, abaixo da tabela, mudou" if antiga.r > tb.ultima
+                                 else f"o registro extraoficial da linha {antiga.r} mudou")
             continue
         if {a: v for a, v in depois.attrs.items() if a not in ("r", "s")} != \
                 {a: v for a, v in antiga.attrs.items() if a not in ("r", "s")}:

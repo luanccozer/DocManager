@@ -5,11 +5,11 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
-## 3.6.4 - 2026-11-06
+## 3.6.4 - 2026-11-09
 
-- Pendências: a equipe pode registrar à mão, no fim da tabela, pendências que não estão no Aconex. Basta pôr letras no Issue Number (M-01, M-02...): o DocManager não mexe nessas linhas, nem no valor nem na cor, e só as desloca para baixo quando entram pendências novas no topo. Antes, uma linha sem número do Aconex fazia a atualização recusar a planilha inteira.
-- Pendências: Issue Number só com números continua sendo pendência do Aconex. Se um número aparece duas vezes, a mensagem diz em quais linhas. Se é maior que o último do Aconex (um registro feito à mão numerado na sequência), o aviso final pede para trocar por letras, antes que o Aconex chegue a esse número e a linha passe a ser atualizada como a pendência dele. Registro com o Issue Number vazio também é aceito, mas fica fora da contagem das tabelas dinâmicas, e o aviso final lembra de pôr letras.
-- Pendências: uma linha vazia no fim da tabela (estendida para digitar depois) não impede mais a atualização. Quando há dados digitados abaixo da tabela, fora dela, a mensagem explica como estender a tabela até eles.
+- Pendências: a equipe pode fazer à mão registros extraoficiais, que não estão no Aconex, no fim da tabela ou logo abaixo dela. O DocManager não mexe nessas linhas, nem no valor nem na cor, e só as desloca para baixo quando entram pendências novas no topo. Antes, uma linha na tabela sem número do Aconex ou qualquer dado abaixo da tabela fazia a atualização recusar a planilha inteira.
+- Pendências: na tabela, ponha letras no Issue Number dos registros extraoficiais (GRUPO 01, GRUPO 02...); Issue Number só com números continua sendo pendência do Aconex. Se um número aparece duas vezes, a mensagem diz em quais linhas. Se é maior que o último do Aconex (um registro feito à mão numerado na sequência), o aviso final pede para trocar por letras, antes que o Aconex chegue a esse número e a linha passe a ser atualizada como a pendência dele.
+- Pendências: uma linha vazia no fim da tabela (estendida para digitar depois) não impede mais a atualização. Antes de trocar o arquivo, o DocManager também confere que as linhas e as células ficaram na ordem que o Excel exige.
 
 ## 3.6.3 - 2026-11-05
 

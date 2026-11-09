@@ -394,13 +394,13 @@ def test_issue_number_guardado_como_texto_nao_reprova_a_conferencia(tmp_path, ap
     assert [ws.cell(n, 1).value for n in (5, 6, 7)] == [4, "3", 2]
 
 
-# --- Registros manuais (pedido da equipe, 2026-11-06) -----------------------------------
+# --- Registros extraoficiais (pedido da equipe, 2026-11-06 e 2026-11-09) ---------------
 
-def registro_manual(chave="M-01", **valores) -> dict:
-    """Uma linha feita pela equipe no fim da tabela: sem número do Aconex no Issue Number."""
-    base = {"Issue Number": chave, "Issue Type": "Registro da equipe", "Area": "PROJETO EXEMPLO",
-            "Issue Description": f"Achado em campo {chave}", "Captured On": "2026-11-01",
-            "Status": "Open", "Responsável": "PESSOA MANUAL"}
+def extraoficial(chave="GRUPO 01", **valores) -> dict:
+    """Uma linha feita pela equipe, sem número do Aconex no Issue Number."""
+    base = {"Issue Number": chave, "Issue Type": "Infraestrutura seca", "Area": "PROJETO EXEMPLO",
+            "Issue Description": f"Achado em campo {chave}", "Captured by": "CHECK-LIST INTERNO",
+            "Status": "Open", "Responsável": "PESSOA DA EQUIPE"}
     base.update(valores)
     return base
 
@@ -410,7 +410,7 @@ def _cor_do_texto(ws, ref):
     return c.rgb if c is not None and c.type == "rgb" else None   # None = automática (preta)
 
 
-def test_registros_manuais_no_fim_ficam_intactos_e_descem(tmp_path, api):
+def test_extraoficiais_no_fim_da_tabela_ficam_intactos_e_descem(tmp_path, api):
     """Issue Number com letras ou vazio não é do Aconex: nem o valor nem o formato da
     linha mudam (nem o vermelho de impeditiva, nem a volta do azul ao preto); ela só
     desce junto com o resto quando entram pendências novas no topo."""
@@ -418,40 +418,70 @@ def test_registros_manuais_no_fim_ficam_intactos_e_descem(tmp_path, api):
     escrever_planilha_pendencias(caminho, [
         linha_pendencia(3, **{"Responsável": "PESSOA A"}),
         linha_pendencia(2, **IMPEDITIVA),
-        registro_manual("M-01", **IMPEDITIVA),                     # impeditiva aberta, feita à mão
-        registro_manual("M-02"),                                   # azul à mão
-        registro_manual(None, **{"Issue Description": "Sem número"}),
-    ], fonte_azul=("M-02",))
+        extraoficial("GRUPO 01", **IMPEDITIVA),                   # impeditiva aberta, feita à mão
+        extraoficial("GRUPO 06"),                                 # azul à mão
+        extraoficial(None, **{"Issue Description": "Sem número"}),
+    ], fonte_azul=("GRUPO 06",))
     antes = xc.ler(caminho, pu.CHAVE)
     api["questoes"] = [questao(5, **IMPEDITIVA), questao(4), questao(3, Status="Closed"),
                        questao(2, **IMPEDITIVA)]
     r = _rodar(caminho)
     assert r.ok and r.gravou, r.mensagem
     assert r.novas == [5, 4] and r.so_na_planilha == [] and r.acima_do_aconex == []
-    assert (r.manuais, r.manuais_sem_numero) == (3, 1)
-    assert "3 registros manuais, sem número do Aconex, ficaram como estavam." in r.mensagem
-    assert "1 registro manual está com o Issue Number vazio" in r.mensagem
-    assert any("2 pendências do Aconex e 3 registros manuais" in m for m in r.logs)
+    assert r.extraoficiais == 3
+    assert "3 registros extraoficiais, feitos à mão, ficaram como estavam." in r.mensagem
+    assert any("2 pendências do Aconex e 3 registros extraoficiais sem número do Aconex" in m
+               for m in r.logs)
 
     depois = xc.ler(caminho, pu.CHAVE)
     assert depois.tabela.ref == "A4:V11"
     for linha in (7, 8, 9):                  # cada registro: o mesmo XML, duas linhas abaixo
         assert pu._sem_enderecos(depois.linha(linha + 2)) == pu._sem_enderecos(antes.linha(linha))
     ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
-    assert [ws.cell(n, 1).value for n in range(5, 12)] == [5, 4, 3, 2, "M-01", "M-02", None]
+    assert [ws.cell(n, 1).value for n in range(5, 12)] == [5, 4, 3, 2, "GRUPO 01", "GRUPO 06", None]
     assert ws["H7"].value == "Closed" and ws["J7"].value == "PESSOA A"     # do Aconex: em dia
     assert _cor_do_texto(ws, "A5") == VERMELHO                              # nova impeditiva
-    assert _cor_do_texto(ws, "A9") != VERMELHO                              # M-01: sem vermelho
-    assert _cor_do_texto(ws, "A10") == AZUL                                 # M-02: o azul fica
-    assert ws["E11"].value == "Sem número" and ws["J9"].value == "PESSOA MANUAL"
+    assert _cor_do_texto(ws, "A9") != VERMELHO                              # GRUPO 01: sem vermelho
+    assert _cor_do_texto(ws, "A10") == AZUL                                 # GRUPO 06: o azul fica
+    assert ws["E11"].value == "Sem número" and ws["J9"].value == "PESSOA DA EQUIPE"
 
 
-def test_registro_manual_no_meio_da_tabela_fica_no_lugar(tmp_path, api):
+def test_linhas_abaixo_da_tabela_descem_junto_sem_mudanca(tmp_path, api):
+    """Dados feitos à mão abaixo da tabela, fora dela (com ou sem linha em branco no
+    meio, até com número no Issue Number): antes, a atualização recusava a planilha;
+    agora eles descem junto e o app não toca neles."""
     caminho = tmp_path / "p.xlsx"
-    escrever_planilha_pendencias(caminho, [linha_pendencia(3), registro_manual("EXTRA 1"), linha_pendencia(2)])
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(2)], separacao=1,
+                                 abaixo=[{"Issue Number": "EXTRAOFICIAIS"}, extraoficial("GRUPO 01"),
+                                         extraoficial(151, **IMPEDITIVA)])
+    antes = xc.ler(caminho, pu.CHAVE)
+    assert antes.tabela.ref == "A4:V6" and [x.r for x in antes.linhas if x.r > 6] == [8, 9, 10]
     api["questoes"] = [questao(4), questao(3, Status="Work Done"), questao(2)]
     r = _rodar(caminho)
-    assert r.ok and r.gravou and r.manuais == 1, r.mensagem
+    assert r.ok and r.gravou, r.mensagem
+    assert r.extraoficiais == 3 and r.so_na_planilha == [] and r.acima_do_aconex == []
+    depois = xc.ler(caminho, pu.CHAVE)
+    assert depois.tabela.ref == "A4:V7"                          # a tabela não passa a incluí-las
+    for linha in (8, 9, 10):
+        assert pu._sem_enderecos(depois.linha(linha + 1)) == pu._sem_enderecos(antes.linha(linha))
+    ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
+    assert [ws.cell(n, 1).value for n in range(5, 12)] == [4, 3, 2, None, "EXTRAOFICIAIS", "GRUPO 01", 151]
+    assert ws["H6"].value == "Work Done" and ws["H11"].value == "Open"
+
+    antes_da_segunda = caminho.read_bytes()
+    r = _rodar(caminho)                                          # nada novo: nada muda
+    assert r.ok and not r.gravou and "já está atualizada" in r.mensagem
+    assert "3 registros extraoficiais, feitos à mão, ficaram como estavam." in r.mensagem
+    assert caminho.read_bytes() == antes_da_segunda
+
+
+def test_extraoficial_no_meio_da_tabela_fica_no_lugar(tmp_path, api):
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), extraoficial("EXTRA 1"), linha_pendencia(2)])
+    api["questoes"] = [questao(4), questao(3, Status="Work Done"), questao(2)]
+    r = _rodar(caminho)
+    assert r.ok and r.gravou and r.extraoficiais == 1, r.mensagem
+    assert "1 registro extraoficial, feito à mão, ficou como estava." in r.mensagem
     ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
     assert [ws.cell(n, 1).value for n in range(5, 9)] == [4, 3, "EXTRA 1", 2]
     assert ws["H6"].value == "Work Done" and ws["H7"].value == "Open"
@@ -465,20 +495,20 @@ def test_linha_vazia_no_fim_da_tabela_nao_reprova(tmp_path, api):
     api["questoes"] = [questao(4), questao(3), questao(2)]
     r = _rodar(caminho)
     assert r.ok and r.gravou, r.mensagem
-    assert r.manuais == 0 and "registro manual" not in r.mensagem
+    assert r.extraoficiais == 0 and "extraoficia" not in r.mensagem
     ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
     assert ws.tables["tbRegistros"].ref == "A4:V8"
     assert [ws.cell(n, 1).value for n in range(5, 9)] == [4, 3, 2, None]
 
 
-def test_tabela_so_com_registros_manuais_recebe_as_pendencias(tmp_path, api):
+def test_tabela_so_com_extraoficiais_recebe_as_pendencias(tmp_path, api):
     caminho = tmp_path / "p.xlsx"
-    escrever_planilha_pendencias(caminho, [registro_manual("M-01")])
+    escrever_planilha_pendencias(caminho, [extraoficial("GRUPO 01")])
     api["questoes"] = [questao(2, **IMPEDITIVA), questao(1)]
     r = _rodar(caminho)
     assert r.ok and r.gravou and r.novas == [2, 1], r.mensagem
     ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
-    assert [ws.cell(n, 1).value for n in range(5, 8)] == [2, 1, "M-01"]
+    assert [ws.cell(n, 1).value for n in range(5, 8)] == [2, 1, "GRUPO 01"]
     assert _cor_do_texto(ws, "A5") == VERMELHO and _cor_do_texto(ws, "A6") == AZUL
 
 
@@ -501,9 +531,9 @@ def test_tabela_sem_nenhuma_linha_gravada_recebe_as_pendencias(tmp_path, api):
     assert [ws.cell(n, 1).value for n in range(5, 8)] == [2, 1, None]
 
 
-def test_registro_manual_com_numero_repetido_recusa_e_explica(tmp_path, api):
+def test_extraoficial_com_numero_repetido_recusa_e_explica(tmp_path, api):
     caminho = tmp_path / "p.xlsx"
-    escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(2), registro_manual(3)])
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(2), extraoficial(3)])
     antes = caminho.read_bytes()
     r = _rodar(caminho)
     assert not r.ok and api["chamadas"] == 0
@@ -513,14 +543,14 @@ def test_registro_manual_com_numero_repetido_recusa_e_explica(tmp_path, api):
 
 
 def test_numero_acima_do_ultimo_do_aconex_fica_e_avisa(tmp_path, api):
-    """Registro feito à mão numerado na sequência (151 com o Aconex no 4) seria tomado
-    pela pendência 151 quando ela existir: fica como está, mas o aviso diz para trocar."""
+    """Registro feito à mão, na tabela, numerado na sequência (151 com o Aconex no 4) seria
+    tomado pela pendência 151 quando ela existir: fica como está, mas o aviso diz para trocar."""
     caminho = tmp_path / "p.xlsx"
-    escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(2), registro_manual(151)])
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), linha_pendencia(2), extraoficial(151)])
     api["questoes"] = [questao(4), questao(3), questao(2)]
     r = _rodar(caminho)
     assert r.ok and r.gravou, r.mensagem
-    assert r.so_na_planilha == [151] and r.acima_do_aconex == [151] and r.manuais == 0
+    assert r.so_na_planilha == [151] and r.acima_do_aconex == [151] and r.extraoficiais == 0
     assert "o Issue Number 151 é maior que o último do Aconex (4)" in r.mensagem
     assert "troque por letras" in r.mensagem
     assert "Nenhuma pendência da planilha sumiu do Aconex." in r.mensagem
@@ -528,20 +558,58 @@ def test_numero_acima_do_ultimo_do_aconex_fica_e_avisa(tmp_path, api):
     assert ws["A8"].value == 151 and ws["E8"].value == "Achado em campo 151"
 
 
-def test_validador_reprova_registro_manual_alterado(tmp_path, api, monkeypatch):
+def _com_aplicar_adulterado(monkeypatch, celula_depois):
+    """`xc.aplicar` que, depois de planejar, troca o estilo de uma célula já deslocada."""
+    aplicar = xc.aplicar
+
+    def adulterado(pasta, edicao, avisar=None):
+        partes = aplicar(pasta, edicao, avisar)
+        aba = partes[pasta.aba_parte].decode("utf-8")
+        partes[pasta.aba_parte] = re.sub(rf'(<c r="{celula_depois}" s=")\d+(")', r"\g<1>0\g<2>",
+                                         aba).encode("utf-8")
+        return partes
+
+    monkeypatch.setattr(xc, "aplicar", adulterado)
+
+
+def test_validador_reprova_extraoficial_alterado(tmp_path, api, monkeypatch):
     caminho = tmp_path / "p.xlsx"
-    escrever_planilha_pendencias(caminho, [linha_pendencia(3), registro_manual("M-01")])
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), extraoficial("GRUPO 01")])
+    api["questoes"] = [questao(4), questao(3)]
+    antes = caminho.read_bytes()
+    _com_aplicar_adulterado(monkeypatch, "J7")          # GRUPO 01 desceu da linha 6 para a 7
+    r = _rodar(caminho)
+    assert not r.ok and "o registro extraoficial da linha 6 mudou" in r.mensagem
+    assert caminho.read_bytes() == antes and _restos(tmp_path) == []
+
+
+def test_validador_reprova_linha_abaixo_da_tabela_alterada(tmp_path, api, monkeypatch):
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3)], abaixo=[extraoficial("GRUPO 01")])
+    api["questoes"] = [questao(4), questao(3)]
+    antes = caminho.read_bytes()
+    _com_aplicar_adulterado(monkeypatch, "J7")          # a linha 6, fora da tabela, desceu para a 7
+    r = _rodar(caminho)
+    assert not r.ok and "a linha 6, abaixo da tabela, mudou" in r.mensagem
+    assert caminho.read_bytes() == antes and _restos(tmp_path) == []
+
+
+def test_validador_reprova_linhas_fora_de_ordem(tmp_path, api, monkeypatch):
+    """O Excel pede reparo se as linhas da aba não estiverem em ordem crescente."""
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3)], abaixo=[extraoficial("GRUPO 01")])
     api["questoes"] = [questao(4), questao(3)]
     antes = caminho.read_bytes()
     aplicar = xc.aplicar
 
-    def mexe_no_registro_manual(pasta, edicao, avisar=None):
+    def repete_o_numero(pasta, edicao, avisar=None):
         partes = aplicar(pasta, edicao, avisar)
-        aba = partes[pasta.aba_parte].decode("utf-8")   # M-01 desceu da linha 6 para a 7
-        partes[pasta.aba_parte] = re.sub(r'(<c r="J7" s=")\d+(")', r"\g<1>0\g<2>", aba).encode("utf-8")
+        aba = partes[pasta.aba_parte].decode("utf-8")   # a linha de fora (7) vira outra 6
+        aba = re.sub(r'(<c r="[A-Z]+)7(")', r"\g<1>6\g<2>", re.sub(r'<row r="7"', '<row r="6"', aba, count=1))
+        partes[pasta.aba_parte] = aba.encode("utf-8")
         return partes
 
-    monkeypatch.setattr(xc, "aplicar", mexe_no_registro_manual)
+    monkeypatch.setattr(xc, "aplicar", repete_o_numero)
     r = _rodar(caminho)
-    assert not r.ok and "o registro manual da linha 6 mudou" in r.mensagem
+    assert not r.ok and "fora de ordem" in r.mensagem, r.mensagem
     assert caminho.read_bytes() == antes and _restos(tmp_path) == []
