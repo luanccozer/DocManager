@@ -461,6 +461,38 @@ os emitidos nunca passam dos previstos, e a distância entre as linhas é o que 
 previsto e ainda não saiu. A linha de emitidos vai até o fim do período: um documento
 previsto para depois de hoje que já saiu conta como emitido.
 
+As duas linhas usam a **DATA-ALVO** (a data consolidada: a reprogramada, quando existe;
+senão, a prevista), e não a baseline: um documento reprogramado aparece na data nova.
+
+A linha de emitidos **não prevê nada**: conta só emissões que já aconteceram (a DATA 1ª
+EMISSÃO preenchida pelo DocManager). Depois de hoje ela só sobe quando um documento com
+data-alvo futura já saiu antes da hora; no resto, fica reta.
+
+**Variação: emitidos parando em hoje.** Para a linha clara acabar no dia de hoje, como numa
+curva S clássica, use esta no lugar da do item 2 (os documentos adiantados deixam de
+aparecer depois de hoje):
+
+```dax
+Emitidos Acum =
+VAR DataAtual = MAX(Calendario[Date])
+RETURN
+IF(
+    DataAtual > TODAY(),
+    BLANK(),
+    CALCULATE(
+        [Previstos],
+        FILTER(
+            ALLSELECTED(Calendario),
+            Calendario[Date] <= DataAtual
+        ),
+        NOT ISBLANK('Unidade Geradora'[DATA 1ª EMISSÃO Aux])
+    )
+)
+```
+
+O "hoje" é a data do computador de quem abre o relatório; as emissões são as da última
+atualização do DocManager e do Power BI.
+
 **Confira** com **2026 → outubro** (planilha de 28/10):
 
 | Dia | Previstos | Emitidos |
