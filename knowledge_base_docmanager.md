@@ -1347,7 +1347,8 @@ deixaram de importar para a equipe (2026-11-09): o que estiver dentro da tabela 
 - linha da tabela totalmente vazia (tabela estendida para digitar depois) não é registro e fica onde está; o
   pandas descarta as vazias do fim, e a conferência conta só até a última linha com valor;
 - conferido também no LibreOffice (leitor independente) com o formato da planilha real: 200 do Aconex, GRUPO no
-  fim da tabela e abaixo dela, 5 novas no topo. A prova definitiva é abrir no Excel de mesa;
+  fim da tabela e abaixo dela, 5 novas no topo. A 3.6.4-rc.1 foi aprovada pela equipe na planilha real
+  (2026-11-09) e saiu como 3.6.4;
 - quando um registro extraoficial for cadastrado no Aconex, ele entra no topo como pendência nova; o
   extraoficial fica até a equipe apagá-lo (o app não junta os dois).
 
