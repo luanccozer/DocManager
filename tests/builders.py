@@ -140,7 +140,8 @@ def linha_pendencia(numero, **valores) -> dict:
 
 def escrever_planilha_pendencias(path, linhas: list[dict], *, com_destaque: bool = True,
                                  fonte_azul: tuple = (), parte_extra: bool = True,
-                                 colunas: list[str] | None = None) -> None:
+                                 colunas: list[str] | None = None, abaixo: list[dict] = (),
+                                 separacao: int = 0) -> None:
     """Imita a "ACONEX - MAPEAMENTO PENDÊNCIAS.xlsx" (spec, seção 3).
 
     Aba PENDÊNCIAS com a legenda na linha 2; Tabela tbRegistros a partir de A4
@@ -149,6 +150,9 @@ def escrever_planilha_pendencias(path, linhas: list[dict], *, com_destaque: bool
     oculta; painel congelado em C5; alturas personalizadas; uma segunda aba com
     gráfico; e, depois de salvo, uma parte extra no zip para provar que o que o
     app não conhece passa byte a byte.
+
+    `abaixo` são linhas com a mesma formatação, escritas depois da tabela e fora
+    dela (registros extraoficiais), `separacao` linhas vazias depois do fim dela.
     """
 
     import openpyxl
@@ -169,7 +173,9 @@ def escrever_planilha_pendencias(path, linhas: list[dict], *, com_destaque: bool
     colunas = colunas or COLUNAS_PENDENCIAS
     for i, nome in enumerate(colunas, 1):
         ws.cell(4, i, nome)
-    for r, dados in enumerate(linhas, 5):
+    ultima = 4 + len(linhas)
+    escritas = list(enumerate(linhas, 5)) + list(enumerate(abaixo, ultima + 1 + separacao))
+    for r, dados in escritas:
         destacada = com_destaque and (dados.get("Clasificación de pendencia") == "Impeditiva"
                                       and dados.get("Status") != "Closed")
         for i, nome in enumerate(colunas, 1):
@@ -184,7 +190,6 @@ def escrever_planilha_pendencias(path, linhas: list[dict], *, com_destaque: bool
             if dados.get("Issue Number") in fonte_azul:
                 c.font = Font(color="FF0070C0")
         ws.row_dimensions[r].height = 25.5 if r % 2 else 50.15
-    ultima = 4 + len(linhas)
     tabela = Table(displayName="tbRegistros", ref=f"A4:{chr(64 + len(colunas))}{ultima}")
     tabela.tableStyleInfo = TableStyleInfo(name="TableStyleLight1", showRowStripes=False)
     ws.add_table(tabela)

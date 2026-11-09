@@ -33,6 +33,14 @@ byte. A leitura usa `zipfile` + `ElementTree`; a escrita edita o texto, nunca re
   página na aba; fórmula, nome definido, série de gráfico ou cache dinâmico que aponte para
   células do corpo; macro; linha de total; coluna calculada; dado abaixo ou ao lado da
   tabela. A mensagem diz o que foi encontrado.
+  - **Atualização (2026-11-09, registros extraoficiais):** dado abaixo da tabela deixou de
+    ser recusado na planilha de pendências. A equipe faz registros à mão ali, e eles descem
+    junto, linha por linha, sem mudança: a escrita sempre renumerou toda linha a partir do
+    corpo, e o validador passou a conferir que cada uma saiu com o XML igual, fora o número
+    da linha. Linha da tabela sem número do Aconex também deixou de ser recusada (é registro
+    extraoficial, intocado). Em troca, outra Tabela do Excel ou tabela dinâmica na própria
+    aba, nas linhas que descem, passou a ser recusada de forma explícita: o lugar delas fica
+    fora do XML da aba e ficaria errado. Dado ao lado do corpo continua recusado.
 - Textos novos entram como `inlineStr`; o `sharedStrings.xml` não muda (o Excel 16 abriu
   sem reparo, medido).
 - A cache das tabelas dinâmicas não é tocada: com `refreshOnLoad="1"` o Excel de mesa a

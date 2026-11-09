@@ -5,6 +5,12 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.6.4 - 2026-11-09
+
+- Pendências: a equipe pode fazer à mão registros extraoficiais, que não estão no Aconex, no fim da tabela ou logo abaixo dela. O DocManager não mexe nessas linhas, nem no valor nem na cor, e só as desloca para baixo quando entram pendências novas no topo. Antes, uma linha na tabela sem número do Aconex ou qualquer dado abaixo da tabela fazia a atualização recusar a planilha inteira.
+- Pendências: na tabela, ponha letras no Issue Number dos registros extraoficiais (GRUPO 01, GRUPO 02...); Issue Number só com números continua sendo pendência do Aconex. Se um número aparece duas vezes, a mensagem diz em quais linhas. Se é maior que o último do Aconex (um registro feito à mão numerado na sequência), o aviso final pede para trocar por letras, antes que o Aconex chegue a esse número e a linha passe a ser atualizada como a pendência dele.
+- Pendências: uma linha vazia no fim da tabela (estendida para digitar depois) não impede mais a atualização. Antes de trocar o arquivo, o DocManager também confere que as linhas e as células ficaram na ordem que o Excel exige.
+
 ## 3.6.3 - 2026-11-05
 
 - Módulo novo, Upload de documentos, com três opções: Documento novo, Para revisão e Para aprovação. Por enquanto só Para aprovação, e em ensaio: cole a tabela de envio que chega por e-mail (com ou sem o cabeçalho, quantos documentos vierem), escolha o Controle de Documentos e informe o prazo do workflow em dias. O DocManager faz um documento de cada vez, na ordem da tabela: confere o código no Controle (avisa se a última revisão emitida não é 0C), acha o documento no Aconex e mostra tudo o que o robô vai fazer. Nada é enviado ainda.

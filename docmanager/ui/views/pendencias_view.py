@@ -61,6 +61,10 @@ class PendenciasView(BaseView):
                           "Antes de trocar o arquivo, o app "
                           "confere o resultado e guarda uma cópia de segurança. Abra no Excel para as "
                           "tabelas dinâmicas e os gráficos se atualizarem."), "suave", quebra=True))
+        card.add(rotulo(t("Registros extraoficiais, que não estão no Aconex, podem ser feitos à mão no fim "
+                          "da tabela ou logo abaixo dela: o app não mexe neles, só os desloca para baixo "
+                          "quando entram pendências novas. Na tabela, use letras no Issue Number (como "
+                          "GRUPO 01): só número é sempre pendência do Aconex."), "suave", quebra=True))
         body.addWidget(card)
 
         self.run = RunBar(t("Atualizar Pendências"), self._tarefa, self.log)

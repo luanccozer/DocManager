@@ -127,6 +127,14 @@ _Evite_: coluna automática
 Qualquer outra coluna da planilha de pendências; preenchida pela equipe e nunca tocada.
 _Evite_: coluna extra
 
+**Registro extraoficial**:
+Linha feita à mão pela equipe com algo que não está no Aconex: no fim da tabela de
+pendências, sem número do Aconex no Issue Number (com letras, como GRUPO 01, ou vazio),
+ou logo abaixo da tabela. O app nunca a toca, nem valor nem formato: só a desloca para
+baixo quando entram pendências novas no topo.
+_Evite_: pendência manual (pendência de comissionamento é uma questão do Aconex), registro
+manual, linha manual (confunde com coluna manual)
+
 **Destaque de impeditiva**:
 O texto da linha inteira em vermelho, sem preenchimento, quando a pendência é Impeditiva
 e não está Closed. Entra e sai sozinho a cada atualização; só a cor do texto muda.

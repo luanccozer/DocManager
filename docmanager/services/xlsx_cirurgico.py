@@ -21,6 +21,8 @@ e quebra o `mc:Ignorable`, e o Excel acusa arquivo corrompido.
 Este módulo não sabe nada de pendências: acha UMA tabela pela coluna-chave,
 recusa o que não dá para deslocar com segurança (`recusas`) e aplica uma
 `Edicao` (linhas novas no topo do corpo, células trocadas, estilo de linha).
+Toda linha do corpo para baixo - inclusive as que estão abaixo da tabela, fora
+dela - desce junto, sem mudança além do número da linha.
 """
 from __future__ import annotations
 
@@ -492,6 +494,22 @@ def _valor(cxml: str, attrs: dict, estilos: Estilos, compartilhados: list[str]):
     return int(n) if n.is_integer() else n
 
 
+# --- Chave ---------------------------------------------------------------------------
+
+def numero_da_chave(valor) -> int | None:
+    """A chave como número inteiro positivo: 131, 131.0 ou o texto "131" (a planilha
+    real tem dos dois jeitos). None para o resto: vazio, texto com letras ("GRUPO 01"),
+    zero, negativo, fração, data ou booleano."""
+    if valor is None or isinstance(valor, bool):
+        return None
+    if isinstance(valor, float):
+        valor = int(valor) if valor.is_integer() else None
+    elif isinstance(valor, str):
+        texto = valor.strip()
+        valor = int(texto) if texto.isdecimal() else None   # "²" é dígito, mas não é número
+    return valor if isinstance(valor, int) and valor > 0 else None
+
+
 # --- Recusas (8.2 da spec) ----------------------------------------------------------
 
 _PROIBIDOS_NA_ABA = (
@@ -530,8 +548,18 @@ def _linhas_citadas(texto: str, rx) -> list[int]:
     return linhas
 
 
-def recusas(pasta: Pasta, coluna_chave: str) -> list[str]:
-    """O que impede deslocar as linhas com segurança, em palavras simples. Vazio = pode."""
+def recusas(pasta: Pasta, coluna_chave: str, *, aceitar_sem_chave: bool = False,
+            aceitar_abaixo: bool = False) -> list[str]:
+    """O que impede deslocar as linhas com segurança, em palavras simples. Vazio = pode.
+
+    Com `aceitar_sem_chave`, linha da tabela cuja chave não é número inteiro (vazia
+    ou com letras) não é recusada: o chamador a trata como linha que não vem da
+    origem. Número repetido continua recusado.
+
+    Com `aceitar_abaixo`, dado abaixo da tabela não é recusado: ele desce junto, linha
+    por linha, sem mudança (`aplicar` renumera toda linha a partir do corpo). Outra
+    Tabela do Excel ou tabela dinâmica na aba, nas linhas que descem, é sempre
+    recusada: o lugar delas fica fora do XML da aba, e o app não o muda."""
     out: list[str] = []
     xml = pasta.aba_xml
     aba = pasta.aba_nome
@@ -585,33 +613,56 @@ def recusas(pasta: Pasta, coluna_chave: str) -> list[str]:
         out.append(f"A tabela '{tb.nome}' tem coluna calculada.")
     for linha in pasta.linhas:
         com_valor = [c for c in linha.celulas.values() if c.valor not in (None, "")]
-        if linha.r > tb.ultima and com_valor:
-            out.append(f"Há dados abaixo da tabela (linha {linha.r}); eles colidiriam com as "
-                       "linhas deslocadas.")
-            break
-        if linha.r >= tb.primeira and any(c.col < tb.col_ini or c.col > tb.col_fim for c in com_valor):
+        if not com_valor:
+            continue
+        if linha.r > tb.ultima:
+            if not aceitar_abaixo:
+                out.append(f"Há dados abaixo da tabela (linha {linha.r}); eles desceriam junto "
+                           "com as linhas deslocadas.")
+                break
+        elif linha.r >= tb.primeira and any(c.col < tb.col_ini or c.col > tb.col_fim for c in com_valor):
             out.append(f"Há dados ao lado da tabela (linha {linha.r}); eles seriam deslocados junto.")
             break
+    for tipo, alvo in _rels(pasta.partes, pasta.aba_parte).values():
+        if alvo == tb.parte or alvo not in pasta.partes or tipo not in ("table", "pivotTable"):
+            continue
+        raiz = ET.fromstring(pasta.partes[alvo])
+        lugar = raiz if tipo == "table" else raiz.find(f"{_N}location")
+        try:
+            ultima = _intervalo((lugar.get("ref") if lugar is not None else None) or "")[3]
+        except ErroXlsx:
+            ultima = tb.primeira   # sem saber onde está, trata como se descesse
+        if ultima < tb.primeira:
+            continue
+        nome = raiz.get("displayName") or raiz.get("name") or posixpath.basename(alvo)
+        if tipo == "table":
+            out.append(f"A aba '{aba}' tem outra Tabela do Excel ('{nome}') abaixo ou ao lado da "
+                       "tabela, e o app não sabe deslocá-la. Converta-a em intervalo (Design da "
+                       "Tabela → Converter em Intervalo) ou mova-a para outra aba.")
+        else:
+            out.append(f"A aba '{aba}' tem uma tabela dinâmica ('{nome}') abaixo ou ao lado da "
+                       "tabela, e o app não sabe deslocá-la. Mova-a para outra aba.")
 
     # D. No corpo da tabela
     chave = tb.coluna(coluna_chave)
-    vistos: set[int] = set()
     por_linha = {x.r: x for x in pasta.linhas}
+    linhas_do_numero: dict[int, list[int]] = {}
     for r in range(tb.primeira, tb.ultima + 1):
         linha = por_linha.get(r)
         cel = linha.celulas.get(chave) if linha else None
-        v = cel.valor if cel else None
-        if isinstance(v, float) and v.is_integer():
-            v = int(v)
-        if isinstance(v, str) and v.strip().isdigit():
-            v = int(v.strip())
-        if not isinstance(v, int) or isinstance(v, bool) or v <= 0:
+        numero = numero_da_chave(cel.valor if cel else None)
+        if numero is not None:
+            linhas_do_numero.setdefault(numero, []).append(r)
+        elif not aceitar_sem_chave:
             out.append(f"A linha {r} da tabela não tem '{coluna_chave}' (número inteiro).")
             break
-        if v in vistos:
-            out.append(f"'{coluna_chave}' {v} aparece mais de uma vez na tabela.")
-            break
-        vistos.add(v)
+    repetido = next(((n, rs) for n, rs in linhas_do_numero.items() if len(rs) > 1), None)
+    if repetido:
+        numero, rs = repetido
+        out.append(f"'{coluna_chave}' {numero} aparece mais de uma vez na tabela (linhas "
+                   f"{', '.join(map(str, rs[:-1]))} e {rs[-1]})."
+                   + (f" Se uma delas foi feita à mão, use letras no '{coluna_chave}' (como GRUPO 01) "
+                      "ou deixe-o vazio." if aceitar_sem_chave else ""))
     return out
 
 
