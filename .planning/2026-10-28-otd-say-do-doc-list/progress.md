@@ -224,3 +224,15 @@ Resultado: 1133 passed, ruff limpo.
   DATA-ALVO), parando em hoje.
 - Simulado: .pbix de 11/02 (emissões até 26/10), outubro 1/10 0 x 25, 10/10 23 x 34,
   26/10 33 x 44; planilha de 28/10: 1/10 0 x 25, 10/10 23 x 34, 20/10 32 x 36, 28/10 34 x 37.
+
+### Curva S, quinta versão (2026-11-10, mesmo dia)
+- A de 10/11 (todo emitido do período + todos os do período que saíram antes) inflou os
+  emitidos nos prints do usuário (ano começa em 85; novembro em 16 com 3 previstos).
+- Diagnóstico no .pbix de 11/02: 85 documentos com data-alvo em 2026 e 1ª emissão em
+  2024/2025, todos com revisão posterior emitida (a data do Doc List é de revisão
+  posterior); outubro: dos 21 emitidos, 10 eram atrasados de meses anteriores.
+- Regra R4: quem está na 1ª revisão entra no dia em que saiu (ou no 1º dia se saiu antes);
+  quem já teve revisão entra no dia da data-alvo (ou no da emissão, se atrasado); adiantado
+  de período seguinte (1ª revisão) entra no dia em que saiu; atrasado de período anterior e
+  sem data-alvo não entram. Simulado: ano 31/03 100 x 91 (antes 192), 26/10 355 x 311;
+  outubro 1/10 0 x 3, 26/10 33 x 32. Exemplo x/y/z do usuário continua valendo.

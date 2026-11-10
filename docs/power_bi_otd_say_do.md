@@ -18,7 +18,7 @@ dos passos 9 a 11.
   título, emitidos/previstos ("29/59"). Ele segue o filtro PERÍODO e os filtros do topo
   (sistema, fase, responsável).
 - **Página 1**: na curva S, os previstos entram na data-alvo e os emitidos na data em que
-  saíram; os documentos do período que saíram antes dele já entram no 1º dia.
+  saíram; o documento adiantado de verdade já entra no 1º dia do período.
 
 Leva uns 45 minutos. Faça na ordem, porque cada passo usa o anterior.
 
@@ -412,17 +412,30 @@ não vazio) podem ficar.
 
 ## Passo 10: a curva S da Página 1
 
-A regra (decisão do usuário, 2026-11-10):
+A regra (decisão do usuário, 2026-11-10, ajustada aos dados reais no mesmo dia):
 
 - **Previstos** (azul escuro): cada documento entra no dia da sua **data-alvo**. É a medida
   original do painel e não muda.
-- **Emitidos** (azul claro): cada documento entra no dia em que **saiu** (a 1ª emissão),
-  seja de que mês for a previsão dele. E os documentos previstos para o período que saíram
-  **antes** dele entram já no 1º dia: estamos adiantados, e a linha clara pode começar acima
-  da escura. A linha para em hoje.
+- **Emitidos** (azul claro): cada documento **previsto para o período** entra:
+  - no dia em que **saiu** (1ª emissão), se saiu dentro do período;
+  - no **1º dia**, se saiu antes do período e ainda está na 1ª revisão: é adiantado de
+    verdade, e a linha clara pode começar acima da escura;
+  - no dia da **data-alvo**, se saiu antes dela e **já teve revisão depois** (0B, 0C, 0…).
+    Nesses documentos a data do Doc List é de uma revisão posterior, não da 1ª emissão; eles
+    contam como "emitido no prazo" no dia previsto, igual ao gráfico ATUAL. Se saiu depois
+    da data-alvo, entra no dia em que saiu.
+- Também entra o documento previsto para **um período seguinte** que saiu dentro deste e
+  ainda está na 1ª revisão (adiantado), no dia em que saiu.
+- **Não entram**: o atrasado de um período anterior emitido agora (ele é do período em que
+  estava previsto) e o documento sem data-alvo. A linha para em hoje.
 
-Exemplo: em novembro estão previstos x (10/11), y (15/11) e z (20/11); x saiu em 01/10, y em
-25/09 e z em 10/11.
+Por que a regra de revisão: com os dados de 26/10, 85 documentos com data-alvo em 2026
+tinham a 1ª emissão em 2024 ou 2025, quase todos mais de 3 meses antes, e **todos** já
+tinham revisões posteriores. Contados como adiantados, eles faziam a linha clara começar o
+ano 85 documentos acima da escura.
+
+Exemplo: em novembro estão previstos x (10/11), y (15/11) e z (20/11), ainda na 1ª revisão;
+x saiu em 01/10, y em 25/09 e z em 10/11.
 
 | Dia (novembro) | Previstos | Emitidos | Por quê |
 |---|---|---|---|
@@ -430,7 +443,7 @@ Exemplo: em novembro estão previstos x (10/11), y (15/11) e z (20/11); x saiu e
 | 10/11 | 1 | 3 | x previsto; z saiu |
 | 20/11 | 3 | 3 | y e z previstos |
 
-Em outubro, x conta como emitido em 01/10, mesmo sem estar previsto para outubro.
+Em outubro, x conta como emitido em 01/10: estava previsto para novembro e saiu adiantado.
 
 1. Vá para a **Página 1**.
 2. No painel **Dados**, em **Calendario**, clique em **Emitidos Acum**. Na barra de
@@ -441,28 +454,33 @@ Emitidos Acum =
 VAR DataAtual = MAX(Calendario[Date])
 VAR Inicio = CALCULATE(MIN(Calendario[Date]), ALLSELECTED(Calendario))
 VAR Fim = CALCULATE(MAX(Calendario[Date]), ALLSELECTED(Calendario))
-VAR EmitidosNoPeriodo =
-    CALCULATE(
-        [Emitidos],
-        FILTER(
-            ALLSELECTED(Calendario),
-            Calendario[Date] <= DataAtual
-        )
-    )
-VAR SairamAntes =
-    CALCULATE(
-        DISTINCTCOUNT('Unidade Geradora'[N° ITAIPU]),
-        CROSSFILTER('Unidade Geradora'[DATA-ALVO Aux], Calendario[Date], None),
-        'Unidade Geradora'[DATA-ALVO Aux] >= Inicio,
-        'Unidade Geradora'[DATA-ALVO Aux] <= Fim,
-        NOT ISBLANK('Unidade Geradora'[DATA 1ª EMISSÃO Aux]),
-        'Unidade Geradora'[DATA 1ª EMISSÃO Aux] < Inicio
+VAR Linhas =
+    FILTER(
+        CALCULATETABLE(
+            'Unidade Geradora',
+            CROSSFILTER('Unidade Geradora'[DATA-ALVO Aux], Calendario[Date], None)
+        ),
+        VAR Alvo = 'Unidade Geradora'[DATA-ALVO Aux]
+        VAR Emissao = 'Unidade Geradora'[DATA 1ª EMISSÃO Aux]
+        VAR SoPrimeiraRevisao =
+            ISBLANK('Unidade Geradora'[DATA ÚLTIMA EMISSÃO])
+                || 'Unidade Geradora'[DATA ÚLTIMA EMISSÃO] <= Emissao
+        VAR Entrada =
+            SWITCH(
+                TRUE(),
+                ISBLANK(Emissao) || ISBLANK(Alvo), BLANK(),
+                Alvo >= Inicio && Alvo <= Fim && SoPrimeiraRevisao, MAX(Emissao, Inicio),
+                Alvo >= Inicio && Alvo <= Fim, MAX(Emissao, Alvo),
+                Alvo > Fim && SoPrimeiraRevisao && Emissao >= Inicio, Emissao,
+                BLANK()
+            )
+        RETURN NOT ISBLANK(Entrada) && Entrada <= DataAtual
     )
 RETURN
 IF(
     DataAtual > TODAY(),
     BLANK(),
-    COALESCE(EmitidosNoPeriodo, 0) + COALESCE(SairamAntes, 0)
+    COUNTROWS(SUMMARIZE(Linhas, 'Unidade Geradora'[N° ITAIPU]))
 )
 ```
 
@@ -482,31 +500,26 @@ CALCULATE(
 )
 ```
 
-Como funciona a de emitidos, em duas partes:
-- `EmitidosNoPeriodo` é a conta original do painel: documentos com 1ª emissão entre o início
-  do período escolhido e o dia do gráfico, pela relação da DATA 1ª EMISSÃO Aux (a medida
-  `Emitidos`);
-- `SairamAntes` é a correção: documentos com data-alvo no período e 1ª emissão antes dele.
-  `Inicio` e `Fim` são o primeiro e o último dia do período do filtro, e o
-  `CROSSFILTER(..., None)` desliga a relação da DATA-ALVO só dentro dessa conta, para as
-  datas serem comparadas direto.
+Como funciona a de emitidos: `Inicio` e `Fim` são o primeiro e o último dia do período do
+filtro. Para cada linha da planilha, `Entrada` é o dia em que o documento entra na linha
+clara, pelas regras acima (`MAX` pega a data mais tarde das duas); a medida conta os
+documentos distintos que já entraram até o dia do gráfico. O `CROSSFILTER(..., None)`
+desliga a relação da DATA-ALVO só dentro dessa conta, para as datas serem comparadas direto.
+"Ainda na 1ª revisão" é a DATA ÚLTIMA EMISSÃO não ser posterior à 1ª emissão. Sem período
+escolhido, a curva é a do projeto inteiro.
 
-As duas partes nunca contam o mesmo documento: uma pega quem saiu dentro do período, a
-outra quem saiu antes. Sem período escolhido, a correção é zero e a curva é a do projeto
-inteiro. As duas linhas usam a **DATA-ALVO** (a reprogramada, quando existe; senão, a
-prevista), e não a baseline.
+Um limite: um documento que saiu adiantado e já teve revisão entra no dia previsto, e não
+no dia em que saiu. A planilha não guarda a que revisão se refere a data prevista, então não
+dá para separá-lo de um documento cuja data é de uma revisão posterior.
 
-**Confira** com **2026 → outubro** (planilha de 28/10; 23 documentos previstos para outubro
-tinham saído antes de 1/10):
+**Confira** com **2026 → outubro** (planilha de 28/10):
 
 | Dia | Previstos | Emitidos |
 |---|---|---|
-| 1/10 | 0 | 25 |
-| 10/10 | 23 | 34 |
-| 20/10 | 32 | 36 |
-| 28/10 | 34 | 37 |
-
-Sem a correção, os emitidos de 1/10 seriam só os 2 que saíram naquele dia.
+| 1/10 | 0 | 3 |
+| 10/10 | 23 | 22 |
+| 20/10 | 32 | 26 |
+| 28/10 | 34 | 27 |
 
 ---
 
@@ -557,7 +570,7 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | O cartão mostra "—" | Não há documento previsto (ou backlog) no período. É o esperado. |
 | O texto do cartão aparece cortado | Aumente a largura do cartão ou diminua a fonte do número (passo 9, item 4). |
 | O cartão não muda com os botões | A interação dos botões com o cartão está em **Nenhum**: passo 9, item 6. |
-| Na curva S, o documento emitido antes do mês não conta como emitido | Confira se a medida **Emitidos Acum** é a do passo 10 (com `SairamAntes`). |
+| Na curva S, os emitidos passam muito dos previstos | Confira se a medida **Emitidos Acum** é a do passo 10 (com `SoPrimeiraRevisao`); a versão de 10/11 contava como adiantados os documentos cuja data é de uma revisão posterior. |
 
 ---
 
@@ -574,6 +587,6 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | `OTD previstos`, `OTD atrasados`, `Baseline OTD` | (previstos no período − atrasados) ÷ previstos, no nível 2. O que não venceu conta como cumprido. |
 | `Backlog`, `Backlog atrasado`, `Say-do` | A mesma conta sobre o backlog, pela data reprogramada. |
 | `Indicador (cartão)`, `Indicador (título)` | O cartão único: o índice da visão escolhida (o que não está atrasado ÷ previstos) no número e emitidos/previstos no título. |
-| `Previstos Acum`, `Emitidos Acum` | A curva S do período: previstos pela data-alvo; emitidos pela data da 1ª emissão, mais os previstos do período que saíram antes dele. |
+| `Previstos Acum`, `Emitidos Acum` | A curva S do período: previstos pela data-alvo; emitidos pelas regras do passo 10 (dia em que saiu, 1º dia para o adiantado na 1ª revisão, data-alvo para quem já teve revisão). |
 
 As situações são gravadas pelo DocManager (KB §27.5 e §27.7). O Power BI só conta.

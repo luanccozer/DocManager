@@ -1165,12 +1165,14 @@ está em `docs/power_bi_otd_say_do.md`: um gráfico só, com as tabelas soltas `
 (segmentação em blocos ATUAL | OTD | SAY-DO) e `Situacoes` (legenda), medidas com
 `USERELATIONSHIP` para a DATA PREVISTA e a DATA REPROGRAMADA, e um cartão único que segue o botão: o índice no número e emitidos/previstos no título
 (o índice é o que não está atrasado ÷ previstos, contra a data de cada visão; ex.: SAY-DO
-100,0% com 0/5 = nenhum venceu, nenhum saiu). Curva S (decisão do usuário, 2026-11-10, depois
-de três versões descartadas): previstos pela DATA-ALVO (medida original, intocada); emitidos =
-a conta original (1ª emissão dentro do período, qualquer previsão) + os documentos com
-data-alvo no período e 1ª emissão antes dele, que entram no 1º dia (adiantados); a linha
-para em hoje. Ex.: x previsto 10/11 e emitido 01/10 conta em outubro (saiu lá) e em
-novembro desde o dia 1º (estava previsto lá).
+100,0% com 0/5 = nenhum venceu, nenhum saiu). Curva S (decisão do usuário, 2026-11-10, ajustada aos dados no mesmo dia): previstos pela
+DATA-ALVO (medida original); emitidos = documentos previstos no período, cada um num dia:
+o da 1ª emissão se saiu no período; o 1º dia se saiu antes e ainda está na 1ª revisão
+(adiantado); o da data-alvo se saiu antes dela e já teve revisão depois (a data do Doc List é
+de revisão posterior: 85 de 452 documentos de 2026, todos com 1ª emissão em 2024/2025); mais o
+adiantado de período seguinte saído no período. Atrasado de período anterior e documento sem
+data-alvo não entram. A versão de 10/11 (todo emitido do período + todos os que saíram antes)
+punha a linha de emitidos 85 acima no início do ano.
 
 ---
 
