@@ -512,6 +512,24 @@ Um limite: um documento que saiu adiantado e já teve revisão entra no dia prev
 no dia em que saiu. A planilha não guarda a que revisão se refere a data prevista, então não
 dá para separá-lo de um documento cuja data é de uma revisão posterior.
 
+**Como ler o gráfico**
+
+- Cada degrau da linha **escura** são documentos com data-alvo naquele dia.
+- Cada degrau da linha **clara** são documentos que entraram naquele dia: saíram nesse dia
+  ou, se já tiveram revisão, estavam previstos para esse dia.
+- **Clara acima da escura** é adiantamento real: documento na 1ª revisão que saiu antes da
+  data-alvo, ou previsto para o período seguinte que saiu neste. Documento com revisão
+  posterior nunca puxa a clara para cima, porque entra no dia previsto.
+- **Clara abaixo da escura** são documentos previstos até aquele dia que ainda não saíram, ou
+  que saíram atrasados (esses entram no dia em que saíram).
+- A distância entre as duas no dia de hoje é, grosso modo, o que estava previsto até hoje e
+  não saiu, menos o que saiu adiantado. Para ver quais documentos são, use a visão ATUAL da
+  página Unidade Geradora (barras vermelhas, pendentes vencidos).
+- Depois de hoje só aparece a escura: o que ainda está previsto até o fim do período.
+- Dia sem nenhum documento contado não tem ponto: o Power BI não desenha o zero. Por isso a
+  escura pode começar alguns dias depois do início do período.
+- Os filtros do topo (sistema, fase, responsável) valem para as duas linhas.
+
 **Confira** com **2026 → outubro** (planilha de 28/10):
 
 | Dia | Previstos | Emitidos |
