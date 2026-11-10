@@ -236,3 +236,10 @@ Resultado: 1133 passed, ruff limpo.
   de período seguinte (1ª revisão) entra no dia em que saiu; atrasado de período anterior e
   sem data-alvo não entram. Simulado: ano 31/03 100 x 91 (antes 192), 26/10 355 x 311;
   outubro 1/10 0 x 3, 26/10 33 x 32. Exemplo x/y/z do usuário continua valendo.
+
+### Curva S pela data prevista, opcional (2026-11-10)
+- Pedido: poder escolher a data inicial (baseline) em vez da data-alvo. Roteiro, passo 10,
+  "Opcional": botões ATUAL | OTD na Página 1 (cópia não sincronizada da segmentação Visoes,
+  sem SAY-DO); Previstos Acum com USERELATIONSHIP na DATA PREVISTA Aux; Emitidos Acum com
+  `Alvo` = DATA PREVISTA Aux; título dinâmico opcional. Conferido contra o modelo (19
+  fórmulas). Out/2026, planilha de 28/10: ATUAL 48 × 29, OTD 60 × 31 em 31/10.

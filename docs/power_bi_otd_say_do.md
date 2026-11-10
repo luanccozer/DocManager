@@ -539,6 +539,109 @@ dá para separá-lo de um documento cuja data é de uma revisão posterior.
 | 20/10 | 32 | 26 |
 | 28/10 | 34 | 27 |
 
+### Opcional: escolher a data da curva (data-alvo ou data prevista)
+
+Para a curva também poder ser vista pela **data prevista** (a baseline, a ideia do OTD), a
+Página 1 ganha os botões **ATUAL | OTD**, os mesmos nomes da página Unidade Geradora:
+
+- **ATUAL**: as duas linhas pela data-alvo, como acima;
+- **OTD**: as duas linhas pela **data prevista**. Um documento reprogramado fica no período
+  em que estava previsto originalmente, e a distância entre as linhas é o atraso contra a
+  baseline. As regras dos emitidos são as mesmas, trocando a data-alvo pela prevista.
+
+1. Na página **Unidade Geradora**, clique nos botões ATUAL | OTD | SAY-DO e tecle **Ctrl+C**.
+   Vá para a **Página 1** e tecle **Ctrl+V**. Se o Power BI perguntar se quer sincronizar
+   com a segmentação da outra página, escolha **não sincronizar**: cada página escolhe a sua.
+2. Com os botões colados selecionados, no painel **Filtros → Filtros neste visual**, abra
+   **Visao** e desmarque **SAY-DO**. Ficam ATUAL e OTD.
+3. Ponha os botões perto do filtro "Ano, Mês" e clique em **ATUAL**: é como a página abre.
+4. Troque as duas medidas (clique em cada uma em **Calendario**, **Ctrl+A**, cole, **Enter**):
+
+```dax
+Previstos Acum =
+VAR DataAtual = MAX(Calendario[Date])
+VAR PelaPrevista = SELECTEDVALUE(Visoes[Visao], "ATUAL") = "OTD"
+RETURN
+IF(
+    PelaPrevista,
+    CALCULATE(
+        [Previstos],
+        USERELATIONSHIP(Calendario[Date], 'Unidade Geradora'[DATA PREVISTA Aux]),
+        FILTER(ALLSELECTED(Calendario), Calendario[Date] <= DataAtual)
+    ),
+    CALCULATE(
+        [Previstos],
+        FILTER(ALLSELECTED(Calendario), Calendario[Date] <= DataAtual)
+    )
+)
+```
+
+```dax
+Emitidos Acum =
+VAR DataAtual = MAX(Calendario[Date])
+VAR Inicio = CALCULATE(MIN(Calendario[Date]), ALLSELECTED(Calendario))
+VAR Fim = CALCULATE(MAX(Calendario[Date]), ALLSELECTED(Calendario))
+VAR PelaPrevista = SELECTEDVALUE(Visoes[Visao], "ATUAL") = "OTD"
+VAR Linhas =
+    FILTER(
+        CALCULATETABLE(
+            'Unidade Geradora',
+            CROSSFILTER('Unidade Geradora'[DATA-ALVO Aux], Calendario[Date], None)
+        ),
+        VAR Alvo =
+            IF(PelaPrevista, 'Unidade Geradora'[DATA PREVISTA Aux], 'Unidade Geradora'[DATA-ALVO Aux])
+        VAR Emissao = 'Unidade Geradora'[DATA 1ª EMISSÃO Aux]
+        VAR SoPrimeiraRevisao =
+            ISBLANK('Unidade Geradora'[DATA ÚLTIMA EMISSÃO])
+                || 'Unidade Geradora'[DATA ÚLTIMA EMISSÃO] <= Emissao
+        VAR Entrada =
+            SWITCH(
+                TRUE(),
+                ISBLANK(Emissao) || ISBLANK(Alvo), BLANK(),
+                Alvo >= Inicio && Alvo <= Fim && SoPrimeiraRevisao, MAX(Emissao, Inicio),
+                Alvo >= Inicio && Alvo <= Fim, MAX(Emissao, Alvo),
+                Alvo > Fim && SoPrimeiraRevisao && Emissao >= Inicio, Emissao,
+                BLANK()
+            )
+        RETURN NOT ISBLANK(Entrada) && Entrada <= DataAtual
+    )
+RETURN
+IF(
+    DataAtual > TODAY(),
+    BLANK(),
+    COUNTROWS(SUMMARIZE(Linhas, 'Unidade Geradora'[N° ITAIPU]))
+)
+```
+
+5. Opcional, o título dizendo qual data está valendo. Crie a medida abaixo e, no gráfico, em
+   **Formatar visual → Geral → Título → Texto**, clique no **fx** → **Valor do campo** →
+   **Título (curva S)**:
+
+```dax
+Título (curva S) =
+IF(
+    SELECTEDVALUE(Visoes[Visao], "ATUAL") = "OTD",
+    "DOCUMENTOS PREVISTOS E EMITIDOS · BASELINE (DATA PREVISTA)",
+    "DOCUMENTOS PREVISTOS E EMITIDOS · DATA-ALVO"
+)
+```
+
+O que muda nas fórmulas: `PelaPrevista` lê o botão escolhido. Nos previstos, o
+`USERELATIONSHIP` liga o Calendario à DATA PREVISTA Aux, como nas medidas do OTD. Nos
+emitidos, `Alvo` passa a ser a DATA PREVISTA Aux. Sem botão escolhido, vale a ATUAL.
+
+Um documento reprogramado que sai depois da data prevista não entra na curva de nenhum mês
+na visão OTD: no mês previsto ele ainda não tinha saído, e no mês em que saiu ele é atrasado
+de período anterior. É o mesmo que o Baseline OTD mede.
+
+**Confira** com **2026 → outubro** (planilha de 28/10):
+
+| Dia | ATUAL: previstos × emitidos | OTD: previstos × emitidos |
+|---|---|---|
+| 10/10 | 23 × 22 | 28 × 24 |
+| 20/10 | 32 × 26 | 45 × 28 |
+| 31/10 | 48 × 29 | 60 × 31 |
+
 ---
 
 ## Passo 11: conferir e salvar

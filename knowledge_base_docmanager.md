@@ -1172,7 +1172,10 @@ o da 1ª emissão se saiu no período; o 1º dia se saiu antes e ainda está na 
 de revisão posterior: 85 de 452 documentos de 2026, todos com 1ª emissão em 2024/2025); mais o
 adiantado de período seguinte saído no período. Atrasado de período anterior e documento sem
 data-alvo não entram. A versão de 10/11 (todo emitido do período + todos os que saíram antes)
-punha a linha de emitidos 85 acima no início do ano.
+punha a linha de emitidos 85 acima no início do ano. Opcional (2026-11-10): botões ATUAL | OTD na
+Página 1 (cópia não sincronizada da segmentação Visoes, sem SAY-DO) trocam a data do plano
+das duas linhas para a DATA PREVISTA (`USERELATIONSHIP` nos previstos; `Alvo` = DATA PREVISTA
+Aux nos emitidos). Out/2026, planilha de 28/10: ATUAL 48 × 29, OTD 60 × 31 no fim do mês.
 
 ---
 
