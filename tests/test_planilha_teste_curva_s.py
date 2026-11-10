@@ -72,7 +72,8 @@ def test_aba_esperado_traz_a_pagina_projecao(tmp_path):
     linhas = [[c.value for c in r] for r in ws.iter_rows()]
     i = next(k for k, r in enumerate(linhas) if r[0] == "Cartão A recuperar")
     assert linhas[i + 1][2:4] == [3, "2 COM DATA NOVA · 1 SEM DATA NOVA"]
-    assert any(str(r[0]).startswith("No fim do eixo sobram 1 ") for r in linhas)
+    assert any(str(r[0]).startswith("No fim do eixo, a diferença entre a baseline e a projeção é 1:")
+               for r in linhas)
     dados = openpyxl.load_workbook(caminho)["Unidade Geradora"]
     assert [dados.cell(r, 6).value for r in range(4, dados.max_row + 1)][-3:] == [
         "TESTE-10", "TESTE-11", "TESTE-12"]

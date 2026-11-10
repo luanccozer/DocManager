@@ -260,7 +260,7 @@ def _aba_esperado(ws, linhas, hoje):
         ws.append([dia, "hoje" if dia == hoje else "", base, "—" if real is None else real,
                    "—" if proj is None else proj])
     base, _, proj = curva_do_projeto(linhas, hoje, FIM_DO_EIXO)
-    ws.append([f"No fim do eixo sobram {base - proj} entre a baseline e a projeção: os sem data nova."])
+    ws.append([f"No fim do eixo, a diferença entre a baseline e a projeção é {base - proj}: os sem data nova."])
 
     for linha in ws.iter_rows():
         for c in linha:
