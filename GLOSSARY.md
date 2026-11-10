@@ -88,6 +88,11 @@ O documento cuja data reprogramada é posterior à data prevista e que não tinh
 saído até a data prevista. Entra no backlog quando é reprogramado.
 _Evite_: reprogramados (inclui quem já tinha saído no prazo), atrasados
 
+**A recuperar**:
+O documento que não saiu e cuja data prevista já passou, tenha ou não data
+reprogramada. Tem **data nova** quando a data-alvo ainda não venceu.
+_Evite_: backlog (é só o reprogramado), atrasados (sem dizer contra qual data)
+
 **Baseline OTD**:
 A parcela dos documentos com data prevista no período que não atrasaram contra
 ela. O que ainda não venceu conta como cumprido.
@@ -115,6 +120,8 @@ backlog, não existe.
   **Backlog**.
 - Um documento do **Backlog** conta como atrasado no **Baseline OTD** e fica em
   aberto no **Say-do** até a **Data reprogramada**.
+- Um documento do **Backlog** que não saiu e já passou da **Data prevista** está **A
+  recuperar**; o **A recuperar** sem **Data reprogramada** não é **Backlog**.
 
 ## Ambiguidades resolvidas
 
@@ -127,3 +134,5 @@ backlog, não existe.
   não é **Backlog** (rodada 2).
 - A **Situação de emissão** continua contra a **Data-alvo** (visão atual); a régua da
   **Data prevista** é a **Situação OTD** (rodada 3: o painel mantém as três visões).
+- "O backlog daquilo que precisa ser recuperado" (desenho da curva do projeto,
+  2026-11-10) é o **A recuperar**: entre eles, só os reprogramados são **Backlog**.

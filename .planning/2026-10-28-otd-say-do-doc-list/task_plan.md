@@ -4,12 +4,11 @@
 O usuário entende como o DocManager atualiza hoje o Doc List Mapping (em especial DATA PREVISTA, DATA REPROGRAMADA, DATA-ALVO e datas digitadas à mão) e tem, decididos com ele, os requisitos para o pedido de `instruções.txt` (reprogramar não apaga a data original; backlog em gráfico próprio; dois OTDs: Baseline OTD e Backlog Say-do).
 
 ## Next Step
-Com o OK do usuário, disparar a versão de teste 3.6.1-rc.1 (Actions → Release → Run workflow neste
-branch, Pré-lançamento marcado). Depois: o usuário testa o app e segue docs/power_bi_otd_say_do.md;
-PR para a main e tag v3.6.1 quando a rc estiver aprovada.
+O usuário segue o passo 12 do roteiro (página Projeção) e testa a 3.6.1-rc.2. PR para a main e
+tag v3.6.1 quando a rc estiver aprovada (tag só com a confirmação do usuário).
 
 ## Current Phase
-Phase 8
+Phase 9
 
 ## Phases
 
@@ -66,6 +65,13 @@ Phase 8
 - [x] Rodada 4 enviada (Q19, Q20)
 - [x] Respostas da rodada 4 (Q19 três visões, Q20 curva S)
 - [x] Roteiro de cliques detalhado, conferido contra o modelo atual
+- **Status:** complete
+
+### Phase 9: Página Projeção (pedido de 2026-11-10)
+- [x] Desenho do colega discutido antes de fazer, com rascunho sobre os dados de 26/10
+- [x] Respostas Q21, Q22 e Q23 (todas A) e o pedido da lista em drill
+- [x] Regras na planilha de teste, com testes; passo 12 do roteiro conferido contra o .pbix e a planilha de 06/11
+- [x] Glossário (A recuperar), KB §27.7 e ticket 07
 - **Status:** complete
 
 ## Key Questions
@@ -181,6 +187,11 @@ Fora do grilling (anotado para a spec):
 | Q19: variante A (botões no cabeçalho), abrindo na ATUAL; um gráfico só com segmentação em blocos | resposta do usuário (2026-10-29) |
 | Q20: curva S acumula desde o início (ALL), previstos pela DATA PREVISTA | resposta do usuário (2026-10-29) |
 | Versão 3.6.1 (PATCH), ensaio 3.6.1-rc.1 | skill de versionamento do usuário + "a mudança é pequena" (2026-10-29) |
+| Q21: na projeção, o pendente com a data-alvo vencida não entra; o vão no fim mostra quem precisa de data nova | resposta do usuário (2026-11-10) |
+| Q22: cartão A recuperar = os atrasados contra a data prevista, com e sem data nova | resposta do usuário (2026-11-10) |
+| Q23: página própria (Projeção); a Curva fica como está | resposta do usuário (2026-11-10) |
+| Lista em matriz com drill (grupo → sistema → documento) para ver quem encaixar e quem adiantar | pedido do usuário (2026-11-10) |
+| O número se chama "A recuperar", não "backlog" | GLOSSARY: backlog é só o reprogramado |
 
 ## Errors Encountered
 | Error | Resolution |

@@ -243,3 +243,29 @@ Resultado: 1133 passed, ruff limpo.
   sem SAY-DO); Previstos Acum com USERELATIONSHIP na DATA PREVISTA Aux; Emitidos Acum com
   `Alvo` = DATA PREVISTA Aux; título dinâmico opcional. Conferido contra o modelo (19
   fórmulas). Out/2026, planilha de 28/10: ATUAL 48 × 29, OTD 60 × 31 em 31/10.
+
+### Página Projeção (2026-11-10)
+- Pedido: desenho de um colega, para ver na projeção o backlog que precisa ser recuperado
+  (baseline × realizado × tracejado do replanejado até encontrar a baseline). Discutido antes
+  de fazer, com rascunho sobre os dados de 26/10:
+  - 81 atrás da baseline: 89 atrasados menos 8 adiantados;
+  - dos 89, 31 com data nova e 58 sem;
+  - a tracejada não encontra a baseline;
+  - lote de 76 documentos em 28/02/27.
+- Respostas: Q21, Q22 e Q23 = A. O usuário pediu também uma lista em drill para ver quem
+  encaixar e quem adiantar.
+- Feito:
+  - regras em `tools/planilha_teste_curva_s.py` (`entrada_realizado`, `entrada_projecao`,
+    `grupo_recuperar`), mais TESTE-10 a TESTE-12 e a parte "Página Projeção" da aba Esperado;
+  - 6 testes novos;
+  - passo 12 do roteiro: tabela Recuperacao, 9 medidas, gráfico, cartão, matriz,
+    interações, conferir e como ler;
+  - seções de teste, problemas e referência do roteiro atualizadas.
+- Conferido:
+  - .pbix novo (repositório docs-aconex-ug): a Página 1 virou "Curva";
+  - as 29 fórmulas passam no conferidor, e as posições não têm conflito;
+  - simulado sobre a planilha de 06/11, com o painel aberto em 10/11:
+    - 91 a recuperar: 68 com data nova e 23 sem;
+    - hoje, 915 × 830;
+    - 31/12, 1.005 × 890;
+    - fim do eixo, 1.058 × 1.037.

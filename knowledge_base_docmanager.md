@@ -1179,6 +1179,37 @@ Aux nos emitidos). Out/2026, planilha de 28/10: ATUAL 48 × 29, OTD 60 × 31 no 
 Teste das regras: `tools/planilha_teste_curva_s.py` gera 9 documentos fictícios (um por regra)
 com a aba Esperado; o roteiro diz como apontar uma cópia do .pbix para ela.
 
+**Página Projeção** (decisão do usuário, 2026-11-10, a partir do desenho de um colega: "como
+ver na projeção o backlog que precisa ser recuperado"; passo 12 do roteiro). O projeto inteiro
+de ago/2024 a out/2027, contra a data prevista:
+
+- **Baseline**: cada documento na data prevista.
+- **Realizado** (até hoje): a 1ª emissão, ou a data prevista se o documento já teve revisão,
+  como na curva mensal.
+- **Projeção** (tracejada): o realizado de hoje mais os pendentes na data-alvo que não venceu.
+  O pendente com a data-alvo vencida não entra (Q21 = A), então o vão no fim do eixo é quem
+  precisa de data nova.
+- **Cartão A recuperar** (Q22 = A): o documento que não saiu e cuja data prevista já passou
+  (o PENDENTE VENCIDO da SITUAÇÃO OTD), com data nova (data-alvo que não venceu) ou sem. Não
+  se chama backlog (GLOSSARY).
+- **Matriz** Grupo → SISTEMA → documento, com prevista, data nova e dias de atraso: quem
+  encaixar (sem data nova) e quem adiantar (com data nova).
+- Página própria (Q23 = A); a Curva (antiga Página 1) fica como está. Tudo pelo `TODAY()` do
+  Power BI.
+
+Números:
+
+- Planilha de 06/11 aberta em 10/11:
+  - 91 a recuperar: 68 com data nova e 23 sem;
+  - hoje, 915 na baseline × 830 realizados;
+  - 30 documentos reprogramados para 28/02/2027;
+  - vão de 21 no fim do eixo: os 23 sem data nova, menos 2 previstos para 2028 que já saíram.
+- Na planilha de 26/10 eram 89 a recuperar: 31 com data nova e 58 sem.
+
+As regras ficam em `tools/planilha_teste_curva_s.py` (`entrada_realizado`, `entrada_projecao`,
+`grupo_recuperar`). São testadas em `tests/test_planilha_teste_curva_s.py` e geram a parte
+"Página Projeção" da aba Esperado (TESTE-10 a TESTE-12).
+
 ---
 
 ## 28. ✅ Extração Aconex retomável (2026-07-27, pedido do usuário)

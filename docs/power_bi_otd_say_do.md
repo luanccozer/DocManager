@@ -5,7 +5,8 @@ português. As decisões estão nas rodadas 3 e 4 do planejamento
 (`.planning/2026-10-28-otd-say-do-doc-list/task_plan.md`); as regras dos indicadores,
 na KB §27.7. Escrito em 2026-10-29 e conferido contra o modelo do `.pbix` (nomes de
 tabelas, colunas, medidas e relações) e contra a planilha de 28/10, que deu os números
-dos passos 9 a 11.
+dos passos 9 a 11. O passo 12 (2026-11-10) foi conferido contra o `.pbix` e a planilha de
+06/11.
 
 **O que muda no painel**
 
@@ -17,8 +18,13 @@ dos passos 9 a 11.
 - Um cartão que acompanha os botões: o índice em destaque (por exemplo, "59,3%") e, no
   título, emitidos/previstos ("29/59"). Ele segue o filtro PERÍODO e os filtros do topo
   (sistema, fase, responsável).
-- **Página 1**: na curva S, os previstos entram na data-alvo e os emitidos na data em que
-  saíram; o documento adiantado de verdade já entra no 1º dia do período.
+- Página **Curva** (a antiga Página 1): na curva S, os previstos entram na data-alvo e os
+  emitidos na data em que saíram; o documento adiantado de verdade já entra no 1º dia do
+  período.
+- Página **Projeção** (nova, passo 12):
+  - o projeto inteiro numa curva só: baseline, realizado e a projeção pelo replanejado;
+  - o cartão **A recuperar**;
+  - a lista desses documentos, que abre por grupo, sistema e documento.
 
 Leva uns 45 minutos. Faça na ordem, porque cada passo usa o anterior.
 
@@ -678,14 +684,355 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 
 ---
 
+## Passo 12: a página Projeção (curva do projeto e lista a recuperar)
+
+Uma página nova com o projeto inteiro, para ver o que está atrasado e quando ele é
+recuperado (decisões do usuário, 2026-11-10: Q21, Q22 e Q23 = A). Pode ser feita em outro
+dia: não mexe em nada dos passos 1 a 11. Leva uns 30 minutos.
+
+- **Gráfico**: três linhas no mesmo eixo, de ago/2024 a out/2027.
+  - **Baseline** (azul escuro, cheia): cada documento entra na **data prevista**.
+  - **Realizado** (azul claro, cheia, até hoje): cada documento entra no dia em que
+    **saiu** (1ª emissão). Se já teve revisão depois, entra na data prevista, como na curva
+    do passo 10, ou no dia em que saiu, se saiu depois dela.
+  - **Projeção** (azul claro, tracejada, de hoje em diante): o realizado de hoje mais cada
+    pendente na sua **data-alvo**, se ela ainda não venceu. O pendente com a data-alvo
+    vencida não entra, então o vão que sobra no fim é quem precisa de data nova.
+- **Cartão A recuperar**: os documentos que não saíram e cuja data prevista já passou (o
+  PENDENTE VENCIDO da SITUAÇÃO OTD). O título diz quantos têm **data nova** (data-alvo que
+  ainda não venceu) e quantos não têm.
+- **Lista**: os mesmos documentos numa matriz que abre por grupo, sistema e documento.
+  - **SEM DATA NOVA**: precisam ser **encaixados**, isto é, ganhar data reprogramada no
+    Controle de Documentos.
+  - **COM DATA NOVA**: já têm data; **adiantá-la** fecha o vão mais cedo.
+
+Cancelado e documento sem data prevista ficam fora de tudo. "A recuperar" não é "backlog":
+no painel, backlog é só o documento reprogramado (o do Say-do).
+
+### 12.1 A página
+
+1. Embaixo, clique com o botão direito na aba **Curva** (a antiga Página 1) e escolha
+   **Duplicar página**.
+2. Clique duas vezes na aba nova e renomeie para **Projeção**.
+3. Na Projeção, apague o gráfico da curva, o filtro **Ano, Mês** e os botões
+   **ATUAL | OTD** (clique em cada um e tecle **Delete**). Ficam os logos, o título e os
+   três filtros do topo (sistema, fase, responsável). Deixe os filtros em tudo.
+
+### 12.2 A tabela dos grupos
+
+Como no passo 4: clique em **Modelagem → Nova tabela**, cole e tecle **Enter**:
+
+```dax
+Recuperacao = DATATABLE("Grupo", STRING, "Ordem", INTEGER, {{"SEM DATA NOVA", 1}, {"COM DATA NOVA", 2}})
+```
+
+No painel **Dados**, abra **Recuperacao**, clique em **Grupo** e escolha
+**Ferramentas de coluna → Classificar por coluna → Ordem**. Não ligue a tabela a nada.
+
+### 12.3 As medidas
+
+Como no passo 5 (botão direito em **Calendario → Nova medida**, cole a fórmula inteira,
+**Enter**). Primeiro as três da curva:
+
+```dax
+Baseline (projeto) =
+VAR Dia = MAX(Calendario[Date])
+VAR Linhas =
+    FILTER(
+        CALCULATETABLE('Unidade Geradora', REMOVEFILTERS(Calendario)),
+        NOT ISBLANK('Unidade Geradora'[DATA PREVISTA Aux])
+            && 'Unidade Geradora'[DATA PREVISTA Aux] <= Dia
+            && 'Unidade Geradora'[STATUS CONSOLIDADO] <> "CANCELADO"
+    )
+RETURN
+COUNTROWS(SUMMARIZE(Linhas, 'Unidade Geradora'[N° ITAIPU]))
+```
+
+```dax
+Realizado (projeto) =
+VAR Dia = MAX(Calendario[Date])
+VAR Linhas =
+    FILTER(
+        CALCULATETABLE('Unidade Geradora', REMOVEFILTERS(Calendario)),
+        VAR Prevista = 'Unidade Geradora'[DATA PREVISTA Aux]
+        VAR Emissao = 'Unidade Geradora'[DATA 1ª EMISSÃO Aux]
+        VAR SoPrimeiraRevisao =
+            ISBLANK('Unidade Geradora'[DATA ÚLTIMA EMISSÃO])
+                || 'Unidade Geradora'[DATA ÚLTIMA EMISSÃO] <= Emissao
+        VAR Entrada = IF(SoPrimeiraRevisao, Emissao, MAX(Emissao, Prevista))
+        RETURN
+            NOT ISBLANK(Prevista) && NOT ISBLANK(Emissao)
+                && 'Unidade Geradora'[STATUS CONSOLIDADO] <> "CANCELADO"
+                && Entrada <= Dia
+    )
+RETURN
+IF(Dia > TODAY(), BLANK(), COUNTROWS(SUMMARIZE(Linhas, 'Unidade Geradora'[N° ITAIPU])))
+```
+
+```dax
+Projeção (projeto) =
+VAR Dia = MAX(Calendario[Date])
+VAR Hoje = TODAY()
+VAR Linhas =
+    FILTER(
+        CALCULATETABLE('Unidade Geradora', REMOVEFILTERS(Calendario)),
+        VAR Prevista = 'Unidade Geradora'[DATA PREVISTA Aux]
+        VAR Emissao = 'Unidade Geradora'[DATA 1ª EMISSÃO Aux]
+        VAR Alvo = 'Unidade Geradora'[DATA-ALVO Aux]
+        VAR SoPrimeiraRevisao =
+            ISBLANK('Unidade Geradora'[DATA ÚLTIMA EMISSÃO])
+                || 'Unidade Geradora'[DATA ÚLTIMA EMISSÃO] <= Emissao
+        VAR Entrada =
+            SWITCH(
+                TRUE(),
+                NOT ISBLANK(Emissao) && SoPrimeiraRevisao, Emissao,
+                NOT ISBLANK(Emissao), MAX(Emissao, Prevista),
+                Alvo >= Hoje, Alvo,
+                BLANK()
+            )
+        RETURN
+            NOT ISBLANK(Prevista) && NOT ISBLANK(Entrada)
+                && 'Unidade Geradora'[STATUS CONSOLIDADO] <> "CANCELADO"
+                && Entrada <= Dia
+    )
+RETURN
+IF(Dia < Hoje, BLANK(), COUNTROWS(SUMMARIZE(Linhas, 'Unidade Geradora'[N° ITAIPU])))
+```
+
+Depois as do cartão:
+
+```dax
+A recuperar =
+VAR Hoje = TODAY()
+VAR Grupo = SELECTEDVALUE(Recuperacao[Grupo])
+VAR Linhas =
+    FILTER(
+        CALCULATETABLE('Unidade Geradora', REMOVEFILTERS(Calendario)),
+        VAR Prevista = 'Unidade Geradora'[DATA PREVISTA Aux]
+        VAR ComDataNova = 'Unidade Geradora'[DATA-ALVO Aux] >= Hoje
+        RETURN
+            NOT ISBLANK(Prevista) && Prevista < Hoje
+                && ISBLANK('Unidade Geradora'[DATA 1ª EMISSÃO Aux])
+                && 'Unidade Geradora'[STATUS CONSOLIDADO] <> "CANCELADO"
+                && SWITCH(Grupo, "COM DATA NOVA", ComDataNova, "SEM DATA NOVA", NOT ComDataNova, TRUE())
+    )
+RETURN
+COUNTROWS(SUMMARIZE(Linhas, 'Unidade Geradora'[N° ITAIPU]))
+```
+
+```dax
+A recuperar (título) =
+VAR ComData = CALCULATE([A recuperar], Recuperacao[Grupo] = "COM DATA NOVA")
+VAR SemData = CALCULATE([A recuperar], Recuperacao[Grupo] = "SEM DATA NOVA")
+RETURN
+COALESCE(ComData, 0) & " COM DATA NOVA · " & COALESCE(SemData, 0) & " SEM DATA NOVA"
+```
+
+E as quatro colunas da lista:
+
+```dax
+Descrição (a recuperar) =
+IF([A recuperar] > 0, SELECTEDVALUE('Unidade Geradora'[DESCRIÇÃO DO DOCUMENTO]))
+```
+
+```dax
+Prevista (a recuperar) =
+MINX(
+    FILTER(VALUES('Unidade Geradora'[N° ITAIPU]), [A recuperar] > 0),
+    CALCULATE(MIN('Unidade Geradora'[DATA PREVISTA Aux]), REMOVEFILTERS(Calendario))
+)
+```
+
+```dax
+Data nova (a recuperar) =
+VAR Data =
+    MAXX(
+        FILTER(VALUES('Unidade Geradora'[N° ITAIPU]), [A recuperar] > 0),
+        CALCULATE(MAX('Unidade Geradora'[DATA-ALVO Aux]), REMOVEFILTERS(Calendario))
+    )
+RETURN
+IF(Data >= TODAY(), Data)
+```
+
+```dax
+Dias de atraso (a recuperar) =
+VAR Prevista = [Prevista (a recuperar)]
+RETURN
+IF(NOT ISBLANK(Prevista), DATEDIFF(Prevista, TODAY(), DAY))
+```
+
+Formato: clique em **Prevista (a recuperar)** e, na faixa **Ferramentas de medida**, em
+**Formato**, escolha a data curta (14/03/2001). Faça o mesmo em **Data nova (a recuperar)**.
+
+Como funcionam:
+
+- Todas pegam as linhas da planilha que passam nos filtros do topo, sem o filtro de data do
+  gráfico (`REMOVEFILTERS(Calendario)`), e comparam as datas direto.
+- Contam códigos distintos, como o resto do painel.
+- `TODAY()` é o dia em que o painel é aberto.
+- **A recuperar** lê o grupo da linha da lista com `SELECTEDVALUE`, como as medidas do
+  passo 5 leem o botão. No cartão não há grupo, e ela conta os dois.
+- As medidas da lista só devolvem valor para quem está a recuperar. É por isso que a matriz
+  mostra só esses documentos.
+
+**Confira:** são 9 medidas novas em Calendario, sem o triângulo amarelo de erro.
+
+### 12.4 O gráfico
+
+1. Clique numa área vazia da página. Em **Visualizações**, clique em **Gráfico de linhas**.
+2. **Eixo X**: arraste **Calendario → Date**. Ele entra como hierarquia: clique na setinha
+   ao lado de **Date**, no Eixo X, e escolha **Date** (em vez de **Hierarquia de datas**).
+3. **Eixo Y**: arraste, nesta ordem, **Baseline (projeto)**, **Realizado (projeto)** e
+   **Projeção (projeto)**. Para a legenda ficar limpa, clique duas vezes em cada uma, no
+   Eixo Y, e renomeie para **Baseline (data prevista)**, **Realizado** e
+   **Projeção (data-alvo)**.
+4. **Período**:
+   1. No painel **Filtros → Filtros neste visual**, abra **Date** e escolha
+      **Filtragem avançada**.
+   2. Preencha **é posterior ou igual a** 01/08/2024, **E**, **é anterior ou igual a**
+      31/10/2027, e clique em **Aplicar filtro**.
+
+   O filtro só escolhe os dias desenhados: a baseline continua contando o que estava
+   previsto antes de agosto/2024.
+5. Na aba **Formatar visual**:
+   - **Visual → Eixo X → Tipo**: **Contínuo**.
+   - **Visual → Linhas**: em **Série**, escolha cada linha e acerte a cor (**Mais cores**,
+     digite o código):
+     - Baseline `#12239E`, o azul escuro dos previstos na Curva;
+     - Realizado `#118DFF`, o azul claro dos emitidos;
+     - Projeção `#118DFF`, com **Estilo da linha: Tracejado**.
+   - **Visual → Legenda → Opções → Posição**: **Inferior central**.
+   - **Geral → Título**: ligue, com o texto **CURVA DO PROJETO · BASELINE, REALIZADO E
+     PROJEÇÃO**, fonte 12, negrito, cor `#0E1A77` (a do título da Curva).
+   - **Geral → Propriedades**: Largura **940**, Altura **320**, Horizontal **10**,
+     Vertical **80**.
+6. Opcional, a linha de hoje:
+   1. Crie a medida `Hoje (linha) = TODAY()` (em **Calendario → Nova medida**).
+   2. Com o gráfico selecionado, abra o painel **Análise** (a lupa, ao lado de
+      **Formatar visual**) → **Linha X constante** → **Adicionar linha**.
+   3. Em **Valor**, clique no **fx** → **Valor do campo** → **Hoje (linha)** → **OK**.
+      Use a cor cinza `#898781` e o estilo **Sólido**.
+
+   Se o **Valor** não tiver o **fx** na sua versão, pule este item: o fim da linha cheia
+   clara já marca o hoje.
+
+### 12.5 O cartão
+
+1. Na página **Unidade Geradora**, clique no cartão do índice (o do passo 9, ao lado dos
+   botões ATUAL | OTD | SAY-DO) e tecle **Ctrl+C**. Volte à **Projeção** e tecle
+   **Ctrl+V**.
+2. Em **Criar visual → Campos**, tire **Indicador (cartão)** e arraste **A recuperar**.
+3. Em **Formatar visual → Geral → Título → Texto**, clique no **fx** → **Valor do campo** →
+   **A recuperar (título)** → **OK**.
+4. Em **Visual**, ligue o **Rótulo de categoria**: aparece "A recuperar" embaixo do número.
+5. Em **Geral → Propriedades**: Largura **310**, Altura **110**, Horizontal **960**,
+   Vertical **80**. Se o título cortar, ligue **Quebra automática de texto** no título ou
+   aumente a largura.
+
+Os filtros que vieram com a cópia (NÍVEL = 2 e N° ITAIPU não vazio) podem ficar: todo
+documento com data prevista é do nível 2.
+
+### 12.6 A lista
+
+1. Clique numa área vazia. Em **Visualizações**, clique em **Matriz**.
+2. **Linhas**: arraste, nesta ordem, **Recuperacao → Grupo**,
+   **Unidade Geradora → SISTEMA** e **Unidade Geradora → N° ITAIPU**.
+3. **Valores**: arraste, nesta ordem, **A recuperar**, **Descrição (a recuperar)**,
+   **Prevista (a recuperar)**, **Data nova (a recuperar)** e
+   **Dias de atraso (a recuperar)**.
+   - Renomeie cada uma, clicando duas vezes no nome em Valores: **Documentos**,
+     **Descrição**, **Prevista**, **Data nova** e **Dias de atraso**.
+   - Em Valores entram só essas medidas. Uma coluna da Unidade Geradora ali faz a lista
+     mostrar todos os documentos.
+4. Em **Formatar visual**:
+   - **Visual → Cabeçalhos de linha → Ícones +/-**: ligue.
+   - **Geral → Título**: ligue, com o texto **DOCUMENTOS A RECUPERAR**, fonte 12, negrito,
+     cor `#0E1A77`.
+   - **Geral → Propriedades**: Largura **1260**, Altura **305**, Horizontal **10**,
+     Vertical **410**.
+5. Clique no título da coluna **Dias de atraso** para os mais atrasados virem primeiro.
+   Clique de novo para inverter.
+
+**Como abrir e fechar:**
+
+- O **+** ao lado de SEM DATA NOVA abre os sistemas, e o **+** de um sistema abre os
+  documentos.
+- Para um nível inteiro de uma vez, passe o mouse em cima da matriz e use as setas do canto:
+  - **Expandir tudo um nível abaixo** (a seta dupla para baixo) desce um nível;
+  - **Fazer drill up** (a seta para cima) volta um nível.
+- Nas linhas de grupo e de sistema:
+  - Prevista é a mais antiga;
+  - Data nova é a mais tarde;
+  - Dias de atraso é o maior.
+
+### 12.7 Interações
+
+1. Selecione o gráfico e clique em **Formato → Editar interações**.
+2. Em cima do cartão e da lista, clique em **Nenhum**. Sem isso, o clique num ponto do
+   gráfico filtraria a lista pela data-alvo daquele dia.
+3. Clique em **Editar interações** de novo para sair.
+
+Clicar num sistema ou documento da lista filtra o gráfico e o cartão para ele; clique de
+novo para desfazer.
+
+### 12.8 Conferir
+
+Com a planilha de 06/11 e o painel aberto em 10/11/2026:
+
+| Onde | O que aparece |
+|---|---|
+| Cartão | **91**, com o título "68 COM DATA NOVA · 23 SEM DATA NOVA" |
+| Lista | SEM DATA NOVA 23, COM DATA NOVA 68, total 91 |
+| Gráfico em 10/11/2026 (hoje) | baseline 915, realizado 830: 85 abaixo (91 a recuperar menos 6 adiantados) |
+| 31/12/2026 | baseline 1.005, projeção 890 |
+| 28/02/2027 | baseline 1.033, projeção 1.014 |
+| 31/10/2027, fim do eixo | baseline 1.058, projeção 1.037: vão de 21 |
+
+Em outro dia os números andam, porque o que vence vira atrasado. Aberto em 17/11 com a mesma
+planilha, o cartão vai a 95 (66 com data nova, 29 sem).
+
+Para conferir com outra planilha, pelo Excel, na aba Unidade Geradora:
+
+- Se o DocManager rodou no mesmo dia, o cartão é a contagem de códigos com
+  **SITUAÇÃO OTD = PENDENTE VENCIDO** (91 na planilha de 06/11).
+- Se não rodou, filtre **DATA PREVISTA EMISSÃO** antes de hoje, **DATA 1ª EMISSÃO** vazia e
+  **STATUS CONSOLIDADO** diferente de CANCELADO: são os a recuperar. Desses, os que têm
+  **DATA-ALVO EMISSÃO** hoje ou depois têm data nova.
+
+**Como ler o gráfico**
+
+- Hoje, a distância entre a linha cheia escura e a clara é o que está a recuperar menos o que
+  saiu adiantado.
+- A tracejada sobe nas datas-alvo dos pendentes. Um degrau alto é muito documento
+  reprogramado para o mesmo dia: na planilha de 06/11, 30 em 28/02/2027 e 12 em 15/02/2027.
+- Até dezembro o vão cresce (115 em 31/12) e depois cai de uma vez em fevereiro. Isso
+  acontece porque o que estava previsto para novembro e dezembro e foi reprogramado só entra
+  na tracejada na data nova.
+- No fim do eixo, o vão é o número de documentos sem data nova, menos os previstos para
+  depois de out/2027 que já saíram. Na planilha de 06/11 são 2 desses, por isso o vão é 21 e
+  os sem data nova são 23.
+- **Para a tracejada encontrar a baseline**, os sem data nova precisam ganhar data
+  reprogramada no Controle de Documentos, que o DocManager leva para a planilha. Para
+  encontrar mais cedo, as datas novas da lista (COM DATA NOVA) precisam ser adiantadas.
+- Os filtros do topo valem para os três visuais.
+- A página conta pelo dia de hoje. Antes de apresentar, rode o DocManager e clique em
+  **Atualizar**. Com a planilha antiga, o realizado fica parado na data dela, e o que venceu
+  desde então aparece como atrasado.
+- Para mudar o fim do eixo, troque a data do filtro do item 4 do 12.4.
+
+---
+
 ## Teste com documentos de exemplo
 
 Para ver as regras funcionando com poucos documentos, sem mexer no painel de verdade.
 
 1. Gere a planilha de teste (ou peça a quem cuida do DocManager):
-   `python tools/planilha_teste_curva_s.py "Teste curva S.xlsx"`. Ela tem 9 documentos
-   fictícios (TESTE-01 a TESTE-09), um para cada regra, na aba **Unidade Geradora** com o
-   mesmo layout da planilha real, e a aba **Esperado** com o que o painel tem de mostrar.
+   `python tools/planilha_teste_curva_s.py "Teste curva S.xlsx"`. Gere no mesmo dia em que
+   for conferir, porque a página Projeção conta pelo dia de hoje.
+   - A planilha tem 12 documentos fictícios (TESTE-01 a TESTE-12), um para cada regra, na
+     aba **Unidade Geradora**, com o mesmo layout da planilha real.
+   - TESTE-10 a TESTE-12 são da página Projeção e não aparecem em outubro.
+   - A aba **Esperado** traz o que o painel tem de mostrar.
 2. No Explorador de Arquivos, copie o `.pbix` e abra a **cópia**.
 3. **Página Inicial → Transformar dados** (a setinha) → **Configurações da fonte de dados**.
    Selecione a fonte (o caminho do Doc List Mapping) → **Alterar Fonte...** → **Procurar...**
@@ -704,7 +1051,15 @@ Para ver as regras funcionando com poucos documentos, sem mexer no painel de ver
 
    Na página Unidade Geradora, o cartão em outubro: ATUAL 66,7% (5/6), OTD 42,9% (5/7),
    SAY-DO 100,0% (1/1).
-6. Feche a cópia sem salvar, ou apague-a.
+6. Na página **Projeção**, compare com a parte "Página Projeção" da aba Esperado. Com a
+   planilha gerada e aberta em 10/11/2026:
+   - cartão **3**, título "2 COM DATA NOVA · 1 SEM DATA NOVA";
+   - lista: SEM DATA NOVA tem TESTE-05; COM DATA NOVA tem TESTE-09 (data nova 16/11/2026)
+     e TESTE-10 (31/03/2027);
+   - gráfico em 10/11: baseline 9 e realizado 7. Os 2 de diferença são 3 atrasados menos
+     o TESTE-06, que saiu adiantado;
+   - no fim do eixo: baseline 12 e projeção 11. O 1 que sobra é o TESTE-05, sem data nova.
+7. Feche a cópia sem salvar, ou apague-a.
 
 ---
 
@@ -724,6 +1079,11 @@ Para ver as regras funcionando com poucos documentos, sem mexer no painel de ver
 | O cartão não muda com os botões | A interação dos botões com o cartão está em **Nenhum**: passo 9, item 6. |
 | Cliquei em OTD e a curva S continua na data-alvo | A curva obedece aos botões da própria Página 1, não aos da página Unidade Geradora: passo 10, "Opcional", itens 1 a 3. |
 | Na curva S, os emitidos passam muito dos previstos | Confira se a medida **Emitidos Acum** é a do passo 10 (com `SoPrimeiraRevisao`); a versão de 10/11 contava como adiantados os documentos cuja data é de uma revisão posterior. |
+| No gráfico da Projeção, o Eixo X mostra Ano, Trimestre… | Na setinha de **Date**, no Eixo X, escolha **Date**, não **Hierarquia de datas** (12.4, item 2). |
+| A linha da projeção aparece cheia | Em **Visual → Linhas**, escolha a série da projeção e mude **Estilo da linha** para **Tracejado** (12.4, item 5). |
+| A lista da Projeção mostra todos os documentos | Sobrou coluna da Unidade Geradora em Valores: lá só entram as cinco medidas do 12.6. |
+| Clicar no gráfico da Projeção esvazia a lista | Falta o 12.7: a interação do gráfico com o cartão e com a lista tem de estar em **Nenhum**. |
+| O cartão A recuperar não bate com o PENDENTE VENCIDO da planilha | O DocManager rodou em outro dia: rode hoje e clique em **Atualizar**. |
 
 ---
 
@@ -741,5 +1101,10 @@ Para ver as regras funcionando com poucos documentos, sem mexer no painel de ver
 | `Backlog`, `Backlog atrasado`, `Say-do` | A mesma conta sobre o backlog, pela data reprogramada. |
 | `Indicador (cartão)`, `Indicador (título)` | O cartão único: o índice da visão escolhida (o que não está atrasado ÷ previstos) no número e emitidos/previstos no título. |
 | `Previstos Acum`, `Emitidos Acum` | A curva S do período: previstos pela data-alvo; emitidos pelas regras do passo 10 (dia em que saiu, 1º dia para o adiantado na 1ª revisão, data-alvo para quem já teve revisão). |
+| `Recuperacao` | Os dois grupos da lista da Projeção (SEM DATA NOVA, COM DATA NOVA). Não tem relação: `A recuperar` lê o grupo com `SELECTEDVALUE`. |
+| `Baseline (projeto)`, `Realizado (projeto)`, `Projeção (projeto)` | A curva da Projeção. Baseline pela data prevista. Realizado pela 1ª emissão, ou pela prevista se já teve revisão. Projeção é o realizado mais os pendentes na data-alvo que não venceu. |
+| `A recuperar`, `A recuperar (título)` | Os que não saíram e cuja data prevista já passou, com e sem data nova. |
+| `Descrição (a recuperar)`, `Prevista (a recuperar)`, `Data nova (a recuperar)`, `Dias de atraso (a recuperar)` | As colunas da lista. Ficam vazias para quem não está a recuperar, e isso esconde essas linhas. |
+| `Hoje (linha)` | Opcional: a linha vertical de hoje no gráfico da Projeção. |
 
 As situações são gravadas pelo DocManager (KB §27.5 e §27.7). O Power BI só conta.

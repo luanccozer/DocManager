@@ -350,3 +350,28 @@ Os testes do repo continuam verdes: `tests/test_doclist.py` + `tests/test_contro
 - Skill planning-with-files: /home/user/othmanadi/planning-with-files/skills/planning-with-files/SKILL.md
 - Skills Matt Pocock: /home/user/mattpocock/skills/skills (grilling, grill-with-docs, domain-modeling, to-spec, ask-matt)
 - Anexos: /root/.claude/uploads/fd3ba3ca-0e16-5d25-86e3-62f00a653964/ (pbix, xlsx, instruções)
+
+### Power BI: página Projeção (2026-11-10)
+- .pbix novo (repositório luanccozer/docs-aconex-ug, 10/11):
+  - a Página 1 se chama "Curva" e já tem os botões ATUAL | OTD (segmentação Visoes em
+    919,140);
+  - as medidas do roteiro estão todas lá, inclusive as obsoletas (cartão e título antigos);
+  - o Power Query tira a coluna A (o 1º NÍVEL), pula a linha 1, promove a 2 e pula a 3.
+- Planilha de 06/11: 36 códigos do .pbix saíram da aba Unidade Geradora, 29 deles para a aba
+  nova "Fora da 18A". O .pbix ainda não tinha sido atualizado com essa planilha.
+- Todo documento com data prevista é do nível 2 (o nível 1 não tem data). Há 16 códigos
+  repetidos.
+- A recuperar com TODAY = 10/11 dá 91, o mesmo número de códigos com SITUAÇÃO OTD =
+  PENDENTE VENCIDO na planilha. O cartão é o mesmo balde do DocManager.
+- Cores:
+  - tema CY24SU10; na Curva, previstos `#12239E` e emitidos `#118DFF` (padrão do tema);
+  - no validador de paleta (dataviz), o par passa em daltonismo (ΔE 25,6) e em contraste;
+  - só o escuro fica fora da faixa de luminosidade de categorias, de propósito: planejado
+    escuro × realizado claro;
+  - a projeção usa o azul do realizado, tracejada.
+- O vão no fim do eixo é menor que os sem data nova quando há previstos depois do eixo que já
+  saíram: 2 na planilha de 06/11, previstos para 2028.
+- Os números andam com o dia, porque contam pelo TODAY:
+  - 10/11: 91 (68 com data nova + 23 sem);
+  - 11/11: 91 (66 + 25);
+  - 17/11: 95 (66 + 29).
