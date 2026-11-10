@@ -678,6 +678,36 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 
 ---
 
+## Teste com documentos de exemplo
+
+Para ver as regras funcionando com poucos documentos, sem mexer no painel de verdade.
+
+1. Gere a planilha de teste (ou peça a quem cuida do DocManager):
+   `python tools/planilha_teste_curva_s.py "Teste curva S.xlsx"`. Ela tem 9 documentos
+   fictícios (TESTE-01 a TESTE-09), um para cada regra, na aba **Unidade Geradora** com o
+   mesmo layout da planilha real, e a aba **Esperado** com o que o painel tem de mostrar.
+2. No Explorador de Arquivos, copie o `.pbix` e abra a **cópia**.
+3. **Página Inicial → Transformar dados** (a setinha) → **Configurações da fonte de dados**.
+   Selecione a fonte (o caminho do Doc List Mapping) → **Alterar Fonte...** → **Procurar...**
+   → escolha a planilha de teste → **OK** → **Fechar**.
+4. **Página Inicial → Atualizar**. Deixe os filtros do topo (sistema, fase, responsável) em
+   tudo: os documentos de teste são do sistema "TESTE", fase EXECUTIVO.
+5. Escolha **2026 → outubro** e compare com a aba Esperado:
+
+| Dia | ATUAL: previstos × emitidos | OTD: previstos × emitidos |
+|---|---|---|
+| 01/10 | 0 × 1 | 0 × 1 |
+| 08/10 | 0 × 2 | 2 × 2 |
+| 15/10 | 3 × 3 | 5 × 3 |
+| 22/10 | 4 × 5 | 6 × 5 |
+| 28/10 | 6 × 6 | 7 × 6 |
+
+   Na página Unidade Geradora, o cartão em outubro: ATUAL 66,7% (5/6), OTD 42,9% (5/7),
+   SAY-DO 100,0% (1/1).
+6. Feche a cópia sem salvar, ou apague-a.
+
+---
+
 ## Se algo der errado
 
 | O que aparece | O que fazer |

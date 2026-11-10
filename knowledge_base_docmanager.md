@@ -1176,6 +1176,8 @@ punha a linha de emitidos 85 acima no início do ano. Opcional (2026-11-10): bot
 Página 1 (cópia não sincronizada da segmentação Visoes, sem SAY-DO) trocam a data do plano
 das duas linhas para a DATA PREVISTA (`USERELATIONSHIP` nos previstos; `Alvo` = DATA PREVISTA
 Aux nos emitidos). Out/2026, planilha de 28/10: ATUAL 48 × 29, OTD 60 × 31 no fim do mês.
+Teste das regras: `tools/planilha_teste_curva_s.py` gera 9 documentos fictícios (um por regra)
+com a aba Esperado; o roteiro diz como apontar uma cópia do .pbix para ela.
 
 ---
 
