@@ -555,6 +555,18 @@ Página 1 ganha os botões **ATUAL | OTD**, os mesmos nomes da página Unidade G
 2. Com os botões colados selecionados, no painel **Filtros → Filtros neste visual**, abra
    **Visao** e desmarque **SAY-DO**. Ficam ATUAL e OTD.
 3. Ponha os botões perto do filtro "Ano, Mês" e clique em **ATUAL**: é como a página abre.
+
+   **Alternativa aos itens 1 a 3: um clique valendo nas duas páginas.** Cada página do Power
+   BI tem os próprios filtros: clicar em OTD na página Unidade Geradora não muda a Página 1,
+   a não ser que os botões estejam sincronizados.
+   1. Na página **Unidade Geradora**, clique nos botões ATUAL | OTD | SAY-DO.
+   2. Na faixa **Exibição**, clique em **Sincronizar segmentações**. Abre um painel com a
+      lista de páginas.
+   3. Na linha da **Página 1**, marque a caixa da coluna **Sincronizar** (o ícone de setas).
+      A coluna **Visível** (o olho) decide se os botões também aparecem na Página 1: deixe
+      desmarcada para a escolha vir só da página Unidade Geradora.
+
+   Com SAY-DO escolhido, a curva fica na data-alvo: ela não tem visão de say-do.
 4. Troque as duas medidas (clique em cada uma em **Calendario**, **Ctrl+A**, cole, **Enter**):
 
 ```dax
@@ -691,6 +703,7 @@ Antes de apresentar: rode o DocManager e clique em **Atualizar** no Power BI. O 
 | O cartão mostra "—" | Não há documento previsto (ou backlog) no período. É o esperado. |
 | O texto do cartão aparece cortado | Aumente a largura do cartão ou diminua a fonte do número (passo 9, item 4). |
 | O cartão não muda com os botões | A interação dos botões com o cartão está em **Nenhum**: passo 9, item 6. |
+| Cliquei em OTD e a curva S continua na data-alvo | A Página 1 não tem os botões nem a sincronização com a página Unidade Geradora: passo 10, "Opcional" (itens 1 a 3, ou a alternativa com Sincronizar segmentações). |
 | Na curva S, os emitidos passam muito dos previstos | Confira se a medida **Emitidos Acum** é a do passo 10 (com `SoPrimeiraRevisao`); a versão de 10/11 contava como adiantados os documentos cuja data é de uma revisão posterior. |
 
 ---
