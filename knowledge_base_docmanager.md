@@ -1165,12 +1165,12 @@ está em `docs/power_bi_otd_say_do.md`: um gráfico só, com as tabelas soltas `
 (segmentação em blocos ATUAL | OTD | SAY-DO) e `Situacoes` (legenda), medidas com
 `USERELATIONSHIP` para a DATA PREVISTA e a DATA REPROGRAMADA, e um cartão único que segue o botão: o índice no número e emitidos/previstos no título
 (o índice é o que não está atrasado ÷ previstos, contra a data de cada visão; ex.: SAY-DO
-100,0% com 0/5 = nenhum venceu, nenhum saiu). Curva S (decisão do usuário, 2026-11-02, depois
-de duas versões descartadas - acumular desde o início, e coorte pela DATA PREVISTA contando
-pela data da emissão): coorte pela **DATA-ALVO** no período; previstos = data-alvo até o dia
-(medida original, intocada); emitidos = desses, os que têm 1ª emissão em qualquer data
-(`NOT ISBLANK(DATA 1ª EMISSÃO Aux)`), sem corte em hoje. No fim do mês fecha com o cartão
-na ATUAL.
+100,0% com 0/5 = nenhum venceu, nenhum saiu). Curva S (decisão do usuário, 2026-11-10, depois
+de três versões descartadas): previstos pela DATA-ALVO (medida original, intocada); emitidos =
+a conta original (1ª emissão dentro do período, qualquer previsão) + os documentos com
+data-alvo no período e 1ª emissão antes dele, que entram no 1º dia (adiantados); a linha
+para em hoje. Ex.: x previsto 10/11 e emitido 01/10 conta em outubro (saiu lá) e em
+novembro desde o dia 1º (estava previsto lá).
 
 ---
 

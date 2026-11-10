@@ -215,3 +215,12 @@ Resultado: 1133 passed, ruff limpo.
   57,6% · 31/59, SAY-DO 100,0% · 0/5; curva S em 31/10: 48 previstos e 30 emitidos. O roteiro
   usa os da planilha de 28/10 (77,1% · 28/48; 59,3% · 29/59; 100,0% · 0/5; 48 e 28).
 
+
+### Curva S, quarta versão (2026-11-10)
+- O usuário explicou com o exemplo x/y/z: previstos pela data-alvo (a original); emitidos
+  pela data da 1ª emissão (qualquer previsão, como a original) + os previstos do período
+  que saíram antes dele, no 1º dia. Ou seja: a "correção" de 10/29 sem restringir os
+  emitidos à coorte. Emitidos Acum = conta original + `SairamAntes` (CROSSFILTER None na
+  DATA-ALVO), parando em hoje.
+- Simulado: .pbix de 11/02 (emissões até 26/10), outubro 1/10 0 x 25, 10/10 23 x 34,
+  26/10 33 x 44; planilha de 28/10: 1/10 0 x 25, 10/10 23 x 34, 20/10 32 x 36, 28/10 34 x 37.
