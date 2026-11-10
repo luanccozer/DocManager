@@ -613,3 +613,46 @@ def test_validador_reprova_linhas_fora_de_ordem(tmp_path, api, monkeypatch):
     r = _rodar(caminho)
     assert not r.ok and "fora de ordem" in r.mensagem, r.mensagem
     assert caminho.read_bytes() == antes and _restos(tmp_path) == []
+
+
+def _com_formula_em_a2(caminho, formula):
+    """A2 (acima da tabela) com uma contagem, como a equipe pôs; e o workbook.xml sem o
+    fullCalcOnLoad que o openpyxl grava (o Excel não grava)."""
+    with zipfile.ZipFile(caminho) as z:
+        partes = [(i, z.read(i)) for i in z.infolist()]
+    with zipfile.ZipFile(caminho, "w", zipfile.ZIP_DEFLATED) as z:
+        for info, dados in partes:
+            if info.filename == "xl/worksheets/sheet1.xml":
+                dados = re.sub(rb'<c r="A2"( s="\d+")?( t="n")?(?:/>|></c>)', rb'<c r="A2"\1><f>' + formula.encode()
+                               + rb"</f><v>2</v></c>", dados, count=1)
+                assert b"<f>" in dados
+            elif info.filename == "xl/workbook.xml":
+                dados = dados.replace(b' fullCalcOnLoad="1"', b"")
+            z.writestr(info, dados)
+
+
+def test_contagem_em_a2_pela_tabela_passa_e_o_excel_recalcula(tmp_path, api):
+    """Pedido da equipe (2026-11-10): A2 conta os Issue Number. Pela referência da
+    Tabela, ela cresce sozinha; o Excel recalcula ao abrir (fullCalcOnLoad)."""
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3), extraoficial("GRUPO 01")])
+    _com_formula_em_a2(caminho, "COUNTA(tbRegistros[Issue Number])")
+    api["questoes"] = [questao(4), questao(3)]
+    r = _rodar(caminho)
+    assert r.ok and r.gravou, r.mensagem
+    ws = openpyxl.load_workbook(caminho)["PENDÊNCIAS"]
+    assert ws["A2"].value == "=COUNTA(tbRegistros[Issue Number])"
+    assert [ws.cell(n, 1).value for n in (5, 6, 7)] == [4, 3, "GRUPO 01"]
+    with zipfile.ZipFile(caminho) as z:
+        assert re.search(rb'<calcPr\b[^>]*fullCalcOnLoad="1"', z.read("xl/workbook.xml"))
+
+
+def test_contagem_em_a2_por_intervalo_fixo_recusa_e_explica(tmp_path, api):
+    caminho = tmp_path / "p.xlsx"
+    escrever_planilha_pendencias(caminho, [linha_pendencia(3)])
+    _com_formula_em_a2(caminho, "COUNTA(A5:A300)")
+    antes = caminho.read_bytes()
+    r = _rodar(caminho)
+    assert not r.ok and api["chamadas"] == 0
+    assert "A fórmula em A2 (COUNTA(A5:A300))" in r.mensagem and "CONT.VALORES" in r.mensagem
+    assert caminho.read_bytes() == antes

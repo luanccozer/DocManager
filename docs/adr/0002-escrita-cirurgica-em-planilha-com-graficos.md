@@ -41,6 +41,11 @@ byte. A leitura usa `zipfile` + `ElementTree`; a escrita edita o texto, nunca re
     extraoficial, intocado). Em troca, outra Tabela do Excel ou tabela dinâmica na própria
     aba, nas linhas que descem, passou a ser recusada de forma explícita: o lugar delas fica
     fora do XML da aba e ficaria errado. Dado ao lado do corpo continua recusado.
+  - **Atualização (2026-11-10, fórmula acima da tabela):** fórmula na aba deixou de ser
+    recusada quando está acima do corpo e não cita por endereço as linhas que descem (a
+    referência de Tabela cresce sozinha). Nesse caso a gravação também altera o
+    `workbook.xml`, só para pôr `fullCalcOnLoad="1"` no `<calcPr>`, e o Excel recalcula ao
+    abrir. Fórmula no corpo ou abaixo dele continua recusada, agora com a célula na mensagem.
 - Textos novos entram como `inlineStr`; o `sharedStrings.xml` não muda (o Excel 16 abriu
   sem reparo, medido).
 - A cache das tabelas dinâmicas não é tocada: com `refreshOnLoad="1"` o Excel de mesa a

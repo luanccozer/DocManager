@@ -548,6 +548,53 @@ def _linhas_citadas(texto: str, rx) -> list[int]:
     return linhas
 
 
+_RE_FORMULA = re.compile(r"<f\b[^>]*?(?:/>|>(.*?)</f>)", re.S)
+
+
+def _linhas_da_propria_aba(formula: str, rx_aba) -> list[int]:
+    """Os números de linha que a fórmula cita na própria aba: endereço sem aba
+    (`A5`, `$A$5:$A$300`, `5:300`) ou com o nome dela (`PENDÊNCIAS!A5`). Texto entre
+    aspas, referência de Tabela (`tbRegistros[Issue Number]`) e outra aba não contam."""
+    texto = _desescapar(formula)
+    linhas = _linhas_citadas(texto, rx_aba)
+    texto = re.sub(r'"(?:[^"]|"")*"', "", texto)                     # textos
+    while re.search(r"\[[^\[\]]*\]", texto):                          # Tabela[coluna]
+        texto = re.sub(r"\[[^\[\]]*\]", "", texto)
+    texto = re.sub(r"(?:'(?:[^']|'')*'|[^\s'!:(),;&=<>\"+\-*/^]+)!\$?[A-Z]{0,3}\$?\d*"
+                   r"(?::\$?[A-Z]{0,3}\$?\d*)?", "", texto)           # outra aba (e esta)
+    linhas += [int(n) for n in re.findall(r"(?<![\w$.\]])\$?[A-Z]{1,3}\$?(\d+)(?![\w(!])", texto)]
+    for a, b in re.findall(r"(?<![\w$:])\$?(\d+):\$?(\d+)(?!\w)", texto):
+        linhas += [int(a), int(b)]
+    return linhas
+
+
+def _recusas_de_formula(pasta: Pasta, coluna_chave: str) -> list[str]:
+    """Fórmula na aba só passa ACIMA do corpo e sem citar por endereço as linhas que
+    descem: o app desloca as linhas sem reescrever fórmulas, e `=D205` continuaria
+    apontando para a linha 205. Referência de Tabela cresce sozinha e é aceita."""
+    tb, aba = pasta.tabela, pasta.aba_nome
+    rx = _ref_aba(aba)
+    out: list[str] = []
+    for linha in pasta.linhas:
+        for cel in linha.celulas.values():
+            m = _RE_FORMULA.search(cel.xml)
+            if not m:
+                continue
+            ref = f"{letra(cel.col)}{linha.r}"
+            if linha.r >= tb.primeira:
+                out.append(f"Há fórmula em {ref}, na tabela ou abaixo dela: as linhas descem e ela "
+                           "passaria a apontar para o lugar errado. Cole como valor (Colar Especial → "
+                           "Valores) ou leve a fórmula para outra aba.")
+            elif m.group(1) is None or not m.group(1).strip():
+                out.append(f"A fórmula em {ref} é compartilhada com outras células e o app não "
+                           "consegue conferi-la. Digite-a de novo só nessa célula.")
+            elif any(n >= tb.primeira for n in _linhas_da_propria_aba(m.group(1), rx)):
+                out.append(f"A fórmula em {ref} ({_desescapar(m.group(1))}) aponta para células "
+                           "fixas das linhas que descem e passaria a contar o lugar errado. Use a "
+                           f"referência da Tabela, como =CONT.VALORES({tb.nome}[{coluna_chave}]).")
+    return out
+
+
 def recusas(pasta: Pasta, coluna_chave: str, *, aceitar_sem_chave: bool = False,
             aceitar_abaixo: bool = False) -> list[str]:
     """O que impede deslocar as linhas com segurança, em palavras simples. Vazio = pode.
@@ -566,8 +613,7 @@ def recusas(pasta: Pasta, coluna_chave: str, *, aceitar_sem_chave: bool = False,
     tb = pasta.tabela
 
     # A. Na aba da tabela
-    if re.search(r"<f\b", xml):
-        out.append(f"A aba '{aba}' tem fórmula.")
+    out += _recusas_de_formula(pasta, coluna_chave)
     for tag, texto in _PROIBIDOS_NA_ABA:
         if re.search(rf"<{tag}\b", xml):
             out.append(f"A aba '{aba}' tem {texto}.")
@@ -819,6 +865,16 @@ def aplicar(pasta: Pasta, edicao: Edicao, avisar=None) -> dict[str, bytes]:
         alteradas[tb.parte] = xml_tb.encode("utf-8")
     if (estilos := pasta.estilos.xml_novo()) is not None:
         alteradas["xl/styles.xml"] = estilos.encode("utf-8")
+    # Fórmula na aba (só acima do corpo, ver recusas): o valor guardado nela é o de
+    # antes da atualização. `fullCalcOnLoad` faz o Excel recalcular tudo ao abrir.
+    if _RE_FORMULA.search(pasta.aba_xml) and "xl/workbook.xml" in pasta.partes:
+        wb = pasta.partes["xl/workbook.xml"].decode("utf-8")
+        m = re.search(r"<calcPr\b[^>]*?/?>", wb)
+        if m and not re.search(r'\sfullCalcOnLoad="(1|true)"', m.group(0)):
+            nova = _trocar_attr(m.group(0), "fullCalcOnLoad", "1")
+            alteradas["xl/workbook.xml"] = (wb[:m.start()] + nova + wb[m.end():]).encode("utf-8")
+            if avisar:
+                avisar("A aba tem fórmula acima da tabela: o Excel a recalcula ao abrir a planilha.")
     return alteradas
 
 

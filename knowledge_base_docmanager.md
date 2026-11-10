@@ -1352,6 +1352,16 @@ deixaram de importar para a equipe (2026-11-09): o que estiver dentro da tabela 
 - quando um registro extraoficial for cadastrado no Aconex, ele entra no topo como pendência nova; o
   extraoficial fica até a equipe apagá-lo (o app não junta os dois).
 
+**Fórmula na aba (2026-11-10, 3.6.5)**: a equipe pôs em A2 uma contagem de Issue Number, e a regra antiga
+("a aba tem fórmula") recusava a planilha inteira sem dizer onde. Agora (`xlsx_cirurgico._recusas_de_formula`):
+- fórmula ACIMA do corpo passa se não citar por endereço as linhas que descem (`A5`, `A5:A300`, `5:300`,
+  `PENDÊNCIAS!A5`). Referência de Tabela (`tbRegistros[Issue Number]`), texto entre aspas e outras abas não
+  contam. Citando, recusa e sugere `=CONT.VALORES(tbRegistros[Issue Number])`;
+- fórmula na tabela ou abaixo dela continua recusada (o app desloca linhas sem reescrever fórmulas); fórmula
+  compartilhada sem texto (`<f t="shared"/>`) também, porque não dá para conferir. A mensagem diz a célula;
+- havendo fórmula, a gravação põe `fullCalcOnLoad="1"` no `<calcPr>` do `workbook.xml`: o valor guardado é o
+  de antes, e o Excel recalcula tudo ao abrir. A contagem pela Tabela não inclui o que está abaixo dela.
+
 **Achado na 1ª execução real (3.6.5-rc.1)**: a planilha real tem Issue Number guardado como TEXTO em
 algumas linhas ("131"), não só como número. A conferência comparava texto com número e recusava tudo
 ("a ordem das pendências não é a planejada"). Toda comparação do número passa por `_numero`.

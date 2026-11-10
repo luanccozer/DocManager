@@ -5,6 +5,10 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.6.5 - 2026-11-10
+
+- Pendências: uma fórmula acima da tabela, como a contagem de Issue Number em A2, não impede mais a atualização, desde que conte pela Tabela (por exemplo =CONT.VALORES(tbRegistros[Issue Number]), que cresce sozinha). O Excel recalcula a fórmula ao abrir a planilha. Fórmula que aponta para células fixas das linhas que descem (como A5:A300), ou que está dentro da tabela ou abaixo dela, continua impedindo, e agora a mensagem diz em qual célula ela está e como trocar.
+
 ## 3.6.4 - 2026-11-09
 
 - Pendências: a equipe pode fazer à mão registros extraoficiais, que não estão no Aconex, no fim da tabela ou logo abaixo dela. O DocManager não mexe nessas linhas, nem no valor nem na cor, e só as desloca para baixo quando entram pendências novas no topo. Antes, uma linha na tabela sem número do Aconex ou qualquer dado abaixo da tabela fazia a atualização recusar a planilha inteira.
