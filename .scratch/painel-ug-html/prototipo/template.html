@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel UG · protótipo</title>
+<style>
+  :root {
+    --page: #f4f6f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,.10);
+    --brand: #00585a; --brand-ink: #ffffff;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+    --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b; --neutral: #b9b8ae;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { background: var(--brand); color: var(--brand-ink); padding: 18px 28px; }
+  header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: .2px; }
+  header p { margin: 4px 0 0; opacity: .85; font-size: 14px; }
+  .faixa { background: #fff8e1; color: #6d4c00; border-bottom: 1px solid #f0d58a; padding: 8px 28px; font-size: 13px; }
+  main { max-width: 1320px; margin: 0 auto; padding: 20px 28px 60px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; }
+  .kpi { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 12px 14px; }
+  .kpi .rot { font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .4px; }
+  .kpi .val { font-size: 30px; font-weight: 700; margin-top: 2px; }
+  .kpi .sub { font-size: 12px; color: var(--muted); }
+  .kpi .pt { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  h2 { font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--brand); margin: 34px 0 10px; }
+  .grade { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 16px 18px 12px; min-width: 0; }
+  .card.largo { grid-column: 1 / -1; }
+  .card h3 { margin: 0; font-size: 17px; font-weight: 650; }
+  .card .nota { margin: 3px 0 10px; color: var(--ink-2); font-size: 13px; }
+  .card .rodape { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+  .caixa { position: relative; height: 320px; }
+  .caixa.alta { height: 400px; }
+  .seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; margin: 0 8px 8px 0; }
+  .seg button { border: 0; background: transparent; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; color: var(--ink-2); }
+  .seg button.on { background: var(--brand); color: #fff; font-weight: 600; }
+  label.chk { font-size: 13px; color: var(--ink-2); margin-right: 14px; cursor: pointer; }
+  .destaque { background: var(--surface); border: 1px solid var(--ring); border-left: 0; border-radius: 10px; padding: 14px 18px; font-size: 15px; }
+  .destaque b { font-weight: 700; }
+  .destaque ul { margin: 6px 0 0; padding-left: 20px; }
+  @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } main { padding: 16px; } header { padding: 14px 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Unidade Geradora · documentação de execução</h1>
+  <p id="sub"></p>
+</header>
+<div class="faixa">Protótipo descartável para conversar sobre o painel novo. Números reais, calculados com as regras do DocManager; layout e cores ainda não decididos.</div>
+<main>
+  <section class="kpis" id="kpis"></section>
+
+  <h2>1 · Onde estamos</h2>
+  <div class="grade">
+    <div class="card"><h3>Situação por fase de projeto</h3><p class="nota">Status consolidado de hoje, um código conta uma vez.</p><div class="caixa" style="height:200px"><canvas id="gFase"></canvas></div></div>
+    <div class="card"><h3>Situação por escopo (grupo)</h3><p class="nota">Substitui a pizza "Documentos por escopo": barras deixam comparar os grupos.</p><div class="caixa"><canvas id="gGrupo"></canvas></div></div>
+  </div>
+
+  <h2>2 · Como chegamos aqui</h2>
+  <div class="grade">
+    <div class="card largo">
+      <h3 id="tCurva">Curva S</h3>
+      <p class="nota">Acumulado de documentos por mês. A meta é a data-alvo (reprogramada, se houver; senão a prevista). A baseline é a data prevista original.</p>
+      <div>
+        <span class="seg" id="segMeta"><button data-v="alvo" class="on">Meta: data-alvo</button><button data-v="baseline">Baseline (OTD)</button><button data-v="ambas">As duas</button></span>
+        <label class="chk"><input type="checkbox" id="chkAprov" checked> Aprovados</label>
+        <label class="chk"><input type="checkbox" id="chkProj" checked> Tendência (ritmo das últimas 13 semanas)</label>
+      </div>
+      <div class="caixa alta"><canvas id="gCurva"></canvas></div>
+      <p class="rodape" id="rCurva"></p>
+    </div>
+    <div class="card largo">
+      <h3 id="tComp">Como a carteira evoluiu</h3>
+      <p class="nota">Estado de cada documento no fim de cada mês, reconstruído do histórico do Aconex (máquina do tempo do DocManager).</p>
+      <div class="caixa"><canvas id="gComp"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 id="tEnv">Esforço da engenharia</h3>
+      <p class="nota">Envios à Itaipu por mês: 1ª emissão, reemissão depois de comentários ou reprovação, e emissão final (revisão numérica).</p>
+      <div class="caixa"><canvas id="gEnv"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 id="tRet">Respostas da Itaipu</h3>
+      <p class="nota">Retornos por mês, pelo veredito.</p>
+      <div class="caixa"><canvas id="gRet"></canvas></div>
+    </div>
+    <div class="card largo">
+      <h3 id="tSla">Prazo de análise da Itaipu</h3>
+      <p class="nota">Parcela dos retornos do mês dentro do prazo (30 dias na 0A, 15 nas demais). Meses com menos de 5 retornos ficam de fora.</p>
+      <div class="caixa" style="height:240px"><canvas id="gSla"></canvas></div>
+    </div>
+  </div>
+
+  <h2>3 · O que vem pela frente</h2>
+  <div class="grade">
+    <div class="card largo">
+      <h3 id="tEmi">Documentos para emissão por mês</h3>
+      <p class="nota">O gráfico "Documentos para emissão" do Power BI, por mês em vez de por dia, com as três réguas.</p>
+      <span class="seg" id="segVisao"><button data-v="ATUAL" class="on">Atual (data-alvo)</button><button data-v="OTD">OTD (data prevista)</button><button data-v="SAY-DO">Say-do (backlog)</button></span>
+      <div class="caixa"><canvas id="gEmi"></canvas></div>
+    </div>
+    <div class="destaque card largo" id="leitura"></div>
+  </div>
+</main>
+<script>/*CHARTJS*/</script>
+<script>
+const D = /*DADOS*/;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = { s1: css("--s1"), s2: css("--s2"), s3: css("--s3"), good: css("--good"), warning: css("--warning"),
+  serious: css("--serious"), critical: css("--critical"), neutral: css("--neutral"), muted: css("--muted"),
+  grid: css("--grid"), surface: css("--surface"), ink2: css("--ink-2") };
+const COR_ESTADO = { "Aprovado": C.good, "Em processo (com a Itaipu)": C.s1, "Não aprovado (com a CMI)": C.serious, "Não emitido": C.neutral };
+const COR_SIT = { "EMITIDO NO PRAZO": C.good, "EMITIDO COM ATRASO": C.warning, "PENDENTE NO PRAZO": C.s1, "PENDENTE VENCIDO": C.critical };
+const ROT_SIT = { "EMITIDO NO PRAZO": "Emitido no prazo", "EMITIDO COM ATRASO": "Emitido com atraso", "PENDENTE NO PRAZO": "Pendente no prazo", "PENDENTE VENCIDO": "Pendente vencido" };
+const nf = new Intl.NumberFormat("pt-BR");
+const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const rotMes = m => { const [y, mm] = m.split("-"); return `${MES[+mm - 1]}/${y.slice(2)}`; };
+const pct = (a, b) => b ? `${(100 * a / b).toFixed(0)}%` : "—";
+Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+Chart.defaults.font.size = 12;
+Chart.defaults.color = C.ink2;
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.boxHeight = 12;
+Chart.defaults.plugins.tooltip.mode = "index";
+Chart.defaults.plugins.tooltip.intersect = false;
+Chart.defaults.maintainAspectRatio = false;
+const eixo = (extra = {}) => ({ grid: { color: C.grid, drawTicks: false }, border: { color: C.grid }, ticks: { padding: 6, color: C.muted }, ...extra });
+
+// Linha vertical "hoje" nos gráficos por mês.
+const linhaHoje = { id: "linhaHoje", afterDatasetsDraw(ch, a, o) {
+  if (!o || o.indice == null) return;
+  const x = ch.scales.x.getPixelForValue(o.indice), { top, bottom } = ch.chartArea, ctx = ch.ctx;
+  ctx.save(); ctx.strokeStyle = "#52514e"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#52514e"; ctx.font = "600 11px system-ui"; ctx.fillText("hoje", x + 4, top + 10); ctx.restore(); } };
+Chart.register(linhaHoje);
+
+function janela(ini, fim) { const a = D.meses.indexOf(ini), b = fim ? D.meses.indexOf(fim) : D.meses.length - 1; return [a, b]; }
+function corte(arr, [a, b]) { return arr.slice(a, b + 1); }
+
+const K = D.kpi;
+document.getElementById("sub").textContent = `Doc List Mapping (aba Unidade Geradora) + Aconex Histórico · base de ${K.data_base.split("-").reverse().join("/")} · ${nf.format(K.total)} documentos (cada código uma vez, sem cancelados)`;
+const tiles = [
+  ["Documentos", nf.format(K.total), "no Doc List, nível 2", null],
+  ["Emitidos", nf.format(K.emitidos), `${pct(K.emitidos, K.total)} já tiveram a 1ª emissão`, C.s2],
+  ["Aprovados", nf.format(K.aprovados), `${pct(K.aprovados, K.total)} do total`, C.good],
+  ["Em processo", nf.format(K.itaipu), "com a Itaipu agora", C.s1],
+  ["Não aprovados", nf.format(K.reprovados), "aguardando reemissão da CMI", C.serious],
+  ["Pendentes vencidos", nf.format(K.vencidos_alvo), `contra a data-alvo · ${K.vencidos_baseline} contra a baseline`, C.critical],
+  ["Baseline OTD", `${String(K.otd).replace(".", ",")}%`, `${nf.format(K.otd_n)} de ${nf.format(K.otd_de)} sem atraso`, null],
+  ["Say-do", K.saydo == null ? "—" : `${String(K.saydo).replace(".", ",")}%`, `${K.saydo_n} de ${K.saydo_de} do backlog sem atraso`, null],
+];
+document.getElementById("kpis").innerHTML = tiles.map(([r, v, s, c]) =>
+  `<div class="kpi"><div class="rot">${c ? `<span class="pt" style="background:${c}"></span>` : ""}${r}</div><div class="val">${v}</div><div class="sub">${s}</div></div>`).join("");
+
+// 1 · retrato por fase e por grupo
+function barrasEstado(id, q) {
+  new Chart(document.getElementById(id), { type: "bar",
+    data: { labels: q.rotulos, datasets: Object.keys(COR_ESTADO).map(e => ({ label: e, data: q.series[e], backgroundColor: COR_ESTADO[e], borderColor: C.surface, borderWidth: 1, barPercentage: .8 })) },
+    options: { indexAxis: "y", plugins: { legend: { position: "bottom" }, tooltip: { mode: "index", axis: "y" } },
+      scales: { x: eixo({ stacked: true, beginAtZero: true }), y: eixo({ stacked: true, grid: { display: false } }) } } });
+}
+barrasEstado("gFase", D.fase);
+barrasEstado("gGrupo", D.grupo);
+
+// 2 · curva S
+const iHoje = D.meses.indexOf(D.hoje);
+const jc = janela("2024-06");
+const labC = corte(D.meses, jc).map(rotMes);
+const idxHojeC = iHoje - jc[0];
+const ds = (label, data, cor, extra = {}) => ({ label, data: corte(data, jc), borderColor: cor, backgroundColor: cor, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: .15, spanGaps: false, ...extra });
+const curva = new Chart(document.getElementById("gCurva"), { type: "line", data: { labels: labC, datasets: [] },
+  options: { plugins: { linhaHoje: { indice: idxHojeC }, legend: { position: "top" },
+      tooltip: { callbacks: { label: c => c.raw == null ? null : `${c.dataset.label}: ${nf.format(c.raw)}` } } },
+    scales: { x: eixo({ grid: { display: false }, ticks: { color: C.muted, maxRotation: 0, autoSkip: true, autoSkipPadding: 12 } }), y: eixo({ beginAtZero: true, title: { display: true, text: "documentos (acumulado)", color: C.muted } }) } } });
+function pintarCurva() {
+  const meta = document.querySelector("#segMeta .on").dataset.v, ap = document.getElementById("chkAprov").checked, pr = document.getElementById("chkProj").checked;
+  const L = [];
+  if (meta !== "baseline") L.push(ds("Meta: data-alvo", D.curva.alvo, C.s1, { borderWidth: 2.5 }));
+  if (meta !== "alvo") L.push(ds("Baseline: data prevista", D.curva.baseline, meta === "baseline" ? C.s1 : C.muted, { borderWidth: meta === "baseline" ? 2.5 : 2 }));
+  L.push(ds("Emitidos (1ª emissão)", D.curva.emitido, C.s2));
+  if (pr) L.push(ds("Tendência de emissão", D.curva.proj_emitido, C.s2, { borderDash: [6, 5], borderWidth: 1.5 }));
+  if (ap) L.push(ds("Aprovados", D.curva.aprovado, C.s3));
+  if (ap && pr) L.push(ds("Tendência de aprovação", D.curva.proj_aprovado, C.s3, { borderDash: [6, 5], borderWidth: 1.5 }));
+  curva.data.datasets = L; curva.update();
+}
+document.querySelectorAll("#segMeta button").forEach(b => b.onclick = () => { document.querySelectorAll("#segMeta button").forEach(x => x.classList.toggle("on", x === b)); pintarCurva(); });
+document.getElementById("chkAprov").onchange = pintarCurva;
+document.getElementById("chkProj").onchange = pintarCurva;
+pintarCurva();
+const alvoHoje = D.curva.alvo[iHoje], baseHoje = D.curva.baseline[iHoje], emiHoje = D.curva.emitido[iHoje];
+document.getElementById("tCurva").textContent = emiHoje >= alvoHoje
+  ? `Emissão em dia com a data-alvo, ${nf.format(baseHoje - emiHoje)} documentos atrás da baseline`
+  : `Emissão ${nf.format(alvoHoje - emiHoje)} documentos atrás da data-alvo`;
+const fimProjE = D.meses[D.curva.proj_emitido.findIndex(v => v != null && v >= K.total)];
+const fimProjA = D.meses[D.curva.proj_aprovado.findIndex(v => v != null && v >= K.total)];
+document.getElementById("rCurva").textContent = `Hoje: meta ${nf.format(alvoHoje)} · baseline ${nf.format(baseHoje)} · emitidos ${nf.format(emiHoje)} · aprovados ${nf.format(K.aprovados)}. ` +
+  `No ritmo atual (${String(K.ritmo_emit).replace(".", ",")} 1ªs emissões e ${String(K.ritmo_aprov).replace(".", ",")} aprovações por semana) a emissão termina ${fimProjE ? "em " + rotMes(fimProjE) : "só depois de dez/27"} e a aprovação ${fimProjA ? "em " + rotMes(fimProjA) : "só depois de dez/27"}. ` +
+  `Documentos com data-alvo depois de dez/27 não aparecem no eixo.`;
+
+// 2 · composição
+const jp = janela("2024-01", D.hoje);
+new Chart(document.getElementById("gComp"), { type: "line",
+  data: { labels: corte(D.meses, jp).map(rotMes), datasets: ["Aprovado", "Em processo (com a Itaipu)", "Não aprovado (com a CMI)", "Não emitido"].map(e => ({
+    label: e, data: corte(D.composicao[e], jp), borderColor: C.surface, backgroundColor: COR_ESTADO[e], fill: true, borderWidth: 1, pointRadius: 0, tension: .1 })) },
+  options: { plugins: { legend: { position: "top" } }, scales: { x: eixo({ grid: { display: false }, ticks: { color: C.muted, maxRotation: 0, autoSkipPadding: 12 } }), y: eixo({ stacked: true, beginAtZero: true, max: K.total }) } } });
+const ap12 = D.composicao["Aprovado"][iHoje] - D.composicao["Aprovado"][iHoje - 12];
+document.getElementById("tComp").textContent = `A carteira aprovada cresceu ${nf.format(ap12)} documentos nos últimos 12 meses; ${nf.format(K.nao_emitidos)} ainda não saíram`;
+
+// 2 · esforço e respostas
+const je = janela("2024-06", D.hoje), labE = corte(D.meses, je).map(rotMes);
+const corEnv = { "1ª emissão": C.s1, "Reemissão (comentários/reprovação)": C.s2, "Emissão final (rev. numérica)": C.s3 };
+new Chart(document.getElementById("gEnv"), { type: "bar", data: { labels: labE, datasets: Object.keys(corEnv).map(t => ({ label: t, data: corte(D.envios[t], je), backgroundColor: corEnv[t], borderColor: C.surface, borderWidth: 1 })) },
+  options: { plugins: { legend: { position: "bottom" } }, scales: { x: eixo({ stacked: true, grid: { display: false }, ticks: { color: C.muted, maxRotation: 0, autoSkipPadding: 10 } }), y: eixo({ stacked: true, beginAtZero: true }) } } });
+const soma = (arr, a, b) => arr.slice(a, b + 1).reduce((x, y) => x + y, 0);
+const ult6 = t => soma(D.envios[t], iHoje - 6, iHoje - 1);
+const re6 = ult6("Reemissão (comentários/reprovação)") + ult6("Emissão final (rev. numérica)"), pe6 = ult6("1ª emissão");
+document.getElementById("tEnv").textContent = `Nos últimos 6 meses, ${pct(re6, re6 + pe6)} dos envios foram reemissões`;
+new Chart(document.getElementById("gRet"), { type: "bar", data: { labels: labE, datasets: [
+  { label: "Aprovado", data: corte(D.retornos["Aprovado"], je), backgroundColor: C.good, borderColor: C.surface, borderWidth: 1 },
+  { label: "Não aprovado", data: corte(D.retornos["Não aprovado"], je), backgroundColor: C.serious, borderColor: C.surface, borderWidth: 1 }] },
+  options: { plugins: { legend: { position: "bottom" } }, scales: { x: eixo({ stacked: true, grid: { display: false }, ticks: { color: C.muted, maxRotation: 0, autoSkipPadding: 10 } }), y: eixo({ stacked: true, beginAtZero: true }) } } });
+const a6 = soma(D.retornos["Aprovado"], iHoje - 6, iHoje - 1), n6 = soma(D.retornos["Não aprovado"], iHoje - 6, iHoje - 1);
+document.getElementById("tRet").textContent = `${pct(a6, a6 + n6)} dos retornos dos últimos 6 meses foram aprovações`;
+const js = janela("2025-01", D.hoje);
+new Chart(document.getElementById("gSla"), { type: "line", data: { labels: corte(D.meses, js).map(rotMes), datasets: [
+  { label: "% dentro do prazo", data: corte(D.sla.pct, js), borderColor: C.s1, backgroundColor: C.s1, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: .15 }] },
+  options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${String(c.raw).replace(".", ",")}% no prazo · mediana ${D.sla.mediana[js[0] + c.dataIndex]} dias` } } },
+    scales: { x: eixo({ grid: { display: false }, ticks: { color: C.muted, maxRotation: 0 } }), y: eixo({ min: 0, max: 100, ticks: { color: C.muted, callback: v => v + "%" } }) } } });
+const slaVals = corte(D.sla.pct, js).filter(v => v != null);
+document.getElementById("tSla").textContent = `A Itaipu respondeu no prazo em ${String((slaVals.reduce((a, b) => a + b, 0) / slaVals.length).toFixed(0))}% dos casos, em média, desde jan/25`;
+
+// 3 · documentos para emissão
+const jm = janela("2024-08", "2027-03"), labM = corte(D.meses, jm).map(rotMes);
+const emi = new Chart(document.getElementById("gEmi"), { type: "bar", data: { labels: labM, datasets: [] },
+  options: { plugins: { linhaHoje: { indice: iHoje - jm[0] }, legend: { position: "bottom" } }, scales: { x: eixo({ stacked: true, grid: { display: false }, ticks: { color: C.muted, maxRotation: 0, autoSkipPadding: 10 } }), y: eixo({ stacked: true, beginAtZero: true }) } } });
+function pintarEmi() {
+  const v = document.querySelector("#segVisao .on").dataset.v;
+  emi.data.datasets = Object.keys(COR_SIT).map(s => ({ label: ROT_SIT[s], data: corte(D.emissao[v][s], jm), backgroundColor: COR_SIT[s], borderColor: C.surface, borderWidth: 1 }));
+  emi.update();
+  const t = { "ATUAL": "pela data-alvo", "OTD": "pela data prevista (baseline)", "SAY-DO": "só o backlog, pela data reprogramada" }[v];
+  document.getElementById("tEmi").textContent = `Documentos para emissão por mês, ${t}`;
+}
+document.querySelectorAll("#segVisao button").forEach(b => b.onclick = () => { document.querySelectorAll("#segVisao button").forEach(x => x.classList.toggle("on", x === b)); pintarEmi(); });
+pintarEmi();
+
+// 3 · leitura
+const iFev = D.meses.indexOf("2027-02");
+const faltaFev = D.curva.alvo[iFev] - emiHoje;
+const semanasFev = Math.max(1, Math.round((new Date(2027, 1, 28) - new Date(K.data_base)) / (7 * 864e5)));
+document.getElementById("leitura").innerHTML = `<b>Leitura para a reunião</b><ul>
+<li>Pela data-alvo a emissão está em dia; pela baseline, ${nf.format(baseHoje - emiHoje)} documentos atrás e ${K.vencidos_baseline} vencidos.</li>
+<li>A data-alvo empilha ${nf.format(D.curva.alvo[iFev] - D.curva.alvo[iFev - 1])} documentos em fev/27. Para emitir os ${nf.format(faltaFev)} que faltam até lá seriam ${String((faltaFev / semanasFev).toFixed(1)).replace(".", ",")} 1ªs emissões por semana; o ritmo das últimas 13 semanas é ${String(K.ritmo_emit).replace(".", ",")}.</li>
+<li>O Say-do está em ${K.saydo == null ? "—" : String(K.saydo).replace(".", ",") + "%"} porque o backlog ainda não venceu: as datas reprogramadas caem entre out/26 e fev/27.</li>
+<li>A aprovação anda atrás da emissão: ${nf.format(K.emitidos - K.aprovados)} documentos emitidos ainda não aprovados.</li></ul>`;
+</script>
+</body>
+</html>
