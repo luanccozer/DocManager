@@ -206,6 +206,9 @@ def calcular(path_dl: str, path_acx: str, hoje: date) -> dict:
         "saydo": round(100 * (len(sd) - sd_atr) / len(sd), 1) if len(sd) else None, "saydo_n": int(len(sd) - sd_atr), "saydo_de": int(len(sd)),
         "ritmo_emit": round(ritmo_emit, 1), "ritmo_aprov": round(ritmo_aprov, 1),
         "alvo_ate_fev27": int((pd.to_datetime(u["DATA-ALVO EMISSÃO"]) <= "2027-02-28").sum()),
+        # Meta e baseline até HOJE (o acumulado mensal conta o mês corrente inteiro).
+        "alvo_hoje": int((pd.to_datetime(u["DATA-ALVO EMISSÃO"]) <= pd.Timestamp(hoje)).sum()),
+        "baseline_hoje": int((pd.to_datetime(u["DATA PREVISTA EMISSÃO"]) <= pd.Timestamp(hoje)).sum()),
         "data_base": hoje.isoformat(),
     }
     payload = {"meses": rotulos, "hoje": mes_hoje.strftime("%Y-%m"), "kpi": kpi, "curva": curva,

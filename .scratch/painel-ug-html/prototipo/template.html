@@ -191,13 +191,14 @@ document.querySelectorAll("#segMeta button").forEach(b => b.onclick = () => { do
 document.getElementById("chkAprov").onchange = pintarCurva;
 document.getElementById("chkProj").onchange = pintarCurva;
 pintarCurva();
-const alvoHoje = D.curva.alvo[iHoje], baseHoje = D.curva.baseline[iHoje], emiHoje = D.curva.emitido[iHoje];
+const alvoHoje = K.alvo_hoje, baseHoje = K.baseline_hoje, emiHoje = K.emitidos;
 document.getElementById("tCurva").textContent = emiHoje >= alvoHoje
   ? `Emissão em dia com a data-alvo, ${nf.format(baseHoje - emiHoje)} documentos atrás da baseline`
   : `Emissão ${nf.format(alvoHoje - emiHoje)} documentos atrás da data-alvo`;
+// (o ponto de hoje no gráfico é o acumulado do mês inteiro; o texto usa a data de hoje)
 const fimProjE = D.meses[D.curva.proj_emitido.findIndex(v => v != null && v >= K.total)];
 const fimProjA = D.meses[D.curva.proj_aprovado.findIndex(v => v != null && v >= K.total)];
-document.getElementById("rCurva").textContent = `Hoje: meta ${nf.format(alvoHoje)} · baseline ${nf.format(baseHoje)} · emitidos ${nf.format(emiHoje)} · aprovados ${nf.format(K.aprovados)}. ` +
+document.getElementById("rCurva").textContent = `Até hoje: meta ${nf.format(alvoHoje)} · baseline ${nf.format(baseHoje)} · emitidos ${nf.format(emiHoje)} · aprovados ${nf.format(K.aprovados)}. ` +
   `No ritmo atual (${String(K.ritmo_emit).replace(".", ",")} 1ªs emissões e ${String(K.ritmo_aprov).replace(".", ",")} aprovações por semana) a emissão termina ${fimProjE ? "em " + rotMes(fimProjE) : "só depois de dez/27"} e a aprovação ${fimProjA ? "em " + rotMes(fimProjA) : "só depois de dez/27"}. ` +
   `Documentos com data-alvo depois de dez/27 não aparecem no eixo.`;
 
@@ -252,7 +253,7 @@ const iFev = D.meses.indexOf("2027-02");
 const faltaFev = D.curva.alvo[iFev] - emiHoje;
 const semanasFev = Math.max(1, Math.round((new Date(2027, 1, 28) - new Date(K.data_base)) / (7 * 864e5)));
 document.getElementById("leitura").innerHTML = `<b>Leitura para a reunião</b><ul>
-<li>Pela data-alvo a emissão está em dia; pela baseline, ${nf.format(baseHoje - emiHoje)} documentos atrás e ${K.vencidos_baseline} vencidos.</li>
+<li>Pela data-alvo a emissão está em dia (${nf.format(emiHoje)} emitidos para ${nf.format(alvoHoje)} previstos até hoje); pela baseline, ${nf.format(baseHoje - emiHoje)} documentos atrás e ${K.vencidos_baseline} pendentes vencidos.</li>
 <li>A data-alvo empilha ${nf.format(D.curva.alvo[iFev] - D.curva.alvo[iFev - 1])} documentos em fev/27. Para emitir os ${nf.format(faltaFev)} que faltam até lá seriam ${String((faltaFev / semanasFev).toFixed(1)).replace(".", ",")} 1ªs emissões por semana; o ritmo das últimas 13 semanas é ${String(K.ritmo_emit).replace(".", ",")}.</li>
 <li>O Say-do está em ${K.saydo == null ? "—" : String(K.saydo).replace(".", ",") + "%"} porque o backlog ainda não venceu: as datas reprogramadas caem entre out/26 e fev/27.</li>
 <li>A aprovação anda atrás da emissão: ${nf.format(K.emitidos - K.aprovados)} documentos emitidos ainda não aprovados.</li></ul>`;
