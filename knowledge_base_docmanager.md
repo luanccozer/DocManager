@@ -1100,6 +1100,17 @@ planejamento, cancelado) e `DIAS DESVIO EMISSÃO` (1ª emissão − data-alvo). 
 **DATA-ALVO**: é a visão "Atual" do gráfico DOCUMENTOS PARA EMISSÃO, e continua assim
 depois da §27.7.
 
+**Correção (2026-11-11, achado no levantamento do painel HTML da UG):** a 1ª emissão
+reconhecia só `Em Processo` como submissão e ignorava o corte de 19/08/2024 (§7): antes
+dele, a submissão é `Para Análise` e `Em Processo` é trâmite interno. O documento emitido
+no regime antigo ficava com a data de uma reemissão posterior (ou sem data, se nunca teve
+`Em Processo` depois do corte). Na planilha real de 10/11/2026 eram 16 documentos: um já
+aprovado aparecia como PENDENTE VENCIDO e quatro como EMITIDO COM ATRASO sem estar.
+`kpis.data_primeira_emissao` passou a usar a mesma regra do corte que o
+`gerar_dataset_dashboard`. O Momento A de `calcular_atrasos_acumulados` continua como
+estava (decisão antiga, ver a docstring). Testes: `tests/test_doclist.py` (regime antigo,
+`Em Processo` interno, emitido só antes do corte e a borda de 19/08).
+
 ### 27.6 ✅ Datas no formato Data do Excel, para o Power BI (2026-09-30, pedido do usuário)
 
 **Pedido**: "corrigir o formato das datas, elas precisam estar em Data e não como custom, no formato que o Power BI possa ler, pelo menos a coluna DATA-ALVO".

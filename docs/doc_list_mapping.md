@@ -176,7 +176,10 @@ data-alvo acusaria meses de atraso num documento que nasceu adiantado.
 
 ### Como a `DATA 1ª EMISSÃO` é achada
 
-O evento de emissão é a linha `Em Processo` do Aconex — a submissão à Itaipu.
+O evento de emissão é a submissão à Itaipu: a linha `Em Processo` do Aconex a partir
+de 19/08/2024 e, antes dessa data, a linha `Para Análise` (KB §7; até a 3.6.4 o regime
+antigo era ignorado e o documento emitido antes do corte ficava com a data de uma
+reemissão posterior, ou sem data).
 Sobre o histórico já limpo (ciclos internos tipo `0AA` exterminados, revisões
 mortas por *Terminated* removidas):
 

@@ -5,6 +5,10 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.6.5
+
+- Doc List Mapping: a DATA 1ª EMISSÃO dos documentos emitidos antes de 19/08/2024, quando a submissão no Aconex ainda aparecia como "Para Análise", vinha errada: ficava com a data de uma reemissão posterior, ou vazia. Por isso um documento entregue no prazo podia aparecer como EMITIDO COM ATRASO, e um documento já aprovado como PENDENTE VENCIDO. Rode a atualização do Doc List de novo: a DATA 1ª EMISSÃO, a SITUAÇÃO EMISSÃO e a SITUAÇÃO OTD desses documentos são corrigidas.
+
 ## 3.6.4 - 2026-11-09
 
 - Pendências: a equipe pode fazer à mão registros extraoficiais, que não estão no Aconex, no fim da tabela ou logo abaixo dela. O DocManager não mexe nessas linhas, nem no valor nem na cor, e só as desloca para baixo quando entram pendências novas no topo. Antes, uma linha na tabela sem número do Aconex ou qualquer dado abaixo da tabela fazia a atualização recusar a planilha inteira.

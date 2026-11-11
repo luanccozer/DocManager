@@ -16,6 +16,7 @@ from .constants import (
     COL_DATA,
     COL_REVISAO,
     COL_STATUS,
+    DATA_CORTE_FLUXO,
     KPI_STATUS_CANCELADO_UPPER,
     KPI_STATUS_FALHA_UPPER,
     KPI_STATUS_SUCESSO_UPPER,
@@ -100,9 +101,12 @@ def data_primeira_emissao(df_tracking: pd.DataFrame) -> date | None:
       reenvio da mesma revisão corrigiu a entrega anterior, então é ele que
       marca a entrega válida.
 
-    O evento de emissão é a linha com `Status == 'Em Processo'` - a submissão à
-    Itaipu. Revisão que nunca teve 'Em Processo' é ruído e não conta (mesma
-    leitura do Momento B em `calcular_atrasos_acumulados`).
+    O evento de emissão é a submissão à Itaipu, que mudou de nome no corte de
+    19/08/2024 (KB §7): a partir dele é 'Em Processo'; antes, era 'Para Análise', e
+    'Em Processo' era trâmite interno da CMI. Revisão sem submissão é ruído e não
+    conta (mesma leitura do Momento B em `calcular_atrasos_acumulados`). Até
+    2026-11 o regime antigo era ignorado: o documento emitido antes do corte
+    ficava com a data de uma reemissão posterior, ou sem data.
 
     Devolve `None` quando o documento nunca foi emitido.
 
@@ -117,7 +121,10 @@ def data_primeira_emissao(df_tracking: pd.DataFrame) -> date | None:
     df = _preparar_historico(df_tracking)
     if df.empty:
         return None
-    emissoes = df[df["Status_Upper"] == "EM PROCESSO"]
+    antigo = df["Data_Obj"] < DATA_CORTE_FLUXO
+    submissao = ((~antigo) & (df["Status_Upper"] == "EM PROCESSO")) | \
+        (antigo & (df["Status_Upper"] == "PARA ANÁLISE"))
+    emissoes = df[submissao]
     if emissoes.empty:
         return None
     rev = _rev_nascedoura(emissoes)

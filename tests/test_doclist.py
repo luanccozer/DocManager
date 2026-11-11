@@ -452,6 +452,41 @@ def test_documento_sem_historico_nao_tem_primeira_emissao():
     assert data_primeira_emissao(pd.DataFrame()) is None
 
 
+# Corte de 19/08/2024 (KB §7): antes dele a submissão à Itaipu era 'Para Análise' e
+# 'Em Processo' era trâmite interno da CMI. Documento emitido no regime antigo não
+# pode ganhar a data de uma reemissão posterior (achado do painel da UG, 2026-11-11).
+def test_antes_do_corte_o_envio_era_para_analise():
+    df = _hist(("0A", 1, "Para Análise", "06/10/2023"),
+               ("0A", 2, "Não Aprovado", "20/11/2023"),
+               ("0B", 1, "Para Análise", "10/01/2024"),
+               ("0B", 2, "Aprovado com Comentários", "05/02/2024"),
+               ("0C", 1, "Em Processo", "21/03/2025"))
+    assert data_primeira_emissao(df) == date(2023, 10, 6)
+
+
+def test_em_processo_antes_do_corte_e_tramite_interno():
+    df = _hist(("0A", 1, "Em Processo", "01/10/2023"),
+               ("0A", 2, "Para Análise", "06/10/2023"))
+    assert data_primeira_emissao(df) == date(2023, 10, 6)
+
+
+def test_emitido_so_no_regime_antigo_tem_primeira_emissao():
+    """Sem nenhum 'Em Processo' depois do corte o documento aparecia como pendente."""
+    df = _hist(("0A", 1, "Para Análise", "06/10/2023"),
+               ("0A", 2, "Para Assinatura", "30/10/2023"),
+               ("0", 1, "Aprovado", "15/12/2023"))
+    assert data_primeira_emissao(df) == date(2023, 10, 6)
+
+
+def test_no_dia_do_corte_vale_o_regime_novo():
+    """19/08/2024 já é regime novo: 'Para Análise' é espelho; 'Em Processo' é envio."""
+    df = _hist(("0A", 1, "Para Análise", "19/08/2024"),
+               ("0A", 2, "Em Processo", "20/08/2024"))
+    assert data_primeira_emissao(df) == date(2024, 8, 20)
+    df = _hist(("0A", 1, "Em Processo", "19/08/2024"))
+    assert data_primeira_emissao(df) == date(2024, 8, 19)
+
+
 @pytest.mark.parametrize("emissao,alvo,consolidado,esperado", [
     (date(2026, 3, 5), ALVO, "APROVADO", SIT_EMITIDO_NO_PRAZO),
     (ALVO, ALVO, "APROVADO", SIT_EMITIDO_NO_PRAZO),          # no dia = no prazo
