@@ -207,6 +207,11 @@ do Excel antes de rodar (para bases Aconex, a aba "Documentos" já vem seleciona
   previsto para emitir (atalhos: vencidos, próximos 7/30/90 dias, mês que vem),
   e **⏳ Analisar Mudanças por Período (Delta)** mostra o que aconteceu entre
   duas datas. Ambas exportam Excel.
+  **Gerar Painel HTML** faz o painel da Unidade Geradora, no lugar do Power BI: um
+  arquivo só, que abre no navegador sem internet e pode ser salvo no Box, com a
+  visão geral, as emissões (por ano, mês ou dia, nas réguas atual, OTD e say-do), o
+  progresso, o esforço da engenharia e o histórico de revisões de cada documento.
+  Ver [`docs/painel_ug_html.md`](docs/painel_ug_html.md).
   Detalhes em [`docs/doc_list_mapping.md`](docs/doc_list_mapping.md).
 - **🔎 Status Documentos** - status real de documentos. Escolha a origem na aba:
   *Via Arquivo Excel* (arquivo + colunas), *Via Lista Rápida* (colar códigos) ou

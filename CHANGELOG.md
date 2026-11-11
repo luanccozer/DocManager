@@ -5,6 +5,12 @@ tela inicial lê o bloco da versão instalada, e o GitHub Actions usa o mesmo
 bloco como descrição do Release. Ao preparar uma versão, acrescente o bloco
 dela aqui **antes** de criar a tag.
 
+## 3.7.0
+
+- Doc List Mapping: botão novo, Gerar Painel HTML. O painel da Unidade Geradora sai do Power BI e vira um arquivo HTML só, que abre no navegador sem internet: salve no Box para reabrir depois ou envie a quem não tem o DocManager. Ele lê a planilha e a base Aconex escolhidas, sem alterar nada. Rode a atualização do Doc List antes, para as datas estarem em dia.
+- O painel tem cinco abas. Visão geral: as visões da primeira página do Power BI (status real, pizzas de fabricação, executivo, execução e por escopo) e o fluxo dos documentos. Emissões: o gráfico de status das emissões por ano, mês ou dia, nas réguas atual, OTD e say-do, com o indicador do período e a curva acumulada de emitidos e aprovados contra a data-alvo e a baseline. Progresso: o que mudou desde uma data (a última reunião, por exemplo), em números e em palavras, e a tendência das aprovações. Esforço da engenharia: envios à Itaipu por tipo (1ª emissão, reemissão, emissão final), retornos, prazo de análise e há quanto tempo cada documento espera. Histórico de revisões: cada revisão com os dias com a Itaipu e com a CMI, e a história de cada documento numa linha do tempo.
+- No painel, os filtros (grupo, sistema, UG ou 18A, fase, responsável, status, com quem está, situação) valem para todas as abas; qualquer número abre a lista dos documentos, com busca e exportação para Excel. Botão para inglês no alto.
+
 ## 3.6.5
 
 - Doc List Mapping: a DATA 1ª EMISSÃO dos documentos emitidos antes de 19/08/2024, quando a submissão no Aconex ainda aparecia como "Para Análise", vinha errada: ficava com a data de uma reemissão posterior, ou vazia. Por isso um documento entregue no prazo podia aparecer como EMITIDO COM ATRASO, e um documento já aprovado como PENDENTE VENCIDO. Rode a atualização do Doc List de novo: a DATA 1ª EMISSÃO, a SITUAÇÃO EMISSÃO e a SITUAÇÃO OTD desses documentos são corrigidas.

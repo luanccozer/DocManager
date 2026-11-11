@@ -33,6 +33,9 @@ _datas += [("CHANGELOG.md", ".")]
 # Ícones SVG e a fonte Roboto da interface Qt: ficam ao lado dos .pyc da UI
 # (`ui/estilo.py` os acha pelo próprio caminho do módulo).
 _datas += [("docmanager/ui/recursos", "docmanager/ui/recursos")]
+# Modelo e bibliotecas de gráfico do painel HTML da UG (dashboard/painel_ug_html.py
+# os acha pelo próprio caminho do módulo).
+_datas += [("docmanager/dashboard/recursos", "docmanager/dashboard/recursos")]
 
 # Reforço de imports que costumam escapar da análise estática.
 _hidden += [

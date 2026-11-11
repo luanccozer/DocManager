@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentos – Unidade Geradora</title>
+<!-- Painel gerado pelo DocManager (módulo Doc List Mapping). Arquivo único: os dados e as
+     bibliotecas de gráfico (Chart.js e chartjs-plugin-datalabels, licença MIT) vão embutidos,
+     então abre sem internet e pode ser guardado no Box ou enviado a quem não tem o app. -->
+<script>/*__CHARTJS__*/</script>
+<script>/*__DATALABELS__*/</script>
+<style>
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; background: #eef2f5; color: #1f2933; }
+  header { background: linear-gradient(90deg, #004d4f, #00796b); color: #fff; padding: 14px 28px; display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; justify-content: space-between; }
+  .marca { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .logos { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 10px; padding: 6px 14px; height: 60px; }
+  .logos .sep { width: 1px; height: 38px; background: #cfd8dc; }
+  .logo-txt { color: #005e60; font-weight: 800; font-size: 17px; letter-spacing: 1.5px; white-space: nowrap; }
+  header h1 { margin: 0; font-size: 28px; }
+  .controles { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 15px; }
+  .controles button { border: 0; border-radius: 6px; padding: 9px 16px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  #btnIdioma { background: #ffd54f; color: #263238; }
+  #fonte { opacity: .95; max-width: 760px; line-height: 1.35; }
+  .barra-esc { display: flex; align-items: flex-end; gap: 14px; padding: 16px 28px 0; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab { font-size: 19px; font-weight: 700; padding: 12px 22px; border: 0; border-radius: 10px 10px 0 0; background: #cfd8dc; color: #37474f; cursor: pointer; }
+  .tab.activo { background: #fff; color: #00695c; box-shadow: 0 -3px 0 #00897b inset; }
+  #conteudo { background: #fff; margin: 0 28px 28px; padding: 22px; border-radius: 0 10px 10px 10px; }
+  .card { background: #fff; border: 1px solid #dde3e8; border-radius: 12px; padding: 18px; margin-bottom: 18px; min-width: 0; }
+  .card h3 { margin: 0 0 12px; font-size: 21px; color: #263238; }
+  .card h3 small { font-size: 14px; font-weight: 400; color: #78909c; }
+  .nota { font-size: 15px; color: #455a64; margin: 10px 0 0; }
+  .fila2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+  .fila-pizzas { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; }
+  .fila-meio { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 1100px) { .fila2, .fila-meio { grid-template-columns: 1fr; } }
+  .caixa { position: relative; }
+  /* filtros (encadeados, valem para todas as abas) */
+  .filtros { background: #fafbfc; }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 10px 14px; }
+  .fgrid label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 700; color: #455a64; }
+  .fgrid select, .ctl select, .ctl input { font-size: 15px; padding: 7px 8px; border: 1px solid #b0bec5; border-radius: 6px; background: #fff; max-width: 100%; }
+  .fgrid select.on { border: 2px solid #00897b; background: #e0f2f1; }
+  .fbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; font-size: 15px; color: #37474f; }
+  .limpar { font-size: 15px; padding: 6px 14px; border: 0; border-radius: 6px; background: #455a64; color: #fff; cursor: pointer; }
+  /* controles de cada aba */
+  .ctl { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-end; margin-bottom: 16px; }
+  .ctl label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 700; color: #455a64; }
+  .seg { display: inline-flex; border: 2px solid #00897b; border-radius: 30px; overflow: hidden; }
+  .seg button { border: 0; background: #fff; color: #00695c; padding: 8px 18px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .seg button.on { background: #00897b; color: #fff; }
+  .chk, .ctl label.chk { font-size: 15px; font-weight: 600; color: #37474f; display: inline-flex; flex-direction: row; gap: 6px; align-items: center; cursor: pointer; }
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi { background: #fff; border: 1px solid #dde3e8; border-top: 6px solid; border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: transform .1s, box-shadow .1s; }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 12px #0002; }
+  .kpi.nohand { cursor: default; }
+  .kpi.nohand:hover { transform: none; box-shadow: none; }
+  .kpi.total { background: #f0f5fc; }
+  .kt { font-size: 15px; font-weight: 600; color: #455a64; }
+  .kv { font-size: 36px; font-weight: 800; line-height: 1.15; }
+  .kp { font-size: 14px; color: #546e7a; }
+  .kp small { font-size: 12px; color: #78909c; }
+  .delta-up { color: #1e8e3e; font-weight: 700; } .delta-down { color: #d93025; font-weight: 700; } .delta-eq { color: #607d8b; font-weight: 700; }
+  /* datas (como na aba Progresso da Sala Segura) */
+  .fechas { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .fecha { background: #f1f8f7; border: 2px solid #b2dfdb; border-radius: 10px; padding: 8px 16px; text-align: center; }
+  .fecha .fn { font-size: 14px; color: #455a64; font-weight: 600; }
+  .fecha .fd { font-size: 22px; font-weight: 800; color: #00695c; }
+  .fecha.ult { border-color: #00897b; background: #e0f2f1; }
+  .fecha.dias { background: #fff8e1; border-color: #ffca28; } .fecha.dias .fd { color: #e65100; }
+  .fecha.acx { background: #e8f0fe; border-color: #8ab4f8; } .fecha.acx .fd { color: #1a73e8; }
+  .seta { font-size: 26px; color: #00897b; font-weight: 800; }
+  .resumo { background: #e0f2f1; border-left: 6px solid #00897b; border-radius: 8px; padding: 14px 18px; font-size: 17px; line-height: 1.55; margin-bottom: 18px; }
+  .resumo b { color: #004d40; }
+  .indicador { background: #e8f0fe; border: 2px solid #8ab4f8; border-radius: 10px; padding: 10px 16px; min-width: 240px; }
+  .indicador .fn { font-size: 14px; font-weight: 700; color: #455a64; }
+  .indicador .fd { font-size: 30px; font-weight: 800; color: #0b5394; }
+  .indicador small { display: block; font-size: 13px; color: #607d8b; }
+  /* árvore do fluxo dos documentos (mesmo desenho do escopo RTA) */
+  .arv { overflow-x: auto; padding: 8px 4px; }
+  .arv-ramo { display: flex; align-items: center; }
+  .arv-no { flex: 0 0 auto; display: flex; flex-direction: column; min-width: 190px; max-width: 250px; background: #fff; border: 2px solid #d5dde2; border-left: 8px solid var(--c); border-radius: 10px; padding: 10px 12px 6px; cursor: pointer; box-shadow: 0 3px 10px #0001; transition: transform .12s, box-shadow .12s; }
+  .arv-no:hover { transform: translateY(-2px); box-shadow: 0 8px 18px #0002; border-color: var(--c); }
+  .arv-tit { font-size: 14px; font-weight: 800; color: #37474f; text-transform: uppercase; line-height: 1.2; }
+  .arv-num { font-size: 30px; font-weight: 900; color: var(--c); line-height: 1.1; }
+  .arv-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; }
+  .arv-pct { font-size: 13px; color: #607d8b; font-weight: 600; }
+  .arv-tog { width: 22px; height: 22px; border-radius: 50%; background: var(--c); color: #fff; font-weight: 900; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .arv-no.raiz { min-width: 210px; } .arv-no.raiz .arv-num { font-size: 40px; }
+  .arv-no.folha { min-width: 150px; max-width: 220px; padding: 6px 10px 4px; border-left-width: 6px; }
+  .arv-no.folha .arv-tit { font-size: 12px; } .arv-no.folha .arv-num { font-size: 22px; }
+  .arv-filhos { display: flex; flex-direction: column; gap: 10px; margin-left: 40px; padding: 4px 0 4px 26px; position: relative; border-left: 3px solid #4db6ac; border-radius: 14px 0 0 14px; }
+  .arv-filhos::before { content: ""; position: absolute; left: -43px; top: 50%; width: 40px; border-top: 3px solid #4db6ac; }
+  .arv-filhos > .arv-ramo { position: relative; }
+  .arv-filhos > .arv-ramo::before { content: ""; position: absolute; left: -26px; top: 50%; width: 24px; border-top: 3px solid #4db6ac; }
+  .arv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .arv-head h3 { margin: 0; flex: 1; }
+  /* tabelas */
+  .tabela-wrap { overflow: auto; max-height: 560px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th { background: #00695c; color: #fff; padding: 9px 10px; text-align: left; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e0e6ea; vertical-align: top; }
+  tbody tr:nth-child(even) td { background: #f7f9fa; }
+  td.cod { font-family: Consolas, monospace; font-size: 13px; white-space: nowrap; }
+  td.num { text-align: center; font-weight: 700; }
+  td.data { white-space: nowrap; }
+  td.desc { min-width: 280px; }
+  tr.clic { cursor: pointer; } tr.clic:hover td { background: #e0f2f1 !important; }
+  tr.zero td { color: #9aa0a6; font-style: italic; }
+  .chip { display: inline-block; color: #fff; padding: 3px 10px; border-radius: 14px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .chip.claro { color: #263238; }
+  .hist td, .hist th { text-align: center; vertical-align: middle; }
+  .hist td.aprt { background: #e8f0fe !important; color: #0b5394; font-weight: 700; white-space: nowrap; }
+  /* lista de documentos (detalhe) */
+  .detalhe { border: 3px solid #00897b; }
+  .det-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+  .det-head h3 { margin: 0; flex: 1; }
+  .det-head input { font-size: 16px; padding: 7px 12px; width: 300px; border: 1px solid #b0bec5; border-radius: 6px; }
+  .btn-exp { font-size: 16px; font-weight: 700; padding: 8px 16px; border: 0; border-radius: 6px; background: #1e7e45; color: #fff; cursor: pointer; }
+  .fechar { font-size: 16px; padding: 8px 16px; border: 0; border-radius: 6px; background: #455a64; color: #fff; cursor: pointer; }
+  .mais { font-size: 14px; color: #607d8b; margin-top: 8px; }
+  /* qualidade dos dados */
+  .qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .qb { background: #f5f7f9; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: #546e7a; }
+  .qb b { font-size: 24px; color: #263238; } .qb small { font-size: 12px; color: #78909c; }
+  .incs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 12px; }
+  .inc { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; font-size: 15px; font-weight: 600; padding: 10px 14px; border-radius: 8px; border: 2px solid #ffb74d; background: #fff8e1; color: #6d4c00; cursor: pointer; font-family: inherit; }
+  .inc b { font-size: 20px; } .inc.ok { border-color: #a5d6a7; background: #e8f5e9; color: #1b5e20; cursor: default; } .inc.ok b { font-size: 14px; }
+  .mudancas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .mud { border: 2px solid var(--c); border-radius: 10px; padding: 12px 14px; background: #fff; cursor: pointer; text-align: left; font-family: inherit; }
+  .mud:hover { box-shadow: 0 4px 12px #0002; }
+  .mud .mt { font-size: 15px; font-weight: 700; color: #37474f; } .mud .mv { font-size: 30px; font-weight: 800; color: var(--c); }
+  .mud small { color: #607d8b; font-size: 13px; }
+  /* história do documento (janela) */
+  #modal { position: fixed; inset: 0; background: #0008; z-index: 50; display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 30px 16px; }
+  .janela { background: #fff; border-radius: 14px; max-width: 1280px; width: 100%; padding: 22px 26px; box-shadow: 0 20px 60px #0005; }
+  .jan-head { display: flex; gap: 14px; align-items: flex-start; }
+  .jan-head h2 { margin: 0 0 6px; font-size: 22px; color: #004d40; flex: 1; }
+  .jan-cods { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .cod-chip { background: #eceff1; border-radius: 6px; padding: 4px 10px; font-family: Consolas, monospace; font-size: 14px; font-weight: 700; }
+  .cod-chip.ita { background: #e0f2f1; color: #004d40; }
+  .jan-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 15px; color: #455a64; margin: 8px 0 14px; }
+  .jan-meta b { color: #263238; }
+  .linha-tempo { overflow-x: auto; border: 1px solid #e0e6ea; border-radius: 10px; padding: 8px; background: #fbfcfc; }
+  .legenda-lt { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: #455a64; margin: 8px 0 0; }
+  .legenda-lt i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+  .vazio { color: #78909c; font-style: italic; padding: 20px; text-align: center; }
+  footer { text-align: center; color: #78909c; font-size: 13px; padding: 0 0 24px; }
+  @media print { header, .barra-esc, .filtros, .ctl { display: none; } #conteudo { margin: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="marca">
+    <div class="logos"><span class="logo-txt">GE VERNOVA</span><div class="sep"></div><span class="logo-txt">ITAIPU</span></div>
+    <h1 id="titulo"></h1>
+  </div>
+  <div class="controles">
+    <span id="fonte"></span>
+    <button id="btnIdioma"></button>
+  </div>
+</header>
+<div class="barra-esc"><div class="tabs" id="tabs"></div></div>
+<div id="conteudo">
+  <div class="card filtros" id="filtros"></div>
+  <div id="aba"></div>
+  <div class="card detalhe" id="det" hidden>
+    <div class="det-head"><h3 id="det-tit"></h3><input id="det-q"><button class="btn-exp" id="det-exp"></button><button class="fechar" id="det-x"></button></div>
+    <div class="tabela-wrap"><table id="det-t"></table></div>
+    <div class="mais" id="det-mais"></div>
+  </div>
+</div>
+<footer id="rodape"></footer>
+<div id="modal" hidden></div>
+<script>const D = /*__DADOS__*/;</script>
+<script>
+"use strict";
+// =====================================================================
+// Idioma: o texto da tela está em português; o botão troca para inglês.
+// =====================================================================
+let LANG = "pt";
+const EN = {
+  "Documentos – Unidade Geradora": "Documents – Generating Unit",
+  "English": "English", "Português": "Português",
+  "Visão geral": "Overview", "Emissões": "Issues", "Progresso": "Progress", "Esforço da engenharia": "Engineering effort",
+  "Histórico de revisões": "Revision history",
+  "Grupo": "Group", "Sistema": "System", "Escopo": "Scope", "Fase": "Phase", "Responsável": "Responsible",
+  "Status real": "Actual status", "Com quem está": "With whom", "Situação emissão": "Issue status", "Todos": "All",
+  "Limpar filtros": "Clear filters", "documentos únicos": "unique documents", "associações (linhas)": "associations (rows)",
+  "filtro(s) ativo(s)": "active filter(s)",
+  "Documentos": "Documents", "Aprovados": "Approved", "Com comentários": "With comments", "Para assinatura": "For signature",
+  "Em processo": "In process", "Não aprovados": "Not approved", "Não emitidos": "Not issued", "% aprovação total": "% total approval",
+  "Aprov. + com coment. + para assinatura + informativo": "Approved + with comments + for signature + informative",
+  "Fluxo dos documentos": "Document flow", "clique em um quadro para ver os documentos": "click a box to see the documents",
+  "Emitidos": "Issued", "Cancelados": "Cancelled", "Pendentes no prazo": "Pending on time", "Pendentes vencidos": "Pending overdue",
+  "Sem planejamento": "No plan date", "Com a Itaipu": "With Itaipu", "Com a CMI (reemitir)": "With CMI (reissue)",
+  "Aprovação total atual": "Current total approval", "do total": "of total",
+  "Documentação geral": "General documentation", "status real · clique em uma barra para ver os documentos": "actual status · click a bar to see the documents",
+  "Com quem está o documento": "Where the document is", "Documentos de fabricação": "Manufacturing documents",
+  "Documentos executivos": "Detailed design documents", "Documentos de execução (planos)": "Execution documents (plans)",
+  "Documentos por escopo": "Documents by scope", "status consolidado": "consolidated status", "por grupo": "by group",
+  "Documentos por grupo e status": "Documents by group and status", "um código conta uma vez · clique para listar": "each code counts once · click to list",
+  "Documentos por sistema": "Documents by system",
+  "Um documento pode pertencer a vários sistemas: os números por sistema não somam o total. Clique em uma linha para listar.": "A document can belong to several systems: the per-system numbers do not add up to the total. Click a row to list.",
+  "Pend. vencidos": "Overdue", "Compartilhados": "Shared",
+  "Qualidade dos dados": "Data quality", "incidências da planilha de origem · nada é corrigido automaticamente": "issues in the source spreadsheet · nothing is fixed automatically",
+  "Linhas de documentos (nível 2)": "Document rows (level 2)", "Documentos únicos (N° ITAIPU)": "Unique documents (N° ITAIPU)",
+  "Códigos repetidos": "Repeated codes", "Grupos de nível 1": "Level-1 groups", "Sistemas com documentos": "Systems with documents",
+  "Não achados no Aconex": "Not found in Aconex", "sem ocorrências": "none",
+  "Emitido sem DATA 1ª EMISSÃO": "Issued without 1st issue date", "Documentos compartilhados (código repetido)": "Shared documents (repeated code)",
+  "Sem data prevista nem reprogramada": "No planned or rescheduled date", "Planilha diz EMITIDO, Aconex não acha": "Sheet says ISSUED, Aconex does not find it",
+  "Régua": "Reference", "Atual (data-alvo)": "Current (target date)", "OTD (data prevista)": "OTD (planned date)", "Say-do (backlog)": "Say-do (backlog)",
+  "Ano": "Year", "Mês": "Month", "Agrupar por": "Group by", "Automático": "Automatic", "Dia": "Day", "Semana": "Week", "Trimestre": "Quarter",
+  "Documentos no período": "Documents in the period", "Emitidos no prazo": "Issued on time", "Emitidos com atraso": "Issued late",
+  "Status das emissões": "Issue status", "clique em uma barra para ver os documentos": "click a bar to see the documents",
+  "pela data-alvo": "by target date", "pela data prevista (baseline)": "by planned date (baseline)", "só o backlog, pela data reprogramada": "backlog only, by rescheduled date",
+  "Aderência à data-alvo": "Target-date adherence", "Baseline OTD": "Baseline OTD", "Say-do": "Say-do",
+  "sem atraso": "not late", "de": "of", "nada previsto no período": "nothing planned in the period",
+  "O que ainda não venceu conta como cumprido; cancelado fica fora.": "What is not yet due counts as met; cancelled is left out.",
+  "Curva de emissão e aprovação": "Issue and approval curve", "acumulado desde o início do projeto": "cumulative since the start of the project",
+  "Planejado (data-alvo)": "Planned (target date)", "Planejado original (baseline)": "Original plan (baseline)",
+  "Emitidos (1ª emissão)": "Issued (1st issue)", "Aprovados (aprovação total)": "Approved (total approval)", "Mostrar a baseline": "Show baseline",
+  "Mostrar aprovados": "Show approved", "hoje": "today",
+  "documentos com data-alvo depois de": "documents with a target date after", "ficam fora do eixo": "are off the axis",
+  "Próximas emissões e vencidos": "Upcoming issues and overdue", "Vencidos": "Overdue", "Próximos 30 dias": "Next 30 days", "Próximos 90 dias": "Next 90 days",
+  "Comparar com": "Compare with", "1 semana atrás": "1 week ago", "2 semanas atrás": "2 weeks ago", "1 mês atrás": "1 month ago",
+  "3 meses atrás": "3 months ago", "Início do ano": "Start of the year", "Outra data": "Other date",
+  "Data de referência": "Reference date", "Hoje (base Aconex)": "Today (Aconex base)", "Dias entre as datas": "Days between dates",
+  "Último evento no Aconex": "Last Aconex event", "vs.": "vs.", "sem alteração": "no change",
+  "Tendência entre as datas": "Trend between dates", "Janela": "Window", "3 meses": "3 months", "6 meses": "6 months", "12 meses": "12 months", "Tudo": "All",
+  "clique em um ponto para ver os documentos": "click a point to see the documents",
+  "Aprovados (sem comentários)": "Approved (no comments)", "Aprovação total": "Total approval",
+  "Evolução da carteira": "Portfolio evolution", "estado de cada documento no fim de cada período, reconstruído do histórico do Aconex": "state of each document at the end of each period, rebuilt from the Aconex history",
+  "Histórico por data": "History by date", "Data": "Date", "Total": "Total", "Aprov. total (%)": "Total approval (%)", "Emitidos (acum.)": "Issued (cum.)",
+  "O que mudou desde": "What changed since", "Novas aprovações": "New approvals", "Novas reprovações": "New rejections",
+  "Novas 1ªs emissões": "New 1st issues", "Entraram em análise na Itaipu": "Went into Itaipu review", "Saíram de aprovado": "Left approved",
+  "documentos": "documents",
+  "Envios à Itaipu": "Submissions to Itaipu", "1ªs emissões": "1st issues", "Reemissões": "Reissues", "Emissões finais": "Final issues",
+  "Documentos trabalhados": "Documents worked on", "Retornos da Itaipu": "Itaipu returns", "Aprovados de primeira": "Approved first time",
+  "Revisões até aprovar (média)": "Revisions to approval (avg.)",
+  "dos documentos com retorno": "of documents with a return", "no período": "in the period",
+  "Envios à Itaipu por período": "Submissions to Itaipu by period", "1ª emissão": "1st issue", "Reemissão": "Reissue", "Emissão final": "Final issue",
+  "Retornos da Itaipu por período": "Itaipu returns by period", "pelo status do retorno": "by return status",
+  "Em que revisão o documento foi aprovado": "Revision at which the document was approved", "1ª aprovação de cada documento": "first approval of each document",
+  "Prazo de análise da Itaipu": "Itaipu review time", "% dos retornos dentro do prazo (30 dias na 0A, 15 nas demais)": "% of returns within the deadline (30 days for 0A, 15 for others)",
+  "Dias de análise (mediana)": "Review days (median)", "Envios por responsável": "Submissions by responsible",
+  "Há quanto tempo está com a Itaipu": "How long it has been with Itaipu", "Há quanto tempo espera reemissão da CMI": "How long it has been waiting for CMI reissue",
+  "dias desde o último envio · documentos em processo": "days since the last submission · documents in process",
+  "dias desde a reprovação · documentos não aprovados": "days since the rejection · not approved documents",
+  "Até 15 dias": "Up to 15 days", "16 a 30 dias": "16 to 30 days", "31 a 60 dias": "31 to 60 days", "Mais de 60 dias": "More than 60 days",
+  "Revisões (ciclos)": "Revisions (cycles)", "Em análise agora": "Under review now", "Dias Itaipu (média)": "Itaipu days (avg.)",
+  "Itaipu no prazo": "Itaipu on time", "Dias CMI p/ reemitir (média)": "CMI days to reissue (avg.)", "CMI no prazo": "CMI on time",
+  "Uma linha por revisão, como no Histórico Consolidado do DocManager. Clique em uma linha para ver a história do documento.": "One row per revision, as in the DocManager Consolidated History. Click a row to see the document story.",
+  "Só sem retorno": "Without return only", "Só com atraso da Itaipu": "Itaipu late only", "Só com atraso da CMI": "CMI late only",
+  "Nº ITAIPU": "Itaipu No.", "Nº CMI": "CMI No.", "Descrição": "Description", "Revisão": "Revision", "Tipo": "Type", "Data de envio": "Submission date",
+  "Data de retorno": "Return date", "Status do retorno": "Return status", "SLA": "SLA", "Dias Itaipu": "Itaipu days", "Atraso Itaipu": "Itaipu delay",
+  "Dias CMI": "CMI days", "Atraso CMI": "CMI delay", "Sistemas": "Systems", "Situação OTD": "OTD status", "Situação say-do": "Say-do status",
+  "Data prevista": "Planned date", "Data reprogramada": "Rescheduled date", "Data-alvo": "Target date", "1ª emissão (data)": "1st issue (date)",
+  "Última emissão": "Last issue", "Rev.": "Rev.", "Desvio (dias)": "Deviation (days)", "Linha": "Row", "Status consolidado": "Consolidated status",
+  "Buscar…": "Search…", "Exportar Excel": "Export Excel", "Fechar": "Close", "mostrando as primeiras": "showing the first", "linhas": "rows",
+  "História do documento": "Document story", "Linha do tempo": "Timeline", "com a Itaipu": "with Itaipu", "com a CMI": "with CMI",
+  "em análise (sem retorno)": "under review (no return)", "Status ao longo do tempo": "Status over time",
+  "Revisões do documento": "Document revisions", "Documento ainda não emitido.": "Document not issued yet.",
+  "Gerado em": "Generated on", "pelo DocManager": "by DocManager", "Base Aconex": "Aconex base", "Doc List": "Doc List", "aba": "sheet",
+  "último evento": "last event", "Não emitido": "Not issued", "Cancelado": "Cancelled", "Outros": "Others",
+  "dias": "days", "semanas": "weeks", "Clique para ver a história do documento": "Click to see the document story",
+  "Emitido no prazo": "Issued on time", "Emitido com atraso": "Issued late", "Pendente no prazo": "Pending on time", "Pendente vencido": "Pending overdue",
+  "Nenhum documento com estes filtros.": "No documents with these filters.",
+  "Documento novo no Aconex": "New document in Aconex", "Fora do eixo": "Off the axis",
+  "Os não emitidos entram com uma linha só, como no Histórico Consolidado: o atraso da CMI corre desde a data-alvo.": "Not-issued documents get a single row, as in the Consolidated History: the CMI delay runs from the target date.",
+  "mediana": "median", "Prevista": "Planned", "Reprogramada": "Rescheduled", "Hoje": "Today", "Até hoje": "Up to today",
+  "O ponto de hoje no gráfico soma o período inteiro.": "Today's point on the chart adds up the whole period.",
+  "TEXTO_RESUMO": "TEXTO_RESUMO",
+};
+const EN_ST = {
+  "Aprovado": "Approved", "Aprovado com Comentários": "Approved with comments", "Para Assinatura": "For signature", "Informativo": "Informative",
+  "Em Processo": "In process", "Não Aprovado": "Not approved", "NÃO EMITIDO": "Not issued", "Cancelado": "Cancelled",
+  "APROVADO": "APPROVED", "APROVAÇÃO INTERMEDIÁRIA": "INTERMEDIATE APPROVAL", "EM PROCESSO": "IN PROCESS", "NÃO APROVADO": "NOT APPROVED",
+  "CANCELADO": "CANCELLED", "EMITIDO NO PRAZO": "ISSUED ON TIME", "EMITIDO COM ATRASO": "ISSUED LATE", "PENDENTE NO PRAZO": "PENDING ON TIME",
+  "PENDENTE VENCIDO": "PENDING OVERDUE", "SEM PLANEJAMENTO": "NO PLAN DATE", "FABRICAÇÃO": "MANUFACTURING", "EXECUTIVO": "DETAILED DESIGN",
+  "EXECUÇÃO": "EXECUTION", "1ª emissão": "1st issue", "Reemissão": "Reissue", "Emissão final": "Final issue", "Para Informação": "For information",
+};
+const T = s => LANG === "en" ? (EN[s] ?? s) : s;
+const TS = s => LANG === "en" ? (EN_ST[s] ?? s) : s === "NÃO EMITIDO" ? "Não emitido" : s;
+const TC = s => LANG === "en" ? (EN_ST[s] ?? s) : s;   // rótulos do consolidado e das situações ficam em maiúsculas
+
+// =====================================================================
+// Utilidades
+// =====================================================================
+const dt = s => { if (!s) return null; const [y, m, d] = String(s).slice(0, 10).split("-").map(Number); return new Date(y, m - 1, d); };
+const MESES = { pt: ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"], en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] };
+const p2 = n => String(n).padStart(2, "0");
+const fmt = d => d ? (LANG === "en" ? `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` : `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()}`) : "—";
+const nf = n => (n ?? 0).toLocaleString(LANG === "en" ? "en-US" : "pt-BR");
+const dec = (v, c = 1) => v == null || isNaN(v) ? "—" : v.toFixed(c).replace(".", LANG === "en" ? "." : ",");
+const pct = (a, b) => b ? `${dec(100 * a / b)}%` : "—";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const diasEntre = (a, b) => Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5);
+const somaDias = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const contar = arr => arr.reduce((m, k) => (m[k] = (m[k] || 0) + 1, m), {});
+const unicos = arr => [...new Set(arr)];
+const mediana = arr => { if (!arr.length) return null; const s = [...arr].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const media = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+const sinal = n => n > 0 ? `+${nf(n)}` : n < 0 ? `−${nf(-n)}` : "0";
+
+// =====================================================================
+// Dados (vêm prontos do DocManager; aqui só se filtra, conta e desenha)
+// =====================================================================
+const HOJE = dt(D.meta.hoje);
+const DOCS = D.docs.map((a, i) => ({
+  i, cod: a[0], cmi: a[1], codAtual: a[2], desc: a[3], prev: dt(a[4]), rep: dt(a[5]), alvo: dt(a[6]), e1: dt(a[7]), ult: dt(a[8]),
+  rev: a[9], st: a[10], stb: a[11], cons: a[12], com: a[13], sit: a[14], otd: a[15], sd: a[16], bl: !!a[17], dsv: a[18], acx: !!a[19],
+  tl: a[20].map(([d, s]) => [dt(d), s]),
+  revs: a[21].map(r => ({ rev: r[0], tipo: r[1], env: dt(r[2]), ret: dt(r[3]), stRet: r[4], dIt: r[5], aIt: r[6], dCmi: r[7], aCmi: r[8], sla: r[9] })),
+  assoc: [],
+}));
+const ASSOC = D.assoc.map(a => ({ doc: a[0], grupo: a[1] || "—", sistema: a[2] || "—", fase: a[3] || "—", resp: a[4] || "—", escopo: a[5], codGrupo: a[6], linha: a[7] }));
+ASSOC.forEach(a => DOCS[a.doc].assoc.push(a));
+DOCS.forEach(d => {
+  const a = d.assoc[0] || {};
+  d.grupo = a.grupo; d.sistema = a.sistema; d.fase = a.fase; d.resp = a.resp; d.escopo = a.escopo; d.linha = a.linha;
+  d.sistemas = unicos(d.assoc.map(x => x.sistema));
+  d.revs.forEach((r, k) => { r.doc = d; r.ordem = k; });
+});
+const GRUPOS1 = D.grupos.map(g => ({ codigo: g[0], grupo: g[1], sistema: g[2], fase: g[3], linha: g[4], escopo: g[5] }));
+
+const ST_ORDEM = ["Aprovado", "Aprovado com Comentários", "Para Assinatura", "Informativo", "Em Processo", "Não Aprovado", "NÃO EMITIDO", "Cancelado"];
+const ST_COR = { "Aprovado": "#1e8e3e", "Aprovado com Comentários": "#7cb342", "Para Assinatura": "#1a73e8", "Informativo": "#00897b",
+  "Em Processo": "#f9a825", "Não Aprovado": "#d93025", "NÃO EMITIDO": "#9aa0a6", "Cancelado": "#5f6368" };
+const APROV = new Set(["Aprovado", "Aprovado com Comentários", "Para Assinatura", "Informativo", "For Partial Handover"]);
+const CONS_ORDEM = ["APROVADO", "APROVAÇÃO INTERMEDIÁRIA", "EM PROCESSO", "NÃO APROVADO", "NÃO EMITIDO", "CANCELADO"];
+const CONS_COR = { "APROVADO": "#1e8e3e", "APROVAÇÃO INTERMEDIÁRIA": "#8e24aa", "EM PROCESSO": "#f9a825", "NÃO APROVADO": "#d93025",
+  "NÃO EMITIDO": "#9aa0a6", "CANCELADO": "#5f6368", "ERRO": "#6d4c41" };
+const SIT_ORDEM = ["EMITIDO NO PRAZO", "EMITIDO COM ATRASO", "PENDENTE NO PRAZO", "PENDENTE VENCIDO"];
+const SIT_COR = { "EMITIDO NO PRAZO": "#1e8e3e", "EMITIDO COM ATRASO": "#fb8c00", "PENDENTE NO PRAZO": "#1a73e8", "PENDENTE VENCIDO": "#d93025",
+  "SEM PLANEJAMENTO": "#9aa0a6", "CANCELADO": "#5f6368" };
+const TIPO_ORDEM = ["1ª emissão", "Reemissão", "Emissão final"];
+const TIPO_COR = { "1ª emissão": "#1a73e8", "Reemissão": "#fb8c00", "Emissão final": "#1e8e3e" };
+const RET_ORDEM = ["Aprovado", "Aprovado com Comentários", "Para Assinatura", "Informativo", "Não Aprovado"];
+const corSt = s => ST_COR[s] || "#8d6e63";
+const corCons = s => CONS_COR[s] || "#8d6e63";
+const stGrupo = s => ST_COR[s] ? s : "Outros";
+const ehAprov = s => APROV.has(s);
+const cancelado = d => d.cons === "CANCELADO" || d.st === "Cancelado";
+
+// Status real de um documento numa data passada, pela linha do tempo do Aconex.
+function statusEm(d, data) {
+  let s = "NÃO EMITIDO";
+  for (const [dd, st] of d.tl) { if (dd <= data) s = st; else break; }
+  return s;
+}
+const fimDoDia = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+
+// =====================================================================
+// Filtros encadeados (as opções de cada um são as que existem dentro dos outros)
+// =====================================================================
+const FILTROS = [
+  { k: "grupo", nivel: "linha", rot: "Grupo" }, { k: "sistema", nivel: "linha", rot: "Sistema" }, { k: "escopo", nivel: "linha", rot: "Escopo" },
+  { k: "fase", nivel: "linha", rot: "Fase" }, { k: "resp", nivel: "linha", rot: "Responsável" },
+  { k: "st", nivel: "doc", rot: "Status real" }, { k: "com", nivel: "doc", rot: "Com quem está" }, { k: "sit", nivel: "doc", rot: "Situação emissão" },
+];
+const F = {};
+const valorDoc = (d, k) => k === "st" ? d.st : k === "com" ? d.com : d.sit;
+const linhaOk = (a, exceto) => FILTROS.every(f => f.nivel !== "linha" || f.k === exceto || !F[f.k] || a[f.k] === F[f.k]);
+const docNivelOk = (d, exceto) => FILTROS.every(f => f.nivel !== "doc" || f.k === exceto || !F[f.k] || valorDoc(d, f.k) === F[f.k]);
+const docOk = (d, exceto) => docNivelOk(d, exceto) && d.assoc.some(a => linhaOk(a, exceto));
+const filtrados = () => DOCS.filter(d => docOk(d));
+const linhasFiltradas = () => ASSOC.filter(a => linhaOk(a) && docNivelOk(DOCS[a.doc]));
+
+function pintarFiltros() {
+  const box = document.getElementById("filtros");
+  const ativos = FILTROS.filter(f => F[f.k]);
+  const opcoes = f => {
+    const vals = f.nivel === "linha"
+      ? ASSOC.filter(a => linhaOk(a, f.k) && docNivelOk(DOCS[a.doc], f.k)).map(a => a[f.k])
+      : DOCS.filter(d => docOk(d, f.k)).map(d => valorDoc(d, f.k));
+    const v = unicos(vals.filter(Boolean)).sort((a, b) => a.localeCompare(b, "pt"));
+    if (F[f.k] && !v.includes(F[f.k])) v.unshift(F[f.k]);
+    return v;
+  };
+  const docs = filtrados(), linhas = linhasFiltradas();
+  box.innerHTML = `<div class="fgrid">${FILTROS.map(f => `<label>${T(f.rot)}<select data-f="${f.k}"${F[f.k] ? ' class="on"' : ""}>` +
+    `<option value="">${T("Todos")}</option>${opcoes(f).map(v => `<option value="${esc(v)}"${v === F[f.k] ? " selected" : ""}>${esc(TS(v))}</option>`).join("")}</select></label>`).join("")}</div>` +
+    `<div class="fbar"><span><b>${nf(docs.length)}</b> ${T("documentos únicos")} · ${nf(linhas.length)} ${T("associações (linhas)")}` +
+    `${ativos.length ? ` · <b>${ativos.length} ${T("filtro(s) ativo(s)")}</b>` : ""}</span>` +
+    `${ativos.length ? `<button class="limpar" id="limpar">${T("Limpar filtros")}</button>` : ""}</div>`;
+  box.querySelectorAll("select").forEach(s => s.onchange = () => { if (s.value) F[s.dataset.f] = s.value; else delete F[s.dataset.f]; pintar(); });
+  const l = document.getElementById("limpar"); if (l) l.onclick = () => { FILTROS.forEach(f => delete F[f.k]); pintar(); };
+}
+
+// =====================================================================
+// Gráficos
+// =====================================================================
+Chart.register(ChartDataLabels);
+Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
+Chart.defaults.font.size = 14;
+Chart.defaults.color = "#37474f";
+Chart.defaults.plugins.datalabels.display = false;
+Chart.defaults.plugins.legend.labels.boxWidth = 14;
+Chart.defaults.maintainAspectRatio = false;
+// Sem animação: cada filtro redesenha tudo na hora, e a impressão sai completa.
+Chart.defaults.animation = false;
+const GR = {};
+function grafico(id, cfg) {
+  if (GR[id]) { GR[id].destroy(); delete GR[id]; }
+  const el = document.getElementById(id);
+  if (!el) return null;
+  GR[id] = new Chart(el, cfg);
+  return GR[id];
+}
+const cursor = (e, el) => { e.native.target.style.cursor = el.length ? "pointer" : "default"; };
+// Linha vertical de "hoje" num eixo de categorias (opção plugins.linhaHoje.indice).
+Chart.register({ id: "linhaHoje", afterDatasetsDraw(ch, _a, o) {
+  if (!o || o.indice == null || o.indice < 0) return;
+  const x = ch.scales.x.getPixelForValue(o.indice), { top, bottom } = ch.chartArea, ctx = ch.ctx;
+  ctx.save(); ctx.strokeStyle = "#455a64"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#455a64"; ctx.font = "700 12px 'Segoe UI', Arial"; ctx.fillText(T("hoje"), x + 4, top + 12); ctx.restore();
+} });
+const eixoCat = (extra = {}) => ({ grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 10 }, ...extra });
+const eixoVal = (extra = {}) => ({ beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#e6ebee" }, ...extra });
+
+// Períodos (dia, semana, mês, trimestre, ano) para os gráficos no tempo.
+function chavePeriodo(d, g) {
+  if (g === "dia") return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  if (g === "semana") { const s = somaDias(d, -((d.getDay() + 6) % 7)); return `${s.getFullYear()}-${p2(s.getMonth() + 1)}-${p2(s.getDate())}`; }
+  if (g === "trimestre") return `${d.getFullYear()}-T${Math.floor(d.getMonth() / 3) + 1}`;
+  if (g === "ano") return `${d.getFullYear()}`;
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}`;
+}
+function periodos(ini, fim, g) {      // lista de {chave, rotulo, fim}
+  const out = [];
+  let d = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate());
+  if (g === "semana") d = somaDias(d, -((d.getDay() + 6) % 7));
+  else if (g === "mes") d = new Date(d.getFullYear(), d.getMonth(), 1);
+  else if (g === "trimestre") d = new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1);
+  else if (g === "ano") d = new Date(d.getFullYear(), 0, 1);
+  while (d <= fim && out.length < 2000) {
+    let prox, rot;
+    if (g === "dia") { prox = somaDias(d, 1); rot = `${p2(d.getDate())}/${p2(d.getMonth() + 1)}`; }
+    else if (g === "semana") { prox = somaDias(d, 7); rot = `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`; }
+    else if (g === "mes") { prox = new Date(d.getFullYear(), d.getMonth() + 1, 1); rot = `${MESES[LANG][d.getMonth()]}/${String(d.getFullYear()).slice(2)}`; }
+    else if (g === "trimestre") { prox = new Date(d.getFullYear(), d.getMonth() + 3, 1); rot = `T${Math.floor(d.getMonth() / 3) + 1}/${String(d.getFullYear()).slice(2)}`; }
+    else { prox = new Date(d.getFullYear() + 1, 0, 1); rot = String(d.getFullYear()); }
+    out.push({ chave: chavePeriodo(d, g), rotulo: rot, ini: d, fim: somaDias(prox, -1) });
+    d = prox;
+  }
+  return out;
+}
+const indiceHoje = ps => ps.findIndex(p => p.ini <= HOJE && HOJE <= p.fim);
+
+// =====================================================================
+// Lista de documentos (detalhe) com busca e exportação para Excel
+// =====================================================================
+let DET = null;
+const COLS_DOC = () => [
+  [T("Nº ITAIPU"), d => d.cod, "cod"], [T("Nº CMI"), d => d.cmi, "cod"], [T("Descrição"), d => d.desc, "desc"],
+  [T("Grupo"), d => d.grupo], [T("Sistemas"), d => d.sistemas.join(" | ")], [T("Escopo"), d => d.escopo], [T("Fase"), d => TS(d.fase)],
+  [T("Responsável"), d => d.resp], [T("Status real"), d => d.st, "st"], [T("Status consolidado"), d => d.cons, "cons"],
+  [T("Com quem está"), d => d.com], [T("Situação emissão"), d => d.sit, "sit"], [T("Situação OTD"), d => d.otd, "sit"],
+  [T("Situação say-do"), d => d.sd, "sit"], [T("Data prevista"), d => d.prev, "data"], [T("Data reprogramada"), d => d.rep, "data"],
+  [T("Data-alvo"), d => d.alvo, "data"], [T("1ª emissão (data)"), d => d.e1, "data"], [T("Última emissão"), d => d.ult, "data"],
+  [T("Rev."), d => d.rev], [T("Desvio (dias)"), d => d.dsv, "num"], [T("Linha"), d => d.linha, "num"],
+];
+const COLS_REV = () => [
+  [T("Nº ITAIPU"), r => r.doc.cod, "cod"], [T("Descrição"), r => r.doc.desc, "desc"], [T("Grupo"), r => r.doc.grupo], [T("Sistema"), r => r.doc.sistema],
+  [T("Fase"), r => TS(r.doc.fase)], [T("Revisão"), r => r.rev], [T("Tipo"), r => TS(r.tipo || ""), "tipo"], [T("Data de envio"), r => r.env, "data"],
+  [T("Data de retorno"), r => r.ret, "data"], [T("Status do retorno"), r => r.stRet, "st"], [T("SLA"), r => r.sla, "num"],
+  [T("Dias Itaipu"), r => r.dIt, "num"], [T("Atraso Itaipu"), r => r.aIt, "num"], [T("Dias CMI"), r => r.dCmi, "num"], [T("Atraso CMI"), r => r.aCmi, "num"],
+];
+function chip(v, cor) { return v ? `<span class="chip${cor === "#f9a825" || cor === "#fab219" ? " claro" : ""}" style="background:${cor}">${esc(TS(v))}</span>` : "—"; }
+function celula(v, k) {
+  if (k === "data") return `<td class="data">${v ? fmt(v) : "—"}</td>`;
+  if (k === "num") return `<td class="num">${v == null || v === "" ? "—" : esc(v)}</td>`;
+  if (k === "st") return `<td>${chip(v, corSt(v))}</td>`;
+  if (k === "cons") return `<td>${chip(v, corCons(v))}</td>`;
+  if (k === "sit") return `<td>${v ? chip(v, SIT_COR[v] || "#9aa0a6") : "—"}</td>`;
+  if (k === "tipo") return `<td>${v ? chip(v, TIPO_COR[DET && DET.tipoOrig ? DET.tipoOrig : v] || "#607d8b") : "—"}</td>`;
+  return `<td class="${k || ""}">${esc(v) || "—"}</td>`;
+}
+function abrirDocs(titulo, docs) { DET = { titulo, tipo: "docs", linhas: docs }; document.getElementById("det-q").value = ""; pintarDet(true); }
+function abrirRevs(titulo, revs) { DET = { titulo, tipo: "revs", linhas: revs }; document.getElementById("det-q").value = ""; pintarDet(true); }
+function linhasDet() {
+  const cols = DET.tipo === "docs" ? COLS_DOC() : COLS_REV(), q = norm(document.getElementById("det-q").value);
+  if (!q) return DET.linhas;
+  return DET.linhas.filter(x => norm(cols.map(([, f, k]) => { const v = f(x); return k === "data" ? fmt(v) : v; }).join(" ")).includes(q));
+}
+function pintarDet(rolar) {
+  if (!DET) return;
+  const box = document.getElementById("det"), cols = DET.tipo === "docs" ? COLS_DOC() : COLS_REV(), linhas = linhasDet();
+  document.getElementById("det-tit").textContent = `${DET.titulo} (${nf(DET.linhas.length)} ${DET.tipo === "docs" ? T("documentos") : T("linhas")})`;
+  document.getElementById("det-q").placeholder = T("Buscar…");
+  document.getElementById("det-exp").textContent = "📥 " + T("Exportar Excel");
+  document.getElementById("det-x").textContent = "✕ " + T("Fechar");
+  const max = 1500;
+  document.getElementById("det-t").innerHTML = `<thead><tr>${cols.map(([h]) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>` +
+    linhas.slice(0, max).map((x, i) => `<tr class="clic" data-i="${i}" title="${esc(T("Clique para ver a história do documento"))}">${cols.map(([, f, k]) => celula(f(x), k)).join("")}</tr>`).join("") + "</tbody>";
+  document.getElementById("det-mais").textContent = linhas.length > max ? `${T("mostrando as primeiras")} ${nf(max)} ${T("linhas")}` : "";
+  document.querySelectorAll("#det-t tr.clic").forEach(tr => tr.onclick = () => { const x = linhas[+tr.dataset.i]; abrirHistoria(DET.tipo === "docs" ? x : x.doc); });
+  box.hidden = false;
+  if (rolar) box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+document.getElementById("det-q").oninput = () => pintarDet(false);
+document.getElementById("det-x").onclick = () => { document.getElementById("det").hidden = true; DET = null; };
+document.getElementById("det-exp").onclick = () => {
+  if (!DET) return;
+  const cols = DET.tipo === "docs" ? COLS_DOC() : COLS_REV(), linhas = linhasDet();
+  const dados = linhas.map(x => cols.map(([, f, k]) => { const v = f(x); return k === "st" || k === "cons" || k === "sit" ? TS(v ?? "") : v; }));
+  const nome = `UG_${norm(DET.titulo).replace(/[^a-z0-9]+/g, "_").slice(0, 50)}.xlsx`;
+  baixar(xlsx(DET.titulo, cols.map(c => c[0]), dados), nome);
+};
+
+// Excel (.xlsx) mínimo, escrito aqui mesmo: uma aba, cabeçalho com filtro, datas como data.
+function crc32(bytes) {
+  let c, crc = 0xFFFFFFFF;
+  for (let n = 0; n < bytes.length; n++) { c = (crc ^ bytes[n]) & 0xFF; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; crc = (crc >>> 8) ^ c; }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function zip(arquivos) {          // [{nome, texto}] → Blob (sem compressão)
+  const enc = new TextEncoder(), partes = [], central = [];
+  let pos = 0;
+  const u16 = n => [n & 255, (n >> 8) & 255], u32 = n => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+  for (const a of arquivos) {
+    const nome = enc.encode(a.nome), dados = enc.encode(a.texto), crc = crc32(dados);
+    const cab = [...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(dados.length), ...u32(dados.length), ...u16(nome.length), ...u16(0)];
+    partes.push(new Uint8Array(cab), nome, dados);
+    central.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(dados.length), ...u32(dados.length), ...u16(nome.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(pos)]), nome);
+    pos += cab.length + nome.length + dados.length;
+  }
+  const tamCentral = central.reduce((s, p) => s + p.length, 0);
+  const fim = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(arquivos.length), ...u16(arquivos.length), ...u32(tamCentral), ...u32(pos), ...u16(0)]);
+  return new Blob([...partes, ...central, fim], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+function xlsx(titulo, cab, linhas) {
+  const x = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+  const col = i => { let s = ""; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+  const serial = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5;
+  const cel = (v, ref, est) => {
+    if (v == null || v === "") return "";
+    if (v instanceof Date) return `<c r="${ref}" s="1"><v>${serial(v)}</v></c>`;
+    if (typeof v === "number") return `<c r="${ref}"${est ? ` s="${est}"` : ""}><v>${v}</v></c>`;
+    return `<c r="${ref}" t="inlineStr"${est ? ` s="${est}"` : ""}><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+  };
+  const larg = cab.map((h, i) => Math.min(60, Math.max(10, String(h).length + 2, ...linhas.slice(0, 200).map(l => l[i] instanceof Date ? 11 : String(l[i] ?? "").length + 2))));
+  const ult = col(cab.length - 1);
+  const linhasXml = [`<row r="1">${cab.map((h, i) => cel(h, `${col(i)}1`, 2)).join("")}</row>`,
+    ...linhas.map((l, j) => `<row r="${j + 2}">${l.map((v, i) => cel(v, `${col(i)}${j + 2}`)).join("")}</row>`)].join("");
+  const aba = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${larg.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${linhasXml}</sheetData><autoFilter ref="A1:${ult}${linhas.length + 1}"/></worksheet>`;
+  const nomeAba = x(String(titulo).replace(/[\\/?*[\]:]/g, " ").slice(0, 31) || "Lista");
+  return zip([
+    { nome: "[Content_Types].xml", texto: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` },
+    { nome: "_rels/.rels", texto: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { nome: "xl/workbook.xml", texto: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${nomeAba}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${nomeAba.replace(/'/g, "''")}'!$A$1:$${ult}$${linhas.length + 1}</definedName></definedNames></workbook>` },
+    { nome: "xl/_rels/workbook.xml.rels", texto: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+    { nome: "xl/styles.xml", texto: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Segoe UI"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Segoe UI"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF00695C"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>` },
+    { nome: "xl/worksheets/sheet1.xml", texto: aba },
+  ]);
+}
+function baixar(blob, nome) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+// =====================================================================
+// Abas
+// =====================================================================
+const ABAS = [["geral", "📋 ", "Visão geral"], ["emissoes", "📅 ", "Emissões"], ["progresso", "📈 ", "Progresso"],
+  ["esforco", "🛠️ ", "Esforço da engenharia"], ["historico", "🕓 ", "Histórico de revisões"]];
+let ABA = "geral";
+function pintarCabecalho() {
+  document.documentElement.lang = LANG === "en" ? "en" : "pt-BR";
+  document.getElementById("titulo").textContent = T("Documentos – Unidade Geradora");
+  document.getElementById("btnIdioma").textContent = "🌐 " + (LANG === "en" ? T("Português") : T("English"));
+  const m = D.meta;
+  document.getElementById("fonte").innerHTML = `${T("Base Aconex")}: <b>${esc(m.base)}</b> (${T("último evento")} ${fmt(dt(m.ultimoEvento))}) · ` +
+    `${T("Doc List")}: <b>${esc(m.docList)}</b>, ${T("aba")} ${esc(m.aba)}`;
+  document.getElementById("rodape").textContent = `${T("Gerado em")} ${m.geradoEm} ${T("pelo DocManager")} ${m.versao}`;
+  document.getElementById("tabs").innerHTML = ABAS.map(([k, ico, rot]) => `<button class="tab${k === ABA ? " activo" : ""}" data-k="${k}">${ico}${T(rot)}</button>`).join("");
+  document.querySelectorAll("#tabs .tab").forEach(b => b.onclick = () => { ABA = b.dataset.k; pintar(); });
+}
+document.getElementById("btnIdioma").onclick = () => { LANG = LANG === "en" ? "pt" : "en"; pintar(); };
+
+function pintar() {
+  pintarCabecalho();
+  pintarFiltros();
+  const docs = filtrados();
+  const aba = document.getElementById("aba");
+  Object.keys(GR).forEach(k => { GR[k].destroy(); delete GR[k]; });
+  if (!docs.length) { aba.innerHTML = `<div class="vazio">${T("Nenhum documento com estes filtros.")}</div>`; return; }
+  ({ geral: pintarGeral, emissoes: pintarEmissoes, progresso: pintarProgresso, esforco: pintarEsforco, historico: pintarHistorico })[ABA](aba, docs);
+  if (DET) pintarDet(false);
+}
+
+// ---------------------------------------------------------------------
+// KPI genérico: [título, valor, cor, docs (ou null), subtítulo, classe]
+// ---------------------------------------------------------------------
+function pintarKpis(id, kp, onClick) {
+  const box = document.getElementById(id);
+  box.innerHTML = kp.map(([t, v, c, alvo, sub, cls], i) => `<div class="kpi${alvo ? "" : " nohand"}${cls ? " " + cls : ""}" data-i="${i}" style="border-top-color:${c}">` +
+    `<div class="kt">${t}</div><div class="kv" style="color:${c}">${v}</div><div class="kp">${sub || ""}</div></div>`).join("");
+  box.querySelectorAll(".kpi").forEach(el => el.onclick = () => { const k = kp[+el.dataset.i]; if (k[3]) (onClick || abrirDocs)(k[0].replace(/<[^>]+>/g, ""), k[3]); });
+}
+
+// =====================================================================
+// 1 · Visão geral: o retrato de hoje (as visões da 1ª página do Power BI)
+// =====================================================================
+function pintarGeral(aba, docs) {
+  aba.innerHTML = `
+    <div class="card"><div class="arv-head"><h3>${T("Fluxo dos documentos")} <small>${T("clique em um quadro para ver os documentos")}</small></h3><div class="indicador" id="ind-aprov"></div></div><div class="arv" id="arvore"></div></div>
+    <div class="kpis" id="kpis-geral"></div>
+    <div class="fila2">
+      <div class="card"><h3>${T("Documentação geral")} <small>${T("status real · clique em uma barra para ver os documentos")}</small></h3><div class="caixa" id="cx-st"><canvas id="g-st"></canvas></div></div>
+      <div class="card"><h3>${T("Com quem está o documento")}</h3><div class="caixa" style="height:330px"><canvas id="g-com"></canvas></div></div>
+    </div>
+    <div class="fila-pizzas">
+      <div class="card"><h3>${T("Documentos de fabricação")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-fab"></canvas></div></div>
+      <div class="card"><h3>${T("Documentos executivos")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-exe"></canvas></div></div>
+      <div class="card"><h3>${T("Documentos de execução (planos)")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-pln"></canvas></div></div>
+      <div class="card"><h3>${T("Documentos por escopo")} <small>${T("por grupo")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-esc"></canvas></div></div>
+    </div>
+    <div class="card"><h3>${T("Documentos por grupo e status")} <small>${T("um código conta uma vez · clique para listar")}</small></h3><div class="caixa" id="cx-grp"><canvas id="g-grp"></canvas></div></div>
+    <div class="card"><h3>${T("Documentos por sistema")}</h3><p class="nota" style="margin:0 0 10px">${T("Um documento pode pertencer a vários sistemas: os números por sistema não somam o total. Clique em uma linha para listar.")}</p><div class="tabela-wrap" style="max-height:420px"><table id="t-sis"></table></div></div>
+    <div class="card"><h3>${T("Qualidade dos dados")} <small>${T("incidências da planilha de origem · nada é corrigido automaticamente")}</small></h3><div id="qualidade"></div></div>`;
+  const n = docs.length, por = s => docs.filter(d => d.st === s);
+  const emit = docs.filter(d => d.st !== "NÃO EMITIDO" && !cancelado(d)), nemit = docs.filter(d => d.st === "NÃO EMITIDO");
+  const aprov = docs.filter(d => ehAprov(d.st));
+  // Indicador e árvore
+  document.getElementById("ind-aprov").innerHTML = `<div class="fn">${T("Aprovação total atual")} (${fmt(HOJE)})</div><div class="fd">${pct(aprov.length, n)}</div><small>${nf(aprov.length)} ${T("documentos")} · ${T("Aprov. + com coment. + para assinatura + informativo")}</small>`;
+  const folhaSt = s => ({ t: TS(s), docs: por(s), c: corSt(s), folha: true });
+  const arvore = { t: T("Documentos"), docs, c: "#37474f", raiz: true, filhos: [
+    { t: T("Emitidos"), docs: emit, c: "#00897b", filhos: [
+      { t: T("Aprovados"), docs: aprov, c: "#1e8e3e", filhos: ["Aprovado", "Aprovado com Comentários", "Para Assinatura", "Informativo"].map(folhaSt).filter(f => f.docs.length) },
+      { t: `${T("Em processo")} · ${T("Com a Itaipu")}`, docs: por("Em Processo"), c: "#f9a825" },
+      { t: `${T("Não aprovados")} · ${T("Com a CMI (reemitir)")}`, docs: por("Não Aprovado"), c: "#d93025" }] },
+    { t: T("Não emitidos"), docs: nemit, c: "#9aa0a6", filhos: [
+      { t: T("Pendentes no prazo"), docs: nemit.filter(d => d.sit === "PENDENTE NO PRAZO"), c: "#1a73e8", folha: true },
+      { t: T("Pendentes vencidos"), docs: nemit.filter(d => d.sit === "PENDENTE VENCIDO"), c: "#d93025", folha: true },
+      { t: T("Sem planejamento"), docs: nemit.filter(d => d.sit === "SEM PLANEJAMENTO" || !d.alvo), c: "#78909c", folha: true }].filter(f => f.docs.length) },
+    { t: T("Cancelados"), docs: docs.filter(cancelado), c: "#5f6368" }].filter(f => f.docs.length) };
+  pintarArvore(document.getElementById("arvore"), arvore, n);
+  // KPIs (status real, como nas etapas do RTA)
+  pintarKpis("kpis-geral", [
+    [T("Documentos"), nf(n), "#37474f", docs, ""],
+    [T("Aprovados"), nf(por("Aprovado").length), ST_COR["Aprovado"], por("Aprovado"), pct(por("Aprovado").length, n)],
+    [T("Com comentários"), nf(por("Aprovado com Comentários").length), ST_COR["Aprovado com Comentários"], por("Aprovado com Comentários"), pct(por("Aprovado com Comentários").length, n)],
+    [T("Para assinatura"), nf(por("Para Assinatura").length), ST_COR["Para Assinatura"], por("Para Assinatura"), pct(por("Para Assinatura").length, n)],
+    [T("Em processo"), nf(por("Em Processo").length), ST_COR["Em Processo"], por("Em Processo"), pct(por("Em Processo").length, n)],
+    [T("Não aprovados"), nf(por("Não Aprovado").length), ST_COR["Não Aprovado"], por("Não Aprovado"), pct(por("Não Aprovado").length, n)],
+    [T("Não emitidos"), nf(nemit.length), ST_COR["NÃO EMITIDO"], nemit, pct(nemit.length, n)],
+    [T("% aprovação total"), pct(aprov.length, n), "#0b5394", aprov, `${nf(aprov.length)} ${T("documentos")}<br><small>${T("Aprov. + com coment. + para assinatura + informativo")}</small>`, "total"],
+  ]);
+  // Documentação geral (status real)
+  const cs = contar(docs.map(d => stGrupo(d.st)));
+  const sts = [...ST_ORDEM, "Outros"].filter(s => cs[s]).sort((a, b) => cs[b] - cs[a]);
+  const grupoSt = s => s === "Outros" ? docs.filter(d => stGrupo(d.st) === "Outros") : por(s);
+  document.getElementById("cx-st").style.height = Math.max(260, sts.length * 48 + 50) + "px";
+  grafico("g-st", { type: "bar", data: { labels: sts.map(TS), datasets: [{ data: sts.map(s => cs[s]), backgroundColor: sts.map(s => ST_COR[s] || "#8d6e63"), borderRadius: 6 }] },
+    options: { indexAxis: "y", layout: { padding: { right: 110 } }, plugins: { legend: { display: false },
+        datalabels: { display: true, anchor: "end", align: "end", font: { size: 15, weight: "bold" }, formatter: v => `${nf(v)}  (${pct(v, n)})` } },
+      scales: { y: { grid: { display: false }, ticks: { font: { size: 15, weight: "600" } } }, x: eixoVal() }, onHover: cursor,
+      onClick: (e, el) => { if (el.length) abrirDocs(`${T("Status real")}: ${TS(sts[el[0].index])}`, grupoSt(sts[el[0].index])); } } });
+  // Com quem está
+  const coms = unicos(docs.map(d => d.com || "—")), comG = coms.map(c => docs.filter(d => (d.com || "—") === c));
+  pizza("g-com", coms, comG, coms.map(c => c === "ITAIPU" ? "#00897b" : c === "CMI" ? "#3949ab" : "#9aa0a6"), T("Com quem está"), true);
+  // Pizzas por fase (status consolidado) e por escopo
+  const pizzaCons = (id, fase) => {
+    const ds = docs.filter(d => d.assoc.some(a => a.fase === fase && linhaOk(a)));
+    const cats = CONS_ORDEM.filter(c => ds.some(d => d.cons === c)).concat(unicos(ds.map(d => d.cons)).filter(c => !CONS_ORDEM.includes(c)));
+    pizza(id, cats, cats.map(c => ds.filter(d => d.cons === c)), cats.map(corCons), `${T("Fase")}: ${TS(fase)}`, false, TC);
+  };
+  pizzaCons("g-fab", "FABRICAÇÃO"); pizzaCons("g-exe", "EXECUTIVO"); pizzaCons("g-pln", "EXECUÇÃO");
+  const grs = unicos(docs.map(d => d.grupo)).sort((a, b) => docs.filter(d => d.grupo === b).length - docs.filter(d => d.grupo === a).length);
+  const PAL = ["#00897b", "#3949ab", "#fb8c00", "#8e24aa", "#1a73e8", "#e53935", "#7cb342", "#6d4c41", "#00acc1", "#c0ca33", "#5e35b1", "#f06292"];
+  pizza("g-esc", grs, grs.map(g => docs.filter(d => d.grupo === g)), grs.map((g, i) => PAL[i % PAL.length]), T("Grupo"));
+  // Grupo × status consolidado
+  const cats = CONS_ORDEM.filter(c => docs.some(d => d.cons === c));
+  document.getElementById("cx-grp").style.height = Math.max(240, grs.length * 40 + 70) + "px";
+  grafico("g-grp", { type: "bar", data: { labels: grs, datasets: cats.map(c => ({ label: TC(c), data: grs.map(g => docs.filter(d => d.grupo === g && d.cons === c).length), backgroundColor: corCons(c), stack: "s" })) },
+    options: { indexAxis: "y", layout: { padding: { right: 40 } }, plugins: { legend: { position: "top" }, tooltip: { mode: "index", intersect: false },
+        datalabels: { display: c => c.dataset.data[c.dataIndex] >= 5, color: "#fff", font: { weight: "bold", size: 12 } } },
+      scales: { x: eixoVal({ stacked: true }), y: { stacked: true, grid: { display: false }, ticks: { font: { size: 14, weight: "600" } } } }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const g = grs[el[0].index], c = cats[el[0].datasetIndex]; abrirDocs(`${g} · ${TS(c)}`, docs.filter(d => d.grupo === g && d.cons === c)); } } });
+  // Tabela por sistema (não aditiva)
+  const lf = linhasFiltradas(), sisList = unicos(lf.map(a => a.sistema));
+  const linhasSis = sisList.map(s => {
+    const ds = unicos(lf.filter(a => a.sistema === s).map(a => a.doc)).map(i => DOCS[i]);
+    const c = st => ds.filter(d => d.st === st).length;
+    return { s, ds, n: ds.length, ap: ds.filter(d => ehAprov(d.st)).length, ep: c("Em Processo"), na: c("Não Aprovado"), ne: c("NÃO EMITIDO"),
+      v: ds.filter(d => d.sit === "PENDENTE VENCIDO").length, sh: ds.filter(d => d.sistemas.length > 1).length };
+  }).sort((a, b) => b.n - a.n || a.s.localeCompare(b.s));
+  const tb = document.getElementById("t-sis");
+  tb.innerHTML = `<thead><tr><th>${T("Sistema")}</th><th>${T("Documentos")}</th><th>${T("Aprovados")}</th><th>${T("Em processo")}</th><th>${T("Não aprovados")}</th><th>${T("Não emitidos")}</th><th>${T("Pend. vencidos")}</th><th>${T("Compartilhados")}</th></tr></thead><tbody>` +
+    linhasSis.map((l, i) => `<tr class="clic" data-i="${i}"><td><b>${esc(l.s)}</b></td><td class="num">${l.n}</td><td class="num">${l.ap}</td><td class="num">${l.ep}</td><td class="num">${l.na}</td><td class="num">${l.ne}</td><td class="num">${l.v || "—"}</td><td class="num">${l.sh || "—"}</td></tr>`).join("") + "</tbody>";
+  tb.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => { const l = linhasSis[+tr.dataset.i]; abrirDocs(`${T("Sistema")}: ${l.s}`, l.ds); });
+  pintarQualidade(docs);
+}
+function pizza(id, rotulos, grupos, cores, nomeFiltro, rosca, rot = TS) {
+  const tot = grupos.reduce((s, g) => s + g.length, 0);
+  grafico(id, { type: rosca ? "doughnut" : "pie", data: { labels: rotulos.map(rot), datasets: [{ data: grupos.map(g => g.length), backgroundColor: cores, borderColor: "#fff", borderWidth: 2 }] },
+    options: { cutout: rosca ? "45%" : 0, plugins: { legend: { position: "bottom", labels: { font: { size: 13 } } },
+        datalabels: { display: c => c.dataset.data[c.dataIndex] / tot >= 0.09, color: "#fff", font: { size: 14, weight: "bold" }, textAlign: "center",
+          textStrokeColor: "#0006", textStrokeWidth: 2, formatter: v => `${nf(v)}\n${pct(v, tot)}` } }, onHover: cursor,
+      onClick: (e, el) => { if (el.length) abrirDocs(`${nomeFiltro}: ${rot(rotulos[el[0].index])}`, grupos[el[0].index]); } } });
+}
+function pintarArvore(box, no, total) {
+  const abertos = pintarArvore.abertos || (pintarArvore.abertos = new Set(["0", "0.0"]));
+  const html = (n, caminho) => {
+    const temFilhos = n.filhos && n.filhos.length, aberto = abertos.has(caminho);
+    const caixa = `<div class="arv-no${n.raiz ? " raiz" : ""}${n.folha ? " folha" : ""}" style="--c:${n.c}" data-c="${caminho}">` +
+      `<div class="arv-tit">${esc(n.t)}</div><div class="arv-num">${nf(n.docs.length)}</div>` +
+      `<div class="arv-pie"><span class="arv-pct">${n.raiz ? "" : `${pct(n.docs.length, total)} ${T("do total")}`}</span>${temFilhos ? `<span class="arv-tog" data-t="${caminho}">${aberto ? "−" : "+"}</span>` : ""}</div></div>`;
+    if (!temFilhos || !aberto) return `<div class="arv-ramo">${caixa}</div>`;
+    return `<div class="arv-ramo">${caixa}<div class="arv-filhos">${n.filhos.map((f, i) => html(f, `${caminho}.${i}`)).join("")}</div></div>`;
+  };
+  const achar = (n, c) => c.split(".").slice(1).reduce((x, i) => x.filhos[+i], n);
+  box.innerHTML = html(no, "0");
+  box.querySelectorAll(".arv-no").forEach(el => el.onclick = ev => {
+    const c = el.dataset.c, n = achar(no, c);
+    if (ev.target.dataset.t || (n.filhos && n.filhos.length && !abertos.has(c))) { abertos.has(c) ? abertos.delete(c) : abertos.add(c); pintarArvore(box, no, total); return; }
+    abrirDocs(n.t, n.docs);
+  });
+}
+function pintarQualidade(docs) {
+  const lf = linhasFiltradas(), porCod = contar(lf.map(a => a.doc));
+  const rep = docs.filter(d => (porCod[d.i] || 0) > 1);
+  const sisDoc = new Set(lf.map(a => a.sistema)), sis1 = unicos(GRUPOS1.map(g => g.sistema));
+  const inc = [
+    [T("Emitido sem DATA 1ª EMISSÃO"), docs.filter(d => d.st !== "NÃO EMITIDO" && !cancelado(d) && !d.e1)],
+    [T("Sem data prevista nem reprogramada"), docs.filter(d => !d.alvo && !cancelado(d))],
+    [T("Não achados no Aconex"), docs.filter(d => !d.acx)],
+    [T("Documentos compartilhados (código repetido)"), rep],
+  ];
+  const qb = (t, v) => `<div class="qb"><span>${t}</span><b>${v}</b></div>`;
+  const box = document.getElementById("qualidade");
+  box.innerHTML = `<div class="qgrid">${qb(T("Linhas de documentos (nível 2)"), nf(lf.length))}${qb(T("Documentos únicos (N° ITAIPU)"), nf(docs.length))}` +
+    `${qb(T("Códigos repetidos"), nf(rep.length))}${qb(T("Grupos de nível 1"), nf(GRUPOS1.length))}${qb(T("Sistemas com documentos"), nf(sisDoc.size))}` +
+    `${qb("Sistemas só em agrupamentos", `${sis1.filter(s => !sisDoc.has(s)).length} <small>${esc(sis1.filter(s => !sisDoc.has(s)).join(", "))}</small>`)}</div>` +
+    `<div class="incs">${inc.map(([t, a], i) => `<button class="inc${a.length ? "" : " ok"}" data-i="${i}"><span>${t}</span><b>${a.length ? nf(a.length) : T("sem ocorrências")}</b></button>`).join("")}</div>`;
+  box.querySelectorAll(".inc").forEach(b => b.onclick = () => { const [t, a] = inc[+b.dataset.i]; if (a.length) abrirDocs(t, a); });
+}
+
+// =====================================================================
+// 2 · Emissões: o gráfico "Documentos para emissão" do Power BI, com período
+// =====================================================================
+const EMI = { regua: "ATUAL", ano: String(new Date().getFullYear()), mes: "", agr: "auto", baseline: true, aprov: true, lista: "venc" };
+function campoRegua(r) { return r === "OTD" ? ["prev", "otd"] : r === "SAY-DO" ? ["rep", "sd"] : ["alvo", "sit"]; }
+function pintarEmissoes(aba, docs) {
+  const [cData, cSit] = campoRegua(EMI.regua);
+  const universo = docs.filter(d => !cancelado(d) && d[cData] && SIT_ORDEM.includes(d[cSit]) && (EMI.regua !== "SAY-DO" || d.bl));
+  const anos = unicos(universo.map(d => d[cData].getFullYear())).sort();
+  if (EMI.ano && !anos.includes(+EMI.ano)) { EMI.ano = ""; EMI.mes = ""; }
+  aba.innerHTML = `
+    <div class="ctl">
+      <label>${T("Régua")}<span class="seg" id="seg-regua">${[["ATUAL", "Atual (data-alvo)"], ["OTD", "OTD (data prevista)"], ["SAY-DO", "Say-do (backlog)"]].map(([k, r]) => `<button data-k="${k}"${EMI.regua === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></label>
+      <label>${T("Ano")}<select id="sel-ano"><option value="">${T("Todos")}</option>${anos.map(a => `<option${String(a) === EMI.ano ? " selected" : ""}>${a}</option>`).join("")}</select></label>
+      <label>${T("Mês")}<select id="sel-mes"${EMI.ano ? "" : " disabled"}><option value="">${T("Todos")}</option>${MESES[LANG].map((m, i) => `<option value="${i}"${String(i) === EMI.mes ? " selected" : ""}>${m}</option>`).join("")}</select></label>
+      <label>${T("Agrupar por")}<select id="sel-agr">${[["auto", "Automático"], ["dia", "Dia"], ["semana", "Semana"], ["mes", "Mês"], ["trimestre", "Trimestre"], ["ano", "Ano"]].map(([k, r]) => `<option value="${k}"${EMI.agr === k ? " selected" : ""}>${T(r)}</option>`).join("")}</select></label>
+      <div class="indicador" id="ind-emi"></div>
+    </div>
+    <div class="kpis" id="kpis-emi"></div>
+    <div class="card"><h3 id="t-emi"></h3><div class="caixa" style="height:380px"><canvas id="g-emi"></canvas></div><p class="nota" id="nota-emi"></p></div>
+    <div class="card"><h3>${T("Curva de emissão e aprovação")} <small>${T("acumulado desde o início do projeto")}</small></h3>
+      <div class="ctl" style="margin-bottom:8px"><label class="chk"><input type="checkbox" id="chk-base"${EMI.baseline ? " checked" : ""}> ${T("Mostrar a baseline")}</label><label class="chk"><input type="checkbox" id="chk-aprov"${EMI.aprov ? " checked" : ""}> ${T("Mostrar aprovados")}</label></div>
+      <div class="caixa" style="height:420px"><canvas id="g-curva"></canvas></div><p class="nota" id="nota-curva"></p></div>
+    <div class="card"><h3>${T("Próximas emissões e vencidos")}</h3>
+      <div class="ctl" style="margin-bottom:10px"><span class="seg" id="seg-lista">${[["venc", "Vencidos"], ["30", "Próximos 30 dias"], ["90", "Próximos 90 dias"]].map(([k, r]) => `<button data-k="${k}"${EMI.lista === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></div>
+      <div class="tabela-wrap" style="max-height:420px"><table id="t-prox"></table></div></div>`;
+  document.querySelectorAll("#seg-regua button").forEach(b => b.onclick = () => { EMI.regua = b.dataset.k; pintar(); });
+  document.getElementById("sel-ano").onchange = e => { EMI.ano = e.target.value; if (!EMI.ano) EMI.mes = ""; pintar(); };
+  document.getElementById("sel-mes").onchange = e => { EMI.mes = e.target.value; pintar(); };
+  document.getElementById("sel-agr").onchange = e => { EMI.agr = e.target.value; pintar(); };
+  document.getElementById("chk-base").onchange = e => { EMI.baseline = e.target.checked; pintar(); };
+  document.getElementById("chk-aprov").onchange = e => { EMI.aprov = e.target.checked; pintar(); };
+  document.querySelectorAll("#seg-lista button").forEach(b => b.onclick = () => { EMI.lista = b.dataset.k; pintar(); });
+
+  // período escolhido
+  let ini, fim;
+  if (EMI.ano && EMI.mes !== "") { ini = new Date(+EMI.ano, +EMI.mes, 1); fim = new Date(+EMI.ano, +EMI.mes + 1, 0); }
+  else if (EMI.ano) { ini = new Date(+EMI.ano, 0, 1); fim = new Date(+EMI.ano, 11, 31); }
+  else if (universo.length) {   // "Todos": as poucas datas muito distantes (2034, 2035) ficam fora do eixo
+    const ds = universo.map(d => d[cData]).sort((a, b) => a - b);
+    ini = ds[0]; fim = new Date(Math.max(ds[Math.floor(ds.length * 0.98)], HOJE));
+  }
+  else { ini = HOJE; fim = HOJE; }
+  const agr = EMI.agr !== "auto" ? EMI.agr : (EMI.ano && EMI.mes !== "") ? "dia" : "mes";
+  const noPeriodo = universo.filter(d => d[cData] >= ini && d[cData] <= fim);
+  const foraEmi = EMI.ano ? 0 : universo.length - noPeriodo.length;
+  const ps = periodos(ini, fim, agr), idx = Object.fromEntries(ps.map((p, i) => [p.chave, i]));
+  const por = s => noPeriodo.filter(d => d[cSit] === s);
+  const atras = por("EMITIDO COM ATRASO").length + por("PENDENTE VENCIDO").length;
+  const tituloInd = { "ATUAL": "Aderência à data-alvo", "OTD": "Baseline OTD", "SAY-DO": "Say-do" }[EMI.regua];
+  document.getElementById("ind-emi").innerHTML = `<div class="fn">${T(tituloInd)}</div><div class="fd">${noPeriodo.length ? pct(noPeriodo.length - atras, noPeriodo.length) : "—"}</div>` +
+    `<small>${noPeriodo.length ? `${nf(noPeriodo.length - atras)} ${T("de")} ${nf(noPeriodo.length)} ${T("sem atraso")}` : T("nada previsto no período")}</small>`;
+  pintarKpis("kpis-emi", [
+    [T("Documentos no período"), nf(noPeriodo.length), "#37474f", noPeriodo, ""],
+    ...SIT_ORDEM.map(s => [TS(s).charAt(0) + TS(s).slice(1).toLowerCase(), nf(por(s).length), SIT_COR[s], por(s), pct(por(s).length, noPeriodo.length)]),
+  ]);
+  const subt = { "ATUAL": "pela data-alvo", "OTD": "pela data prevista (baseline)", "SAY-DO": "só o backlog, pela data reprogramada" }[EMI.regua];
+  document.getElementById("t-emi").innerHTML = `${T("Status das emissões")} · ${T(subt)} <small>${T("clique em uma barra para ver os documentos")}</small>`;
+  const grade = SIT_ORDEM.map(s => ps.map(() => []));
+  noPeriodo.forEach(d => { const i = idx[chavePeriodo(d[cData], agr)]; if (i != null) grade[SIT_ORDEM.indexOf(d[cSit])][i].push(d); });
+  grafico("g-emi", { type: "bar", data: { labels: ps.map(p => p.rotulo), datasets: SIT_ORDEM.map((s, k) => ({ label: TS(s), data: grade[k].map(a => a.length), backgroundColor: SIT_COR[s], stack: "s" })) },
+    options: { plugins: { legend: { position: "bottom" }, linhaHoje: { indice: indiceHoje(ps) }, tooltip: { mode: "index", intersect: false, filter: i => i.raw > 0,
+        callbacks: { footer: it => `${T("Total")}: ${nf(it.reduce((s, x) => s + x.raw, 0))}` } },
+        // total do período em cima de cada barra (no último segmento da pilha)
+        datalabels: { display: c => ps.length <= 40 && c.datasetIndex === SIT_ORDEM.length - 1 && grade.some(g => g[c.dataIndex].length),
+          anchor: "end", align: "end", offset: 2, font: { weight: "bold", size: 13 }, color: "#37474f",
+          formatter: (v, c) => nf(grade.reduce((t, g) => t + g[c.dataIndex].length, 0)) } },
+      layout: { padding: { top: 22 } },
+      scales: { x: eixoCat({ stacked: true }), y: eixoVal({ stacked: true }) }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const { datasetIndex: k, index: i } = el[0]; abrirDocs(`${ps[i].rotulo} · ${TS(SIT_ORDEM[k])}`, grade[k][i]); } } });
+
+  document.getElementById("nota-emi").textContent = T("O que ainda não venceu conta como cumprido; cancelado fica fora.") +
+    (foraEmi ? ` ${nf(foraEmi)} ${T("documentos com data-alvo depois de")} ${fmt(fim)} ${T("ficam fora do eixo")}.` : "");
+  // Curva acumulada: planejado (data-alvo, a meta) × baseline × 1ª emissão × aprovados
+  const base = docs.filter(d => !cancelado(d));
+  const alvos = base.map(d => d.alvo).filter(Boolean).sort((a, b) => a - b);
+  const corte = alvos.length ? alvos[Math.floor(alvos.length * 0.98)] : HOJE;
+  const inicioC = new Date(Math.min(...base.map(d => d.prev || d.e1 || HOJE).concat(base.map(d => d.e1 || HOJE))));
+  let ci = EMI.ano ? new Date(+EMI.ano, 0, 1) : new Date(inicioC.getFullYear(), inicioC.getMonth(), 1);
+  let cf = EMI.ano ? new Date(+EMI.ano, 11, 31) : new Date(Math.max(corte, HOJE));
+  if (EMI.ano && EMI.mes !== "") { ci = new Date(+EMI.ano, +EMI.mes, 1); cf = new Date(+EMI.ano, +EMI.mes + 1, 0); }
+  const agC = EMI.ano && EMI.mes !== "" ? "dia" : EMI.ano ? "semana" : "mes";
+  const pc = periodos(ci, cf, agC);
+  const acum = campo => pc.map(p => base.filter(d => d[campo] && d[campo] <= p.fim).length);
+  const fimRealizado = p => p.ini <= HOJE;
+  const emitidos = pc.map(p => fimRealizado(p) ? base.filter(d => d.e1 && d.e1 <= (p.fim < HOJE ? p.fim : HOJE)).length : null);
+  const aprovados = pc.map(p => fimRealizado(p) ? base.filter(d => ehAprov(statusEm(d, fimDoDia(p.fim < HOJE ? p.fim : HOJE)))).length : null);
+  const ds = [{ label: T("Planejado (data-alvo)"), data: acum("alvo"), borderColor: "#1a73e8", backgroundColor: "#1a73e8", borderWidth: 3, pointRadius: 0, tension: .15 }];
+  if (EMI.baseline) ds.push({ label: T("Planejado original (baseline)"), data: acum("prev"), borderColor: "#90a4ae", backgroundColor: "#90a4ae", borderDash: [7, 5], borderWidth: 2.5, pointRadius: 0, tension: .15 });
+  ds.push({ label: T("Emitidos (1ª emissão)"), data: emitidos, borderColor: "#fb8c00", backgroundColor: "#fb8c0022", fill: true, borderWidth: 3, pointRadius: 0, tension: .15 });
+  if (EMI.aprov) ds.push({ label: T("Aprovados (aprovação total)"), data: aprovados, borderColor: "#1e8e3e", backgroundColor: "#1e8e3e22", fill: true, borderWidth: 3, pointRadius: 0, tension: .15 });
+  const iH = indiceHoje(pc);
+  grafico("g-curva", { type: "line", data: { labels: pc.map(p => p.rotulo), datasets: ds },
+    options: { interaction: { mode: "index", intersect: false }, plugins: { legend: { position: "top" }, linhaHoje: { indice: iH },
+        tooltip: { callbacks: { label: c => c.raw == null ? null : `${c.dataset.label}: ${nf(c.raw)}` } },
+        datalabels: { display: c => c.dataIndex === (iH >= 0 ? iH : -1) && c.dataset.data[c.dataIndex] != null, align: "left", anchor: "end", offset: 6, color: c => c.dataset.borderColor,
+          font: { weight: "bold", size: 13 }, formatter: v => nf(v), backgroundColor: "#ffffffcc", borderRadius: 4, padding: 3 } },
+      scales: { x: eixoCat(), y: eixoVal({ title: { display: true, text: T("documentos") } }) }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const p = pc[el[0].index], lbl = ds[el[0].datasetIndex].label;
+        const lim = p.fim < HOJE ? p.fim : HOJE;
+        const lista = lbl === T("Planejado (data-alvo)") ? base.filter(d => d.alvo && d.alvo >= p.ini && d.alvo <= p.fim)
+          : lbl === T("Planejado original (baseline)") ? base.filter(d => d.prev && d.prev >= p.ini && d.prev <= p.fim)
+          : lbl === T("Emitidos (1ª emissão)") ? base.filter(d => d.e1 && d.e1 >= p.ini && d.e1 <= lim)
+          : base.filter(d => ehAprov(statusEm(d, fimDoDia(lim))));
+        abrirDocs(`${lbl} · ${p.rotulo}`, lista); } } });
+  const fora = base.filter(d => d.alvo && d.alvo > cf).length;
+  const ate = c => base.filter(d => d[c] && d[c] <= HOJE).length;
+  document.getElementById("nota-curva").textContent = `${T("Até hoje")} (${fmt(HOJE)}): ${T("Planejado (data-alvo)")} ${nf(ate("alvo"))} · ${T("Planejado original (baseline)")} ${nf(ate("prev"))} · ` +
+    `${T("Emitidos (1ª emissão)")} ${nf(ate("e1"))} · ${T("Aprovados (aprovação total)")} ${nf(base.filter(d => ehAprov(statusEm(d, fimDoDia(HOJE)))).length)}. ${T("O ponto de hoje no gráfico soma o período inteiro.")} ` +
+    (fora && !EMI.ano ? `${nf(fora)} ${T("documentos com data-alvo depois de")} ${fmt(cf)} ${T("ficam fora do eixo")}.` : "");
+
+  // Próximas emissões e vencidos (pela data-alvo)
+  const pend = base.filter(d => d.st === "NÃO EMITIDO" && d.alvo);
+  const lista = EMI.lista === "venc" ? pend.filter(d => d.alvo < HOJE).sort((a, b) => a.alvo - b.alvo)
+    : pend.filter(d => d.alvo >= HOJE && d.alvo <= somaDias(HOJE, +EMI.lista)).sort((a, b) => a.alvo - b.alvo);
+  const tp = document.getElementById("t-prox");
+  tp.innerHTML = `<thead><tr><th>${T("Data-alvo")}</th><th>${T("dias")}</th><th>${T("Nº ITAIPU")}</th><th>${T("Descrição")}</th><th>${T("Grupo")}</th><th>${T("Sistema")}</th><th>${T("Responsável")}</th><th>${T("Data prevista")}</th><th>${T("Data reprogramada")}</th></tr></thead><tbody>` +
+    (lista.length ? lista.map((d, i) => `<tr class="clic" data-i="${i}"><td class="data"><b>${fmt(d.alvo)}</b></td><td class="num" style="color:${d.alvo < HOJE ? "#d93025" : "#1a73e8"}">${diasEntre(HOJE, d.alvo)}</td>` +
+      `<td class="cod">${esc(d.cod)}</td><td class="desc">${esc(d.desc)}</td><td>${esc(d.grupo)}</td><td>${esc(d.sistema)}</td><td>${esc(d.resp)}</td><td class="data">${fmt(d.prev)}</td><td class="data">${fmt(d.rep)}</td></tr>`).join("")
+      : `<tr><td colspan="9" class="vazio">${T("Nenhum documento com estes filtros.")}</td></tr>`) + "</tbody>";
+  tp.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => abrirHistoria(lista[+tr.dataset.i]));
+}
+
+// =====================================================================
+// 3 · Progresso: a tendência, contada pela linha do tempo de cada documento
+// =====================================================================
+const PRG = { ref: "30", outra: "", janela: "6" };
+function dataReferencia() {
+  if (PRG.ref === "ano") return new Date(HOJE.getFullYear(), 0, 1);
+  if (PRG.ref === "outra" && PRG.outra) return dt(PRG.outra);
+  return somaDias(HOJE, -(+PRG.ref || 30));
+}
+function contagem(docs, data) {
+  const st = docs.map(d => statusEm(d, fimDoDia(data)));
+  const c = contar(st), n = docs.length;
+  const ap = st.filter(ehAprov).length;
+  return { n, c, ap, emit: docs.filter(d => d.e1 && d.e1 <= data).length,
+    pctAp: n ? 100 * ap / n : 0, docs: (f) => docs.filter((d, i) => f(st[i])) };
+}
+function pintarProgresso(aba, docs) {
+  const base = docs.filter(d => !cancelado(d));
+  const ref = dataReferencia(), ultimoAcx = dt(D.meta.ultimoEvento);
+  aba.innerHTML = `
+    <div class="ctl">
+      <label>${T("Comparar com")}<select id="sel-ref">${[["7", "1 semana atrás"], ["14", "2 semanas atrás"], ["30", "1 mês atrás"], ["90", "3 meses atrás"], ["ano", "Início do ano"], ["outra", "Outra data"]].map(([k, r]) => `<option value="${k}"${PRG.ref === k ? " selected" : ""}>${T(r)}</option>`).join("")}</select></label>
+      <label${PRG.ref === "outra" ? "" : " hidden"}>${T("Data")}<input type="date" id="inp-ref" value="${PRG.outra}"></label>
+    </div>
+    <div class="fechas">
+      <div class="fecha"><div class="fn">${T("Data de referência")}</div><div class="fd">${fmt(ref)}</div></div><span class="seta">➜</span>
+      <div class="fecha ult"><div class="fn">${T("Hoje (base Aconex)")}</div><div class="fd">${fmt(HOJE)}</div></div>
+      <div class="fecha dias"><div class="fn">${T("Dias entre as datas")}</div><div class="fd">${nf(diasEntre(ref, HOJE))}</div></div>
+      <div class="fecha acx"><div class="fn">${T("Último evento no Aconex")}</div><div class="fd">${fmt(ultimoAcx)}</div></div>
+    </div>
+    <div class="kpis" id="kpis-prg"></div>
+    <div class="resumo" id="resumo-prg"></div>
+    <div class="card"><h3>${T("Tendência entre as datas")} <small>${T("clique em um ponto para ver os documentos")}</small></h3>
+      <div class="ctl" style="margin-bottom:8px"><label>${T("Janela")}<span class="seg" id="seg-jan">${[["3", "3 meses"], ["6", "6 meses"], ["12", "12 meses"], ["tudo", "Tudo"]].map(([k, r]) => `<button data-k="${k}"${PRG.janela === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></label></div>
+      <div class="caixa" style="height:420px"><canvas id="g-tend"></canvas></div></div>
+    <div class="card"><h3>${T("Evolução da carteira")} <small>${T("estado de cada documento no fim de cada período, reconstruído do histórico do Aconex")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-cart"></canvas></div></div>
+    <div class="card"><h3>${T("Histórico por data")}</h3><div class="tabela-wrap" style="max-height:460px"><table class="hist" id="t-hist"></table></div></div>
+    <div class="card"><h3>${T("O que mudou desde")} ${fmt(ref)}</h3><div class="mudancas" id="mudancas"></div></div>`;
+  document.getElementById("sel-ref").onchange = e => { PRG.ref = e.target.value; if (PRG.ref === "outra" && !PRG.outra) PRG.outra = `${ref.getFullYear()}-${p2(ref.getMonth() + 1)}-${p2(ref.getDate())}`; pintar(); };
+  const inp = document.getElementById("inp-ref"); if (inp) inp.onchange = e => { PRG.outra = e.target.value; pintar(); };
+  document.querySelectorAll("#seg-jan button").forEach(b => b.onclick = () => { PRG.janela = b.dataset.k; pintar(); });
+
+  const A = contagem(base, ref), H = contagem(base, HOJE);
+  const delta = (h, a, pp) => { const v = h - a; const cl = v > 0 ? "delta-up" : v < 0 ? "delta-down" : "delta-eq";
+    return `<span class="${cl}">${v > 0 ? "▲" : v < 0 ? "▼" : "="} ${pp ? `${v > 0 ? "+" : ""}${dec(v)} pp` : sinal(v)}</span> ${T("vs.")} ${fmt(ref)}`; };
+  const deltaInv = (h, a) => { const v = h - a; const cl = v < 0 ? "delta-up" : v > 0 ? "delta-down" : "delta-eq";
+    return `<span class="${cl}">${v > 0 ? "▲" : v < 0 ? "▼" : "="} ${sinal(v)}</span> ${T("vs.")} ${fmt(ref)}`; };
+  const deltaNeutro = (h, a) => `<span class="delta-eq">${h > a ? "▲" : h < a ? "▼" : "="} ${sinal(h - a)}</span> ${T("vs.")} ${fmt(ref)}`;
+  const q = (C, s) => C.c[s] || 0;
+  pintarKpis("kpis-prg", [
+    [T("Emitidos"), nf(H.emit), "#fb8c00", base.filter(d => d.e1 && d.e1 <= HOJE), delta(H.emit, A.emit)],
+    [T("Aprovados"), nf(q(H, "Aprovado")), ST_COR["Aprovado"], H.docs(s => s === "Aprovado"), delta(q(H, "Aprovado"), q(A, "Aprovado"))],
+    [T("Com comentários"), nf(q(H, "Aprovado com Comentários")), ST_COR["Aprovado com Comentários"], H.docs(s => s === "Aprovado com Comentários"), delta(q(H, "Aprovado com Comentários"), q(A, "Aprovado com Comentários"))],
+    [T("Para assinatura"), nf(q(H, "Para Assinatura")), ST_COR["Para Assinatura"], H.docs(s => s === "Para Assinatura"), delta(q(H, "Para Assinatura"), q(A, "Para Assinatura"))],
+    [T("Em processo"), nf(q(H, "Em Processo")), ST_COR["Em Processo"], H.docs(s => s === "Em Processo"), deltaNeutro(q(H, "Em Processo"), q(A, "Em Processo"))],
+    [T("Não aprovados"), nf(q(H, "Não Aprovado")), ST_COR["Não Aprovado"], H.docs(s => s === "Não Aprovado"), deltaInv(q(H, "Não Aprovado"), q(A, "Não Aprovado"))],
+    [T("% aprovação total"), `${dec(H.pctAp)}%`, "#0b5394", H.docs(ehAprov), delta(H.pctAp, A.pctAp, true), "total"],
+  ]);
+  // Resumo em palavras (o que o pessoal gostou na aba Progresso da Sala Segura)
+  const revs = base.flatMap(d => d.revs);
+  const naJanela = (dd) => dd && dd > ref && dd <= HOJE;
+  const env = revs.filter(r => naJanela(r.env)), ret = revs.filter(r => naJanela(r.ret));
+  const tipos = contar(env.map(r => r.tipo)), retAp = ret.filter(r => ehAprov(r.stRet)).length, retNa = ret.filter(r => r.stRet === "Não Aprovado").length;
+  const semanas = Math.max(diasEntre(ref, HOJE) / 7, 1 / 7);
+  const ritmo = (H.ap - A.ap) / semanas;
+  const txt = LANG === "en"
+    ? `In <b>${nf(diasEntre(ref, HOJE))} days</b> (from ${fmt(ref)} to ${fmt(HOJE)}), total approval went from <b>${nf(A.ap)}</b> to <b>${nf(H.ap)}</b> documents (${sinal(H.ap - A.ap)}) and from <b>${dec(A.pctAp)}%</b> to <b>${dec(H.pctAp)}%</b>. ` +
+      `Engineering sent <b>${nf(env.length)}</b> submissions to Itaipu: ${nf(tipos["1ª emissão"] || 0)} first issues, ${nf(tipos["Reemissão"] || 0)} reissues and ${nf(tipos["Emissão final"] || 0)} final issues. ` +
+      `Itaipu returned <b>${nf(retAp)}</b> approvals and <b>${nf(retNa)}</b> rejections. Not approved went from <b>${nf(q(A, "Não Aprovado"))}</b> to <b>${nf(q(H, "Não Aprovado"))}</b>; documents with Itaipu, from <b>${nf(q(A, "Em Processo"))}</b> to <b>${nf(q(H, "Em Processo"))}</b>. ` +
+      `Average pace: <b>${dec(ritmo)} documents approved per week</b>.`
+    : `Em <b>${nf(diasEntre(ref, HOJE))} dias</b> (de ${fmt(ref)} a ${fmt(HOJE)}), a aprovação total passou de <b>${nf(A.ap)}</b> para <b>${nf(H.ap)}</b> documentos (${sinal(H.ap - A.ap)}) e de <b>${dec(A.pctAp)}%</b> para <b>${dec(H.pctAp)}%</b>. ` +
+      `A engenharia fez <b>${nf(env.length)}</b> envios à Itaipu: ${nf(tipos["1ª emissão"] || 0)} primeiras emissões, ${nf(tipos["Reemissão"] || 0)} reemissões e ${nf(tipos["Emissão final"] || 0)} emissões finais. ` +
+      `A Itaipu devolveu <b>${nf(retAp)}</b> aprovações e <b>${nf(retNa)}</b> reprovações. Os não aprovados passaram de <b>${nf(q(A, "Não Aprovado"))}</b> para <b>${nf(q(H, "Não Aprovado"))}</b>, e os documentos com a Itaipu, de <b>${nf(q(A, "Em Processo"))}</b> para <b>${nf(q(H, "Em Processo"))}</b>. ` +
+      `Ritmo médio: <b>${dec(ritmo)} documentos aprovados por semana</b>.`;
+  document.getElementById("resumo-prg").innerHTML = txt;
+
+  // Tendência: pontos no fim de cada período da janela
+  const meses = PRG.janela === "tudo" ? null : +PRG.janela;
+  const primeiro = new Date(Math.min(...base.flatMap(d => d.tl.map(x => x[0])).concat([HOJE])));
+  const ini = meses ? new Date(HOJE.getFullYear(), HOJE.getMonth() - meses, HOJE.getDate()) : primeiro;
+  const agr = meses && meses <= 6 ? "semana" : "mes";
+  const ps = periodos(ini, HOJE, agr).map(p => ({ ...p, fim: p.fim > HOJE ? HOJE : p.fim }));
+  const C = ps.map(p => contagem(base, p.fim));
+  const series = [["Aprovado", "Aprovados (sem comentários)", ST_COR["Aprovado"]], ["Aprovado com Comentários", "Com comentários", ST_COR["Aprovado com Comentários"]],
+    ["Para Assinatura", "Para assinatura", ST_COR["Para Assinatura"]], ["__ap", "Aprovação total", "#0b5394"], ["Não Aprovado", "Não aprovados", ST_COR["Não Aprovado"]],
+    ["Em Processo", "Em processo", ST_COR["Em Processo"]]];
+  const valor = (c, s) => s === "__ap" ? c.ap : (c.c[s] || 0);
+  const ult = ps.length - 1;
+  grafico("g-tend", { type: "line", data: { labels: ps.map(p => fmt(p.fim)), datasets: series.map(([s, r, c]) => ({ label: T(r), data: C.map(x => valor(x, s)),
+      borderColor: c, backgroundColor: c, borderWidth: s === "__ap" ? 3.5 : 2.5, borderDash: s === "__ap" ? [8, 5] : [], pointRadius: ps.length > 30 ? 0 : 3, pointHoverRadius: 6, tension: .2 })) },
+    options: { interaction: { mode: "index", intersect: false }, layout: { padding: { right: 40, top: 10 } },
+      plugins: { legend: { position: "top" }, datalabels: { align: "top", color: c => c.dataset.borderColor, font: { weight: "bold", size: 13 }, formatter: v => nf(v),
+        // rótulo só nas pontas e só das séries que não se encostam (o resto fica no tooltip)
+        display: c => { const s = series[c.datasetIndex][0]; return s === "__ap" ? (c.dataIndex === 0 || c.dataIndex === ult) : (c.dataIndex === ult && (s === "Não Aprovado" || s === "Em Processo")); } } },
+      scales: { x: eixoCat(), y: eixoVal() }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const { datasetIndex: k, index: i } = el[0]; const s = series[k][0];
+        abrirDocs(`${T(series[k][1])} · ${fmt(ps[i].fim)}`, C[i].docs(x => s === "__ap" ? ehAprov(x) : x === s)); } } });
+  // Evolução da carteira (área empilhada), mês a mês desde o início
+  const pm = periodos(primeiro, HOJE, "mes").map(p => ({ ...p, fim: p.fim > HOJE ? HOJE : p.fim }));
+  const CM = pm.map(p => contagem(base, p.fim));
+  const camadas = [["__ap", T("Aprovação total"), "#1e8e3e"], ["Em Processo", T("Em processo"), ST_COR["Em Processo"]], ["Não Aprovado", T("Não aprovados"), ST_COR["Não Aprovado"]], ["NÃO EMITIDO", T("Não emitidos"), "#cfd8dc"]];
+  grafico("g-cart", { type: "line", data: { labels: pm.map(p => p.rotulo), datasets: camadas.map(([s, r, c]) => ({ label: r, data: CM.map(x => valor(x, s)), backgroundColor: c, borderColor: "#fff", borderWidth: 1, fill: true, pointRadius: 0, tension: .1 })) },
+    options: { interaction: { mode: "index", intersect: false }, plugins: { legend: { position: "top" } }, scales: { x: eixoCat(), y: eixoVal({ stacked: true, max: base.length }) }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const { datasetIndex: k, index: i } = el[0]; const s = camadas[k][0];
+        abrirDocs(`${camadas[k][1]} · ${pm[i].rotulo}`, CM[i].docs(x => s === "__ap" ? ehAprov(x) : x === s)); } } });
+  // Histórico por data (tabela, como o "Histórico por revisão" da Sala Segura)
+  const th = document.getElementById("t-hist");
+  th.innerHTML = `<thead><tr><th>${T("Data")}</th><th>${T("Total")}</th><th>${T("Aprovados")}</th><th>${T("Com comentários")}</th><th>${T("Para assinatura")}</th><th>${T("Aprov. total (%)")}</th><th>${T("Não aprovados")}</th><th>${T("Em processo")}</th><th>${T("Não emitidos")}</th><th>${T("Emitidos (acum.)")}</th></tr></thead><tbody>` +
+    [...ps.map((p, i) => [p.fim, C[i]])].reverse().map(([d, c]) => `<tr><td><b>${fmt(d)}</b></td><td>${nf(c.n)}</td><td>${nf(c.c["Aprovado"] || 0)}</td><td>${nf(c.c["Aprovado com Comentários"] || 0)}</td><td>${nf(c.c["Para Assinatura"] || 0)}</td>` +
+      `<td class="aprt">${nf(c.ap)} (${dec(c.pctAp)}%)</td><td>${nf(c.c["Não Aprovado"] || 0)}</td><td>${nf(c.c["Em Processo"] || 0)}</td><td>${nf(c.c["NÃO EMITIDO"] || 0)}</td><td>${nf(c.emit)}</td></tr>`).join("") + "</tbody>";
+  // O que mudou
+  const antes = base.map(d => statusEm(d, fimDoDia(ref))), agora = base.map(d => statusEm(d, fimDoDia(HOJE)));
+  const grupos = [
+    [T("Novas aprovações"), "#1e8e3e", base.filter((d, i) => ehAprov(agora[i]) && !ehAprov(antes[i]))],
+    [T("Novas reprovações"), "#d93025", base.filter((d, i) => agora[i] === "Não Aprovado" && antes[i] !== "Não Aprovado")],
+    [T("Novas 1ªs emissões"), "#fb8c00", base.filter(d => d.e1 && d.e1 > ref && d.e1 <= HOJE)],
+    [T("Entraram em análise na Itaipu"), "#f9a825", base.filter((d, i) => agora[i] === "Em Processo" && antes[i] !== "Em Processo")],
+    [T("Saíram de aprovado"), "#6d4c41", base.filter((d, i) => ehAprov(antes[i]) && !ehAprov(agora[i]))],
+  ];
+  const mb = document.getElementById("mudancas");
+  mb.innerHTML = grupos.map(([t, c, l], i) => `<button class="mud" style="--c:${c}" data-i="${i}"><div class="mt">${t}</div><div class="mv">${nf(l.length)}</div><small>${T("documentos")}</small></button>`).join("");
+  mb.querySelectorAll(".mud").forEach(b => b.onclick = () => { const [t, , l] = grupos[+b.dataset.i]; if (l.length) abrirDocs(`${t} · ${fmt(ref)} → ${fmt(HOJE)}`, l); });
+}
+
+// =====================================================================
+// 4 · Esforço da engenharia: envios à Itaipu, retornos e retrabalho
+// =====================================================================
+const ESF = { ano: "", agr: "mes" };
+function pintarEsforco(aba, docs) {
+  const base = docs.filter(d => !cancelado(d)), revs = base.flatMap(d => d.revs);
+  const anos = unicos(revs.flatMap(r => [r.env, r.ret]).filter(Boolean).map(d => d.getFullYear())).sort();
+  if (ESF.ano && !anos.includes(+ESF.ano)) ESF.ano = "";
+  aba.innerHTML = `
+    <div class="ctl">
+      <label>${T("Ano")}<select id="esf-ano"><option value="">${T("Todos")}</option>${anos.map(a => `<option${String(a) === ESF.ano ? " selected" : ""}>${a}</option>`).join("")}</select></label>
+      <label>${T("Agrupar por")}<span class="seg" id="esf-agr">${[["semana", "Semana"], ["mes", "Mês"], ["trimestre", "Trimestre"]].map(([k, r]) => `<button data-k="${k}"${ESF.agr === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></label>
+    </div>
+    <div class="kpis" id="kpis-esf"></div>
+    <div class="fila-meio">
+      <div class="card"><h3>${T("Envios à Itaipu por período")} <small>${T("clique em uma barra para ver os documentos")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-env"></canvas></div></div>
+      <div class="card"><h3>${T("Retornos da Itaipu por período")} <small>${T("pelo status do retorno")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-ret"></canvas></div></div>
+    </div>
+    <div class="fila-meio">
+      <div class="card"><h3>${T("Em que revisão o documento foi aprovado")} <small>${T("1ª aprovação de cada documento")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-ciclos"></canvas></div></div>
+      <div class="card"><h3>${T("Prazo de análise da Itaipu")} <small>${T("% dos retornos dentro do prazo (30 dias na 0A, 15 nas demais)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-sla"></canvas></div></div>
+    </div>
+    <div class="fila-meio">
+      <div class="card"><h3>${T("Há quanto tempo está com a Itaipu")} <small>${T("dias desde o último envio · documentos em processo")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-aging-it"></canvas></div></div>
+      <div class="card"><h3>${T("Há quanto tempo espera reemissão da CMI")} <small>${T("dias desde a reprovação · documentos não aprovados")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-aging-cmi"></canvas></div></div>
+    </div>
+    <div class="card"><h3>${T("Envios por responsável")} <small>${T("clique em uma barra para ver os documentos")}</small></h3><div class="caixa" id="cx-resp"><canvas id="g-resp"></canvas></div></div>`;
+  document.getElementById("esf-ano").onchange = e => { ESF.ano = e.target.value; pintar(); };
+  document.querySelectorAll("#esf-agr button").forEach(b => b.onclick = () => { ESF.agr = b.dataset.k; pintar(); });
+  const datas = revs.flatMap(r => [r.env, r.ret]).filter(Boolean);
+  if (!datas.length) return;
+  const ini = ESF.ano ? new Date(+ESF.ano, 0, 1) : new Date(Math.min(...datas)), fim = ESF.ano ? new Date(+ESF.ano, 11, 31) : HOJE;
+  const dentro = d => d && d >= ini && d <= fim;
+  const env = revs.filter(r => dentro(r.env)), ret = revs.filter(r => dentro(r.ret));
+  const ps = periodos(ini, fim > HOJE ? HOJE : fim, ESF.agr), idx = Object.fromEntries(ps.map((p, i) => [p.chave, i]));
+  // Aprovados de primeira e revisões até aprovar (sobre todo o histórico de cada documento)
+  const comRet = base.filter(d => d.revs.some(r => r.stRet));
+  const primeiraAp = comRet.filter(d => ehAprov(d.revs.find(r => r.stRet).stRet));
+  const aprovEm = base.map(d => { const k = d.revs.findIndex(r => ehAprov(r.stRet)); return k < 0 ? null : { d, rev: d.revs[k].rev, n: d.revs.slice(0, k + 1).filter(r => r.env).length }; }).filter(Boolean);
+  const tipos = contar(env.map(r => r.tipo));
+  pintarKpis("kpis-esf", [
+    [T("Envios à Itaipu"), nf(env.length), "#37474f", null, T("no período")],
+    [T("1ªs emissões"), nf(tipos["1ª emissão"] || 0), TIPO_COR["1ª emissão"], null, pct(tipos["1ª emissão"] || 0, env.length)],
+    [T("Reemissões"), nf(tipos["Reemissão"] || 0), TIPO_COR["Reemissão"], null, pct(tipos["Reemissão"] || 0, env.length)],
+    [T("Emissões finais"), nf(tipos["Emissão final"] || 0), TIPO_COR["Emissão final"], null, pct(tipos["Emissão final"] || 0, env.length)],
+    [T("Documentos trabalhados"), nf(unicos(env.map(r => r.doc.i)).length), "#00897b", unicos(env.map(r => r.doc)), T("no período")],
+    [T("Retornos da Itaipu"), nf(ret.length), "#3949ab", null, T("no período")],
+    [T("Aprovados de primeira"), pct(primeiraAp.length, comRet.length), "#1e8e3e", primeiraAp, `${nf(primeiraAp.length)} ${T("de")} ${nf(comRet.length)} ${T("dos documentos com retorno")}`],
+    [T("Revisões até aprovar (média)"), dec(media(aprovEm.map(x => x.n))), "#8e24aa", null, ""],
+  ]);
+  document.querySelectorAll("#kpis-esf .kpi").forEach((el, i) => { if ([0, 1, 2, 3, 5].includes(i)) { el.classList.remove("nohand"); el.onclick = () => abrirRevs(el.querySelector(".kt").textContent, i === 5 ? ret : i === 0 ? env : env.filter(r => r.tipo === TIPO_ORDEM[i - 1])); } });
+  // Envios por período e tipo
+  const gEnv = TIPO_ORDEM.map(() => ps.map(() => []));
+  env.forEach(r => { const i = idx[chavePeriodo(r.env, ESF.agr)]; if (i != null) gEnv[Math.max(0, TIPO_ORDEM.indexOf(r.tipo))][i].push(r); });
+  grafico("g-env", { type: "bar", data: { labels: ps.map(p => p.rotulo), datasets: TIPO_ORDEM.map((t, k) => ({ label: TS(t), data: gEnv[k].map(a => a.length), backgroundColor: TIPO_COR[t], stack: "s" })) },
+    options: { plugins: { legend: { position: "bottom" }, tooltip: { mode: "index", intersect: false, callbacks: { footer: it => `${T("Total")}: ${nf(it.reduce((s, x) => s + x.raw, 0))}` } } },
+      scales: { x: eixoCat({ stacked: true }), y: eixoVal({ stacked: true }) }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const { datasetIndex: k, index: i } = el[0]; abrirRevs(`${TS(TIPO_ORDEM[k])} · ${ps[i].rotulo}`, gEnv[k][i]); } } });
+  // Retornos por status
+  const rcat = s => RET_ORDEM.includes(s) ? s : "Outros";
+  const cats = [...RET_ORDEM, "Outros"].filter(c => ret.some(r => rcat(r.stRet) === c));
+  const gRet = cats.map(() => ps.map(() => []));
+  ret.forEach(r => { const i = idx[chavePeriodo(r.ret, ESF.agr)]; if (i != null) gRet[cats.indexOf(rcat(r.stRet))][i].push(r); });
+  grafico("g-ret", { type: "bar", data: { labels: ps.map(p => p.rotulo), datasets: cats.map((c, k) => ({ label: TS(c), data: gRet[k].map(a => a.length), backgroundColor: ST_COR[c] || "#8d6e63", stack: "s" })) },
+    options: { plugins: { legend: { position: "bottom" }, tooltip: { mode: "index", intersect: false } }, scales: { x: eixoCat({ stacked: true }), y: eixoVal({ stacked: true }) }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const { datasetIndex: k, index: i } = el[0]; abrirRevs(`${TS(cats[k])} · ${ps[i].rotulo}`, gRet[k][i]); } } });
+  // Em que revisão foi aprovado
+  const bucket = r => /^\d+$/.test(r) ? r : (r.length === 2 && r[0] === "0" && "ABCD".includes(r[1])) ? r : (r[0] === "0" ? "0E+" : `${r[0]}x`);
+  const bk = contar(aprovEm.map(x => bucket(x.rev)));
+  const ordemB = Object.keys(bk).sort((a, b) => { const o = ["0A", "0B", "0C", "0D", "0E+", "0"]; return (o.indexOf(a) < 0 ? 99 : o.indexOf(a)) - (o.indexOf(b) < 0 ? 99 : o.indexOf(b)) || a.localeCompare(b); });
+  grafico("g-ciclos", { type: "bar", data: { labels: ordemB, datasets: [{ data: ordemB.map(b => bk[b]), backgroundColor: ordemB.map(b => b === "0A" ? "#1e8e3e" : b === "0B" ? "#7cb342" : b === "0C" ? "#fbc02d" : b === "0D" ? "#fb8c00" : "#d93025"), borderRadius: 6 }] },
+    options: { layout: { padding: { top: 26 } }, plugins: { legend: { display: false }, datalabels: { display: true, anchor: "end", align: "end", font: { weight: "bold" }, formatter: v => `${nf(v)} (${pct(v, aprovEm.length)})` } },
+      scales: { x: eixoCat(), y: eixoVal() }, onHover: cursor,
+      onClick: (e, el) => { if (el.length) { const b = ordemB[el[0].index]; abrirDocs(`${T("Em que revisão o documento foi aprovado")}: ${b}`, aprovEm.filter(x => bucket(x.rev) === b).map(x => x.d)); } } } });
+  // Prazo de análise da Itaipu (sem eixo duplo: % no prazo; mediana no tooltip)
+  const rp = ps.map((p, i) => gRet.flatMap(g => g[i]).filter(r => r.dIt != null && r.sla));
+  grafico("g-sla", { type: "line", data: { labels: ps.map(p => p.rotulo), datasets: [{ label: "%", data: rp.map(a => a.length >= 3 ? 100 * a.filter(r => r.dIt <= r.sla).length / a.length : null),
+      borderColor: "#3949ab", backgroundColor: "#3949ab", borderWidth: 2.5, pointRadius: 3, spanGaps: true, tension: .2 }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${dec(c.raw)}% · ${T("Dias de análise (mediana)")}: ${dec(mediana(rp[c.dataIndex].map(r => r.dIt)), 0)} · n=${rp[c.dataIndex].length}` } } },
+      scales: { x: eixoCat(), y: eixoVal({ max: 100, ticks: { callback: v => v + "%" } }) }, onHover: cursor,
+      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Prazo de análise da Itaipu")} · ${ps[el[0].index].rotulo}`, rp[el[0].index]); } } });
+  // Aging (como o "Tempo desde a última modificação" do RTA)
+  const faixas = [["Até 15 dias", 0, 15, "#1e8e3e"], ["16 a 30 dias", 16, 30, "#fbc02d"], ["31 a 60 dias", 31, 60, "#fb8c00"], ["Mais de 60 dias", 61, 1e9, "#d93025"]];
+  const aging = (lista, ref) => faixas.map(([, a, b]) => lista.filter(d => { const x = ref(d); return x != null && x >= a && x <= b; }));
+  const ultEnvio = d => { const r = [...d.revs].reverse().find(x => x.env); return r ? diasEntre(r.env, HOJE) : null; };
+  const ultRet = d => { const r = [...d.revs].reverse().find(x => x.ret); return r ? diasEntre(r.ret, HOJE) : null; };
+  const emProc = base.filter(d => d.st === "Em Processo"), naoAp = base.filter(d => d.st === "Não Aprovado");
+  pizza("g-aging-it", faixas.map(f => T(f[0])), aging(emProc, ultEnvio), faixas.map(f => f[3]), T("Com a Itaipu"));
+  pizza("g-aging-cmi", faixas.map(f => T(f[0])), aging(naoAp, ultRet), faixas.map(f => f[3]), T("Com a CMI (reemitir)"));
+  // Envios por responsável
+  const respDe = r => r.doc.resp || "—";
+  const resps = Object.entries(contar(env.map(respDe))).sort((a, b) => b[1] - a[1]).map(x => x[0]).slice(0, 15);
+  document.getElementById("cx-resp").style.height = Math.max(220, resps.length * 34 + 70) + "px";
+  grafico("g-resp", { type: "bar", data: { labels: resps, datasets: TIPO_ORDEM.map(t => ({ label: TS(t), data: resps.map(p => env.filter(r => respDe(r) === p && r.tipo === t).length), backgroundColor: TIPO_COR[t], stack: "s" })) },
+    options: { indexAxis: "y", plugins: { legend: { position: "top" }, tooltip: { mode: "index", intersect: false } }, scales: { x: eixoVal({ stacked: true }), y: { stacked: true, grid: { display: false } } }, onHover: cursor,
+      onClick: (e, el) => { if (!el.length) return; const p = resps[el[0].index], t = TIPO_ORDEM[el[0].datasetIndex]; abrirRevs(`${p} · ${TS(t)}`, env.filter(r => respDe(r) === p && r.tipo === t)); } } });
+}
+
+// =====================================================================
+// 5 · Histórico de revisões (como o Histórico Consolidado do DocManager)
+// =====================================================================
+const HIS = { aberto: false, atrIt: false, atrCmi: false };
+function pintarHistorico(aba, docs) {
+  const base = docs.filter(d => !cancelado(d));
+  let revs = base.flatMap(d => d.revs);
+  const sinteticas = base.filter(d => !d.revs.length).map(d => ({ doc: d, rev: "", tipo: T("Não emitido"), env: null, ret: null, stRet: null, sla: null, dIt: null, aIt: null,
+    dCmi: null, aCmi: d.alvo && d.alvo < HOJE ? diasEntre(d.alvo, HOJE) : (d.alvo ? 0 : null), ordem: 0 }));
+  const abertos = revs.filter(r => r.env && !r.ret && r.dIt != null);
+  const comIt = revs.filter(r => r.dIt != null && r.ret), comCmi = revs.filter(r => r.dCmi != null && r.tipo !== "1ª emissão");
+  aba.innerHTML = `
+    <div class="kpis" id="kpis-his"></div>
+    <div class="card"><h3>${T("Histórico de revisões")}</h3><p class="nota" style="margin:0 0 10px">${T("Uma linha por revisão, como no Histórico Consolidado do DocManager. Clique em uma linha para ver a história do documento.")} ${T("Os não emitidos entram com uma linha só, como no Histórico Consolidado: o atraso da CMI corre desde a data-alvo.")}</p>
+      <div class="ctl" style="margin-bottom:10px"><label class="chk"><input type="checkbox" id="h-ab"${HIS.aberto ? " checked" : ""}> ${T("Só sem retorno")}</label>
+        <label class="chk"><input type="checkbox" id="h-it"${HIS.atrIt ? " checked" : ""}> ${T("Só com atraso da Itaipu")}</label>
+        <label class="chk"><input type="checkbox" id="h-cmi"${HIS.atrCmi ? " checked" : ""}> ${T("Só com atraso da CMI")}</label>
+        <button class="btn-exp" id="h-lista">📄 ${T("Exportar Excel")}</button></div>
+      <div class="tabela-wrap" style="max-height:640px"><table id="t-revs"></table></div><div class="mais" id="h-mais"></div></div>`;
+  pintarKpis("kpis-his", [
+    [T("Revisões (ciclos)"), nf(revs.length), "#37474f", null, ""],
+    [T("Em análise agora"), nf(abertos.length), "#f9a825", null, T("Com a Itaipu")],
+    [T("Dias Itaipu (média)"), dec(media(comIt.map(r => r.dIt))), "#3949ab", null, `${T("mediana")}: ${dec(mediana(comIt.map(r => r.dIt)), 0)} ${T("dias")}`],
+    [T("Itaipu no prazo"), pct(comIt.filter(r => r.aIt === 0).length, comIt.length), "#00897b", null, ""],
+    [T("Dias CMI p/ reemitir (média)"), dec(media(comCmi.map(r => r.dCmi))), "#fb8c00", null, `${T("mediana")}: ${dec(mediana(comCmi.map(r => r.dCmi)), 0)} ${T("dias")}`],
+    [T("CMI no prazo"), pct(comCmi.filter(r => r.aCmi === 0).length, comCmi.length), "#1e8e3e", null, ""],
+  ]);
+  document.querySelectorAll("#kpis-his .kpi").forEach((el, i) => { if (i === 1) { el.classList.remove("nohand"); el.onclick = () => abrirRevs(T("Em análise agora"), abertos); } });
+  let linhas = [...revs, ...sinteticas];
+  if (HIS.aberto) linhas = linhas.filter(r => r.env && !r.ret);
+  if (HIS.atrIt) linhas = linhas.filter(r => r.aIt > 0);
+  if (HIS.atrCmi) linhas = linhas.filter(r => r.aCmi > 0);
+  linhas.sort((a, b) => a.doc.i - b.doc.i || a.ordem - b.ordem);
+  document.getElementById("h-ab").onchange = e => { HIS.aberto = e.target.checked; pintar(); };
+  document.getElementById("h-it").onchange = e => { HIS.atrIt = e.target.checked; pintar(); };
+  document.getElementById("h-cmi").onchange = e => { HIS.atrCmi = e.target.checked; pintar(); };
+  document.getElementById("h-lista").onclick = () => abrirRevs(T("Histórico de revisões"), linhas);
+  const cols = COLS_REV(), max = 1200;
+  const t = document.getElementById("t-revs");
+  t.innerHTML = `<thead><tr>${cols.map(([h]) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>` +
+    linhas.slice(0, max).map((r, i) => `<tr class="clic" data-i="${i}">${cols.map(([, f, k]) => k === "tipo" ? `<td>${r.tipo ? chip(r.tipo, TIPO_COR[r.tipo] || "#9aa0a6") : "—"}</td>` : celula(f(r), k)).join("")}</tr>`).join("") + "</tbody>";
+  document.getElementById("h-mais").textContent = linhas.length > max ? `${T("mostrando as primeiras")} ${nf(max)} ${T("linhas")} · ${nf(linhas.length)}` : "";
+  t.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => abrirHistoria(linhas[+tr.dataset.i].doc));
+}
+
+// =====================================================================
+// História do documento: linha do tempo com o plano, cada revisão e o status
+// =====================================================================
+function abrirHistoria(d) {
+  const m = document.getElementById("modal");
+  const datas = [d.prev, d.rep, d.alvo, HOJE, ...d.revs.flatMap(r => [r.env, r.ret]), ...d.tl.map(x => x[0])].filter(Boolean);
+  const ini = somaDias(new Date(Math.min(...datas)), -20), fim = somaDias(new Date(Math.max(...datas)), 25);
+  const W = 1180, esq = 70, dir = 20, larg = W - esq - dir, span = Math.max(1, diasEntre(ini, fim));
+  const X = data => esq + larg * diasEntre(ini, data) / span;
+  const altRev = 34, topo = 46, nRev = d.revs.length;
+  const yStatus = topo + Math.max(nRev, 1) * altRev + 26, H = yStatus + 60;
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Segoe UI, Arial" font-size="12">`;
+  // grade mensal
+  for (let dd = new Date(ini.getFullYear(), ini.getMonth() + 1, 1); dd <= fim; dd = new Date(dd.getFullYear(), dd.getMonth() + 1, 1)) {
+    const x = X(dd); svg += `<line x1="${x}" y1="${topo - 14}" x2="${x}" y2="${H - 28}" stroke="#eceff1"/>`;
+    if (dd.getMonth() % (span > 900 ? 3 : 1) === 0) svg += `<text x="${x + 3}" y="${H - 14}" fill="#78909c">${MESES[LANG][dd.getMonth()]}/${String(dd.getFullYear()).slice(2)}</text>`;
+  }
+  // plano
+  const marco = (data, rot, cor, forma) => { if (!data) return ""; const x = X(data);
+    return `<line x1="${x}" y1="${topo - 16}" x2="${x}" y2="${H - 28}" stroke="${cor}" stroke-dasharray="4 3"/>` +
+      (forma === "losango" ? `<path d="M${x} ${topo - 34} l7 7 l-7 7 l-7 -7 z" fill="${cor}"/>` : `<circle cx="${x}" cy="${topo - 27}" r="6" fill="#fff" stroke="${cor}" stroke-width="3"/>`) +
+      (x > W - 190 ? `<text x="${x - 10}" y="${topo - 22}" text-anchor="end" fill="${cor}" font-weight="700">${esc(rot)} ${fmt(data)}</text>`
+        : `<text x="${x + 10}" y="${topo - 22}" fill="${cor}" font-weight="700">${esc(rot)} ${fmt(data)}</text>`); };
+  svg += marco(d.prev, T("Prevista"), "#607d8b", "losango");
+  if (d.rep) svg += marco(d.rep, T("Reprogramada"), "#8e24aa", "circulo");
+  const xh = X(HOJE); svg += `<line x1="${xh}" y1="${topo - 16}" x2="${xh}" y2="${H - 28}" stroke="#263238" stroke-width="1.5"/><text x="${xh - 4}" y="${H - 30}" text-anchor="end" fill="#263238" font-weight="700">${T("Hoje")}</text>`;
+  // revisões: com a Itaipu (envio → retorno) e com a CMI (retorno → próximo envio)
+  d.revs.forEach((r, k) => {
+    const y = topo + k * altRev;
+    svg += `<text x="${esq - 8}" y="${y + 15}" text-anchor="end" font-weight="700" fill="#37474f">${esc(r.rev)}</text>`;
+    if (r.env) {
+      const fimIt = r.ret || HOJE, cor = r.ret ? (ST_COR[r.stRet] || "#8d6e63") : "#f9a825";
+      const x1 = X(r.env), x2 = Math.max(X(fimIt), x1 + 3);
+      svg += `<rect x="${x1}" y="${y + 4}" width="${x2 - x1}" height="16" rx="4" fill="${cor}"><title>${esc(r.rev)} · ${T("com a Itaipu")}: ${fmt(r.env)} → ${r.ret ? fmt(r.ret) : T("em análise (sem retorno)")} (${r.dIt ?? "—"} ${T("dias")})${r.stRet ? " · " + esc(TS(r.stRet)) : ""}</title></rect>`;
+      svg += `<text x="${x2 + 5}" y="${y + 16}" fill="#455a64">${r.ret ? esc(TS(r.stRet)) : T("em análise (sem retorno)")} · ${r.dIt ?? "—"}d</text>`;
+    }
+    const prox = d.revs.slice(k + 1).find(x => x.env);
+    if (r.ret && prox && prox.env > r.ret) {
+      const x1 = X(r.ret), x2 = X(prox.env);
+      svg += `<rect x="${x1}" y="${y + 24}" width="${Math.max(2, x2 - x1)}" height="6" rx="3" fill="${r.stRet === "Não Aprovado" ? "#ef9a9a" : "#b0bec5"}"><title>${T("com a CMI")}: ${fmt(r.ret)} → ${fmt(prox.env)} (${diasEntre(r.ret, prox.env)} ${T("dias")})</title></rect>`;
+    }
+  });
+  // faixa do status real ao longo do tempo
+  svg += `<text x="${esq - 8}" y="${yStatus + 14}" text-anchor="end" font-weight="700" fill="#37474f">${T("Status")}</text>`;
+  const pts = d.tl.length ? d.tl : [];
+  if (!pts.length) svg += `<rect x="${esq}" y="${yStatus}" width="${larg}" height="20" rx="4" fill="${ST_COR["NÃO EMITIDO"]}"><title>${T("Não emitido")}</title></rect>`;
+  pts.forEach(([dd, s], k) => {
+    const x1 = X(dd), x2 = X(k + 1 < pts.length ? pts[k + 1][0] : HOJE);
+    svg += `<rect x="${x1}" y="${yStatus}" width="${Math.max(2, x2 - x1)}" height="20" fill="${corSt(s)}"><title>${esc(TS(s))}: ${fmt(dd)}</title></rect>`;
+  });
+  svg += `</svg>`;
+  const usados = unicos([...d.revs.map(r => r.stRet).filter(Boolean), ...d.tl.map(x => x[1])]);
+  m.innerHTML = `<div class="janela">
+    <div class="jan-head"><div style="flex:1"><h2>${T("História do documento")}</h2>
+      <div class="jan-cods"><span class="cod-chip ita">${esc(d.cod)}</span>${d.codAtual && d.codAtual !== d.cod ? `<span class="cod-chip ita">${esc(d.codAtual)}</span>` : ""}<span class="cod-chip">${esc(d.cmi)}</span>${chip(d.st, corSt(d.st))}${d.sit ? chip(d.sit, SIT_COR[d.sit] || "#9aa0a6") : ""}</div>
+      <div style="font-size:16px;color:#263238">${esc(d.desc)}</div></div><button class="fechar" id="jan-x">✕ ${T("Fechar")}</button></div>
+    <div class="jan-meta"><span>${T("Grupo")}: <b>${esc(d.grupo)}</b></span><span>${T("Sistemas")}: <b>${esc(d.sistemas.join(" | "))}</b></span><span>${T("Fase")}: <b>${esc(TS(d.fase))}</b></span>
+      <span>${T("Responsável")}: <b>${esc(d.resp)}</b></span><span>${T("Data prevista")}: <b>${fmt(d.prev)}</b></span><span>${T("Data reprogramada")}: <b>${fmt(d.rep)}</b></span>
+      <span>${T("1ª emissão (data)")}: <b>${fmt(d.e1)}</b></span><span>${T("Desvio (dias)")}: <b>${d.dsv ?? "—"}</b></span></div>
+    <h3 style="margin:6px 0">${T("Linha do tempo")}</h3>
+    <div class="linha-tempo">${svg}</div>
+    <div class="legenda-lt">${usados.map(s => `<span><i style="background:${corSt(s)}"></i>${esc(TS(s))}</span>`).join("")}<span><i style="background:#f9a825"></i>${T("em análise (sem retorno)")}</span><span><i style="background:#ef9a9a;height:6px"></i>${T("com a CMI")}</span></div>
+    <h3 style="margin:18px 0 6px">${T("Revisões do documento")}</h3>
+    ${d.revs.length ? `<div class="tabela-wrap"><table><thead><tr>${COLS_REV().slice(5).map(([h]) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${d.revs.map(r => `<tr>${COLS_REV().slice(5).map(([, f, k]) => k === "tipo" ? `<td>${r.tipo ? chip(r.tipo, TIPO_COR[r.tipo] || "#9aa0a6") : "—"}</td>` : celula(f(r), k)).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="vazio">${T("Documento ainda não emitido.")}</p>`}
+  </div>`;
+  m.hidden = false;
+  document.getElementById("jan-x").onclick = () => { m.hidden = true; };
+  m.onclick = e => { if (e.target === m) m.hidden = true; };
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.getElementById("modal").hidden = true; });
+
+pintar();
+</script>
+</body>
+</html>

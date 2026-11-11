@@ -1409,6 +1409,60 @@ fica para a Fase 2, pela tela, salvo se o mapeamento achar uma rota.
 editável, iniciar o workflow (modelo + prazo em dias), imprimir "estilo de tela / sem tópicos" como
 `<correio> - <WF> - <data>.pdf` e subir na pasta do Box. Nenhuma retentativa automática depois de gravar.
 
+## 34. ✅ Painel HTML da Unidade Geradora (2026-11-11, pedido do usuário)
+
+**Pedido**: sair do Power BI do Doc List Mapping e ter o painel da UG em HTML, na família do
+painel da Sala Segura e RTA (outra equipe), mostrando as visões que o Power BI já tinha (a 1ª
+página, com os filtros de ano e mês) e, além delas, o esforço da engenharia, as aprovações ao
+longo do tempo e a tendência de aprovação: "contar a história desses documentos". Spec em
+`.scratch/painel-ug-html/`; arquitetura no ADR 0003; guia em `docs/painel_ug_html.md`.
+
+**Onde mora**: `core/painel_ug.py` (regras), `dashboard/painel_ug_html.py` + `dashboard/recursos/`
+(página), `services/painel_ug.py` (orquestração), `doclist_backend.gerar_painel_ug`, botão
+**Gerar Painel HTML** em `ui/views/doclist_view.py`.
+
+### 34.1 Regras
+
+- **Universo**: as linhas de nível 2 do Doc List; um código conta uma vez (Itaipu, ou o CMI se
+  faltar), na 1ª aparição, como o `DISTINCTCOUNT` do Power BI. As linhas viram associações
+  (grupo, sistema, fase, responsável, escopo): um documento passa no filtro se alguma linha dele
+  passa. Cancelado fica fora das emissões, do progresso e do esforço.
+- **Retrato de hoje**: `processar_documento` sobre o histórico do Tracking (o mesmo da
+  atualização da planilha) e as funções de situação (`classificar_situacao_emissao` contra a
+  data-alvo e a prevista; say-do só no backlog). O painel recalcula da base escolhida, então pode
+  estar mais novo que a planilha.
+- **Linha do tempo**: `obter_snapshot_status` em cada dia com evento, só as mudanças. A máquina do
+  tempo usa a maior versão; o retrato de hoje, a linha Current (§8.9). Quando discordam no último
+  evento (4 de 933 documentos na base de 10/11/2026), vale o de hoje, no dia do último evento,
+  para o retrato e a evolução darem o mesmo número.
+- **Histórico de revisões**: `gerar_dataset_dashboard` → `build_wide_table` → `calcular_atrasos`
+  (§24.11), só para os Trackings do Doc List, com a data-alvo como régua da 1ª emissão. O tipo do
+  envio: o primeiro envio do documento é 1ª emissão; revisão só com números, emissão final; o
+  resto, reemissão. Não emitido entra no histórico da página com uma linha só (Atraso CMI desde a
+  data-alvo), como no Histórico Consolidado.
+- **Escopo**: "18A" no sistema ou no código do grupo (nível 1) da linha → 18A; senão UG. O PEM
+  (planos de execução) só tem o 18A no grupo.
+- **Aprovação total**: status real Aprovado, Aprovado com Comentários, Para Assinatura, Informativo
+  (e For Partial Handover). Decisão do usuário: manter o status real nas visões, não o consolidado.
+
+### 34.2 O que a página faz sozinha
+
+Filtra, conta e desenha: o status de uma data passada sai da linha do tempo; os períodos (dia,
+semana, mês, trimestre, ano) e o "o que mudou" são contas sobre ela. Na curva acumulada o ponto de
+hoje soma o mês inteiro (a nota abaixo dá os números até hoje). Em "Todos" os anos, o 2% de datas
+mais distantes (2034, 2035) fica fora do eixo, com aviso. A exportação para Excel é um .xlsx
+mínimo escrito na própria página.
+
+### 34.3 Limites conhecidos
+
+- O plano do passado não é guardado: a data-alvo de uma data passada não existe (proposto guardar
+  as datas a cada geração).
+- Uma revisão tem no máximo um envio e um retorno (o wide, §24.3 L1/L2): reenvios dentro da mesma
+  revisão não contam como esforço a mais.
+- Gerar leva cerca de 1 minuto na base real (a máquina do tempo roda em cada dia com evento).
+
+**Testes**: `tests/test_painel_ug.py`, `tests/test_ui_telas.py` (botão), `tests/test_empacotamento.py`.
+
 ---
 
 *Fim do documento. Ao alterar qualquer regra descrita aqui, atualizar a seção correspondente e registrar a motivação (este arquivo é a fonte da verdade do domínio).*

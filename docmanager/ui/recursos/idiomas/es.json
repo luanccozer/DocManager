@@ -417,5 +417,8 @@
  "Últimos 30 dias": "Últimos 30 días",
  "Últimos 7 dias": "Últimos 7 días",
  "●  em vermelho: data-alvo já vencida": "●  en rojo: fecha objetivo ya vencida",
- "●  em vermelho: documento presente em mais de um grupo": "●  en rojo: documento presente en más de un grupo"
+ "●  em vermelho: documento presente em mais de um grupo": "●  en rojo: documento presente en más de un grupo",
+ "Gerar Painel HTML": "Generar Panel HTML",
+ "Painel HTML": "Panel HTML",
+ "O painel da Unidade Geradora, no lugar do Power BI: lê a planilha e a base Aconex escolhidas acima, sem alterar nada, e abre no navegador. É um arquivo só: salve no Box para reabrir depois ou envie a quem não tem o DocManager. Atualize a planilha antes, para as datas de planejamento estarem em dia.": "El panel de la Unidad Generadora, en lugar del Power BI: lee la planilla y la base Aconex elegidas arriba, sin modificar nada, y se abre en el navegador. Es un solo archivo: guárdelo en el Box para volver a abrirlo o envíelo a quien no tiene el DocManager. Actualice la planilla antes, para que las fechas de planificación estén al día."
 }

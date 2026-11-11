@@ -417,5 +417,8 @@
  "Últimos 30 dias": "Last 30 days",
  "Últimos 7 dias": "Last 7 days",
  "●  em vermelho: data-alvo já vencida": "●  in red: target date already passed",
- "●  em vermelho: documento presente em mais de um grupo": "●  in red: document present in more than one group"
+ "●  em vermelho: documento presente em mais de um grupo": "●  in red: document present in more than one group",
+ "Gerar Painel HTML": "Generate HTML Dashboard",
+ "Painel HTML": "HTML dashboard",
+ "O painel da Unidade Geradora, no lugar do Power BI: lê a planilha e a base Aconex escolhidas acima, sem alterar nada, e abre no navegador. É um arquivo só: salve no Box para reabrir depois ou envie a quem não tem o DocManager. Atualize a planilha antes, para as datas de planejamento estarem em dia.": "The Generating Unit dashboard, in place of Power BI: it reads the spreadsheet and the Aconex base chosen above, without changing anything, and opens in the browser. It is a single file: save it to Box to reopen later or send it to whoever does not have DocManager. Update the spreadsheet first, so the planning dates are up to date."
 }

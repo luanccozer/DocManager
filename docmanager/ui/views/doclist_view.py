@@ -4,9 +4,14 @@ Mesmo fluxo do Mapa dos Planos (base Aconex + planilha + Controle opcional),
 com as regras próprias do módulo. Traz as duas análises por período, que se
 complementam: **Analisar Período** olha para FRENTE (o que está previsto para
 emitir, pelas datas de planejamento) e **Delta** olha para TRÁS (o que mudou de
-status entre duas datas, pelo histórico do Aconex).
+status entre duas datas, pelo histórico do Aconex). **Gerar Painel HTML** faz o
+painel da Unidade Geradora, no lugar do Power BI.
 """
 from __future__ import annotations
+
+import webbrowser
+from datetime import datetime
+from pathlib import Path
 
 from .. import dialogos
 from ..components import Card, FileSelector, RunBar, botao, linha, rotulo
@@ -47,6 +52,16 @@ class DocListView(BaseView):
         self.run = RunBar(t("Iniciar Atualização"), self._tarefa, self.log)
         body.addWidget(self.run)
 
+        painel = Card(t("Painel HTML"))
+        painel.add(rotulo(t("O painel da Unidade Geradora, no lugar do Power BI: lê a planilha e a base "
+                            "Aconex escolhidas acima, sem alterar nada, e abre no navegador. É um arquivo só: "
+                            "salve no Box para reabrir depois ou envie a quem não tem o DocManager. "
+                            "Atualize a planilha antes, para as datas de planejamento estarem em dia."),
+                          "legenda", quebra=True))
+        body.addWidget(painel)
+        self.run_painel = RunBar(t("Gerar Painel HTML"), self._tarefa_painel, self.log)
+        body.addWidget(self.run_painel)
+
     # ------------------------------------------------------------------
     def _abrir_periodo(self):
         """O que está previsto para emitir (olha para FRENTE, pelo planejamento)."""
@@ -84,6 +99,26 @@ class DocListView(BaseView):
                                   sheet_hist=self.sel_aconex.sheet, cols_config=cfg, estrito=False,
                                   titulo=t("Doc List Mapping - Mudanças por Período (Delta)"))
         self._delta.show()
+
+    def _tarefa_painel(self, run: RunBar):
+        """Painel HTML da Unidade Geradora (no lugar do Power BI). Só lê."""
+        if not self.sel_aconex.path or not self.sel_doclist.path:
+            self.log.log("Selecione a base Aconex e a planilha do Doc List Mapping.")
+            return
+        saida = dialogos.pedir_salvar(self.ctx.config, "painel_ug", f"Painel_UG_{datetime.now():%d%m%y}.html",
+                                      filtro="Página HTML (*.html)")
+        if not saida:
+            self.log.log("Salvamento cancelado.")
+            return
+        from ...doclist_backend import gerar_painel_ug
+        r = gerar_painel_ug(self.sel_aconex.path, self.sel_doclist.path, saida,
+                            sheet_aconex=self.sel_aconex.sheet, sheet_doclist=self.sel_doclist.sheet,
+                            log_cb=self.log.log, progress_cb=run.set_progress)
+        self.log.log(r.mensagem)
+        if r.ok:
+            webbrowser.open(Path(saida).as_uri())
+        else:
+            dialogos.aviso(t("Painel HTML"), r.mensagem)
 
     def _tarefa(self, run: RunBar):
         if not self.sel_aconex.path or not self.sel_doclist.path:

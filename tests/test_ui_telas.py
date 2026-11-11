@@ -949,3 +949,25 @@ def test_caixa_do_diario_so_aparece_no_erro(app):
     assert tela.chk_diario.isHidden() and tela._diario() == ""
     tela.sel_tipo.setCurrentIndex(tela.sel_tipo.findData("Erro"))
     assert not tela.chk_diario.isHidden()
+
+
+def test_doclist_gera_o_painel_html(app, qtbot, tmp_path, monkeypatch):
+    """O botão novo do Doc List: pede onde salvar, gera o arquivo e abre no navegador."""
+    from test_doclist import _preparar_planilha
+
+    from docmanager.ui import dialogos
+    from docmanager.ui.views import doclist_view
+
+    path_base, path_dl = _preparar_planilha(tmp_path)
+    saida = tmp_path / "painel.html"
+    abertos = []
+    monkeypatch.setattr(dialogos, "pedir_salvar", lambda *a, **k: str(saida))
+    monkeypatch.setattr(doclist_view.webbrowser, "open", abertos.append)
+    app.selecionar("doclist")
+    tela = app._views["doclist"]
+    tela.sel_aconex.definir(str(path_base))
+    tela.sel_doclist.definir(str(path_dl))
+    with qtbot.waitSignal(tela.run_painel.terminou, timeout=20000):
+        tela.run_painel.btn.click()
+    assert saida.exists() and "Painel gerado com 1 documento:" in tela.log.texto()
+    assert abertos == [saida.as_uri()]

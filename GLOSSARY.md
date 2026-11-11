@@ -103,6 +103,39 @@ _Evite_: Backlog Say-do (mesmo indicador)
 A categoria de aderência de um documento do backlog à data reprogramada; fora do
 backlog, não existe.
 
+### Painel
+
+**Painel da UG**:
+O painel HTML da Unidade Geradora que o DocManager gera no módulo Doc List Mapping, no
+lugar do Power BI. Um arquivo só, com os dados do dia em que foi gerado.
+_Evite_: dashboard (é o módulo antigo do app, outra coisa), Power BI
+
+**Escopo**:
+UG ou 18A: as linhas do Doc List cujo sistema ou grupo traz "18A" no nome são da unidade
+18A; as outras, UG. Filtro do painel.
+
+**Envio**:
+Uma submissão do documento à Itaipu: o 'Em Processo' de uma revisão (o 'Para Análise'
+antes de 19/08/2024). Cada revisão do histórico tem no máximo um envio e um retorno.
+_Evite_: emissão solta (confunde com a 1ª emissão)
+
+**Tipo do envio**:
+1ª emissão (o primeiro envio do documento), reemissão (revisão com letra, depois de
+comentários ou reprovação) ou emissão final (revisão só com números, para construção).
+
+**Esforço da engenharia**:
+Os envios à Itaipu num período, separados pelo tipo do envio.
+
+**Aprovação total**:
+Os documentos com status real Aprovado, Aprovado com Comentários, Para Assinatura ou
+Informativo. O painel mostra cada um e a soma.
+_Evite_: aprovados (sem dizer se inclui os com comentários)
+
+**Linha do tempo do documento**:
+O status real do documento em cada dia em que o histórico do Aconex mexeu, reconstruído
+pela máquina do tempo. É dela que saem o progresso, a evolução da carteira e o "o que
+mudou".
+
 ### Pendências (Aconex Campo)
 
 **Questão**:

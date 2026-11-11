@@ -85,6 +85,11 @@ def test_changelog_vai_para_dentro_do_executavel():
     assert '("CHANGELOG.md", ".")' in _ler("docmanager.spec")
 
 
+def test_recursos_do_painel_ug_vao_para_dentro_do_executavel():
+    """Sem eles no `.spec`, o botão Gerar Painel HTML quebra só no .exe."""
+    assert '("docmanager/dashboard/recursos", "docmanager/dashboard/recursos")' in _ler("docmanager.spec")
+
+
 def test_token_de_atualizacao_esta_no_gitignore():
     """O arquivo gerado com o token NUNCA pode ser commitado."""
     assert "docmanager/_update_auth.py" in _ler(".gitignore")
