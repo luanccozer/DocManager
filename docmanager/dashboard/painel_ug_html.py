@@ -38,6 +38,7 @@ def compactar(dados: dict, meta: dict) -> dict:
             [list(x) for x in d["linha_do_tempo"]],
             [[r["revisao"], r["tipo"], r["envio"], r["retorno"], r["status_retorno"], r["dias_itaipu"],
               r["atraso_itaipu"], r["dias_cmi"], r["atraso_cmi"], r["sla"]] for r in d["revisoes"]],
+            d["tracking"], d["achado_por"], int(d["ambiguo"]), int(d["codigo_vigente"]),
         ])
     assoc = [[a["doc"], a["grupo"], a["sistema"], a["fase"], a["responsavel"], a["escopo"],
               a["codigo_grupo"], a["linha"]] for a in dados["associacoes"]]

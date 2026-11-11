@@ -149,6 +149,15 @@
   .legenda-lt i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
   .vazio { color: #78909c; font-style: italic; padding: 20px; text-align: center; }
   footer { text-align: center; color: #78909c; font-size: 13px; padding: 0 0 24px; }
+  /* ajuda: "i" no título de cada gráfico e a janela "Como ler o painel" */
+  .info { border: 0; background: #e0f2f1; color: #00695c; border-radius: 50%; width: 24px; height: 24px; font: 800 14px Georgia, serif; cursor: pointer; margin-left: 6px; vertical-align: 3px; padding: 0; }
+  .info:hover { background: #00897b; color: #fff; }
+  #btnAjuda { background: #fff; color: #00695c; }
+  #ajuda { position: fixed; inset: 0; background: #0008; z-index: 60; display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 30px 16px; }
+  .aj-aba { margin: 22px 0 6px; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: #00897b; }
+  .aj-sec { border-radius: 10px; padding: 10px 14px; margin: 6px 0; border: 1px solid #e0e6ea; line-height: 1.55; font-size: 16px; }
+  .aj-sec h4 { margin: 0 0 4px; font-size: 17px; color: #263238; }
+  .aj-sec.alvo { background: #fff8e1; border-color: #ffca28; }
   @media print { header, .barra-esc, .filtros, .ctl { display: none; } #conteudo { margin: 0; } }
 </style>
 </head>
@@ -160,6 +169,7 @@
   </div>
   <div class="controles">
     <span id="fonte"></span>
+    <button id="btnAjuda"></button>
     <button id="btnIdioma"></button>
   </div>
 </header>
@@ -175,7 +185,245 @@
 </div>
 <footer id="rodape"></footer>
 <div id="modal" hidden></div>
+<div id="ajuda" hidden></div>
 <script>const D = /*__DADOS__*/;</script>
+<script>
+// Ajuda: [id, aba, título PT, texto PT, título EN, texto EN]. Para mudar um texto, edite aqui.
+const AJUDA = [
+[
+"fontes",
+"Geral",
+"De onde vêm os dados",
+"Quais documentos entram e o plano de cada um (data prevista, reprogramada, data-alvo, grupo, sistema, fase, responsável) vêm do <b>Doc List Mapping</b>. O passado de cada documento vem da <b>base do Aconex</b> escolhida. Cada documento é achado no Aconex pelo mesmo caminho da atualização da planilha: primeiro pelo par Nº ITAIPU + Nº CMI, depois só pelo Nº CMI, depois só pelo Nº ITAIPU; se um código levar a mais de um Tracking ID, vale o que teve alteração mais recente. Daí em diante vale o histórico inteiro daquele <b>Tracking ID</b>, mesmo que o código tenha mudado no caminho. As regras de status são as do DocManager. O painel é uma foto do dia em que foi gerado: o cabeçalho diz qual base e qual planilha.",
+"Data sources",
+"Which documents are included and each one's plan (planned date, rescheduled date, target date, group, system, phase, responsible) come from the <b>Doc List Mapping</b>. Each document's past comes from the chosen <b>Aconex base</b>. Each document is found in Aconex the same way the spreadsheet update finds it: first by the Itaipu No. + CMI No. pair, then by the CMI No. only, then by the Itaipu No. only; if a code leads to more than one Tracking ID, the most recently changed one wins. From then on the whole history of that <b>Tracking ID</b> is used, even if the code changed along the way. The status rules are DocManager's. The dashboard is a snapshot of the day it was generated: the header names the base and the spreadsheet."
+],
+[
+"glossario",
+"Geral",
+"Termos",
+"<b>Status real</b>: o status que o documento realmente tem, depois de o DocManager tirar o ruído do Aconex (revisões canceladas, ciclos internos, integração); é a coluna STATUS REAL. <b>Status consolidado</b>: o status real agrupado em APROVADO, EM PROCESSO, NÃO APROVADO, NÃO EMITIDO e CANCELADO. <b>Aprovação total</b>: aprovado + aprovado com comentários + para assinatura + informativo. <b>Data prevista</b>: a baseline. <b>Data reprogramada</b>: a nova data assumida. <b>Data-alvo</b>: a reprogramada, se houver; senão, a prevista. <b>1ª emissão</b>: o primeiro envio à Itaipu (a 0A, ou a revisão mais antiga); antes de 19/08/2024 o envio aparecia no Aconex como 'Para Análise'. <b>Backlog</b>: documento reprogramado para depois da prevista que não tinha saído até a prevista. <b>Envio</b> e <b>retorno</b>: cada revisão tem um envio à Itaipu e um retorno com o veredito.",
+"Terms",
+"<b>Actual status</b>: the status the document really has, after DocManager removes the Aconex noise (cancelled revisions, internal cycles, integration); it is the STATUS REAL column. <b>Consolidated status</b>: the actual status grouped into APPROVED, IN PROCESS, NOT APPROVED, NOT ISSUED and CANCELLED. <b>Total approval</b>: approved + approved with comments + for signature + informative. <b>Planned date</b>: the baseline. <b>Rescheduled date</b>: the new date agreed. <b>Target date</b>: the rescheduled date if there is one, otherwise the planned date. <b>1st issue</b>: the first submission to Itaipu (0A, or the oldest revision); before 19 Aug 2024 the submission showed in Aconex as 'Para Análise'. <b>Backlog</b>: a document rescheduled to after its planned date that had not been issued by the planned date. <b>Submission</b> and <b>return</b>: each revision has one submission to Itaipu and one return with the verdict."
+],
+[
+"geral-fluxo",
+"Visão geral",
+"Fluxo dos documentos e cartões",
+"Divide os documentos do filtro pelo status real de hoje: emitidos (já tiveram a 1ª emissão) e não emitidos. Os emitidos se dividem em aprovados, em processo (com a Itaipu) e não aprovados (com a CMI, para reemitir); os não emitidos, em pendentes no prazo, vencidos e sem planejamento, pela data-alvo. Cada código conta uma vez, mesmo em várias linhas da planilha. O % de aprovação total é a aprovação total ÷ todos os documentos do filtro. Clique num quadro ou cartão para ver os documentos; no + e no − para abrir e fechar a árvore.",
+"Document flow and cards",
+"Splits the filtered documents by today's actual status: issued (already had the 1st issue) and not issued. Issued ones split into approved, in process (with Itaipu) and not approved (with CMI, to be reissued); not issued ones into pending on time, overdue and without plan, by target date. Each code counts once, even across several spreadsheet rows. The % total approval is total approval ÷ all filtered documents. Click a box or card to see the documents; + and − open and close the tree."
+],
+[
+"geral-docgeral",
+"Visão geral",
+"Documentação geral",
+"O gráfico da primeira página do Power BI: quantos documentos há em cada status real, com o percentual sobre o total do filtro.",
+"General documentation",
+"The chart from the first Power BI page: how many documents are in each actual status, with the share of the filtered total."
+],
+[
+"geral-com",
+"Visão geral",
+"Com quem está o documento",
+"Pelo status bruto da última linha do documento no Aconex: 'Em Processo' está com a Itaipu; qualquer outro, inclusive não emitido, está com a CMI. É a coluna COM ITAIPU da planilha.",
+"Where the document is",
+"From the raw status of the document's last Aconex line: 'Em Processo' means it is with Itaipu; anything else, including not issued, means it is with CMI. It is the COM ITAIPU column of the spreadsheet."
+],
+[
+"geral-pizzas",
+"Visão geral",
+"Pizzas por fase e por escopo",
+"As pizzas do Power BI: o status consolidado dos documentos de cada fase de projeto (fabricação, executivo e execução) e a divisão dos documentos por grupo. Um documento com linhas em fases diferentes entra em cada uma delas.",
+"Pies by phase and by scope",
+"The Power BI pies: the consolidated status of the documents in each design phase (manufacturing, detailed design and execution) and the split of documents by group. A document with rows in different phases is counted in each of them."
+],
+[
+"geral-grupo",
+"Visão geral",
+"Documentos por grupo e status",
+"Cada grupo com seus documentos por status consolidado. O documento entra no grupo da primeira linha em que aparece, então as barras somam o total.",
+"Documents by group and status",
+"Each group with its documents by consolidated status. A document goes into the group of the first row where it appears, so the bars add up to the total."
+],
+[
+"geral-sistema",
+"Visão geral",
+"Documentos por sistema",
+"Um documento pode estar em mais de um sistema: a tabela conta o documento em cada sistema onde ele aparece, por isso as linhas não somam o total. Compartilhados são os documentos que estão em mais de um sistema.",
+"Documents by system",
+"A document can belong to more than one system: the table counts the document in each system where it appears, so the rows do not add up to the total. Shared are the documents present in more than one system."
+],
+[
+"geral-qualidade",
+"Visão geral",
+"Qualidade dos dados",
+"Conferências da planilha e do rastreamento; nada é corrigido sozinho. 'Achado só pelo Nº ITAIPU' quer dizer que o Nº CMI da planilha não bate com o do Aconex, mas o documento foi achado mesmo assim; a próxima atualização do Doc List grava o código do Aconex. 'Código com mais de um Tracking ID' quer dizer que o código está em dois documentos do Aconex e valeu o de alteração mais recente: vale conferir.",
+"Data quality",
+"Checks on the spreadsheet and on the tracking; nothing is fixed automatically. 'Found by Itaipu No. only' means the spreadsheet's CMI No. does not match Aconex, but the document was found anyway; the next Doc List update writes the Aconex code. 'Code with more than one Tracking ID' means the code is used by two Aconex documents and the most recently changed one was chosen: worth checking."
+],
+[
+"emi-status",
+"Emissões",
+"Status das emissões",
+"O gráfico DOCUMENTOS PARA EMISSÃO do Power BI. Cada documento fica no período da sua data na régua escolhida e é pintado pela situação: emitido no prazo (1ª emissão até a data), emitido com atraso, pendente no prazo (não saiu e a data não chegou) ou pendente vencido. Réguas: <b>Atual</b> = data-alvo; <b>OTD</b> = data prevista (baseline); <b>Say-do</b> = só o backlog, pela data reprogramada. Escolha ano e mês; com um mês escolhido, as barras ficam por dia. O número em cima é o total do período. Cancelados ficam fora.",
+"Issue status",
+"The DOCUMENTS FOR ISSUE chart from Power BI. Each document sits in the period of its date on the chosen reference and is coloured by status: issued on time (1st issue by the date), issued late, pending on time (not issued and the date has not come) or pending overdue. References: <b>Current</b> = target date; <b>OTD</b> = planned date (baseline); <b>Say-do</b> = backlog only, by rescheduled date. Pick year and month; with a month picked, bars are by day. The number on top is the period total. Cancelled documents are left out."
+],
+[
+"emi-indicador",
+"Emissões",
+"Indicador do período",
+"(documentos do período − atrasados) ÷ documentos do período. Atrasados são os emitidos com atraso e os pendentes vencidos; o que ainda não venceu conta como cumprido. Na régua OTD é o Baseline OTD; na Say-do, o Say-do.",
+"Period indicator",
+"(documents in the period − late ones) ÷ documents in the period. Late ones are those issued late and those pending overdue; what is not yet due counts as met. On the OTD reference it is the Baseline OTD; on Say-do, the Say-do."
+],
+[
+"emi-curva",
+"Emissões",
+"Curva de emissão e aprovação",
+"Acumulado desde o início do projeto: planejado pela data-alvo (a meta), planejado original pela data prevista (a baseline, opcional), emitidos pela data real da 1ª emissão e aprovados (aprovação total no fim de cada período, pelo histórico do Aconex). Em cada data, emitidos − planejado = adiantados − atrasados: quem saiu antes da data dá crédito, como em todo acumulado. O ponto do período atual soma o período inteiro do planejado; a nota embaixo dá os números até hoje.",
+"Issue and approval curve",
+"Cumulative since the start of the project: planned by target date (the goal), original plan by planned date (the baseline, optional), issued by the real 1st issue date and approved (total approval at the end of each period, from the Aconex history). On any date, issued − planned = early − late: documents issued before their date count, as in any cumulative curve. The current period's point adds up the whole period of the plan; the note below gives the numbers up to today."
+],
+[
+"emi-lista",
+"Emissões",
+"Vencidos e próximas emissões",
+"Documentos ainda não emitidos, pela data-alvo: os já vencidos e os que vencem nos próximos 30 ou 90 dias. Dias negativos = já venceu.",
+"Overdue and upcoming issues",
+"Documents not issued yet, by target date: those already overdue and those due in the next 30 or 90 days. Negative days = already overdue."
+],
+[
+"prg-comparacao",
+"Progresso",
+"Comparação com uma data",
+"O status real de cada documento na data de referência é reconstruído do histórico do Aconex (a máquina do tempo do DocManager) e comparado com o de hoje. O resumo conta, na mesma janela, os envios à Itaipu por tipo e os retornos da Itaipu. Ritmo médio = variação da aprovação total ÷ semanas da janela.",
+"Comparison with a date",
+"Each document's actual status on the reference date is rebuilt from the Aconex history (DocManager's time machine) and compared with today's. The summary counts, in the same window, the submissions to Itaipu by type and Itaipu's returns. Average pace = change in total approval ÷ weeks in the window."
+],
+[
+"prg-tendencia",
+"Progresso",
+"Tendência entre as datas",
+"Quantos documentos estavam em cada status no fim de cada semana (janelas de até 6 meses) ou de cada mês. A linha tracejada é a aprovação total. Clique num ponto para ver os documentos daquele status naquela data.",
+"Trend between dates",
+"How many documents were in each status at the end of each week (windows up to 6 months) or each month. The dashed line is total approval. Click a point to see the documents in that status on that date."
+],
+[
+"prg-carteira",
+"Progresso",
+"Evolução da carteira",
+"A carteira inteira mês a mês: aprovação total, em processo, não aprovados e não emitidos, empilhados até o total de documentos.",
+"Portfolio evolution",
+"The whole portfolio month by month: total approval, in process, not approved and not issued, stacked up to the total number of documents."
+],
+[
+"prg-historico",
+"Progresso",
+"Histórico por data",
+"Os mesmos pontos da tendência em tabela, do mais recente para o mais antigo.",
+"History by date",
+"The same points as the trend, in a table, from the most recent to the oldest."
+],
+[
+"prg-mudou",
+"Progresso",
+"O que mudou",
+"Documentos cujo status mudou entre a data de referência e hoje: os que passaram a aprovados, os que passaram a não aprovados, as 1ªs emissões da janela, os que entraram em análise na Itaipu e os que deixaram de estar aprovados (por exemplo, uma revisão nova depois da aprovação).",
+"What changed",
+"Documents whose status changed between the reference date and today: those that became approved, those that became not approved, the 1st issues in the window, those that went into Itaipu review and those that stopped being approved (for example, a new revision after approval)."
+],
+[
+"esf-antes-depois",
+"Esforço da engenharia",
+"Antes e depois de uma data",
+"Compara duas janelas de mesma duração: da data de corte até hoje (depois) e o mesmo número de dias antes dela (antes). As contagens viram média por mês. Dias para reemitir = dias entre a reprovação da Itaipu e o envio da revisão seguinte. Quando a equipe reemite documentos parados há muito tempo, essa mediana sobe mesmo com melhora: leia junto com os não aprovados aguardando. Documentos que passaram a aprovados = variação da aprovação total na janela, por mês.",
+"Before and after a date",
+"Compares two windows of the same length: from the cut-off date to today (after) and the same number of days before it (before). Counts become monthly averages. Days to reissue = days between Itaipu's rejection and the submission of the next revision. When the team reissues documents that were stuck for a long time, this median goes up even if things improve: read it together with the not approved waiting. Documents that became approved = change in total approval in the window, per month."
+],
+[
+"esf-envios",
+"Esforço da engenharia",
+"Envios à Itaipu",
+"Cada revisão enviada à Itaipu, no período do envio: <b>1ª emissão</b> (o primeiro envio do documento), <b>reemissão</b> (revisão com letra, depois de comentários ou reprovação) e <b>emissão final</b> (revisão só com números, para construção). Uma revisão conta um envio: reenvios da mesma revisão não somam.",
+"Submissions to Itaipu",
+"Each revision submitted to Itaipu, in the period of the submission: <b>1st issue</b> (the document's first submission), <b>reissue</b> (revision with a letter, after comments or rejection) and <b>final issue</b> (numeric revision, for construction). One revision counts one submission: resubmissions of the same revision do not add up."
+],
+[
+"esf-retornos",
+"Esforço da engenharia",
+"Retornos da Itaipu",
+"Cada revisão que voltou da Itaipu, no período do retorno, pelo status do retorno.",
+"Itaipu returns",
+"Each revision returned by Itaipu, in the period of the return, by return status."
+],
+[
+"esf-reemissao",
+"Esforço da engenharia",
+"Prazo de reemissão da CMI",
+"Das reemissões feitas depois de uma reprovação, a parte enviada em até 15 dias, o prazo da CMI. No tooltip, a mediana de dias e quantas foram. Meses com menos de 3 ficam de fora.",
+"CMI reissue time",
+"Of the reissues made after a rejection, the share sent within 15 days, CMI's deadline. The tooltip shows the median days and how many there were. Months with fewer than 3 are left out."
+],
+[
+"esf-itaipu",
+"Esforço da engenharia",
+"Prazo de análise da Itaipu",
+"Dos retornos do período, a parte que voltou dentro do prazo: 30 dias na 0A, 15 nas demais. No tooltip, a mediana de dias de análise.",
+"Itaipu review time",
+"Of the returns in the period, the share returned within the deadline: 30 days for 0A, 15 for the others. The tooltip shows the median review days."
+],
+[
+"esf-taxa",
+"Esforço da engenharia",
+"Taxa de aprovação dos retornos",
+"Retornos aprovados (aprovado, com comentários, para assinatura, informativo) ÷ (aprovados + não aprovados), no período do retorno.",
+"Approval rate of returns",
+"Approved returns (approved, with comments, for signature, informative) ÷ (approved + not approved), in the period of the return."
+],
+[
+"esf-revisao",
+"Esforço da engenharia",
+"Em que revisão foi aprovado",
+"Para cada documento já aprovado, a revisão do primeiro retorno de aprovação: 0A quer dizer aprovado de primeira.",
+"Revision at which it was approved",
+"For each approved document, the revision of the first approval return: 0A means approved first time."
+],
+[
+"esf-aging",
+"Esforço da engenharia",
+"Há quanto tempo espera",
+"Com a Itaipu: dias desde o último envio, para os documentos em processo. Reemissão da CMI: dias desde o último retorno, para os documentos não aprovados.",
+"How long it has been waiting",
+"With Itaipu: days since the last submission, for documents in process. CMI reissue: days since the last return, for not approved documents."
+],
+[
+"esf-resp",
+"Esforço da engenharia",
+"Envios por responsável",
+"Os envios do período pelo responsável (COE/VENDOR) da primeira linha do documento na planilha.",
+"Submissions by responsible",
+"The period's submissions by the responsible (COE/VENDOR) of the document's first row in the spreadsheet."
+],
+[
+"his-tabela",
+"Histórico de revisões",
+"Histórico de revisões",
+"Como o Histórico Consolidado do DocManager, só com os documentos do Doc List: uma linha por revisão. <b>Dias Itaipu</b> = retorno − envio (sem retorno, conta até hoje se for o envio mais recente). <b>Atraso Itaipu</b> = o que passou de 30 dias (0A) ou de 15 (demais). <b>Dias CMI</b> = na 1ª emissão, envio − data-alvo; nas outras, envio − retorno da revisão anterior. <b>Atraso CMI</b> = o que passou de 15 dias (na 1ª emissão, todo dia depois da data-alvo). Não emitido entra com uma linha só, com o atraso da CMI contando desde a data-alvo.",
+"Revision history",
+"Like DocManager's Consolidated History, with the Doc List documents only: one row per revision. <b>Itaipu days</b> = return − submission (with no return, counts up to today if it is the latest submission). <b>Itaipu delay</b> = days beyond 30 (0A) or 15 (others). <b>CMI days</b> = on the 1st issue, submission − target date; on the others, submission − return of the previous revision. <b>CMI delay</b> = days beyond 15 (on the 1st issue, every day after the target date). A not issued document gets a single row, with the CMI delay running from the target date."
+],
+[
+"his-historia",
+"Histórico de revisões",
+"História do documento",
+"A linha do tempo de um documento. No alto, a data prevista e a reprogramada. Em cada revisão, a barra grossa é o tempo com a Itaipu (na cor do retorno) e a fina, o tempo de volta com a CMI até o envio seguinte (vermelha depois de reprovação). Embaixo, o status real ao longo do tempo. Passe o mouse para ver datas e dias.",
+"Document story",
+"A document's timeline. At the top, the planned and rescheduled dates. On each revision, the thick bar is the time with Itaipu (in the colour of the return) and the thin one is the time back with CMI until the next submission (red after a rejection). At the bottom, the actual status over time. Hover to see dates and days."
+]
+];
+</script>
 <script>
 "use strict";
 // =====================================================================
@@ -273,7 +521,22 @@ const EN = {
   "Os não emitidos entram com uma linha só, como no Histórico Consolidado: o atraso da CMI corre desde a data-alvo.": "Not-issued documents get a single row, as in the Consolidated History: the CMI delay runs from the target date.",
   "mediana": "median", "Prevista": "Planned", "Reprogramada": "Rescheduled", "Hoje": "Today", "Até hoje": "Up to today",
   "O ponto de hoje no gráfico soma o período inteiro.": "Today's point on the chart adds up the whole period.",
-  "TEXTO_RESUMO": "TEXTO_RESUMO",
+  "Sistemas só em agrupamentos": "Systems only in groupings", "Como ler o painel": "How to read the dashboard", "Como é calculado": "How it is calculated", "Geral": "General",
+  "Antes e depois de uma data": "Before and after a date", "mesma duração antes e depois · contagens por mês": "same length before and after · counts per month",
+  "Data de corte": "Cut-off date", "Indicador": "Indicator", "Antes": "Before", "Depois": "After", "Variação": "Change",
+  "Reemissões enviadas (por mês)": "Reissues sent (per month)", "1ªs emissões (por mês)": "1st issues (per month)", "Emissões finais (por mês)": "Final issues (per month)",
+  "Retornos aprovados (por mês)": "Approved returns (per month)", "Taxa de aprovação dos retornos": "Approval rate of returns",
+  "Documentos que passaram a aprovados (por mês)": "Documents that became approved (per month)",
+  "Dias para reemitir depois da reprovação (mediana)": "Days to reissue after rejection (median)", "Reemitidos em até 15 dias": "Reissued within 15 days",
+  "Dias de análise da Itaipu (mediana)": "Itaipu review days (median)", "Itaipu no prazo": "Itaipu on time",
+  "Não aprovados aguardando reemissão (no fim da janela)": "Not approved waiting for reissue (end of window)",
+  "dias em cada janela.": "days in each window.", "Clique numa linha para ver os documentos de depois da data.": "Click a row to see the documents after the date.",
+  "Quando a equipe reemite documentos parados há muito tempo, a mediana de dias para reemitir sobe: leia junto com os não aprovados aguardando.": "When the team reissues documents that were stuck for a long time, the median days to reissue goes up: read it together with the not approved waiting.",
+  "Prazo de reemissão da CMI": "CMI reissue time", "% das reemissões depois de reprovação feitas em até 15 dias": "% of reissues after rejection made within 15 days",
+  "aprovados ÷ (aprovados + não aprovados)": "approved ÷ (approved + not approved)",
+  "Achado só pelo Nº ITAIPU (o Nº CMI não confere com o Aconex)": "Found by Itaipu No. only (CMI No. does not match Aconex)",
+  "Achado só pelo Nº CMI (o Nº ITAIPU não confere com o Aconex)": "Found by CMI No. only (Itaipu No. does not match Aconex)",
+  "Código com mais de um Tracking ID (valeu o mais recente)": "Code with more than one Tracking ID (the most recent was used)",
 };
 const EN_ST = {
   "Aprovado": "Approved", "Aprovado com Comentários": "Approved with comments", "Para Assinatura": "For signature", "Informativo": "Informative",
@@ -284,6 +547,20 @@ const EN_ST = {
   "EXECUÇÃO": "EXECUTION", "1ª emissão": "1st issue", "Reemissão": "Reissue", "Emissão final": "Final issue", "Para Informação": "For information",
 };
 const T = s => LANG === "en" ? (EN[s] ?? s) : s;
+const info = id => `<button class="info" data-a="${id}" title="${T("Como é calculado")}">i</button>`;
+function abrirAjuda(alvo) {
+  const box = document.getElementById("ajuda"), en = LANG === "en";
+  const abas = [...new Set(AJUDA.map(a => a[1]))];
+  box.innerHTML = `<div class="janela"><div class="jan-head"><h2 style="flex:1">📘 ${T("Como ler o painel")}</h2><button class="fechar" id="aj-x">✕ ${T("Fechar")}</button></div>` +
+    abas.map(aba => `<div class="aj-aba">${T(aba)}</div>` + AJUDA.filter(a => a[1] === aba).map(a =>
+      `<div class="aj-sec${a[0] === alvo ? " alvo" : ""}" id="aj-${a[0]}"><h4>${en ? a[4] : a[2]}</h4>${en ? a[5] : a[3]}</div>`).join("")).join("") + `</div>`;
+  box.hidden = false;
+  document.getElementById("aj-x").onclick = () => { box.hidden = true; };
+  box.onclick = e => { if (e.target === box) box.hidden = true; };
+  const el = alvo && document.getElementById(`aj-${alvo}`);
+  if (el) setTimeout(() => el.scrollIntoView({ block: "center" }), 0);
+}
+document.addEventListener("click", e => { const b = e.target.closest(".info"); if (b) { e.stopPropagation(); abrirAjuda(b.dataset.a); } }, true);
 const TS = s => LANG === "en" ? (EN_ST[s] ?? s) : s === "NÃO EMITIDO" ? "Não emitido" : s;
 const TC = s => LANG === "en" ? (EN_ST[s] ?? s) : s;   // rótulos do consolidado e das situações ficam em maiúsculas
 
@@ -306,6 +583,7 @@ const unicos = arr => [...new Set(arr)];
 const mediana = arr => { if (!arr.length) return null; const s = [...arr].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const media = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 const sinal = n => n > 0 ? `+${nf(n)}` : n < 0 ? `−${nf(-n)}` : "0";
+const iso = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
 
 // =====================================================================
 // Dados (vêm prontos do DocManager; aqui só se filtra, conta e desenha)
@@ -316,6 +594,7 @@ const DOCS = D.docs.map((a, i) => ({
   rev: a[9], st: a[10], stb: a[11], cons: a[12], com: a[13], sit: a[14], otd: a[15], sd: a[16], bl: !!a[17], dsv: a[18], acx: !!a[19],
   tl: a[20].map(([d, s]) => [dt(d), s]),
   revs: a[21].map(r => ({ rev: r[0], tipo: r[1], env: dt(r[2]), ret: dt(r[3]), stRet: r[4], dIt: r[5], aIt: r[6], dCmi: r[7], aCmi: r[8], sla: r[9] })),
+  trk: a[22] || "", via: a[23] || "", ambiguo: !!a[24], vigente: a[25] == null ? true : !!a[25],
   assoc: [],
 }));
 const ASSOC = D.assoc.map(a => ({ doc: a[0], grupo: a[1] || "—", sistema: a[2] || "—", fase: a[3] || "—", resp: a[4] || "—", escopo: a[5], codGrupo: a[6], linha: a[7] }));
@@ -324,7 +603,9 @@ DOCS.forEach(d => {
   const a = d.assoc[0] || {};
   d.grupo = a.grupo; d.sistema = a.sistema; d.fase = a.fase; d.resp = a.resp; d.escopo = a.escopo; d.linha = a.linha;
   d.sistemas = unicos(d.assoc.map(x => x.sistema));
-  d.revs.forEach((r, k) => { r.doc = d; r.ordem = k; });
+  // antSt = status do retorno anterior (o que provocou esta revisão): "Não Aprovado" = reemissão depois de reprovação
+  let ant = null;
+  d.revs.forEach((r, k) => { r.doc = d; r.ordem = k; r.antSt = ant; if (r.stRet) ant = r.stRet; });
 });
 const GRUPOS1 = D.grupos.map(g => ({ codigo: g[0], grupo: g[1], sistema: g[2], fase: g[3], linha: g[4], escopo: g[5] }));
 
@@ -458,7 +739,7 @@ const indiceHoje = ps => ps.findIndex(p => p.ini <= HOJE && HOJE <= p.fim);
 // =====================================================================
 let DET = null;
 const COLS_DOC = () => [
-  [T("Nº ITAIPU"), d => d.cod, "cod"], [T("Nº CMI"), d => d.cmi, "cod"], [T("Descrição"), d => d.desc, "desc"],
+  [T("Nº ITAIPU"), d => d.cod, "cod"], [T("Nº CMI"), d => d.cmi, "cod"], ["Tracking ID", d => d.trk, "cod"], [T("Descrição"), d => d.desc, "desc"],
   [T("Grupo"), d => d.grupo], [T("Sistemas"), d => d.sistemas.join(" | ")], [T("Escopo"), d => d.escopo], [T("Fase"), d => TS(d.fase)],
   [T("Responsável"), d => d.resp], [T("Status real"), d => d.st, "st"], [T("Status consolidado"), d => d.cons, "cons"],
   [T("Com quem está"), d => d.com], [T("Situação emissão"), d => d.sit, "sit"], [T("Situação OTD"), d => d.otd, "sit"],
@@ -467,7 +748,7 @@ const COLS_DOC = () => [
   [T("Rev."), d => d.rev], [T("Desvio (dias)"), d => d.dsv, "num"], [T("Linha"), d => d.linha, "num"],
 ];
 const COLS_REV = () => [
-  [T("Nº ITAIPU"), r => r.doc.cod, "cod"], [T("Descrição"), r => r.doc.desc, "desc"], [T("Grupo"), r => r.doc.grupo], [T("Sistema"), r => r.doc.sistema],
+  [T("Nº ITAIPU"), r => r.doc.cod, "cod"], ["Tracking ID", r => r.doc.trk, "cod"], [T("Descrição"), r => r.doc.desc, "desc"], [T("Grupo"), r => r.doc.grupo], [T("Sistema"), r => r.doc.sistema],
   [T("Fase"), r => TS(r.doc.fase)], [T("Revisão"), r => r.rev], [T("Tipo"), r => TS(r.tipo || ""), "tipo"], [T("Data de envio"), r => r.env, "data"],
   [T("Data de retorno"), r => r.ret, "data"], [T("Status do retorno"), r => r.stRet, "st"], [T("SLA"), r => r.sla, "num"],
   [T("Dias Itaipu"), r => r.dIt, "num"], [T("Atraso Itaipu"), r => r.aIt, "num"], [T("Dias CMI"), r => r.dCmi, "num"], [T("Atraso CMI"), r => r.aCmi, "num"],
@@ -575,6 +856,7 @@ function pintarCabecalho() {
   document.documentElement.lang = LANG === "en" ? "en" : "pt-BR";
   document.getElementById("titulo").textContent = T("Documentos – Unidade Geradora");
   document.getElementById("btnIdioma").textContent = "🌐 " + (LANG === "en" ? T("Português") : T("English"));
+  document.getElementById("btnAjuda").textContent = "📘 " + T("Como ler o painel");
   const m = D.meta;
   document.getElementById("fonte").innerHTML = `${T("Base Aconex")}: <b>${esc(m.base)}</b> (${T("último evento")} ${fmt(dt(m.ultimoEvento))}) · ` +
     `${T("Doc List")}: <b>${esc(m.docList)}</b>, ${T("aba")} ${esc(m.aba)}`;
@@ -583,6 +865,7 @@ function pintarCabecalho() {
   document.querySelectorAll("#tabs .tab").forEach(b => b.onclick = () => { ABA = b.dataset.k; pintar(); });
 }
 document.getElementById("btnIdioma").onclick = () => { LANG = LANG === "en" ? "pt" : "en"; pintar(); };
+document.getElementById("btnAjuda").onclick = () => abrirAjuda(null);
 
 function pintar() {
   pintarCabecalho();
@@ -610,21 +893,21 @@ function pintarKpis(id, kp, onClick) {
 // =====================================================================
 function pintarGeral(aba, docs) {
   aba.innerHTML = `
-    <div class="card"><div class="arv-head"><h3>${T("Fluxo dos documentos")} <small>${T("clique em um quadro para ver os documentos")}</small></h3><div class="indicador" id="ind-aprov"></div></div><div class="arv" id="arvore"></div></div>
+    <div class="card"><div class="arv-head"><h3>${T("Fluxo dos documentos")} ${info("geral-fluxo")} <small>${T("clique em um quadro para ver os documentos")}</small></h3><div class="indicador" id="ind-aprov"></div></div><div class="arv" id="arvore"></div></div>
     <div class="kpis" id="kpis-geral"></div>
     <div class="fila2">
-      <div class="card"><h3>${T("Documentação geral")} <small>${T("status real · clique em uma barra para ver os documentos")}</small></h3><div class="caixa" id="cx-st"><canvas id="g-st"></canvas></div></div>
-      <div class="card"><h3>${T("Com quem está o documento")}</h3><div class="caixa" style="height:330px"><canvas id="g-com"></canvas></div></div>
+      <div class="card"><h3>${T("Documentação geral")} ${info("geral-docgeral")} <small>${T("status real · clique em uma barra para ver os documentos")}</small></h3><div class="caixa" id="cx-st"><canvas id="g-st"></canvas></div></div>
+      <div class="card"><h3>${T("Com quem está o documento")} ${info("geral-com")}</h3><div class="caixa" style="height:330px"><canvas id="g-com"></canvas></div></div>
     </div>
     <div class="fila-pizzas">
-      <div class="card"><h3>${T("Documentos de fabricação")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-fab"></canvas></div></div>
-      <div class="card"><h3>${T("Documentos executivos")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-exe"></canvas></div></div>
-      <div class="card"><h3>${T("Documentos de execução (planos)")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-pln"></canvas></div></div>
-      <div class="card"><h3>${T("Documentos por escopo")} <small>${T("por grupo")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-esc"></canvas></div></div>
+      <div class="card"><h3>${T("Documentos de fabricação")} ${info("geral-pizzas")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-fab"></canvas></div></div>
+      <div class="card"><h3>${T("Documentos executivos")} ${info("geral-pizzas")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-exe"></canvas></div></div>
+      <div class="card"><h3>${T("Documentos de execução (planos)")} ${info("geral-pizzas")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-pln"></canvas></div></div>
+      <div class="card"><h3>${T("Documentos por escopo")} ${info("geral-pizzas")} <small>${T("por grupo")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-esc"></canvas></div></div>
     </div>
-    <div class="card"><h3>${T("Documentos por grupo e status")} <small>${T("um código conta uma vez · clique para listar")}</small></h3><div class="caixa" id="cx-grp"><canvas id="g-grp"></canvas></div></div>
-    <div class="card"><h3>${T("Documentos por sistema")}</h3><p class="nota" style="margin:0 0 10px">${T("Um documento pode pertencer a vários sistemas: os números por sistema não somam o total. Clique em uma linha para listar.")}</p><div class="tabela-wrap" style="max-height:420px"><table id="t-sis"></table></div></div>
-    <div class="card"><h3>${T("Qualidade dos dados")} <small>${T("incidências da planilha de origem · nada é corrigido automaticamente")}</small></h3><div id="qualidade"></div></div>`;
+    <div class="card"><h3>${T("Documentos por grupo e status")} ${info("geral-grupo")} <small>${T("um código conta uma vez · clique para listar")}</small></h3><div class="caixa" id="cx-grp"><canvas id="g-grp"></canvas></div></div>
+    <div class="card"><h3>${T("Documentos por sistema")} ${info("geral-sistema")}</h3><p class="nota" style="margin:0 0 10px">${T("Um documento pode pertencer a vários sistemas: os números por sistema não somam o total. Clique em uma linha para listar.")}</p><div class="tabela-wrap" style="max-height:420px"><table id="t-sis"></table></div></div>
+    <div class="card"><h3>${T("Qualidade dos dados")} ${info("geral-qualidade")} <small>${T("incidências da planilha de origem · nada é corrigido automaticamente")}</small></h3><div id="qualidade"></div></div>`;
   const n = docs.length, por = s => docs.filter(d => d.st === s);
   const emit = docs.filter(d => d.st !== "NÃO EMITIDO" && !cancelado(d)), nemit = docs.filter(d => d.st === "NÃO EMITIDO");
   const aprov = docs.filter(d => ehAprov(d.st));
@@ -732,13 +1015,16 @@ function pintarQualidade(docs) {
     [T("Emitido sem DATA 1ª EMISSÃO"), docs.filter(d => d.st !== "NÃO EMITIDO" && !cancelado(d) && !d.e1)],
     [T("Sem data prevista nem reprogramada"), docs.filter(d => !d.alvo && !cancelado(d))],
     [T("Não achados no Aconex"), docs.filter(d => !d.acx)],
+    [T("Achado só pelo Nº ITAIPU (o Nº CMI não confere com o Aconex)"), docs.filter(d => d.via === "itaipu")],
+    [T("Achado só pelo Nº CMI (o Nº ITAIPU não confere com o Aconex)"), docs.filter(d => d.via === "cmi")],
+    [T("Código com mais de um Tracking ID (valeu o mais recente)"), docs.filter(d => d.ambiguo)],
     [T("Documentos compartilhados (código repetido)"), rep],
   ];
   const qb = (t, v) => `<div class="qb"><span>${t}</span><b>${v}</b></div>`;
   const box = document.getElementById("qualidade");
   box.innerHTML = `<div class="qgrid">${qb(T("Linhas de documentos (nível 2)"), nf(lf.length))}${qb(T("Documentos únicos (N° ITAIPU)"), nf(docs.length))}` +
     `${qb(T("Códigos repetidos"), nf(rep.length))}${qb(T("Grupos de nível 1"), nf(GRUPOS1.length))}${qb(T("Sistemas com documentos"), nf(sisDoc.size))}` +
-    `${qb("Sistemas só em agrupamentos", `${sis1.filter(s => !sisDoc.has(s)).length} <small>${esc(sis1.filter(s => !sisDoc.has(s)).join(", "))}</small>`)}</div>` +
+    `${qb(T("Sistemas só em agrupamentos"), `${sis1.filter(s => !sisDoc.has(s)).length} <small>${esc(sis1.filter(s => !sisDoc.has(s)).join(", "))}</small>`)}</div>` +
     `<div class="incs">${inc.map(([t, a], i) => `<button class="inc${a.length ? "" : " ok"}" data-i="${i}"><span>${t}</span><b>${a.length ? nf(a.length) : T("sem ocorrências")}</b></button>`).join("")}</div>`;
   box.querySelectorAll(".inc").forEach(b => b.onclick = () => { const [t, a] = inc[+b.dataset.i]; if (a.length) abrirDocs(t, a); });
 }
@@ -763,10 +1049,10 @@ function pintarEmissoes(aba, docs) {
     </div>
     <div class="kpis" id="kpis-emi"></div>
     <div class="card"><h3 id="t-emi"></h3><div class="caixa" style="height:380px"><canvas id="g-emi"></canvas></div><p class="nota" id="nota-emi"></p></div>
-    <div class="card"><h3>${T("Curva de emissão e aprovação")} <small>${T("acumulado desde o início do projeto")}</small></h3>
+    <div class="card"><h3>${T("Curva de emissão e aprovação")} ${info("emi-curva")} <small>${T("acumulado desde o início do projeto")}</small></h3>
       <div class="ctl" style="margin-bottom:8px"><label class="chk"><input type="checkbox" id="chk-base"${EMI.baseline ? " checked" : ""}> ${T("Mostrar a baseline")}</label><label class="chk"><input type="checkbox" id="chk-aprov"${EMI.aprov ? " checked" : ""}> ${T("Mostrar aprovados")}</label></div>
       <div class="caixa" style="height:420px"><canvas id="g-curva"></canvas></div><p class="nota" id="nota-curva"></p></div>
-    <div class="card"><h3>${T("Próximas emissões e vencidos")}</h3>
+    <div class="card"><h3>${T("Próximas emissões e vencidos")} ${info("emi-lista")}</h3>
       <div class="ctl" style="margin-bottom:10px"><span class="seg" id="seg-lista">${[["venc", "Vencidos"], ["30", "Próximos 30 dias"], ["90", "Próximos 90 dias"]].map(([k, r]) => `<button data-k="${k}"${EMI.lista === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></div>
       <div class="tabela-wrap" style="max-height:420px"><table id="t-prox"></table></div></div>`;
   document.querySelectorAll("#seg-regua button").forEach(b => b.onclick = () => { EMI.regua = b.dataset.k; pintar(); });
@@ -793,14 +1079,14 @@ function pintarEmissoes(aba, docs) {
   const por = s => noPeriodo.filter(d => d[cSit] === s);
   const atras = por("EMITIDO COM ATRASO").length + por("PENDENTE VENCIDO").length;
   const tituloInd = { "ATUAL": "Aderência à data-alvo", "OTD": "Baseline OTD", "SAY-DO": "Say-do" }[EMI.regua];
-  document.getElementById("ind-emi").innerHTML = `<div class="fn">${T(tituloInd)}</div><div class="fd">${noPeriodo.length ? pct(noPeriodo.length - atras, noPeriodo.length) : "—"}</div>` +
+  document.getElementById("ind-emi").innerHTML = `<div class="fn">${T(tituloInd)} ${info("emi-indicador")}</div><div class="fd">${noPeriodo.length ? pct(noPeriodo.length - atras, noPeriodo.length) : "—"}</div>` +
     `<small>${noPeriodo.length ? `${nf(noPeriodo.length - atras)} ${T("de")} ${nf(noPeriodo.length)} ${T("sem atraso")}` : T("nada previsto no período")}</small>`;
   pintarKpis("kpis-emi", [
     [T("Documentos no período"), nf(noPeriodo.length), "#37474f", noPeriodo, ""],
     ...SIT_ORDEM.map(s => [TS(s).charAt(0) + TS(s).slice(1).toLowerCase(), nf(por(s).length), SIT_COR[s], por(s), pct(por(s).length, noPeriodo.length)]),
   ]);
   const subt = { "ATUAL": "pela data-alvo", "OTD": "pela data prevista (baseline)", "SAY-DO": "só o backlog, pela data reprogramada" }[EMI.regua];
-  document.getElementById("t-emi").innerHTML = `${T("Status das emissões")} · ${T(subt)} <small>${T("clique em uma barra para ver os documentos")}</small>`;
+  document.getElementById("t-emi").innerHTML = `${T("Status das emissões")} · ${T(subt)} ${info("emi-status")} <small>${T("clique em uma barra para ver os documentos")}</small>`;
   const grade = SIT_ORDEM.map(s => ps.map(() => []));
   noPeriodo.forEach(d => { const i = idx[chavePeriodo(d[cData], agr)]; if (i != null) grade[SIT_ORDEM.indexOf(d[cSit])][i].push(d); });
   grafico("g-emi", { type: "bar", data: { labels: ps.map(p => p.rotulo), datasets: SIT_ORDEM.map((s, k) => ({ label: TS(s), data: grade[k].map(a => a.length), backgroundColor: SIT_COR[s], stack: "s" })) },
@@ -898,12 +1184,12 @@ function pintarProgresso(aba, docs) {
     </div>
     <div class="kpis" id="kpis-prg"></div>
     <div class="resumo" id="resumo-prg"></div>
-    <div class="card"><h3>${T("Tendência entre as datas")} <small>${T("clique em um ponto para ver os documentos")}</small></h3>
+    <div class="card"><h3>${T("Tendência entre as datas")} ${info("prg-tendencia")} <small>${T("clique em um ponto para ver os documentos")}</small></h3>
       <div class="ctl" style="margin-bottom:8px"><label>${T("Janela")}<span class="seg" id="seg-jan">${[["3", "3 meses"], ["6", "6 meses"], ["12", "12 meses"], ["tudo", "Tudo"]].map(([k, r]) => `<button data-k="${k}"${PRG.janela === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></label></div>
       <div class="caixa" style="height:420px"><canvas id="g-tend"></canvas></div></div>
-    <div class="card"><h3>${T("Evolução da carteira")} <small>${T("estado de cada documento no fim de cada período, reconstruído do histórico do Aconex")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-cart"></canvas></div></div>
-    <div class="card"><h3>${T("Histórico por data")}</h3><div class="tabela-wrap" style="max-height:460px"><table class="hist" id="t-hist"></table></div></div>
-    <div class="card"><h3>${T("O que mudou desde")} ${fmt(ref)}</h3><div class="mudancas" id="mudancas"></div></div>`;
+    <div class="card"><h3>${T("Evolução da carteira")} ${info("prg-carteira")} <small>${T("estado de cada documento no fim de cada período, reconstruído do histórico do Aconex")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-cart"></canvas></div></div>
+    <div class="card"><h3>${T("Histórico por data")} ${info("prg-historico")}</h3><div class="tabela-wrap" style="max-height:460px"><table class="hist" id="t-hist"></table></div></div>
+    <div class="card"><h3>${T("O que mudou desde")} ${fmt(ref)} ${info("prg-mudou")}</h3><div class="mudancas" id="mudancas"></div></div>`;
   document.getElementById("sel-ref").onchange = e => { PRG.ref = e.target.value; if (PRG.ref === "outra" && !PRG.outra) PRG.outra = `${ref.getFullYear()}-${p2(ref.getMonth() + 1)}-${p2(ref.getDate())}`; pintar(); };
   const inp = document.getElementById("inp-ref"); if (inp) inp.onchange = e => { PRG.outra = e.target.value; pintar(); };
   document.querySelectorAll("#seg-jan button").forEach(b => b.onclick = () => { PRG.janela = b.dataset.k; pintar(); });
@@ -940,7 +1226,7 @@ function pintarProgresso(aba, docs) {
       `A engenharia fez <b>${nf(env.length)}</b> envios à Itaipu: ${nf(tipos["1ª emissão"] || 0)} primeiras emissões, ${nf(tipos["Reemissão"] || 0)} reemissões e ${nf(tipos["Emissão final"] || 0)} emissões finais. ` +
       `A Itaipu devolveu <b>${nf(retAp)}</b> aprovações e <b>${nf(retNa)}</b> reprovações. Os não aprovados passaram de <b>${nf(q(A, "Não Aprovado"))}</b> para <b>${nf(q(H, "Não Aprovado"))}</b>, e os documentos com a Itaipu, de <b>${nf(q(A, "Em Processo"))}</b> para <b>${nf(q(H, "Em Processo"))}</b>. ` +
       `Ritmo médio: <b>${dec(ritmo)} documentos aprovados por semana</b>.`;
-  document.getElementById("resumo-prg").innerHTML = txt;
+  document.getElementById("resumo-prg").innerHTML = txt + " " + info("prg-comparacao");
 
   // Tendência: pontos no fim de cada período da janela
   const meses = PRG.janela === "tudo" ? null : +PRG.janela;
@@ -993,7 +1279,8 @@ function pintarProgresso(aba, docs) {
 // =====================================================================
 // 4 · Esforço da engenharia: envios à Itaipu, retornos e retrabalho
 // =====================================================================
-const ESF = { ano: "", agr: "mes" };
+const ESF = { ano: "", agr: "mes", corte: "" };
+const corteInicial = () => new Date(HOJE.getFullYear(), HOJE.getMonth() - 3, 1);   // 1º dia de 3 meses atrás
 function pintarEsforco(aba, docs) {
   const base = docs.filter(d => !cancelado(d)), revs = base.flatMap(d => d.revs);
   const anos = unicos(revs.flatMap(r => [r.env, r.ret]).filter(Boolean).map(d => d.getFullYear())).sort();
@@ -1004,20 +1291,29 @@ function pintarEsforco(aba, docs) {
       <label>${T("Agrupar por")}<span class="seg" id="esf-agr">${[["semana", "Semana"], ["mes", "Mês"], ["trimestre", "Trimestre"]].map(([k, r]) => `<button data-k="${k}"${ESF.agr === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></label>
     </div>
     <div class="kpis" id="kpis-esf"></div>
+    <div class="card"><h3>${T("Antes e depois de uma data")} ${info("esf-antes-depois")} <small>${T("mesma duração antes e depois · contagens por mês")}</small></h3>
+      <div class="ctl" style="margin-bottom:10px"><label>${T("Data de corte")}<input type="date" id="esf-corte" value="${ESF.corte || iso(corteInicial())}"></label></div>
+      <div class="tabela-wrap"><table class="hist" id="t-ad"></table></div><p class="nota" id="nota-ad"></p></div>
     <div class="fila-meio">
-      <div class="card"><h3>${T("Envios à Itaipu por período")} <small>${T("clique em uma barra para ver os documentos")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-env"></canvas></div></div>
-      <div class="card"><h3>${T("Retornos da Itaipu por período")} <small>${T("pelo status do retorno")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-ret"></canvas></div></div>
+      <div class="card"><h3>${T("Envios à Itaipu por período")} ${info("esf-envios")} <small>${T("clique em uma barra para ver os documentos")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-env"></canvas></div></div>
+      <div class="card"><h3>${T("Retornos da Itaipu por período")} ${info("esf-retornos")} <small>${T("pelo status do retorno")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-ret"></canvas></div></div>
     </div>
     <div class="fila-meio">
-      <div class="card"><h3>${T("Em que revisão o documento foi aprovado")} <small>${T("1ª aprovação de cada documento")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-ciclos"></canvas></div></div>
-      <div class="card"><h3>${T("Prazo de análise da Itaipu")} <small>${T("% dos retornos dentro do prazo (30 dias na 0A, 15 nas demais)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-sla"></canvas></div></div>
+      <div class="card"><h3>${T("Prazo de reemissão da CMI")} ${info("esf-reemissao")} <small>${T("% das reemissões depois de reprovação feitas em até 15 dias")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-reem"></canvas></div></div>
+      <div class="card"><h3>${T("Prazo de análise da Itaipu")} ${info("esf-itaipu")} <small>${T("% dos retornos dentro do prazo (30 dias na 0A, 15 nas demais)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-sla"></canvas></div></div>
     </div>
     <div class="fila-meio">
-      <div class="card"><h3>${T("Há quanto tempo está com a Itaipu")} <small>${T("dias desde o último envio · documentos em processo")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-aging-it"></canvas></div></div>
-      <div class="card"><h3>${T("Há quanto tempo espera reemissão da CMI")} <small>${T("dias desde a reprovação · documentos não aprovados")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-aging-cmi"></canvas></div></div>
+      <div class="card"><h3>${T("Taxa de aprovação dos retornos")} ${info("esf-taxa")} <small>${T("aprovados ÷ (aprovados + não aprovados)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-taxa"></canvas></div></div>
+      <div class="card"><h3>${T("Em que revisão o documento foi aprovado")} ${info("esf-revisao")} <small>${T("1ª aprovação de cada documento")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-ciclos"></canvas></div></div>
     </div>
-    <div class="card"><h3>${T("Envios por responsável")} <small>${T("clique em uma barra para ver os documentos")}</small></h3><div class="caixa" id="cx-resp"><canvas id="g-resp"></canvas></div></div>`;
+    <div class="fila-meio">
+      <div class="card"><h3>${T("Há quanto tempo está com a Itaipu")} ${info("esf-aging")} <small>${T("dias desde o último envio · documentos em processo")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-aging-it"></canvas></div></div>
+      <div class="card"><h3>${T("Há quanto tempo espera reemissão da CMI")} ${info("esf-aging")} <small>${T("dias desde a reprovação · documentos não aprovados")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-aging-cmi"></canvas></div></div>
+    </div>
+    <div class="card"><h3>${T("Envios por responsável")} ${info("esf-resp")} <small>${T("clique em uma barra para ver os documentos")}</small></h3><div class="caixa" id="cx-resp"><canvas id="g-resp"></canvas></div></div>`;
   document.getElementById("esf-ano").onchange = e => { ESF.ano = e.target.value; pintar(); };
+  document.getElementById("esf-corte").onchange = e => { ESF.corte = e.target.value; pintar(); };
+  pintarAntesDepois(base, revs);
   document.querySelectorAll("#esf-agr button").forEach(b => b.onclick = () => { ESF.agr = b.dataset.k; pintar(); });
   const datas = revs.flatMap(r => [r.env, r.ret]).filter(Boolean);
   if (!datas.length) return;
@@ -1071,6 +1367,20 @@ function pintarEsforco(aba, docs) {
     options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${dec(c.raw)}% · ${T("Dias de análise (mediana)")}: ${dec(mediana(rp[c.dataIndex].map(r => r.dIt)), 0)} · n=${rp[c.dataIndex].length}` } } },
       scales: { x: eixoCat(), y: eixoVal({ max: 100, ticks: { callback: v => v + "%" } }) }, onHover: cursor,
       onClick: (e, el) => { if (el.length) abrirRevs(`${T("Prazo de análise da Itaipu")} · ${ps[el[0].index].rotulo}`, rp[el[0].index]); } } });
+  // Prazo de reemissão da CMI: reemissões depois de reprovação, pela data do envio
+  const posRep = ps.map(p => env.filter(r => r.antSt === "Não Aprovado" && r.dCmi != null && r.env >= p.ini && r.env <= p.fim));
+  grafico("g-reem", { type: "line", data: { labels: ps.map(p => p.rotulo), datasets: [{ label: "%", data: posRep.map(a => a.length >= 3 ? 100 * a.filter(r => r.dCmi <= 15).length / a.length : null),
+      borderColor: "#fb8c00", backgroundColor: "#fb8c00", borderWidth: 2.5, pointRadius: 3, spanGaps: true, tension: .2 }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${dec(c.raw)}% · ${T("mediana")}: ${dec(mediana(posRep[c.dataIndex].map(r => r.dCmi)), 0)} ${T("dias")} · n=${posRep[c.dataIndex].length}` } } },
+      scales: { x: eixoCat(), y: eixoVal({ max: 100, ticks: { callback: v => v + "%" } }) }, onHover: cursor,
+      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Prazo de reemissão da CMI")} · ${ps[el[0].index].rotulo}`, posRep[el[0].index]); } } });
+  // Taxa de aprovação dos retornos, pela data do retorno
+  const retP = ps.map((p, i) => gRet.flatMap(g => g[i]).filter(r => ehAprov(r.stRet) || r.stRet === "Não Aprovado"));
+  grafico("g-taxa", { type: "line", data: { labels: ps.map(p => p.rotulo), datasets: [{ label: "%", data: retP.map(a => a.length >= 3 ? 100 * a.filter(r => ehAprov(r.stRet)).length / a.length : null),
+      borderColor: "#1e8e3e", backgroundColor: "#1e8e3e", borderWidth: 2.5, pointRadius: 3, spanGaps: true, tension: .2 }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => { const a = retP[c.dataIndex]; return `${dec(c.raw)}% · ${nf(a.filter(r => ehAprov(r.stRet)).length)} ${T("de")} ${nf(a.length)}`; } } } },
+      scales: { x: eixoCat(), y: eixoVal({ max: 100, ticks: { callback: v => v + "%" } }) }, onHover: cursor,
+      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Taxa de aprovação dos retornos")} · ${ps[el[0].index].rotulo}`, retP[el[0].index]); } } });
   // Aging (como o "Tempo desde a última modificação" do RTA)
   const faixas = [["Até 15 dias", 0, 15, "#1e8e3e"], ["16 a 30 dias", 16, 30, "#fbc02d"], ["31 a 60 dias", 31, 60, "#fb8c00"], ["Mais de 60 dias", 61, 1e9, "#d93025"]];
   const aging = (lista, ref) => faixas.map(([, a, b]) => lista.filter(d => { const x = ref(d); return x != null && x >= a && x <= b; }));
@@ -1088,6 +1398,54 @@ function pintarEsforco(aba, docs) {
       onClick: (e, el) => { if (!el.length) return; const p = resps[el[0].index], t = TIPO_ORDEM[el[0].datasetIndex]; abrirRevs(`${p} · ${TS(t)}`, env.filter(r => respDe(r) === p && r.tipo === t)); } } });
 }
 
+// Antes e depois de uma data: duas janelas de mesma duração, para ver se algo melhorou
+function pintarAntesDepois(base, revs) {
+  const corte = ESF.corte ? dt(ESF.corte) : corteInicial();
+  const dur = Math.max(1, diasEntre(corte, HOJE) + 1);
+  const W = [{ a: somaDias(corte, -dur), b: somaDias(corte, -1) }, { a: corte, b: HOJE }];
+  const medir = w => {
+    const dentro = x => x && x >= w.a && x <= w.b, porMes = n => n * 30.4 / dur;
+    const env = revs.filter(r => dentro(r.env)), ret = revs.filter(r => dentro(r.ret));
+    const ap = ret.filter(r => ehAprov(r.stRet)), na = ret.filter(r => r.stRet === "Não Aprovado");
+    const posRep = env.filter(r => r.antSt === "Não Aprovado" && r.dCmi != null), it = ret.filter(r => r.dIt != null && r.sla);
+    const ini = base.map(d => statusEm(d, fimDoDia(somaDias(w.a, -1)))), fim = base.map(d => statusEm(d, fimDoDia(w.b)));
+    const tipo = t => env.filter(r => r.tipo === t);
+    return {
+      reem: [porMes(tipo("Reemissão").length), tipo("Reemissão")], prim: [porMes(tipo("1ª emissão").length), tipo("1ª emissão")],
+      fin: [porMes(tipo("Emissão final").length), tipo("Emissão final")], ap: [porMes(ap.length), ap],
+      taxa: [ap.length + na.length ? 100 * ap.length / (ap.length + na.length) : null, [...ap, ...na]],
+      novos: [porMes(fim.filter(ehAprov).length - ini.filter(ehAprov).length), base.filter((d, i) => ehAprov(fim[i]) && !ehAprov(ini[i]))],
+      medCmi: [mediana(posRep.map(r => r.dCmi)), posRep], p15: [posRep.length ? 100 * posRep.filter(r => r.dCmi <= 15).length / posRep.length : null, posRep],
+      medIt: [mediana(it.map(r => r.dIt)), it], pIt: [it.length ? 100 * it.filter(r => r.dIt <= r.sla).length / it.length : null, it],
+      naFim: [fim.filter(s => s === "Não Aprovado").length, base.filter((d, i) => fim[i] === "Não Aprovado")],
+    };
+  };
+  const [A, B] = W.map(medir);
+  const linhas = [  // [rótulo, chave, formato, maior é melhor, lista é de revisões]
+    ["Reemissões enviadas (por mês)", "reem", "n", true, true], ["1ªs emissões (por mês)", "prim", "n", true, true],
+    ["Emissões finais (por mês)", "fin", "n", true, true], ["Retornos aprovados (por mês)", "ap", "n", true, true],
+    ["Taxa de aprovação dos retornos", "taxa", "%", true, true], ["Documentos que passaram a aprovados (por mês)", "novos", "n", true, false],
+    ["Dias para reemitir depois da reprovação (mediana)", "medCmi", "d", false, true], ["Reemitidos em até 15 dias", "p15", "%", true, true],
+    ["Dias de análise da Itaipu (mediana)", "medIt", "d", false, true], ["Itaipu no prazo", "pIt", "%", true, true],
+    ["Não aprovados aguardando reemissão (no fim da janela)", "naFim", "i", false, false]];
+  const f = (v, k) => v == null ? "—" : k === "%" ? `${dec(v)}%` : k === "d" ? `${dec(v, 0)} ${T("dias")}` : k === "i" ? nf(v) : dec(v);
+  const varia = (a, b, k, maior) => {
+    if (a == null || b == null) return "—";
+    const v = b - a, eps = k === "%" ? 0.5 : k === "i" ? 0 : 0.05;
+    const cl = Math.abs(v) <= eps ? "delta-eq" : (v > 0) === maior ? "delta-up" : "delta-down";
+    const txt = k === "%" ? `${v > 0 ? "+" : ""}${dec(v)} pp` : k === "d" ? `${v > 0 ? "+" : ""}${dec(v, 0)}` : `${v > 0 ? "+" : ""}${dec(v, k === "i" ? 0 : 1)}`;
+    return `<span class="${cl}">${Math.abs(v) <= eps ? "=" : v > 0 ? "▲" : "▼"} ${txt}</span>`;
+  };
+  const t = document.getElementById("t-ad");
+  const rotJ = w => `${fmt(w.a)} – ${fmt(w.b)}`;
+  t.innerHTML = `<thead><tr><th>${T("Indicador")}</th><th>${T("Antes")}<br><small>${rotJ(W[0])}</small></th><th>${T("Depois")}<br><small>${rotJ(W[1])}</small></th><th>${T("Variação")}</th></tr></thead><tbody>` +
+    linhas.map(([r, k, fm, maior], i) => `<tr class="clic" data-i="${i}"><td style="text-align:left"><b>${T(r)}</b></td><td>${f(A[k][0], fm)}</td><td>${f(B[k][0], fm)}</td><td>${varia(A[k][0], B[k][0], fm, maior)}</td></tr>`).join("") + "</tbody>";
+  t.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => { const [r, k, , , ehRev] = linhas[+tr.dataset.i];
+    const titulo = `${T(r)} · ${T("Depois")} (${rotJ(W[1])})`; ehRev ? abrirRevs(titulo, B[k][1]) : abrirDocs(titulo, B[k][1]); });
+  document.getElementById("nota-ad").textContent = `${nf(dur)} ${T("dias em cada janela.")} ${T("Clique numa linha para ver os documentos de depois da data.")} ` +
+    T("Quando a equipe reemite documentos parados há muito tempo, a mediana de dias para reemitir sobe: leia junto com os não aprovados aguardando.");
+}
+
 // =====================================================================
 // 5 · Histórico de revisões (como o Histórico Consolidado do DocManager)
 // =====================================================================
@@ -1101,7 +1459,7 @@ function pintarHistorico(aba, docs) {
   const comIt = revs.filter(r => r.dIt != null && r.ret), comCmi = revs.filter(r => r.dCmi != null && r.tipo !== "1ª emissão");
   aba.innerHTML = `
     <div class="kpis" id="kpis-his"></div>
-    <div class="card"><h3>${T("Histórico de revisões")}</h3><p class="nota" style="margin:0 0 10px">${T("Uma linha por revisão, como no Histórico Consolidado do DocManager. Clique em uma linha para ver a história do documento.")} ${T("Os não emitidos entram com uma linha só, como no Histórico Consolidado: o atraso da CMI corre desde a data-alvo.")}</p>
+    <div class="card"><h3>${T("Histórico de revisões")} ${info("his-tabela")}</h3><p class="nota" style="margin:0 0 10px">${T("Uma linha por revisão, como no Histórico Consolidado do DocManager. Clique em uma linha para ver a história do documento.")} ${T("Os não emitidos entram com uma linha só, como no Histórico Consolidado: o atraso da CMI corre desde a data-alvo.")}</p>
       <div class="ctl" style="margin-bottom:10px"><label class="chk"><input type="checkbox" id="h-ab"${HIS.aberto ? " checked" : ""}> ${T("Só sem retorno")}</label>
         <label class="chk"><input type="checkbox" id="h-it"${HIS.atrIt ? " checked" : ""}> ${T("Só com atraso da Itaipu")}</label>
         <label class="chk"><input type="checkbox" id="h-cmi"${HIS.atrCmi ? " checked" : ""}> ${T("Só com atraso da CMI")}</label>
@@ -1186,8 +1544,8 @@ function abrirHistoria(d) {
   svg += `</svg>`;
   const usados = unicos([...d.revs.map(r => r.stRet).filter(Boolean), ...d.tl.map(x => x[1])]);
   m.innerHTML = `<div class="janela">
-    <div class="jan-head"><div style="flex:1"><h2>${T("História do documento")}</h2>
-      <div class="jan-cods"><span class="cod-chip ita">${esc(d.cod)}</span>${d.codAtual && d.codAtual !== d.cod ? `<span class="cod-chip ita">${esc(d.codAtual)}</span>` : ""}<span class="cod-chip">${esc(d.cmi)}</span>${chip(d.st, corSt(d.st))}${d.sit ? chip(d.sit, SIT_COR[d.sit] || "#9aa0a6") : ""}</div>
+    <div class="jan-head"><div style="flex:1"><h2>${T("História do documento")} ${info("his-historia")}</h2>
+      <div class="jan-cods"><span class="cod-chip ita">${esc(d.cod)}</span>${d.codAtual && d.codAtual !== d.cod ? `<span class="cod-chip ita">${esc(d.codAtual)}</span>` : ""}<span class="cod-chip">${esc(d.cmi)}</span>${d.trk ? `<span class="cod-chip">Tracking ${esc(d.trk)}</span>` : ""}${chip(d.st, corSt(d.st))}${d.sit ? chip(d.sit, SIT_COR[d.sit] || "#9aa0a6") : ""}</div>
       <div style="font-size:16px;color:#263238">${esc(d.desc)}</div></div><button class="fechar" id="jan-x">✕ ${T("Fechar")}</button></div>
     <div class="jan-meta"><span>${T("Grupo")}: <b>${esc(d.grupo)}</b></span><span>${T("Sistemas")}: <b>${esc(d.sistemas.join(" | "))}</b></span><span>${T("Fase")}: <b>${esc(TS(d.fase))}</b></span>
       <span>${T("Responsável")}: <b>${esc(d.resp)}</b></span><span>${T("Data prevista")}: <b>${fmt(d.prev)}</b></span><span>${T("Data reprogramada")}: <b>${fmt(d.rep)}</b></span>
@@ -1196,13 +1554,13 @@ function abrirHistoria(d) {
     <div class="linha-tempo">${svg}</div>
     <div class="legenda-lt">${usados.map(s => `<span><i style="background:${corSt(s)}"></i>${esc(TS(s))}</span>`).join("")}<span><i style="background:#f9a825"></i>${T("em análise (sem retorno)")}</span><span><i style="background:#ef9a9a;height:6px"></i>${T("com a CMI")}</span></div>
     <h3 style="margin:18px 0 6px">${T("Revisões do documento")}</h3>
-    ${d.revs.length ? `<div class="tabela-wrap"><table><thead><tr>${COLS_REV().slice(5).map(([h]) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${d.revs.map(r => `<tr>${COLS_REV().slice(5).map(([, f, k]) => k === "tipo" ? `<td>${r.tipo ? chip(r.tipo, TIPO_COR[r.tipo] || "#9aa0a6") : "—"}</td>` : celula(f(r), k)).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="vazio">${T("Documento ainda não emitido.")}</p>`}
+    ${d.revs.length ? `<div class="tabela-wrap"><table><thead><tr>${COLS_REV().slice(6).map(([h]) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${d.revs.map(r => `<tr>${COLS_REV().slice(6).map(([, f, k]) => k === "tipo" ? `<td>${r.tipo ? chip(r.tipo, TIPO_COR[r.tipo] || "#9aa0a6") : "—"}</td>` : celula(f(r), k)).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="vazio">${T("Documento ainda não emitido.")}</p>`}
   </div>`;
   m.hidden = false;
   document.getElementById("jan-x").onclick = () => { m.hidden = true; };
   m.onclick = e => { if (e.target === m) m.hidden = true; };
 }
-document.addEventListener("keydown", e => { if (e.key === "Escape") document.getElementById("modal").hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { document.getElementById("modal").hidden = true; document.getElementById("ajuda").hidden = true; } });
 
 pintar();
 </script>

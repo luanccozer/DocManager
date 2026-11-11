@@ -1453,7 +1453,28 @@ hoje soma o mês inteiro (a nota abaixo dá os números até hoje). Em "Todos" o
 mais distantes (2034, 2035) fica fora do eixo, com aviso. A exportação para Excel é um .xlsx
 mínimo escrito na própria página.
 
-### 34.3 Limites conhecidos
+### 34.3 Rastreamento, antes e depois e ajuda (2026-11-11, perguntas do usuário)
+
+- **Rastreamento visível**: o núcleo usa `AconexIndex.resolver` (a mesma cascata de
+  `localizar`) e guarda o Tracking ID, por qual código o documento foi achado (`par`, `cmi`,
+  `itaipu`), se o código tinha mais de um Tracking ID e se casou com um código antigo. A página
+  mostra o Tracking ID nas listas e na história do documento, e a qualidade dos dados conta os
+  achados por um código só e os ambíguos. Base de 10/11/2026: 906 pelo par, 8 só pelo Itaipu (CMI
+  da planilha diferente do Aconex), nenhum ambíguo, nenhum por código antigo.
+- **Antes e depois de uma data** (aba Esforço): duas janelas de mesma duração em volta de uma data
+  de corte (padrão: 1º dia de três meses atrás). Contagens por mês; dias para reemitir = envio da
+  revisão seguinte − retorno "Não Aprovado" (o `Dias CMI` das revisões cujo retorno anterior foi
+  reprovação); taxa de aprovação = retornos aprovados ÷ (aprovados + não aprovados). Pedido do
+  usuário: "a partir de agosto tivemos melhoria na reemissão e na aprovação?". Na base de 10/11:
+  reemissões 70,5 → 89,4 por mês e não aprovados aguardando 124 → 107, mas os dias para reemitir
+  subiram (43 → 83, mediana: reemitiram documentos parados) e a taxa de aprovação ficou em 78%.
+- **Ajuda**: botão "Como ler o painel" e um "i" em cada gráfico, com o que ele mostra e como é
+  calculado (lista `AJUDA` no modelo, português e inglês).
+- **Adiantar dá crédito** na curva acumulada (decisão do usuário, 2026-11-11): emitidos contam na
+  data real da 1ª emissão, como em todo acumulado. O Power BI do .pbix contava os adiantados que já
+  passaram da 1ª revisão na data-alvo, e acumulava só dentro do período escolhido.
+
+### 34.4 Limites conhecidos
 
 - O plano do passado não é guardado: a data-alvo de uma data passada não existe (proposto guardar
   as datas a cada geração).

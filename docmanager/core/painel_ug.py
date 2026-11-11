@@ -221,13 +221,18 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
                             "escopo": escopo_da_linha(ln.sistema, grupo_codigo),
                             "codigo_grupo": grupo_codigo, "linha": ln.row})
 
+    # Rastreamento: a mesma cascata da atualização da planilha (KB §6) - par Itaipu+CMI,
+    # depois só CMI, depois só Itaipu; vários Tracking IDs → o de alteração mais recente.
+    # O painel guarda COMO cada documento foi achado, para a qualidade dos dados mostrar.
     historicos: dict[int, pd.DataFrame] = {}
+    resolucoes: dict[int, object] = {}
     data_ref: dict[str, date | None] = {}
     for i, ln in enumerate(primeira_linha):
-        df_t = idx.localizar(ln.cod_itaipu, ln.cod_cmi)
-        if not df_t.empty:
-            historicos[i] = df_t
-            data_ref[str(df_t[COL_TRACKING].iloc[0])] = ln.data_alvo
+        res = idx.resolver(ln.cod_itaipu, ln.cod_cmi)
+        resolucoes[i] = res
+        if not res.df.empty:
+            historicos[i] = res.df
+            data_ref[str(res.df[COL_TRACKING].iloc[0])] = ln.data_alvo
     revisoes = historico_de_revisoes(base, data_ref, hoje=hoje)
     avancar(0.15)
 
@@ -267,6 +272,10 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
                                  data_primeira_emissao=e1),
             "desvio": calcular_dias_desvio_emissao(e1, ln.data_alvo),
             "no_aconex": not df_t.empty,
+            "tracking": tracking,
+            "achado_por": resolucoes[i].via,            # 'par', 'cmi', 'itaipu' ou '' (não achado)
+            "ambiguo": bool(resolucoes[i].ambiguo),      # o código tinha mais de um Tracking ID
+            "codigo_vigente": bool(resolucoes[i].vigente) if not df_t.empty else True,
             "linha_do_tempo": [(d.isoformat(), s) for d, s in tempo],
             "revisoes": revisoes.get(tracking, []),
         })

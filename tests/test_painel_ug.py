@@ -192,6 +192,8 @@ def test_ordem_dos_campos_e_o_contrato_com_o_javascript():
     assert d1[14] == SIT_EMITIDO_NO_PRAZO and d1[19] == 1
     assert d1[20][0] == ["2026-03-05", "Em Processo"]
     assert d1[21][1][:5] == ["0B", TIPO_REEMISSAO, "2026-04-10", "2026-04-30", "Aprovado com Comentários"]
+    assert d1[22:] == ["T1", "par", 0, 1]                  # Tracking ID e como foi achado
+    assert c["docs"][1][22:] == ["", "", 0, 1]             # não achado no Aconex
     assert c["assoc"][2][:3] == [0, "SDSC", "SDSC - UG 18A"] and c["assoc"][2][5] == ESCOPO_18A
     assert c["meta"]["hoje"] == "2026-06-01" and c["meta"]["base"] == "b"
 
@@ -228,3 +230,24 @@ def test_planilha_sem_documentos_avisa_e_nao_grava(tmp_path):
     r = gerar_painel_ug(path_base, path_dl, tmp_path / "painel.html", hoje=HOJE)
     assert not r.ok and "Nenhum documento" in r.mensagem
     assert not (tmp_path / "painel.html").exists()
+
+
+def test_rastreamento_diz_por_qual_codigo_o_documento_foi_achado():
+    """Mesma cascata da atualização da planilha: o par Itaipu+CMI vence; com o CMI da
+    planilha errado, o documento ainda é achado pelo Itaipu, e o painel registra isso."""
+    linhas = _linhas()
+    linhas[5].cod_cmi = "CMI-ERRADO"
+    docs = montar_dados_painel(linhas, _base(), hoje=HOJE)["documentos"]
+    assert (docs[0]["tracking"], docs[0]["achado_por"]) == ("T1", "par")
+    assert (docs[2]["tracking"], docs[2]["achado_por"]) == ("T3", "itaipu")
+    assert (docs[1]["tracking"], docs[1]["achado_por"]) == ("", "")
+    assert not any(d["ambiguo"] for d in docs) and all(d["codigo_vigente"] for d in docs)
+
+
+def test_codigo_com_dois_tracking_ids_fica_marcado_como_ambiguo():
+    b = base(_doc_reprovado_e_reemitido(),
+             HistoricoBuilder("T9", "#IT-1", "CMI-9", "OUTRO DOC").evento("0A", 1, "Em Processo", "01/06/2026"))
+    linhas = [ln for ln in _linhas() if ln.cod_itaipu in ("#IT-1",)][:1]
+    linhas[0].cod_cmi = ""                                  # sem CMI: só o Itaipu, que dois documentos usam
+    d = montar_dados_painel(linhas, b, hoje=HOJE)["documentos"][0]
+    assert d["ambiguo"] and d["tracking"] == "T9"          # desempate: alteração mais recente
