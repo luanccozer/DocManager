@@ -5,7 +5,7 @@ Status: done
 Origem: pedido do usuário em 2026-11-11; perguntas da rodada 1 respondidas no mesmo dia.
 Vocabulário: `GLOSSARY.md` (seção "Painel"). Decisão de arquitetura:
 `docs/adr/0003-painel-html-gerado-pelo-docmanager.md`. Regras: KB §34. Guia de uso:
-`docs/painel_ug_html.md`. Tarefas em `issues/`.
+`docs/painel_ug_html.md`; como cada coisa foi feita: `docs/painel_ug_como_foi_feito.md`. Tarefas em `issues/`.
 
 ## Problem Statement
 

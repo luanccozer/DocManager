@@ -56,8 +56,9 @@ da planilha. Os 178 não achados estão todos NÃO EMITIDO na planilha.
 ## Como cada número é calculado
 
 Está no próprio painel: o botão **📘 Como ler o painel** no alto e o **i** ao lado do título de
-cada gráfico explicam o que ele mostra e como é calculado. As regras completas, com as funções
-do DocManager por trás, estão na KB §34.
+cada gráfico explicam o que ele mostra e como é calculado. A explicação completa, peça por peça
+(fontes, rastreamento, regras, cada gráfico, código, testes, decisões e limites), está em
+[`painel_ug_como_foi_feito.md`](painel_ug_como_foi_feito.md); o resumo das regras, na KB §34.
 
 ## Mudar um texto
 
