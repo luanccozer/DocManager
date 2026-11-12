@@ -623,7 +623,8 @@ def _com_formula_em_a2(caminho, formula):
     with zipfile.ZipFile(caminho, "w", zipfile.ZIP_DEFLATED) as z:
         for info, dados in partes:
             if info.filename == "xl/worksheets/sheet1.xml":
-                dados = re.sub(rb'<c r="A2"( s="\d+")?( t="n")?(?:/>|></c>)', rb'<c r="A2"\1><f>' + formula.encode()
+                # o openpyxl grava a célula vazia como <c/>, <c />, ou <c></c>, conforme a versão
+                dados = re.sub(rb'<c r="A2"((?: s="\d+")?)(?: t="n")?\s*(?:/>|></c>)', rb'<c r="A2"\1><f>' + formula.encode()
                                + rb"</f><v>2</v></c>", dados, count=1)
                 assert b"<f>" in dados
             elif info.filename == "xl/workbook.xml":
