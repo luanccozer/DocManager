@@ -1481,6 +1481,15 @@ mínimo escrito na própria página.
   aponta os **compartilhados com datas diferentes** (`datas_divergentes`: o mesmo código em linhas
   com DATA PREVISTA ou REPROGRAMADA diferentes; o painel usa a 1ª linha): 8 dos 16 compartilhados
   na base de 10/11, de 50 a 531 dias de distância. A coluna Linha da lista mostra todas as linhas.
+- **Fluxo interno: integração e validação** (2026-11-13, reunião do painel com a gestão): o
+  Aconex registra o trecho fornecedor → GE antes da Itaipu com status que o status real trata como
+  trâmite: integração na revisão interna 0AA ("Para Integraçao", "Em Integração", "Integrado",
+  "Não Integrado") e validação na revisão que vai para a Itaipu ("Em Validação", "Validado", "Não
+  Validado"). `fluxo_interno` dá as etapas, a atual e desde quando; um status do lado da Itaipu
+  encerra o fluxo; "Para Aprovação" e o "Para Análise" do regime novo não mudam a etapa. Base de
+  10/11: 93 documentos no fluxo interno (91 da NEP), 54 deles NÃO EMITIDO no status real; mediana
+  de 91 dias em integração e de 29 em validação. Quem está com o documento em cada etapa: a
+  confirmar com a engenharia.
 - **Antes e depois de uma data** (aba Esforço): duas janelas de mesma duração em volta de uma data
   de corte (padrão: 1º dia de três meses atrás). Contagens por mês; dias para reemitir = envio da
   revisão seguinte − retorno "Não Aprovado" (o `Dias CMI` das revisões cujo retorno anterior foi

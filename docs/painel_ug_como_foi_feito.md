@@ -252,6 +252,38 @@ do documento.
 **O que ela não sabe:** as datas de planejamento do passado. O Aconex guarda os status, mas a
 data prevista e a reprogramada existem só na planilha de hoje.
 
+### 6.1 O fluxo interno: integração e validação
+
+Antes de ir para a Itaipu, o documento do fornecedor passa pela GE, e o Aconex registra isso com
+status próprios, que o status real não enxerga (KB §9: trâmite interno). Pedido da reunião de
+13/11/2026: mostrar esse trecho, porque o fornecedor pode estar cumprindo as datas enquanto o
+documento fica parado na GE.
+
+| Etapa no painel | Status do Aconex | Onde aparece |
+|---|---|---|
+| Em integração | "Para Integraçao" (assim, sem til) e "Em Integração" | revisão interna de 3 caracteres (0AA) |
+| Integrado / Não integrado | "Integrado" / "Não Integrado" | 0AA |
+| Em validação | "Em Validação" | a revisão que vai para a Itaipu (0A, 0B, 0) |
+| Validado / Não validado | "Validado" / "Não Validado" | 0A, 0B, 0 |
+
+`fluxo_interno` (`core/painel_ug.py`) lê o histórico do Tracking em ordem de data e versão:
+- uma etapa interna começa quando aparece um desses status; a etapa do lado da Itaipu ("Em
+  Processo", vereditos, anulação) encerra o fluxo interno até a próxima etapa interna;
+- "Para Aprovação" e o "Para Análise" do regime novo (desde 19/08/2024) são trâmite e não mudam a
+  etapa;
+- **etapa atual** = a última etapa, se o documento ainda não saiu dela para a Itaipu; **desde** =
+  o dia em que entrou nela.
+
+Na página: o quadro **Integração e validação** da Visão geral (quantos em cada etapa, a mediana
+de dias na etapa, quantos há mais de 30 dias e quantos aparecem como não emitidos no status
+real), as colunas **Etapa interna** e **Na etapa desde** nas listas, e a faixa **Interno** na
+história do documento.
+
+Na base de 10/11/2026: 209 documentos do Doc List passaram pelo fluxo interno; hoje 93 estão nele
+(29 em integração, 3 não integrados, 49 em validação, 12 não validados), 91 deles da NEP, e 54
+aparecem como NÃO EMITIDO no status real. Falta a engenharia confirmar quem está com o documento
+em cada etapa (GE ou fornecedor).
+
 ---
 
 ## 7. O histórico de revisões: envios e retornos
@@ -317,6 +349,7 @@ correspondentes (seção 9).
 | Cartões | quantidade por status real e % sobre o total do filtro |
 | Documentação geral | barras por status real, maiores primeiro, com quantidade e %. Status fora da lista (For Partial Handover) entram em "Outros" |
 | Com quem está o documento | rosca por "com quem está" (ITAIPU ou CMI) |
+| Integração e validação | os documentos hoje no fluxo interno (fornecedor → GE, antes da Itaipu), por etapa, com a mediana de dias na etapa; quantos há mais de 30 dias; quantos aparecem como não emitidos no status real (seção 6.1) |
 | Documentos de fabricação, executivos, de execução | uma pizza por fase de projeto, pelo status consolidado. Um documento entra na fase de cada linha que ele tem nela (dentro dos filtros) |
 | Documentos por escopo | pizza pelo grupo da primeira linha do documento |
 | Documentos por grupo e status | barras empilhadas: grupo da primeira linha × status consolidado (as barras somam o total) |

@@ -26,7 +26,7 @@ from datetime import date
 
 import pandas as pd
 
-from .constants import COL_DATA, COL_REVISAO, COL_TRACKING, NAO_EMITIDO
+from .constants import COL_DATA, COL_REVISAO, COL_STATUS, COL_TRACKING, COL_VERSAO, DATA_CORTE_FLUXO, NAO_EMITIDO
 from .delays import (
     COL_ATRASO_CMI,
     COL_ATRASO_ITAIPU,
@@ -93,6 +93,52 @@ def _iso(d) -> str | None:
     if d is None or pd.isna(d):
         return None
     return pd.Timestamp(d).date().isoformat()
+
+
+# Fluxo interno (fornecedor → GE), antes de o documento ir para a Itaipu: a integração corre na
+# revisão interna de 3 caracteres (0AA) e a validação na revisão que vai para a Itaipu (0A, 0B,
+# 0). O status real não enxerga essas etapas (KB §9: trâmite interno). O Aconex escreve "Para
+# Integraçao", sem til.
+ETAPAS_INTERNAS = {
+    "Para Integraçao": "Em integração", "Para Integração": "Em integração",
+    "Em Integração": "Em integração", "Integrado": "Integrado", "Não Integrado": "Não integrado",
+    "Em Validação": "Em validação", "Validado": "Validado", "Não Validado": "Não validado",
+}
+# Depois de um destes o documento está do lado da Itaipu: enviado, com veredito ou anulado.
+_LADO_ITAIPU = frozenset({
+    "Em Processo", "Aprovado", "Aprovado com Comentários", "Não Aprovado", "Para Assinatura",
+    "Informativo", "Para Informação", "For Partial Handover", "Cancelado", "Anulado", "VOID",
+    "Issued for Annulment",
+})
+
+
+def fluxo_interno(df_t: pd.DataFrame) -> tuple[list[tuple[date, str]], str, date | None]:
+    """As etapas do documento entre o fornecedor e a GE, antes da Itaipu.
+
+    Devolve `(eventos, etapa_atual, desde)`: `eventos` são as mudanças de etapa em ordem, cada
+    uma `(data, etapa)`, com etapa "" quando o documento passa para o lado da Itaipu, a partir
+    da primeira etapa interna; `etapa_atual` é a etapa em que o documento está hoje ("" se não
+    está no fluxo interno) e `desde`, o dia em que entrou nela. "Para Aprovação" e o "Para
+    Análise" do regime novo (19/08/2024) são trâmite e não mudam a etapa."""
+    if df_t is None or df_t.empty:
+        return [], "", None
+    df = df_t.assign(_dt=pd.to_datetime(df_t[COL_DATA], dayfirst=True, errors="coerce"),
+                     _v=pd.to_numeric(df_t[COL_VERSAO], errors="coerce").fillna(0))
+    df = df.dropna(subset=["_dt"]).sort_values(["_dt", "_v"], kind="stable")
+    eventos: list[tuple[date, str]] = []
+    for st, dt in zip(df[COL_STATUS].astype(str).str.strip(), df["_dt"]):
+        if st in ETAPAS_INTERNAS:
+            etapa = ETAPAS_INTERNAS[st]
+        elif st in _LADO_ITAIPU or (st == "Para Análise" and dt < DATA_CORTE_FLUXO):
+            etapa = ""
+        else:
+            continue                                # trâmite: não muda a etapa
+        if (not eventos and not etapa) or (eventos and eventos[-1][1] == etapa):
+            continue                                # antes da 1ª etapa interna, ou a mesma etapa
+        eventos.append((dt.date(), etapa))
+    if eventos and eventos[-1][1]:
+        return eventos, eventos[-1][1], eventos[-1][0]
+    return eventos, "", None
 
 
 def _int(v) -> int | None:
@@ -246,6 +292,7 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
         e1 = r.data_primeira_emissao
         tracking = str(df_t[COL_TRACKING].iloc[0]) if not df_t.empty else ""
         tempo = _alinhar_com_o_status_de_hoje(linha_do_tempo(df_t), df_t, r.status_real)
+        eventos_int, etapa_int, desde_int = fluxo_interno(df_t)
         # Nº CMI da linha atual do documento no Aconex; vazio quando o Aconex não tem.
         cmi_aconex = str(r.cod_cmi_atual or "").strip()
         if cmi_aconex.lower() in ("nan", "none"):
@@ -288,6 +335,10 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
             "aconex_sem_cmi": bool(not df_t.empty and not cmi_aconex),
             # O mesmo código em linhas com DATA PREVISTA ou REPROGRAMADA diferentes: vale a 1ª.
             "datas_divergentes": len(datas_das_linhas.get(i, ())) > 1,
+            # Entre o fornecedor e a GE, antes da Itaipu: integração e validação.
+            "etapa_interna": etapa_int,
+            "etapa_interna_desde": _iso(desde_int),
+            "fluxo_interno": [[d.isoformat(), e] for d, e in eventos_int],
             "linha_do_tempo": [(d.isoformat(), s) for d, s in tempo],
             "revisoes": revisoes.get(tracking, []),
         })

@@ -104,7 +104,7 @@ Todo número, barra, fatia ou quadro abre a lista dos documentos, com busca e
 
 | Aba | O que tem | De onde vem |
 |---|---|---|
-| 📋 Visão geral | Fluxo dos documentos (árvore), KPIs por status real, Documentação geral (status real), com quem está, pizzas de fabricação, executivo, execução e por escopo, grupo × status, tabela por sistema, qualidade dos dados | A 1ª página do Power BI + o painel da Sala Segura |
+| 📋 Visão geral | Fluxo dos documentos (árvore), KPIs por status real, Documentação geral (status real), com quem está, integração e validação (o trecho entre o fornecedor e a GE, antes da Itaipu), pizzas de fabricação, executivo, execução e por escopo, grupo × status, tabela por sistema, qualidade dos dados | A 1ª página do Power BI + o painel da Sala Segura |
 | 📅 Emissões | Status das emissões nas réguas Atual (data-alvo), OTD (data prevista) e Say-do (backlog), por ano, mês e agrupamento; o indicador do período (aderência, Baseline OTD ou Say-do); curva acumulada (meta pela data-alvo, baseline, emitidos, aprovados); vencidos e próximas emissões | "Documentos para emissão" e "Curva" do Power BI |
 | 📈 Progresso | Comparação com uma data (1 semana, 1 mês, 3 meses, início do ano ou outra), KPIs com variação, resumo em palavras, evolução de cada status, evolução da carteira, histórico por data, o que mudou | A aba Progresso da Sala Segura, sobre o histórico do Aconex |
 | 🛠️ Esforço da engenharia | **Antes e depois de uma data** (reemissões, aprovações, prazos e não aprovados aguardando, em duas janelas de mesma duração), envios à Itaipu por tipo (1ª emissão, reemissão, emissão final), retornos por status, prazo de reemissão da CMI, prazo de análise da Itaipu, taxa de aprovação dos retornos, em que revisão cada documento foi aprovado, há quanto tempo cada um espera, envios por responsável | Histórico do Aconex |
@@ -112,6 +112,10 @@ Todo número, barra, fatia ou quadro abre a lista dos documentos, com busca e
 
 ## Leituras que confundem
 
+- **Não emitido e em validação ao mesmo tempo**: o status real só olha o lado da Itaipu. Um
+  documento que o fornecedor já entregou à GE, mas que ainda não foi para a Itaipu, é NÃO EMITIDO
+  no status real; o quadro **Integração e validação** e a faixa **Interno** da história mostram
+  em que etapa ele está.
 - **Aprovação total** soma aprovado, aprovado com comentários, para assinatura e
   informativo; os KPIs mostram cada um.
 - **Na curva acumulada**, o ponto de hoje soma o mês inteiro; a nota embaixo dá os

@@ -136,6 +136,13 @@ O status real do documento em cada dia em que o histórico do Aconex mexeu, reco
 pela máquina do tempo. É dela que saem o progresso, a evolução da carteira e o "o que
 mudou".
 
+**Fluxo interno**:
+O trecho entre o fornecedor e a GE, antes de o documento ir para a Itaipu: a **integração**
+(na revisão interna 0AA: em integração, integrado ou não integrado) e a **validação** (na
+revisão que vai para a Itaipu: em validação, validado ou não validado). O status real não o
+enxerga; o painel mostra a etapa atual e desde quando.
+_Evite_: emissão (é a ida à Itaipu)
+
 ### Pendências (Aconex Campo)
 
 **Questão**:

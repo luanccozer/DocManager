@@ -19,6 +19,7 @@ from docmanager.core.painel_ug import (
     TIPO_PRIMEIRA_EMISSAO,
     TIPO_REEMISSAO,
     escopo_da_linha,
+    fluxo_interno,
     linha_do_tempo,
     montar_dados_painel,
     tipo_de_envio,
@@ -70,6 +71,64 @@ def test_linha_do_tempo_guarda_so_as_mudancas_de_status():
         (date(2026, 4, 30), "Aprovado com Comentários"),
         (date(2026, 5, 12), "Aprovado"),             # o envio da rev. 0 não rebaixa o aprovado
     ]
+
+
+def _doc_integrado_validado_e_enviado():
+    # Fluxo interno do fornecedor com a GE, antes da Itaipu: integração na revisão interna
+    # (0AA), validação na revisão que vai para a Itaipu (0A). "Para Aprovação" e "Para
+    # Análise" (depois do corte de 19/08/2024) são trâmite e não mudam a etapa.
+    return (HistoricoBuilder("T7", "#IT-7", "CMI-7", "DOC 7")
+            .evento("0AA", 1, "Para Integraçao", "01/09/2026")
+            .evento("0AA", 2, "Em Integração", "03/09/2026")
+            .evento("0AA", 3, "Integrado", "10/09/2026")
+            .evento("0A", 4, "Para Aprovação", "12/09/2026")
+            .evento("0A", 5, "Em Validação", "12/09/2026")
+            .evento("0A", 6, "Validado", "20/09/2026")
+            .evento("0A", 7, "Para Análise", "21/09/2026")
+            .evento("0A", 8, "Em Processo", "22/09/2026", current=True))
+
+
+def test_fluxo_interno_guarda_as_etapas_ate_o_envio_a_itaipu():
+    eventos, etapa, desde = fluxo_interno(_doc_integrado_validado_e_enviado().build())
+    assert eventos == [
+        (date(2026, 9, 1), "Em integração"),       # "Para Integração" e "Em Integração": a mesma etapa
+        (date(2026, 9, 10), "Integrado"),
+        (date(2026, 9, 12), "Em validação"),
+        (date(2026, 9, 20), "Validado"),
+        (date(2026, 9, 22), ""),                   # foi para a Itaipu: saiu do fluxo interno
+    ]
+    assert (etapa, desde) == ("", None)
+
+
+def test_documento_parado_na_validacao_tem_etapa_e_data_de_entrada():
+    b = (HistoricoBuilder("T8", "#IT-8", "CMI-8", "DOC 8")
+         .evento("0AA", 1, "Para Integraçao", "01/10/2026")
+         .evento("0AA", 2, "Em Integração", "02/10/2026")
+         .evento("0AA", 3, "Integrado", "05/10/2026")
+         .evento("0A", 4, "Em Validação", "06/10/2026")
+         .evento("0A", 5, "Validado", "15/10/2026")
+         .evento("0A", 6, "Para Análise", "16/10/2026", current=True))   # trâmite: segue validado
+    eventos, etapa, desde = fluxo_interno(b.build())
+    assert (etapa, desde) == ("Validado", date(2026, 10, 15))
+    assert fluxo_interno(base())[1:] == ("", None)          # sem histórico
+
+
+def test_etapa_interna_vai_para_o_documento_e_para_o_contrato():
+    from docmanager.dashboard.painel_ug_html import compactar
+    linhas = _linhas()
+    linhas[5].cod_itaipu, linhas[5].cod_cmi = "#IT-8", "CMI-8"
+    b = base(_doc_reprovado_e_reemitido(),
+             HistoricoBuilder("T8", "#IT-8", "CMI-8", "DOC 8")
+             .evento("0AA", 1, "Para Integraçao", "01/05/2026")
+             .evento("0AA", 2, "Não Integrado", "10/05/2026", current=True))
+    dados = montar_dados_painel(linhas, b, hoje=HOJE)
+    d = dados["documentos"][2]
+    assert (d["etapa_interna"], d["etapa_interna_desde"]) == ("Não integrado", "2026-05-10")
+    assert d["fluxo_interno"] == [["2026-05-01", "Em integração"], ["2026-05-10", "Não integrado"]]
+    assert d["status_real"] == "NÃO EMITIDO"      # o status real não enxerga o fluxo interno
+    assert compactar(dados, {})["docs"][2][28:] == [
+        "Não integrado", "2026-05-10", [["2026-05-01", "Em integração"], ["2026-05-10", "Não integrado"]]]
+    assert dados["documentos"][0]["etapa_interna"] == "" and dados["documentos"][0]["fluxo_interno"] == []
 
 
 def test_linha_do_tempo_de_documento_sem_historico_e_vazia():
@@ -193,9 +252,9 @@ def test_ordem_dos_campos_e_o_contrato_com_o_javascript():
     assert d1[20][0] == ["2026-03-05", "Em Processo"]
     assert d1[21][1][:5] == ["0B", TIPO_REEMISSAO, "2026-04-10", "2026-04-30", "Aprovado com Comentários"]
     # Tracking ID, como foi achado, ambíguo, código vigente, Aconex sem Nº CMI, datas
-    # diferentes nas linhas do mesmo código
-    assert d1[22:] == ["T1", "par", 0, 1, 0, 0]
-    assert c["docs"][1][22:] == ["", "", 0, 1, 0, 0]       # não achado no Aconex
+    # diferentes nas linhas do mesmo código, etapa interna, desde quando, fluxo interno
+    assert d1[22:] == ["T1", "par", 0, 1, 0, 0, "", None, []]
+    assert c["docs"][1][22:] == ["", "", 0, 1, 0, 0, "", None, []]   # não achado no Aconex
     assert c["assoc"][2][:3] == [0, "SDSC", "SDSC - UG 18A"] and c["assoc"][2][5] == ESCOPO_18A
     assert c["meta"]["hoje"] == "2026-06-01" and c["meta"]["base"] == "b"
 

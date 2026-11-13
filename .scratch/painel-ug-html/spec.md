@@ -112,6 +112,11 @@ está, situação de emissão) são encadeados e valem para todas as abas.
 
 ## Comments
 
+- 2026-11-13: reunião com a gestão. O painel vira o controle único da
+  documentação, inclusive do RTA, depois de duas entregas: integração e validação (issue 05,
+  feita) e o botão de relatório (issue 06). Pedidos novos: visão interna do plano da NEP (07),
+  antes e depois contra o plano antigo (08) e infraestrutura do RTA (09).
+
 - 2026-11-11: protótipo descartável (gráficos próprios, projeção linear) recusado pelo
   usuário; substituído por esta versão na família da Sala Segura. O código do protótipo
   ficou no histórico do Git (commit da spec em `needs-info`) e saiu da pasta.

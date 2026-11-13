@@ -231,6 +231,14 @@ const AJUDA = [
 "From the raw status of the document's last Aconex line: 'Em Processo' means it is with Itaipu; anything else, including not issued, means it is with CMI. It is the COM ITAIPU column of the spreadsheet."
 ],
 [
+"geral-interno",
+"Visão geral",
+"Integração e validação",
+"Os documentos que estão hoje entre o fornecedor e a GE, antes de ir para a Itaipu. <b>Integração</b>: o fornecedor emite numa revisão interna (0AA) e a GE integra; termina em integrado ou não integrado. <b>Validação</b>: o fornecedor sobe a revisão que vai para a Itaipu (0A, 0B, 0) e a GE valida; termina em validado ou não validado. Validado, o documento vai para a Itaipu (Em Processo) e sai daqui. A etapa e a data vêm do Aconex. O status real não as considera, por isso muitos destes documentos aparecem lá como não emitidos. Cada quadro abre a lista, e a história de cada documento mostra essas etapas na faixa “Interno”.",
+"Integration and validation",
+"The documents that are now between the supplier and GE, before going to Itaipu. <b>Integration</b>: the supplier issues on an internal revision (0AA) and GE integrates it; it ends as integrated or not integrated. <b>Validation</b>: the supplier uploads the revision that goes to Itaipu (0A, 0B, 0) and GE validates it; it ends as validated or not validated. Once validated, the document goes to Itaipu (In Process) and leaves this view. The stage and its date come from Aconex. The actual status does not consider them, so many of these documents show there as not issued. Each box opens the list, and each document's story shows these stages in the “Internal” strip."
+],
+[
 "geral-pizzas",
 "Visão geral",
 "Pizzas por fase e por escopo",
@@ -418,9 +426,9 @@ const AJUDA = [
 "his-historia",
 "Histórico de revisões",
 "História do documento",
-"A linha do tempo de um documento. No alto, a data prevista e a reprogramada. Em cada revisão, a barra grossa é o tempo com a Itaipu (na cor do retorno) e a fina, o tempo de volta com a CMI até o envio seguinte (vermelha depois de reprovação). Embaixo, o status real ao longo do tempo. Passe o mouse para ver datas e dias.",
+"A linha do tempo de um documento. No alto, a data prevista e a reprogramada. Em cada revisão, a barra grossa é o tempo com a Itaipu (na cor do retorno) e a fina, o tempo de volta com a CMI até o envio seguinte (vermelha depois de reprovação). Embaixo, o status real ao longo do tempo. Passe o mouse para ver datas e dias. Quando o documento passou pelo fluxo interno, a faixa “Interno” mostra as etapas de integração e validação entre o fornecedor e a GE.",
 "Document story",
-"A document's timeline. At the top, the planned and rescheduled dates. On each revision, the thick bar is the time with Itaipu (in the colour of the return) and the thin one is the time back with CMI until the next submission (red after a rejection). At the bottom, the actual status over time. Hover to see dates and days."
+"A document's timeline. At the top, the planned and rescheduled dates. On each revision, the thick bar is the time with Itaipu (in the colour of the return) and the thin one is the time back with CMI until the next submission (red after a rejection). At the bottom, the actual status over time. Hover to see dates and days. When the document went through the internal flow, the “Internal” strip shows the integration and validation stages between the supplier and GE."
 ]
 ];
 </script>
@@ -521,7 +529,17 @@ const EN = {
   "Os não emitidos entram com uma linha só, como no Histórico Consolidado: o atraso da CMI corre desde a data-alvo.": "Not-issued documents get a single row, as in the Consolidated History: the CMI delay runs from the target date.",
   "mediana": "median", "Prevista": "Planned", "Reprogramada": "Rescheduled", "Hoje": "Today", "Até hoje": "Up to today",
   "O ponto de hoje no gráfico soma o período inteiro.": "Today's point on the chart adds up the whole period.",
-  "Sistemas só em agrupamentos": "Systems only in groupings", "em até 15 dias": "within 15 days", "no prazo": "on time",
+  "Sistemas só em agrupamentos": "Systems only in groupings",
+  "Integração e validação": "Integration and validation",
+  "documentos entre o fornecedor e a GE, antes de ir para a Itaipu · clique para listar": "documents between the supplier and GE, before going to Itaipu · click to list",
+  "Em integração": "In integration", "Integrado": "Integrated", "Não integrado": "Not integrated",
+  "Em validação": "In validation", "Validado": "Validated", "Não validado": "Not validated",
+  "documentos estão hoje em integração ou validação": "documents are now in integration or validation",
+  "deles aparecem como não emitidos no status real": "of them show as not issued in the actual status",
+  "Nenhum documento em integração ou validação hoje.": "No document in integration or validation today.",
+  "dias na etapa": "days in stage", "nenhum": "none", "Há mais de 30 dias na etapa": "More than 30 days in stage",
+  "em qualquer etapa": "in any stage", "Aparecem como não emitidos": "Show as not issued", "no status real": "in the actual status",
+  "Etapa interna": "Internal stage", "Na etapa desde": "In stage since", "Interno": "Internal", "desde": "since", "em até 15 dias": "within 15 days", "no prazo": "on time",
   "aprovados": "approved", "não aprovados": "not approved", "só períodos com 10 casos ou mais (5 por semana)": "only periods with 10 cases or more (5 per week)", "Como ler o painel": "How to read the dashboard", "Como é calculado": "How it is calculated", "Geral": "General",
   "Antes e depois de uma data": "Before and after a date", "mesma duração antes e depois · contagens por mês": "same length before and after · counts per month",
   "Data de corte": "Cut-off date", "Indicador": "Indicator", "Antes": "Before", "Depois": "After", "Variação": "Change",
@@ -598,7 +616,8 @@ const DOCS = D.docs.map((a, i) => ({
   tl: a[20].map(([d, s]) => [dt(d), s]),
   revs: a[21].map(r => ({ rev: r[0], tipo: r[1], env: dt(r[2]), ret: dt(r[3]), stRet: r[4], dIt: r[5], aIt: r[6], dCmi: r[7], aCmi: r[8], sla: r[9] })),
   trk: a[22] || "", via: a[23] || "", ambiguo: !!a[24], vigente: a[25] == null ? true : !!a[25],
-  semCmi: !!a[26], datasDiv: !!a[27],   // Aconex sem Nº CMI; mesmo código com datas diferentes nas linhas
+  semCmi: !!a[26], datasDiv: !!a[27],
+  ei: a[28] || "", eiDesde: dt(a[29]), fi: (a[30] || []).map(([x, e]) => [dt(x), e]),   // etapa interna, desde, fluxo interno   // Aconex sem Nº CMI; mesmo código com datas diferentes nas linhas
   assoc: [],
 }));
 const ASSOC = D.assoc.map(a => ({ doc: a[0], grupo: a[1] || "—", sistema: a[2] || "—", fase: a[3] || "—", resp: a[4] || "—", escopo: a[5], codGrupo: a[6], linha: a[7] }));
@@ -625,6 +644,11 @@ const SIT_COR = { "EMITIDO NO PRAZO": "#1e8e3e", "EMITIDO COM ATRASO": "#fb8c00"
   "SEM PLANEJAMENTO": "#9aa0a6", "CANCELADO": "#5f6368" };
 const TIPO_ORDEM = ["1ª emissão", "Reemissão", "Emissão final"];
 const TIPO_COR = { "1ª emissão": "#1a73e8", "Reemissão": "#fb8c00", "Emissão final": "#1e8e3e" };
+// Fluxo interno (fornecedor → GE), antes da Itaipu: integração na revisão interna (0AA) e
+// validação na revisão que vai para a Itaipu (0A, 0B, 0).
+const ETAPA_ORDEM = ["Em integração", "Integrado", "Não integrado", "Em validação", "Validado", "Não validado"];
+const ETAPA_COR = { "Em integração": "#5e35b1", "Integrado": "#9575cd", "Não integrado": "#c2185b",
+  "Em validação": "#00838f", "Validado": "#4dd0e1", "Não validado": "#ef6c00" };
 const RET_ORDEM = ["Aprovado", "Aprovado com Comentários", "Para Assinatura", "Informativo", "Não Aprovado"];
 const corSt = s => ST_COR[s] || "#8d6e63";
 const corCons = s => CONS_COR[s] || "#8d6e63";
@@ -746,7 +770,7 @@ const COLS_DOC = () => [
   [T("Nº ITAIPU"), d => d.cod, "cod"], [T("Nº CMI"), d => d.cmi, "cod"], ["Tracking ID", d => d.trk, "cod"], [T("Descrição"), d => d.desc, "desc"],
   [T("Grupo"), d => d.grupo], [T("Sistemas"), d => d.sistemas.join(" | ")], [T("Escopo"), d => d.escopo], [T("Fase"), d => TS(d.fase)],
   [T("Responsável"), d => d.resp], [T("Status real"), d => d.st, "st"], [T("Status consolidado"), d => d.cons, "cons"],
-  [T("Com quem está"), d => d.com], [T("Situação emissão"), d => d.sit, "sit"], [T("Situação OTD"), d => d.otd, "sit"],
+  [T("Com quem está"), d => d.com], [T("Etapa interna"), d => d.ei ? T(d.ei) : ""], [T("Na etapa desde"), d => d.eiDesde, "data"], [T("Situação emissão"), d => d.sit, "sit"], [T("Situação OTD"), d => d.otd, "sit"],
   [T("Situação say-do"), d => d.sd, "sit"], [T("Data prevista"), d => d.prev, "data"], [T("Data reprogramada"), d => d.rep, "data"],
   [T("Data-alvo"), d => d.alvo, "data"], [T("1ª emissão (data)"), d => d.e1, "data"], [T("Última emissão"), d => d.ult, "data"],
   [T("Rev."), d => d.rev], [T("Desvio (dias)"), d => d.dsv, "num"], [T("Linha"), d => d.assoc.length > 1 ? d.assoc.map(a => a.linha).join(", ") : d.linha, "num"],
@@ -903,6 +927,7 @@ function pintarGeral(aba, docs) {
       <div class="card"><h3>${T("Documentação geral")} ${info("geral-docgeral")} <small>${T("status real · clique em uma barra para ver os documentos")}</small></h3><div class="caixa" id="cx-st"><canvas id="g-st"></canvas></div></div>
       <div class="card"><h3>${T("Com quem está o documento")} ${info("geral-com")}</h3><div class="caixa" style="height:330px"><canvas id="g-com"></canvas></div></div>
     </div>
+    <div class="card"><h3>${T("Integração e validação")} ${info("geral-interno")} <small>${T("documentos entre o fornecedor e a GE, antes de ir para a Itaipu · clique para listar")}</small></h3><p class="nota" id="interno-nota" style="margin:0 0 10px"></p><div class="kpis" id="kpis-int"></div></div>
     <div class="fila-pizzas">
       <div class="card"><h3>${T("Documentos de fabricação")} ${info("geral-pizzas")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-fab"></canvas></div></div>
       <div class="card"><h3>${T("Documentos executivos")} ${info("geral-pizzas")} <small>${T("status consolidado")}</small></h3><div class="caixa" style="height:300px"><canvas id="g-exe"></canvas></div></div>
@@ -984,6 +1009,7 @@ function pintarGeral(aba, docs) {
     linhasSis.map((l, i) => `<tr class="clic" data-i="${i}"><td><b>${esc(l.s)}</b></td><td class="num">${l.n}</td><td class="num">${l.ap}</td><td class="num">${l.ep}</td><td class="num">${l.na}</td><td class="num">${l.ne}</td><td class="num">${l.v || "—"}</td><td class="num">${l.sh || "—"}</td></tr>`).join("") + "</tbody>";
   tb.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => { const l = linhasSis[+tr.dataset.i]; abrirDocs(`${T("Sistema")}: ${l.s}`, l.ds); });
   pintarQualidade(docs);
+  pintarInterno(docs);
 }
 function pizza(id, rotulos, grupos, cores, nomeFiltro, rosca, rot = TS) {
   const tot = grupos.reduce((s, g) => s + g.length, 0);
@@ -1010,6 +1036,22 @@ function pintarArvore(box, no, total) {
     if (ev.target.dataset.t || (n.filhos && n.filhos.length && !abertos.has(c))) { abertos.has(c) ? abertos.delete(c) : abertos.add(c); pintarArvore(box, no, total); return; }
     abrirDocs(n.t, n.docs);
   });
+}
+// Integração e validação: quem está hoje entre o fornecedor e a GE, por etapa (do Aconex; o
+// status real não enxerga essas etapas).
+function pintarInterno(docs) {
+  const noFluxo = docs.filter(d => d.ei);
+  const dias = d => d.eiDesde ? diasEntre(d.eiDesde, HOJE) : null;
+  const naoEmit = noFluxo.filter(d => d.st === "NÃO EMITIDO"), parados = noFluxo.filter(d => (dias(d) ?? 0) > 30);
+  document.getElementById("interno-nota").textContent = noFluxo.length
+    ? `${nf(noFluxo.length)} ${T("documentos estão hoje em integração ou validação")}; ${nf(naoEmit.length)} ${T("deles aparecem como não emitidos no status real")}.`
+    : T("Nenhum documento em integração ou validação hoje.");
+  const kp = ETAPA_ORDEM.map(e => { const a = noFluxo.filter(d => d.ei === e);
+    return [T(e), nf(a.length), ETAPA_COR[e], a.length ? a : null,
+      a.length ? `${T("mediana")}: ${dec(mediana(a.map(dias).filter(v => v != null)), 0)} ${T("dias na etapa")}` : T("nenhum")]; });
+  kp.push([T("Há mais de 30 dias na etapa"), nf(parados.length), "#d93025", parados.length ? parados : null, T("em qualquer etapa")]);
+  kp.push([T("Aparecem como não emitidos"), nf(naoEmit.length), "#9aa0a6", naoEmit.length ? naoEmit : null, T("no status real")]);
+  pintarKpis("kpis-int", kp);
 }
 function pintarQualidade(docs) {
   const lf = linhasFiltradas(), porCod = contar(lf.map(a => a.doc));
@@ -1515,12 +1557,13 @@ function pintarHistorico(aba, docs) {
 // =====================================================================
 function abrirHistoria(d) {
   const m = document.getElementById("modal");
-  const datas = [d.prev, d.rep, d.alvo, HOJE, ...d.revs.flatMap(r => [r.env, r.ret]), ...d.tl.map(x => x[0])].filter(Boolean);
+  const datas = [d.prev, d.rep, d.alvo, HOJE, ...d.revs.flatMap(r => [r.env, r.ret]), ...d.tl.map(x => x[0]), ...d.fi.map(x => x[0])].filter(Boolean);
   const ini = somaDias(new Date(Math.min(...datas)), -20), fim = somaDias(new Date(Math.max(...datas)), 25);
   const W = 1180, esq = 70, dir = 20, larg = W - esq - dir, span = Math.max(1, diasEntre(ini, fim));
   const X = data => esq + larg * diasEntre(ini, data) / span;
   const altRev = 34, topo = 46, nRev = d.revs.length;
-  const yStatus = topo + Math.max(nRev, 1) * altRev + 26, H = yStatus + 60;
+  const temInt = d.fi.some(([, e]) => e);
+  const yStatus = topo + Math.max(nRev, 1) * altRev + 26, yInt = yStatus + 30, H = (temInt ? yInt : yStatus) + 60;
   let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Segoe UI, Arial" font-size="12">`;
   // grade mensal
   for (let dd = new Date(ini.getFullYear(), ini.getMonth() + 1, 1); dd <= fim; dd = new Date(dd.getFullYear(), dd.getMonth() + 1, 1)) {
@@ -1560,6 +1603,15 @@ function abrirHistoria(d) {
     const x1 = X(dd), x2 = X(k + 1 < pts.length ? pts[k + 1][0] : HOJE);
     svg += `<rect x="${x1}" y="${yStatus}" width="${Math.max(2, x2 - x1)}" height="20" fill="${corSt(s)}"><title>${esc(TS(s))}: ${fmt(dd)}</title></rect>`;
   });
+  // faixa do fluxo interno (fornecedor → GE): integração e validação, antes da Itaipu
+  if (temInt) {
+    svg += `<text x="${esq - 8}" y="${yInt + 14}" text-anchor="end" font-weight="700" fill="#37474f">${T("Interno")}</text>`;
+    d.fi.forEach(([dd, e], k) => {
+      if (!e) return;
+      const x1 = X(dd), x2 = X(k + 1 < d.fi.length ? d.fi[k + 1][0] : HOJE);
+      svg += `<rect x="${x1}" y="${yInt}" width="${Math.max(2, x2 - x1)}" height="20" fill="${ETAPA_COR[e] || "#90a4ae"}"><title>${esc(T(e))}: ${fmt(dd)}</title></rect>`;
+    });
+  }
   svg += `</svg>`;
   const usados = unicos([...d.revs.map(r => r.stRet).filter(Boolean), ...d.tl.map(x => x[1])]);
   m.innerHTML = `<div class="janela">
@@ -1568,10 +1620,10 @@ function abrirHistoria(d) {
       <div style="font-size:16px;color:#263238">${esc(d.desc)}</div></div><button class="fechar" id="jan-x">✕ ${T("Fechar")}</button></div>
     <div class="jan-meta"><span>${T("Grupo")}: <b>${esc(d.grupo)}</b></span><span>${T("Sistemas")}: <b>${esc(d.sistemas.join(" | "))}</b></span><span>${T("Fase")}: <b>${esc(TS(d.fase))}</b></span>
       <span>${T("Responsável")}: <b>${esc(d.resp)}</b></span><span>${T("Data prevista")}: <b>${fmt(d.prev)}</b></span><span>${T("Data reprogramada")}: <b>${fmt(d.rep)}</b></span>
-      <span>${T("1ª emissão (data)")}: <b>${fmt(d.e1)}</b></span><span>${T("Desvio (dias)")}: <b>${d.dsv ?? "—"}</b></span></div>
+      <span>${T("1ª emissão (data)")}: <b>${fmt(d.e1)}</b></span><span>${T("Desvio (dias)")}: <b>${d.dsv ?? "—"}</b></span>${d.ei ? `<span>${T("Etapa interna")}: <b>${esc(T(d.ei))} ${T("desde")} ${fmt(d.eiDesde)} (${diasEntre(d.eiDesde, HOJE)} ${T("dias")})</b></span>` : ""}</div>
     <h3 style="margin:6px 0">${T("Linha do tempo")}</h3>
     <div class="linha-tempo">${svg}</div>
-    <div class="legenda-lt">${usados.map(s => `<span><i style="background:${corSt(s)}"></i>${esc(TS(s))}</span>`).join("")}<span><i style="background:#f9a825"></i>${T("em análise (sem retorno)")}</span><span><i style="background:#ef9a9a;height:6px"></i>${T("com a CMI")}</span></div>
+    <div class="legenda-lt">${usados.map(s => `<span><i style="background:${corSt(s)}"></i>${esc(TS(s))}</span>`).join("")}<span><i style="background:#f9a825"></i>${T("em análise (sem retorno)")}</span><span><i style="background:#ef9a9a;height:6px"></i>${T("com a CMI")}</span>${unicos(d.fi.map(x => x[1]).filter(Boolean)).map(e => `<span><i style="background:${ETAPA_COR[e] || "#90a4ae"}"></i>${esc(T(e))}</span>`).join("")}</div>
     <h3 style="margin:18px 0 6px">${T("Revisões do documento")}</h3>
     ${d.revs.length ? `<div class="tabela-wrap"><table><thead><tr>${COLS_REV().slice(6).map(([h]) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${d.revs.map(r => `<tr>${COLS_REV().slice(6).map(([, f, k]) => k === "tipo" ? `<td>${r.tipo ? chip(r.tipo, TIPO_COR[r.tipo] || "#9aa0a6") : "—"}</td>` : celula(f(r), k)).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="vazio">${T("Documento ainda não emitido.")}</p>`}
   </div>`;
