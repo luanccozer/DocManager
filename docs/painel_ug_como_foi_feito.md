@@ -27,6 +27,7 @@ A decisão de fazer o painel assim está no [ADR 0003](adr/0003-painel-html-gera
 15. [Decisões tomadas e por quê](#15-decisões-tomadas-e-por-quê)
 16. [Diferença para o Power BI](#16-diferença-para-o-power-bi)
 17. [Limites conhecidos](#17-limites-conhecidos)
+18. [Os três gráficos de % do Esforço: a matemática e como ler](#18-os-três-gráficos-de--do-esforço-a-matemática-e-como-ler)
 
 ---
 
@@ -378,9 +379,9 @@ trimestre.
 | Antes e depois de uma data | ver abaixo |
 | Envios à Itaipu por período | barras empilhadas por tipo do envio, pela data do envio |
 | Retornos da Itaipu por período | barras empilhadas pelo status do retorno, pela data do retorno |
-| Prazo de reemissão da CMI | por período do envio: das reemissões depois de reprovação, a parte enviada em até 15 dias; o tooltip dá a mediana de dias e quantas foram (períodos com menos de 3 ficam de fora) |
-| Prazo de análise da Itaipu | por período do retorno: a parte dos retornos dentro do prazo (30 dias na 0A, 15 nas demais); o tooltip dá a mediana de dias |
-| Taxa de aprovação dos retornos | por período do retorno: aprovados ÷ (aprovados + não aprovados) |
+| Prazo de reemissão da CMI | por período do envio: das reemissões depois de reprovação, a parte enviada em até 15 dias; o tooltip dá "x de n" e a mediana de dias (seção 18) |
+| Prazo de análise da Itaipu | por período do retorno: a parte dos retornos dentro do prazo (30 dias na 0A, 15 nas demais); o tooltip dá "x de n" e a mediana de dias (seção 18) |
+| Taxa de aprovação dos retornos | por período do retorno: aprovados ÷ (aprovados + não aprovados); o tooltip dá "x de n" (seção 18). Nos três gráficos de %, período com menos de 10 casos (5 na semana) não vira ponto, e os três começam no mesmo período |
 | Em que revisão o documento foi aprovado | para cada documento aprovado, a revisão do primeiro retorno de aprovação: 0A, 0B, 0C, 0D, "0E+" (as letras seguintes), revisão numérica, ou "1x" para outras famílias |
 | Há quanto tempo está com a Itaipu | documentos em processo: dias desde o último envio, em faixas (até 15, 16 a 30, 31 a 60, mais de 60) |
 | Há quanto tempo espera reemissão da CMI | documentos não aprovados: dias desde o último retorno, nas mesmas faixas |
@@ -587,3 +588,160 @@ conta cada documento no dia em que realmente saiu, acumulando desde o início do
   atualização (ADR 0001), então a "baseline" de parte dos documentos é o plano de outubro, não o
   original.
 - **Geração leva cerca de 1 minuto** na base real.
+
+---
+
+## 18. Os três gráficos de % do Esforço: a matemática e como ler
+
+**Prazo de reemissão da CMI**, **Prazo de análise da Itaipu** e **Taxa de aprovação dos retornos**
+fazem a mesma conta: uma **proporção por período**. Cada ponto é "quantos casos atenderam a
+condição" ÷ "quantos casos houve no período", × 100. Muda só quem é um caso, qual é a condição e
+qual data põe o caso num período. Os números de exemplo são da base de 10/11/2026.
+
+### 18.1 A conta comum
+
+Para um período *P* (semana, mês ou trimestre, no agrupamento da aba):
+
+```
+casos(P) = as revisões que caem em P, pela data de cada gráfico (tabela abaixo)
+bons(P)  = os casos que atendem a condição
+ponto(P) = 100 × bons(P) ÷ casos(P)       só se casos(P) ≥ 10 (≥ 5 na semana)
+```
+
+| Gráfico | Quem é um caso | Que data põe o caso no período | Condição ("bom") | Dias |
+|---|---|---|---|---|
+| Prazo de reemissão da CMI | revisão enviada depois de uma revisão **Não Aprovada** | o **envio** da nova revisão | Dias CMI ≤ 15 | Dias CMI = envio da revisão − retorno (reprovação) da revisão anterior |
+| Prazo de análise da Itaipu | revisão que **voltou** da Itaipu | o **retorno** | Dias Itaipu ≤ prazo: 30 na 0A, 15 nas demais | Dias Itaipu = retorno − envio |
+| Taxa de aprovação dos retornos | revisão que voltou como **aprovação ou reprovação** | o **retorno** | o retorno foi aprovação | — |
+
+- Os dias são **corridos** (fins de semana e feriados contam), como no Histórico Consolidado (seção 7.2).
+- **Aprovação** = Aprovado, Aprovado com Comentários, Para Assinatura, Informativo e For Partial
+  Handover (a aprovação total, seção 5.5). **Reprovação** = Não Aprovado. Cancelado e anulado não
+  entram em cima nem embaixo.
+- Um documento aparece em vários períodos, uma vez por revisão.
+- O **tooltip** mostra o ponto, "x de n" e a mediana de dias (na taxa, quantos não aprovados).
+  **Clicar** no ponto abre as revisões do período, com revisão, prazo (SLA), Dias e Atraso da Itaipu
+  e da CMI, e exporta para Excel.
+- Período com menos de 10 casos (5 na semana) não vira ponto (seção 18.3). Os três gráficos começam
+  no mesmo período, o primeiro que tem ponto em algum deles, para comparar um com o outro.
+
+No código: `pintarEsforco` em `docmanager/dashboard/recursos/painel_ug.html` (as listas `rp`,
+`posRep` e `retP`, o mínimo `MIN`); os dias vêm de `calcular_atrasos` (`docmanager/core/delays.py`).
+
+### 18.2 A mediana
+
+A **mediana** é o valor do meio quando os valores são postos em ordem: metade dos casos levou
+menos, metade levou mais. Com um número par de valores, é a média dos dois do meio. O painel usa a
+mediana, e não a média, porque poucos valores extremos (um documento parado há um ano) puxam a média
+para longe do caso típico; a mediana não se mexe com eles.
+
+### 18.3 Exemplo: outubro de 2026
+
+**Prazo de reemissão da CMI.** Em outubro, a CMI enviou 35 revisões depois de reprovação. Os dias
+de cada uma (envio − reprovação anterior), em ordem:
+
+> 1, 3, 6, 6, 17, 19, 26, 26, 34, 36, 36, 37, 39, 42, 47, 50, 61, **61**, 70, 70, 82, 93, 118,
+> 130, 133, 202, 235, 294, 308, 388, 505, 505, 505, 505, 516
+
+- Em até 15 dias: 1, 3, 6 e 6, ou seja **4**. Ponto = 100 × 4 ÷ 35 = **11,4%**.
+- Mediana: com 35 valores, o do meio é o 18º, **61 dias**.
+- Média: 5.206 ÷ 35 = **148,7 dias**, mais que o dobro da mediana. As cinco revisões de 505 e 516
+  dias (cinco documentos reprovados entre maio e junho de 2025 e reenviados juntos em 20/10/2026)
+  puxam a média; a mediana não liga para elas.
+- 14 das 35 (40%) esperavam havia mais de 90 dias: outubro foi, em boa parte, **limpeza de
+  antigos**. É trabalho bom, mas derruba o % e sobe a mediana (seção 18.6).
+
+**Prazo de análise da Itaipu.** Em outubro voltaram 141 revisões:
+
+| | Retornos | Em até 15 dias | 16 a 30 dias | Mais de 30 | No prazo |
+|---|---|---|---|---|---|
+| 0A (prazo de 30 dias) | 21 | 3 | 9 | 9 | 3 + 9 = **12** |
+| Demais revisões (prazo de 15) | 120 | 43 | 54 | 23 | **43** |
+| Total | 141 | 46 | 63 | 32 | **55** |
+
+- Ponto = 100 × 55 ÷ 141 = **39,0%**. Mediana: o 71º de 141 valores, **22 dias**.
+- Leitura: 54 revisões que não eram 0A (90 das 120 eram reemissões) voltaram entre 16 e 30 dias:
+  atrasadas para o prazo de 15, mas em menos de 30. Se o prazo de todas fosse 30 dias, o ponto seria
+  (12 + 43 + 54) ÷ 141 = 77%. O que puxa o % para baixo é o prazo de 15 dias das revisões depois da
+  0A, mais do que análises muito longas (só 1 passou de 60 dias).
+
+**Taxa de aprovação dos retornos.** Em outubro, 139 revisões voltaram como aprovação ou reprovação:
+109 aprovações (Para Assinatura 42, Aprovado com Comentários 41, Aprovado 23, For Partial Handover
+2, Informativo 1) e 30 Não Aprovado.
+
+- Ponto = 100 × 109 ÷ 139 = **78,4%**.
+- 28 das 109 aprovações foram de **emissão final** (revisão só com números). As 30 reprovações foram
+  todas de revisões com letra. Só nas revisões com letra, a taxa é 81 ÷ 111 = 73,0%.
+
+### 18.4 Por que poucos casos enganam
+
+Cada caso vale **100 ÷ n** pontos percentuais. Com n = 3, um documento a mais ou a menos muda o ponto
+em 33 pontos; com n = 10, em 10; com n = 141, em 0,7. Por isso os meses de 2023 e 2024, quase sempre
+com 1 a 4 reemissões depois de reprovação, pulavam entre 0% e 100%. O painel só desenha o ponto com
+10 casos ou mais (5 na semana, que tem cerca de um quarto dos casos do mês).
+
+Para saber se uma diferença entre dois pontos é real, use a variação que uma proporção *p* com *n*
+casos tem por acaso, cerca de **± 2 × √(p × (1 − p) ÷ n)** (o intervalo de 95%, aproximado):
+
+| Ponto de outubro de 2026 | p | n | Varia por acaso cerca de |
+|---|---|---|---|
+| Taxa de aprovação | 78,4% | 139 | ± 7 pontos |
+| Itaipu no prazo | 39,0% | 141 | ± 8 pontos |
+| Reemissão em até 15 dias | 11,4% | 35 | ± 11 pontos |
+
+Exemplo: √(0,784 × 0,216 ÷ 139) = √0,00122 = 0,035; × 2 = 0,07 = 7 pontos. Então uma taxa de 72%
+num mês depois de 78% no outro não é piora; três meses seguidos abaixo de 72%, sim. É uma
+aproximação: serve para não tirar conclusão de um mês só.
+
+### 18.5 A tendência: por trimestre
+
+No agrupamento **trimestre**, cada ponto junta cerca de três vezes mais casos, e a variação por acaso
+cai quase pela metade (√3 ≈ 1,7). Os três por trimestre (o 4º trimestre de 2026 vai até a data da
+base):
+
+| Trimestre | Reemissão em até 15 dias | Mediana para reemitir | Itaipu no prazo | Mediana da Itaipu | Taxa de aprovação |
+|---|---|---|---|---|---|
+| 2025 T1 | 7 de 32 = 21,9% | 47,5 dias | 50 de 119 = 42,0% | 27 dias | 63 de 119 = 52,9% |
+| 2025 T2 | 5 de 62 = 8,1% | 42,5 | 115 de 226 = 50,9% | 24 | 147 de 226 = 65,0% |
+| 2025 T3 | 5 de 68 = 7,4% | 57,5 | 130 de 300 = 43,3% | 20 | 214 de 300 = 71,3% |
+| 2025 T4 | 4 de 74 = 5,4% | 40,5 | 116 de 307 = 37,8% | 23 | 202 de 307 = 65,8% |
+| 2026 T1 | 6 de 98 = 6,1% | 49,5 | 138 de 349 = 39,5% | 27 | 229 de 349 = 65,6% |
+| 2026 T2 | 10 de 102 = 9,8% | 51,5 | 158 de 409 = 38,6% | 24 | 304 de 409 = 74,3% |
+| 2026 T3 | 10 de 87 = 11,5% | 57 | 136 de 389 = 35,0% | 21 | 316 de 390 = 81,0% |
+| 2026 T4 (parcial) | 4 de 49 = 8,2% | 70 | 67 de 168 = 39,9% | 22 | 131 de 166 = 78,9% |
+
+O que a tabela diz:
+
+- **A taxa de aprovação subiu de verdade**: de 65% a 66% (2025 T4 e 2026 T1) para 74% (2026 T2) e
+  81% (2026 T3). Com cerca de 400 casos por trimestre, o acaso explica ± 4 a 5 pontos; a subida foi
+  de 15.
+- **A Itaipu cumpre o prazo em cerca de 4 de cada 10 análises** em 2026, menos que os 51% de 2025 T2.
+  A queda aparece nos dois grupos (0A: 54% → 36%; demais: 48% → 35%, de 2025 T2 para 2026 T3). A
+  mediana ficou entre 20 e 27 dias: acima dos 15 dias das revisões depois da 0A (reemissões e
+  emissões finais), que são a maior parte dos retornos (83% em 2026 T3).
+- **A reemissão em até 15 dias é baixa o tempo todo** (5% a 12% por trimestre; os 21,9% de 2025 T1
+  têm só 32 casos). A subida para 10% a 11% em 2026 T2 e T3 está dentro do acaso (± 6 pontos com
+  cerca de 100 casos). A mediana subiu para 57 e 70 dias porque a equipe passou a reemitir
+  documentos antigos. Se a fila está andando, quem diz são os não aprovados aguardando (124 → 107 no
+  Antes e depois com corte em 01/08/2026) e a fatia vermelha de "Há quanto tempo espera reemissão da
+  CMI".
+
+### 18.6 Armadilhas de leitura
+
+1. **Cada gráfico tem a sua data.** Reemissão conta no mês do envio; Itaipu e taxa, no mês do
+   retorno. Uma revisão enviada em setembro e devolvida em outubro conta em outubro nos dois últimos.
+2. **Só entra quem já andou.** O documento reprovado que ainda não foi reemitido não está no gráfico
+   de reemissão; o que está em análise não está no da Itaipu. Se a equipe deixa os difíceis parados e
+   só reemite os fáceis, o % sobe e a fila cresce. Leia sempre com as pizzas "Há quanto tempo".
+3. **Limpar antigos piora o mês.** Reemitir um documento parado há 500 dias é bom, mas entra como um
+   caso fora do prazo e sobe a mediana.
+4. **A taxa conta revisões, não documentos.** Um documento reprovado três vezes pesa três vezes, e a
+   emissão final volta como aprovação. Para documentos, use **Aprovados de primeira** (381 de 820 =
+   46,5% dos documentos que já tiveram retorno) e **Em que revisão o documento foi aprovado** (0A em
+   377 dos 686 aprovados = 55,0%). As bases são diferentes (820 com retorno; 686 aprovados), por isso
+   46,5% e 55,0% não se contradizem.
+5. **O mês corrente está incompleto.** Novembro de 2026 tinha só os primeiros dias: 14 reemissões,
+   nenhuma em até 15 dias, mediana de 135 dias. Poucos casos e quase todos antigos: espere o mês
+   fechar.
+6. **Um pico não é tendência.** Compare com a variação por acaso (seção 18.4) ou mude o agrupamento
+   para trimestre.

@@ -1470,6 +1470,13 @@ mínimo escrito na própria página.
   subiram (43 → 83, mediana: reemitiram documentos parados) e a taxa de aprovação ficou em 78%.
 - **Ajuda**: botão "Como ler o painel" e um "i" em cada gráfico, com o que ele mostra e como é
   calculado (lista `AJUDA` no modelo, português e inglês).
+- **Os três gráficos de % do Esforço** (2026-11-13, pedido do usuário: "como é a matemática por
+  trás"): prazo de reemissão da CMI (envios depois de reprovação, pela data do envio, Dias CMI ≤ 15),
+  prazo de análise da Itaipu (retornos, pela data do retorno, Dias Itaipu ≤ 30 na 0A e 15 nas demais)
+  e taxa de aprovação (retornos de aprovação ÷ aprovação + reprovação). Ponto = 100 × bons ÷ casos,
+  só com 10 casos ou mais (5 na semana): com 3, cada caso valia 33 pontos e 2023-2024 pulavam entre
+  0% e 100%. Os três começam no mesmo período; o tooltip dá "x de n" e a mediana. A conta passo a
+  passo, com exemplos e a leitura por trimestre: `docs/painel_ug_como_foi_feito.md` §18.
 - **Adiantar dá crédito** na curva acumulada (decisão do usuário, 2026-11-11): emitidos contam na
   data real da 1ª emissão, como em todo acumulado. O Power BI do .pbix contava os adiantados que já
   passaram da 1ª revisão na data-alvo, e acumulava só dentro do período escolhido.

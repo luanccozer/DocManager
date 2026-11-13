@@ -362,41 +362,41 @@ const AJUDA = [
 "esf-reemissao",
 "Esforço da engenharia",
 "Prazo de reemissão da CMI",
-"Das reemissões feitas depois de uma reprovação, a parte enviada em até 15 dias, o prazo da CMI. No tooltip, a mediana de dias e quantas foram. Meses com menos de 3 ficam de fora.",
+"<b>O que é cada ponto:</b> as revisões que a CMI enviou à Itaipu naquele mês <b>depois de uma reprovação</b>. Para cada uma, conta-se quantos dias passaram entre a reprovação da revisão anterior e o novo envio. O ponto é a parte delas enviada em até 15 dias, o prazo da CMI; o tooltip mostra quantas de quantas e a mediana de dias. <b>Como ler:</b> quanto mais alto, mais rápido a CMI responde às reprovações. <b>Cuidado:</b> o documento só entra no mês em que é reenviado. Num mês em que a equipe reenvia documentos parados há muito tempo, a linha cai, mesmo com mais trabalho feito; e quem continua esperando não aparece aqui. Leia junto com \"Há quanto tempo espera reemissão da CMI\" e com os não aprovados aguardando, no Antes e depois. Períodos com menos de 10 casos (5 por semana) ficam de fora.",
 "CMI reissue time",
-"Of the reissues made after a rejection, the share sent within 15 days, CMI's deadline. The tooltip shows the median days and how many there were. Months with fewer than 3 are left out."
+"<b>What each point is:</b> the revisions CMI sent to Itaipu in that month <b>after a rejection</b>. For each one, the days between the rejection of the previous revision and the new submission are counted. The point is the share sent within 15 days, CMI's deadline; the tooltip shows how many out of how many and the median days. <b>How to read:</b> the higher, the faster CMI answers rejections. <b>Careful:</b> a document only enters in the month it is resubmitted. In a month when the team resubmits documents that were stuck for a long time, the line drops even with more work done; and documents still waiting do not show here. Read it with \"How long it has been waiting for CMI reissue\" and with the not approved waiting in Before and after. Periods with fewer than 10 cases (5 per week) are left out."
 ],
 [
 "esf-itaipu",
 "Esforço da engenharia",
 "Prazo de análise da Itaipu",
-"Dos retornos do período, a parte que voltou dentro do prazo: 30 dias na 0A, 15 nas demais. No tooltip, a mediana de dias de análise.",
+"<b>O que é cada ponto:</b> as revisões que a Itaipu devolveu naquele mês. Para cada uma, conta-se quantos dias ela ficou em análise, do envio ao retorno, e compara-se com o prazo: 30 dias na 0A, 15 nas demais revisões. O ponto é a parte devolvida dentro do prazo; o tooltip mostra quantas de quantas e a mediana de dias. <b>Como ler:</b> quanto mais alto, mais a Itaipu cumpre o prazo de análise. A mediana diz o tempo típico de análise: compare com 30 dias (0A) e 15 dias (as demais revisões). Clique no ponto para ver a revisão, o prazo e os dias de cada retorno. <b>Cuidado:</b> a revisão entra no mês em que volta, não no mês em que foi enviada; uma análise muito longa puxa para baixo o mês em que finalmente volta. As que ainda estão em análise não entram (estão em \"Há quanto tempo está com a Itaipu\"). Períodos com menos de 10 casos (5 por semana) ficam de fora.",
 "Itaipu review time",
-"Of the returns in the period, the share returned within the deadline: 30 days for 0A, 15 for the others. The tooltip shows the median review days."
+"<b>What each point is:</b> the revisions Itaipu returned in that month. For each one, the days it spent under review, from submission to return, are counted and compared with the deadline: 30 days for 0A, 15 for the other revisions. The point is the share returned within the deadline; the tooltip shows how many out of how many and the median days. <b>How to read:</b> the higher, the more Itaipu meets the review deadline. The median gives the typical review time: compare it with 30 days (0A) and 15 days (the other revisions). Click the point to see the revision, deadline and days of each return. <b>Careful:</b> a revision enters in the month it comes back, not the month it was sent; a very long review drags down the month it finally returns. Reviews still open are not counted (see \"How long it has been with Itaipu\"). Periods with fewer than 10 cases (5 per week) are left out."
 ],
 [
 "esf-taxa",
 "Esforço da engenharia",
 "Taxa de aprovação dos retornos",
-"Retornos aprovados (aprovado, com comentários, para assinatura, informativo) ÷ (aprovados + não aprovados), no período do retorno.",
+"<b>O que é cada ponto:</b> os retornos da Itaipu naquele mês que foram aprovação (aprovado, com comentários, para assinatura, informativo, for partial handover), divididos pelos retornos que foram aprovação ou reprovação. Cancelamentos e anulações ficam fora. <b>Como ler:</b> quanto mais alto, menos revisões voltaram reprovadas. <b>Cuidado:</b> conta revisões, não documentos: um documento reprovado três vezes pesa três vezes. A emissão final (a revisão só com números, de um documento que em geral já foi aprovado com letra) também volta como aprovação e entra na conta; por isso a taxa fica acima da aprovação de primeira. Para ver quantos documentos são aprovados na primeira análise, veja \"Aprovados de primeira\" e \"Em que revisão o documento foi aprovado\". Períodos com menos de 10 casos (5 por semana) ficam de fora.",
 "Approval rate of returns",
-"Approved returns (approved, with comments, for signature, informative) ÷ (approved + not approved), in the period of the return."
+"<b>What each point is:</b> Itaipu's returns in that month that were approvals (approved, with comments, for signature, informative, for partial handover), divided by the returns that were approvals or rejections. Cancellations and annulments are left out. <b>How to read:</b> the higher, the fewer revisions came back rejected. <b>Careful:</b> it counts revisions, not documents: a document rejected three times weighs three times. The final issue (the numbers-only revision, of a document usually already approved with a letter) also comes back as an approval and is counted; that is why the rate is higher than first-time approval. To see how many documents are approved at the first review, see \"Approved first time\" and \"Revision at which the document was approved\". Periods with fewer than 10 cases (5 per week) are left out."
 ],
 [
 "esf-revisao",
 "Esforço da engenharia",
 "Em que revisão foi aprovado",
-"Para cada documento já aprovado, a revisão do primeiro retorno de aprovação: 0A quer dizer aprovado de primeira.",
+"<b>O que é:</b> para cada documento que já teve um retorno de aprovação, a revisão em que isso aconteceu pela primeira vez. Cada documento conta uma vez, olhando toda a sua história: o ano e o agrupamento desta aba não mudam este gráfico (os filtros do alto, sim). <b>Como ler:</b> 0A é aprovado de primeira; 0B, na segunda tentativa; 0C, na terceira; e assim por diante. Quanto mais peso à esquerda, menos retrabalho. A barra \"0\" (ou outro número) são documentos cuja primeira aprovação veio já numa revisão só com números. <b>Cuidado:</b> só entram os documentos já aprovados; quem ainda espera aprovação não aparece. A porcentagem é sobre os aprovados. O KPI \"Aprovados de primeira\" divide por outra base, todos os documentos que já tiveram algum retorno (aprovados ou não), por isso a porcentagem dele costuma ser menor.",
 "Revision at which it was approved",
-"For each approved document, the revision of the first approval return: 0A means approved first time."
+"<b>What it is:</b> for each document that has had an approval return, the revision at which that first happened. Each document counts once, over its whole history: this tab's year and grouping do not change this chart (the filters at the top do). <b>How to read:</b> 0A is approved first time; 0B, at the second attempt; 0C, at the third; and so on. The more weight on the left, the less rework. The \"0\" bar (or another number) is documents whose first approval came at a numbers-only revision. <b>Careful:</b> only documents already approved are counted; those still waiting for approval do not show. The percentage is over the approved ones. The \"Approved first time\" KPI divides by another base, all documents that have had any return (approved or not), so its percentage is usually lower."
 ],
 [
 "esf-aging",
 "Esforço da engenharia",
 "Há quanto tempo espera",
-"Com a Itaipu: dias desde o último envio, para os documentos em processo. Reemissão da CMI: dias desde o último retorno, para os documentos não aprovados.",
+"<b>O que é:</b> o retrato de hoje de quem está esperando, em faixas de dias. <b>Com a Itaipu:</b> os documentos em processo, pelos dias desde o último envio. <b>Reemissão da CMI:</b> os documentos não aprovados, pelos dias desde o último retorno (a reprovação). <b>Como ler:</b> o verde é recente; o vermelho (mais de 60 dias) é o que está parado. É o complemento dos gráficos de prazo: eles medem quem já andou, e aqui está quem ainda não andou. Quando a fatia vermelha da CMI diminui, a equipe está limpando os antigos, mesmo que o prazo de reemissão piore naquele mês. Clique numa fatia para ver os documentos.",
 "How long it has been waiting",
-"With Itaipu: days since the last submission, for documents in process. CMI reissue: days since the last return, for not approved documents."
+"<b>What it is:</b> today's picture of who is waiting, in bands of days. <b>With Itaipu:</b> documents in process, by days since the last submission. <b>CMI reissue:</b> not approved documents, by days since the last return (the rejection). <b>How to read:</b> green is recent; red (more than 60 days) is what is stuck. It complements the time charts: they measure who has moved, and this shows who has not moved yet. When CMI's red slice shrinks, the team is clearing the old ones, even if the reissue time looks worse that month. Click a slice to see the documents."
 ],
 [
 "esf-resp",
@@ -521,7 +521,8 @@ const EN = {
   "Os não emitidos entram com uma linha só, como no Histórico Consolidado: o atraso da CMI corre desde a data-alvo.": "Not-issued documents get a single row, as in the Consolidated History: the CMI delay runs from the target date.",
   "mediana": "median", "Prevista": "Planned", "Reprogramada": "Rescheduled", "Hoje": "Today", "Até hoje": "Up to today",
   "O ponto de hoje no gráfico soma o período inteiro.": "Today's point on the chart adds up the whole period.",
-  "Sistemas só em agrupamentos": "Systems only in groupings", "Como ler o painel": "How to read the dashboard", "Como é calculado": "How it is calculated", "Geral": "General",
+  "Sistemas só em agrupamentos": "Systems only in groupings", "em até 15 dias": "within 15 days", "no prazo": "on time",
+  "aprovados": "approved", "não aprovados": "not approved", "só períodos com 10 casos ou mais (5 por semana)": "only periods with 10 cases or more (5 per week)", "Como ler o painel": "How to read the dashboard", "Como é calculado": "How it is calculated", "Geral": "General",
   "Antes e depois de uma data": "Before and after a date", "mesma duração antes e depois · contagens por mês": "same length before and after · counts per month",
   "Data de corte": "Cut-off date", "Indicador": "Indicator", "Antes": "Before", "Depois": "After", "Variação": "Change",
   "Reemissões enviadas (por mês)": "Reissues sent (per month)", "1ªs emissões (por mês)": "1st issues (per month)", "Emissões finais (por mês)": "Final issues (per month)",
@@ -1299,11 +1300,11 @@ function pintarEsforco(aba, docs) {
       <div class="card"><h3>${T("Retornos da Itaipu por período")} ${info("esf-retornos")} <small>${T("pelo status do retorno")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-ret"></canvas></div></div>
     </div>
     <div class="fila-meio">
-      <div class="card"><h3>${T("Prazo de reemissão da CMI")} ${info("esf-reemissao")} <small>${T("% das reemissões depois de reprovação feitas em até 15 dias")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-reem"></canvas></div></div>
-      <div class="card"><h3>${T("Prazo de análise da Itaipu")} ${info("esf-itaipu")} <small>${T("% dos retornos dentro do prazo (30 dias na 0A, 15 nas demais)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-sla"></canvas></div></div>
+      <div class="card"><h3>${T("Prazo de reemissão da CMI")} ${info("esf-reemissao")} <small>${T("% das reemissões depois de reprovação feitas em até 15 dias")} · ${T("só períodos com 10 casos ou mais (5 por semana)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-reem"></canvas></div></div>
+      <div class="card"><h3>${T("Prazo de análise da Itaipu")} ${info("esf-itaipu")} <small>${T("% dos retornos dentro do prazo (30 dias na 0A, 15 nas demais)")} · ${T("só períodos com 10 casos ou mais (5 por semana)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-sla"></canvas></div></div>
     </div>
     <div class="fila-meio">
-      <div class="card"><h3>${T("Taxa de aprovação dos retornos")} ${info("esf-taxa")} <small>${T("aprovados ÷ (aprovados + não aprovados)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-taxa"></canvas></div></div>
+      <div class="card"><h3>${T("Taxa de aprovação dos retornos")} ${info("esf-taxa")} <small>${T("aprovados ÷ (aprovados + não aprovados)")} · ${T("só períodos com 10 casos ou mais (5 por semana)")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-taxa"></canvas></div></div>
       <div class="card"><h3>${T("Em que revisão o documento foi aprovado")} ${info("esf-revisao")} <small>${T("1ª aprovação de cada documento")}</small></h3><div class="caixa" style="height:320px"><canvas id="g-ciclos"></canvas></div></div>
     </div>
     <div class="fila-meio">
@@ -1360,27 +1361,40 @@ function pintarEsforco(aba, docs) {
     options: { layout: { padding: { top: 26 } }, plugins: { legend: { display: false }, datalabels: { display: true, anchor: "end", align: "end", font: { weight: "bold" }, formatter: v => `${nf(v)} (${pct(v, aprovEm.length)})` } },
       scales: { x: eixoCat(), y: eixoVal() }, onHover: cursor,
       onClick: (e, el) => { if (el.length) { const b = ordemB[el[0].index]; abrirDocs(`${T("Em que revisão o documento foi aprovado")}: ${b}`, aprovEm.filter(x => bucket(x.rev) === b).map(x => x.d)); } } } });
-  // Prazo de análise da Itaipu (sem eixo duplo: % no prazo; mediana no tooltip)
-  const rp = ps.map((p, i) => gRet.flatMap(g => g[i]).filter(r => r.dIt != null && r.sla));
-  grafico("g-sla", { type: "line", data: { labels: ps.map(p => p.rotulo), datasets: [{ label: "%", data: rp.map(a => a.length >= 3 ? 100 * a.filter(r => r.dIt <= r.sla).length / a.length : null),
+  // Os três gráficos de % (sem eixo duplo: o % no eixo; quantos de quantos e a mediana no tooltip).
+  // Prazo de análise da Itaipu: retornos pela data do retorno, com os dias de análise conhecidos.
+  // Prazo de reemissão da CMI: reemissões depois de reprovação, pela data do envio.
+  // Taxa de aprovação: retornos que foram aprovação ou reprovação, pela data do retorno.
+  const rpT = ps.map((p, i) => gRet.flatMap(g => g[i]).filter(r => r.dIt != null && r.sla));
+  const posRepT = ps.map(p => env.filter(r => r.antSt === "Não Aprovado" && r.dCmi != null && r.env >= p.ini && r.env <= p.fim));
+  const retPT = ps.map((p, i) => gRet.flatMap(g => g[i]).filter(r => ehAprov(r.stRet) || r.stRet === "Não Aprovado"));
+  // Período com poucos casos não vira ponto: com 3 ou 4 casos a linha pula entre 0% e 100% sem
+  // querer dizer nada. O eixo dos três começa no primeiro período com ponto em algum deles, igual
+  // nos três, para comparar um embaixo do outro.
+  const MIN = ESF.agr === "semana" ? 5 : 10;
+  const vale = a => a.length >= MIN;
+  let k0 = Math.min(...[rpT, posRepT, retPT].map(l => { const k = l.findIndex(vale); return k < 0 ? ps.length : k; }));
+  if (k0 >= ps.length) k0 = 0;
+  const psP = ps.slice(k0), rp = rpT.slice(k0), posRep = posRepT.slice(k0), retP = retPT.slice(k0);
+  const rotN = (a, x, txt) => `${dec(100 * x / a.length)}% · ${nf(x)} ${T("de")} ${nf(a.length)} ${txt}`;
+  grafico("g-sla", { type: "line", data: { labels: psP.map(p => p.rotulo), datasets: [{ label: "%", data: rp.map(a => vale(a) ? 100 * a.filter(r => r.dIt <= r.sla).length / a.length : null),
       borderColor: "#3949ab", backgroundColor: "#3949ab", borderWidth: 2.5, pointRadius: 3, spanGaps: true, tension: .2 }] },
-    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${dec(c.raw)}% · ${T("Dias de análise (mediana)")}: ${dec(mediana(rp[c.dataIndex].map(r => r.dIt)), 0)} · n=${rp[c.dataIndex].length}` } } },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => { const a = rp[c.dataIndex];
+        return [rotN(a, a.filter(r => r.dIt <= r.sla).length, T("no prazo")), `${T("mediana")}: ${dec(mediana(a.map(r => r.dIt)), 0)} ${T("dias")}`]; } } } },
       scales: { x: eixoCat(), y: eixoVal({ max: 100, ticks: { callback: v => v + "%" } }) }, onHover: cursor,
-      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Prazo de análise da Itaipu")} · ${ps[el[0].index].rotulo}`, rp[el[0].index]); } } });
-  // Prazo de reemissão da CMI: reemissões depois de reprovação, pela data do envio
-  const posRep = ps.map(p => env.filter(r => r.antSt === "Não Aprovado" && r.dCmi != null && r.env >= p.ini && r.env <= p.fim));
-  grafico("g-reem", { type: "line", data: { labels: ps.map(p => p.rotulo), datasets: [{ label: "%", data: posRep.map(a => a.length >= 3 ? 100 * a.filter(r => r.dCmi <= 15).length / a.length : null),
+      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Prazo de análise da Itaipu")} · ${psP[el[0].index].rotulo}`, rp[el[0].index]); } } });
+  grafico("g-reem", { type: "line", data: { labels: psP.map(p => p.rotulo), datasets: [{ label: "%", data: posRep.map(a => vale(a) ? 100 * a.filter(r => r.dCmi <= 15).length / a.length : null),
       borderColor: "#fb8c00", backgroundColor: "#fb8c00", borderWidth: 2.5, pointRadius: 3, spanGaps: true, tension: .2 }] },
-    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${dec(c.raw)}% · ${T("mediana")}: ${dec(mediana(posRep[c.dataIndex].map(r => r.dCmi)), 0)} ${T("dias")} · n=${posRep[c.dataIndex].length}` } } },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => { const a = posRep[c.dataIndex];
+        return [rotN(a, a.filter(r => r.dCmi <= 15).length, T("em até 15 dias")), `${T("mediana")}: ${dec(mediana(a.map(r => r.dCmi)), 0)} ${T("dias")}`]; } } } },
       scales: { x: eixoCat(), y: eixoVal({ max: 100, ticks: { callback: v => v + "%" } }) }, onHover: cursor,
-      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Prazo de reemissão da CMI")} · ${ps[el[0].index].rotulo}`, posRep[el[0].index]); } } });
-  // Taxa de aprovação dos retornos, pela data do retorno
-  const retP = ps.map((p, i) => gRet.flatMap(g => g[i]).filter(r => ehAprov(r.stRet) || r.stRet === "Não Aprovado"));
-  grafico("g-taxa", { type: "line", data: { labels: ps.map(p => p.rotulo), datasets: [{ label: "%", data: retP.map(a => a.length >= 3 ? 100 * a.filter(r => ehAprov(r.stRet)).length / a.length : null),
+      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Prazo de reemissão da CMI")} · ${psP[el[0].index].rotulo}`, posRep[el[0].index]); } } });
+  grafico("g-taxa", { type: "line", data: { labels: psP.map(p => p.rotulo), datasets: [{ label: "%", data: retP.map(a => vale(a) ? 100 * a.filter(r => ehAprov(r.stRet)).length / a.length : null),
       borderColor: "#1e8e3e", backgroundColor: "#1e8e3e", borderWidth: 2.5, pointRadius: 3, spanGaps: true, tension: .2 }] },
-    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => { const a = retP[c.dataIndex]; return `${dec(c.raw)}% · ${nf(a.filter(r => ehAprov(r.stRet)).length)} ${T("de")} ${nf(a.length)}`; } } } },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => { const a = retP[c.dataIndex];
+        return [rotN(a, a.filter(r => ehAprov(r.stRet)).length, T("aprovados")), `${nf(a.filter(r => r.stRet === "Não Aprovado").length)} ${T("não aprovados")}`]; } } } },
       scales: { x: eixoCat(), y: eixoVal({ max: 100, ticks: { callback: v => v + "%" } }) }, onHover: cursor,
-      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Taxa de aprovação dos retornos")} · ${ps[el[0].index].rotulo}`, retP[el[0].index]); } } });
+      onClick: (e, el) => { if (el.length) abrirRevs(`${T("Taxa de aprovação dos retornos")} · ${psP[el[0].index].rotulo}`, retP[el[0].index]); } } });
   // Aging (como o "Tempo desde a última modificação" do RTA)
   const faixas = [["Até 15 dias", 0, 15, "#1e8e3e"], ["16 a 30 dias", 16, 30, "#fbc02d"], ["31 a 60 dias", 31, 60, "#fb8c00"], ["Mais de 60 dias", 61, 1e9, "#d93025"]];
   const aging = (lista, ref) => faixas.map(([, a, b]) => lista.filter(d => { const x = ref(d); return x != null && x >= a && x <= b; }));
