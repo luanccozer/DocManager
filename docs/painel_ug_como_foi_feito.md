@@ -349,11 +349,13 @@ Tudo aqui vem da **linha do tempo** (seção 6), sem cancelados.
     reprovações;
   - não aprovados e em processo no começo e no fim;
   - ritmo médio = variação da aprovação total ÷ semanas da janela.
-- **Tendência entre as datas**: quantos documentos estavam em cada status no fim de cada semana
-  (janelas de 3 e 6 meses) ou de cada mês (12 meses e tudo). A linha tracejada é a aprovação total.
+- **Evolução de cada status** (até 13/11/2026 se chamava "Tendência entre as datas"): quantos
+  documentos estavam em cada status no fim de cada semana (janelas de 3 e 6 meses) ou de cada mês (12
+  meses e tudo). A linha tracejada é a aprovação total. A "tendência" é a direção das linhas, não uma
+  projeção; a janela termina hoje e não depende da data de comparação do alto da aba.
 - **Evolução da carteira**: mês a mês desde o primeiro evento: aprovação total, em processo, não
   aprovados e não emitidos, empilhados até o total.
-- **Histórico por data**: os pontos da tendência em tabela (do mais recente para o mais antigo).
+- **Histórico por data**: os pontos de "Evolução de cada status" em tabela (do mais recente para o mais antigo).
 - **O que mudou desde a data**:
 
 | Grupo | Documentos |

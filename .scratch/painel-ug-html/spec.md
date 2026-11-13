@@ -35,7 +35,7 @@ documentos com busca e exportação para Excel, PT/EN), em cinco abas:
    aprovados) e a lista de vencidos e próximas emissões.
 3. **Progresso**: a tendência como na aba Progresso da Sala Segura, pela linha do tempo
    de cada documento: comparação com uma data (KPIs com variação), resumo em palavras,
-   tendência entre datas, evolução da carteira, histórico por data e o que mudou.
+   evolução de cada status, evolução da carteira, histórico por data e o que mudou.
 4. **Esforço da engenharia**: envios à Itaipu por tipo (1ª emissão, reemissão, emissão
    final), retornos por status, em que revisão cada documento foi aprovado, prazo de
    análise da Itaipu, há quanto tempo cada documento espera e envios por responsável.

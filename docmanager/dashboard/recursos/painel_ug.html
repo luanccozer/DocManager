@@ -305,10 +305,10 @@ const AJUDA = [
 [
 "prg-tendencia",
 "Progresso",
-"Tendência entre as datas",
-"Quantos documentos estavam em cada status no fim de cada semana (janelas de até 6 meses) ou de cada mês. A linha tracejada é a aprovação total. Clique num ponto para ver os documentos daquele status naquela data.",
-"Trend between dates",
-"How many documents were in each status at the end of each week (windows up to 6 months) or each month. The dashed line is total approval. Click a point to see the documents in that status on that date."
+"Evolução de cada status",
+"Quantos documentos estavam em cada status no fim de cada semana (janelas de 3 e 6 meses) ou de cada mês (12 meses e tudo), reconstruído do histórico do Aconex. Não é projeção nem conta: a tendência é a direção das linhas, por exemplo a aprovação total subindo e os não aprovados caindo. A janela sempre termina hoje e não depende da data de comparação do alto da aba. A linha tracejada é a aprovação total. Clique num ponto para ver os documentos daquele status naquela data.",
+"How each status evolved",
+"How many documents were in each status at the end of each week (3 and 6-month windows) or each month (12 months and all), rebuilt from the Aconex history. It is not a projection or a calculation: the trend is the direction of the lines, for example total approval going up and not approved going down. The window always ends today and does not depend on the comparison date at the top of the tab. The dashed line is total approval. Click a point to see the documents in that status on that date."
 ],
 [
 "prg-carteira",
@@ -322,9 +322,9 @@ const AJUDA = [
 "prg-historico",
 "Progresso",
 "Histórico por data",
-"Os mesmos pontos da tendência em tabela, do mais recente para o mais antigo.",
+"Os mesmos pontos de “Evolução de cada status”, em tabela, do mais recente para o mais antigo.",
 "History by date",
-"The same points as the trend, in a table, from the most recent to the oldest."
+"The same points as “How each status evolved”, in a table, from the most recent to the oldest."
 ],
 [
 "prg-mudou",
@@ -478,7 +478,7 @@ const EN = {
   "3 meses atrás": "3 months ago", "Início do ano": "Start of the year", "Outra data": "Other date",
   "Data de referência": "Reference date", "Hoje (base Aconex)": "Today (Aconex base)", "Dias entre as datas": "Days between dates",
   "Último evento no Aconex": "Last Aconex event", "vs.": "vs.", "sem alteração": "no change",
-  "Tendência entre as datas": "Trend between dates", "Janela": "Window", "3 meses": "3 months", "6 meses": "6 months", "12 meses": "12 months", "Tudo": "All",
+  "Evolução de cada status": "How each status evolved", "Janela": "Window", "3 meses": "3 months", "6 meses": "6 months", "12 meses": "12 months", "Tudo": "All",
   "clique em um ponto para ver os documentos": "click a point to see the documents",
   "Aprovados (sem comentários)": "Approved (no comments)", "Aprovação total": "Total approval",
   "Evolução da carteira": "Portfolio evolution", "estado de cada documento no fim de cada período, reconstruído do histórico do Aconex": "state of each document at the end of each period, rebuilt from the Aconex history",
@@ -1185,7 +1185,7 @@ function pintarProgresso(aba, docs) {
     </div>
     <div class="kpis" id="kpis-prg"></div>
     <div class="resumo" id="resumo-prg"></div>
-    <div class="card"><h3>${T("Tendência entre as datas")} ${info("prg-tendencia")} <small>${T("clique em um ponto para ver os documentos")}</small></h3>
+    <div class="card"><h3>${T("Evolução de cada status")} ${info("prg-tendencia")} <small>${T("clique em um ponto para ver os documentos")}</small></h3>
       <div class="ctl" style="margin-bottom:8px"><label>${T("Janela")}<span class="seg" id="seg-jan">${[["3", "3 meses"], ["6", "6 meses"], ["12", "12 meses"], ["tudo", "Tudo"]].map(([k, r]) => `<button data-k="${k}"${PRG.janela === k ? ' class="on"' : ""}>${T(r)}</button>`).join("")}</span></label></div>
       <div class="caixa" style="height:420px"><canvas id="g-tend"></canvas></div></div>
     <div class="card"><h3>${T("Evolução da carteira")} ${info("prg-carteira")} <small>${T("estado de cada documento no fim de cada período, reconstruído do histórico do Aconex")}</small></h3><div class="caixa" style="height:360px"><canvas id="g-cart"></canvas></div></div>
