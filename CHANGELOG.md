@@ -14,6 +14,7 @@ dela aqui **antes** de criar a tag.
 - O botão Como ler o painel, e o i ao lado de cada gráfico, explicam o que ele mostra e como é calculado. A lista de documentos e a história de cada um mostram o Tracking ID do Aconex, e a qualidade dos dados diz quantos documentos foram achados só por um dos códigos.
 - Esforço da engenharia: os gráficos de prazo de reemissão da CMI, prazo de análise da Itaipu e taxa de aprovação só mostram os meses com 10 casos ou mais (5 por semana): com 3 ou 4 casos a linha pulava entre 0% e 100% sem dizer nada. Os três começam no mesmo mês, e o ponto diz quantos de quantos ao passar o mouse. O i de cada um diz como ler e o que costuma confundir.
 - Painel, Qualidade dos dados: o documento achado só pelo Nº ITAIPU agora diz se o Aconex não tem Nº CMI para ele (a atualização mantém o da planilha, e o caso só some quando alguém preenche o Nº CMI no Aconex) ou se o Nº CMI da planilha é diferente (a próxima atualização troca). Quadro novo: documentos que aparecem em mais de uma linha da planilha com datas diferentes, para alinhar. Nas listas, a coluna Linha mostra todas as linhas da planilha de cada documento.
+- Histórico Consolidado e painel: quando o Aconex registra um veredito, como "Para Informação", e no mesmo dia o "Em Processo" da mesma revisão, a revisão agora aparece em análise com a Itaipu. Antes, o histórico tomava esse veredito, que veio antes, como retorno do envio e fechava a revisão com 0 dias; no painel, o "Em análise agora" ficava abaixo do "Com quem está".
 
 ## 3.6.6
 

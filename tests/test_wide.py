@@ -59,6 +59,49 @@ def test_retorno_mesma_revisao_mesmo_status_usa_primeira_data():
     assert pd.Timestamp(linha["Data Envio"]) == pd.Timestamp("2024-09-01")
 
 
+def test_envio_no_mesmo_dia_depois_do_retorno_e_ultimo_evento_fica_em_aberto():
+    # 'Para Informação' e, no MESMO dia, 'Em Processo' (versões 1 e 2): o retorno veio
+    # antes do envio. Pela data sozinha o ciclo fechava com 0 dias e o documento sumia
+    # do "em análise"; a versão desempata e, como o envio é o último evento do
+    # documento, a revisão fica em aberto (relançamento, KB §24.6). Caso real de
+    # 2026-11 (2 documentos do Doc List da UG).
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
+        .evento("0", 1, "Para Informação", "30/10/2026")
+        .evento("0", 2, "Em Processo", "30/10/2026", current=True)
+    )
+    linha = build_wide_table(gerar_dataset_dashboard(b)).iloc[0]
+    assert pd.Timestamp(linha["Data Envio"]) == pd.Timestamp("2026-10-30")
+    assert pd.isna(linha["Data Retorno"])
+
+
+def test_retorno_no_mesmo_dia_depois_do_envio_fecha_o_ciclo():
+    # A ordem normal no mesmo dia (envio e depois veredito) continua fechando o ciclo.
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
+        .evento("0", 1, "Em Processo", "30/10/2026")
+        .evento("0", 2, "Para Informação", "30/10/2026", current=True)
+    )
+    linha = build_wide_table(gerar_dataset_dashboard(b)).iloc[0]
+    assert pd.Timestamp(linha["Data Envio"]) == pd.Timestamp("2026-10-30")
+    assert pd.Timestamp(linha["Data Retorno"]) == pd.Timestamp("2026-10-30")
+    assert str(linha["Status Retorno"]) == "Para Informação"
+
+
+def test_envio_no_mesmo_dia_depois_do_retorno_que_nao_e_o_ultimo_evento_nao_abre_ciclo():
+    # Envio no mesmo dia, depois do veredito, mas seguido de outro veredito: não é
+    # relançamento, e o ciclo continua fechado como antes.
+    b = base(
+        HistoricoBuilder("T1", "IT-1", "CMI-1", "DOC")
+        .evento("0", 1, "Aprovado", "10/10/2026")
+        .evento("0", 2, "Em Processo", "10/10/2026")
+        .evento("0", 3, "Aprovado", "12/10/2026", current=True)
+    )
+    linha = build_wide_table(gerar_dataset_dashboard(b)).iloc[0]
+    assert pd.Timestamp(linha["Data Envio"]) == pd.Timestamp("2026-10-10")
+    assert str(linha["Status Retorno"]) == "Aprovado"
+
+
 def test_borda_19_08_em_processo_e_regime_novo():
     # 'Em Processo' em 19/08 é ENVIO REAL no regime novo (não vira 'Em Processo (CMI)').
     b = base(HistoricoBuilder("T", "IT", "CMI").evento("0A", 1, "Em Processo", "19/08/2024", current=True))

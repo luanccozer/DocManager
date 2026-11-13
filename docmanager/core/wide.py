@@ -193,7 +193,11 @@ def gerar_dataset_dashboard(df_bruto: pd.DataFrame) -> pd.DataFrame:
             continue
         linha_ret = _retorno_representativo(g_ret)
         data_ret = linha_ret[COL_DATA]
-        tardios = g_env[g_env[COL_DATA] > data_ret]
+        # Envio POSTERIOR ao retorno: data maior ou, no mesmo dia, versão maior. Sem o
+        # desempate pela versão, "Para Informação" e depois "Em Processo" no mesmo dia
+        # fechavam o ciclo com 0 dias, e o documento em análise sumia (2026-11-13).
+        tardios = g_env[(g_env[COL_DATA] > data_ret)
+                        | ((g_env[COL_DATA] == data_ret) & (g_env["Versão_Int"] > linha_ret["Versão_Int"]))]
         if not tardios.empty:
             s = tardios.iloc[-1]
             if (s[COL_DATA], s["Versão_Int"]) == ult_key.get(chave[0]):

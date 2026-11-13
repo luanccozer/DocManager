@@ -272,7 +272,10 @@ veredito), como no Histórico Consolidado do DocManager (`gerar_dataset_dashboar
   veredito apareceu (a repetição do mesmo status é atualização de metadados).
 - **Envio da revisão** = o último "Em Processo" até a data do retorno. Um envio depois do último
   retorno vale como ciclo novo em aberto só se for o último evento do documento (relançamento);
-  senão, foi uma subida errada corrigida logo depois e é ignorado.
+  senão, foi uma subida errada corrigida logo depois e é ignorado. "Depois" é data maior ou, no
+  mesmo dia, versão maior: "Para Informação" seguido de "Em Processo" no mesmo dia é um envio em
+  aberto, não um ciclo fechado com 0 dias (corrigido em 13/11/2026; antes, o "Em análise agora"
+  do Histórico de revisões ficava 2 abaixo do "Com quem está" na base de 10/11).
 - Revisão sem "Em Processo": o último "Para Aprovação" até o retorno vale como envio (como as
   revisões "0" do início do projeto subiam). Em planilha de comissionamento, "Para Aprovação" é
   retorno ("Para Assinatura"), só se a revisão teve envio.
