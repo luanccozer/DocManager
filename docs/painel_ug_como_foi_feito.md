@@ -144,11 +144,21 @@ Conferência na base de 10/11/2026:
 | | Documentos |
 |---|---|
 | Achados pelo par Itaipu + CMI | 906 |
-| Achados só pelo Nº ITAIPU (o Nº CMI da planilha não bate com o Aconex) | 8 |
+| Achados só pelo Nº ITAIPU, porque o Aconex não tem Nº CMI para eles | 8 |
+| Achados só pelo Nº ITAIPU com o Nº CMI da planilha diferente do do Aconex | 0 |
 | Não achados (todos NÃO EMITIDO na planilha) | 178 |
 | Código com mais de um Tracking ID | 0 |
 | Achados por um código antigo | 0 |
 | Dois códigos da planilha no mesmo Tracking ID | 0 |
+
+**O outro código.** Achado o documento, a atualização do Doc List grava na planilha o N° ITAIPU, o
+Nº CMI e a descrição da linha Current dele no Aconex (`processar_documento` →
+`cod_itaipu_atual`, `cod_cmi_atual`, `descricao_atual`; `_escrever_documento` só grava o que veio
+preenchido). Um código antigo ou errado é trocado, e o documento passa a ser achado pelo par. Se o
+Aconex não tem o Nº CMI ("Controle do Emissor" vazio), fica o da planilha, e o documento continua
+"achado só pelo Nº ITAIPU". O painel marca esse caso (`aconex_sem_cmi`) e a Qualidade dos dados o
+separa do Nº CMI diferente. Na base de 10/11/2026, os 8 achados só pelo Nº ITAIPU são todos de
+documentos sem Nº CMI no Aconex, em todas as linhas do histórico.
 
 ---
 
@@ -308,7 +318,7 @@ correspondentes (seção 9).
 | Documentos por escopo | pizza pelo grupo da primeira linha do documento |
 | Documentos por grupo e status | barras empilhadas: grupo da primeira linha × status consolidado (as barras somam o total) |
 | Documentos por sistema | tabela: para cada sistema, os documentos que têm linha nele (um documento pode contar em vários sistemas); aprovados (aprovação total), em processo, não aprovados, não emitidos, pendentes vencidos e compartilhados (documentos em mais de um sistema) |
-| Qualidade dos dados | contagens da planilha (linhas, documentos, códigos repetidos, grupos, sistemas com documentos, sistemas que só aparecem em grupos) e incidências: emitido sem data da 1ª emissão, sem data prevista nem reprogramada, não achados no Aconex, achado só pelo Nº ITAIPU, achado só pelo Nº CMI, código com mais de um Tracking ID, documentos compartilhados |
+| Qualidade dos dados | contagens da planilha (linhas, documentos, códigos repetidos, grupos, sistemas com documentos, sistemas que só aparecem em grupos) e incidências: emitido sem data da 1ª emissão, sem data prevista nem reprogramada, não achados no Aconex, achado só pelo Nº ITAIPU (o Aconex não tem Nº CMI, ou Nº CMI diferente do Aconex), achado só pelo Nº CMI, código com mais de um Tracking ID, documentos compartilhados (o mesmo código em mais de uma linha: conta uma vez, com os dados da 1ª linha) e compartilhados com datas diferentes nas linhas (`datas_divergentes`: DATA PREVISTA ou REPROGRAMADA diferente entre as linhas do código). Cada quadro abre a lista; a coluna Linha mostra todas as linhas da planilha do documento |
 
 ### 8.2 Emissões (o "Documentos para emissão" e a "Curva" do Power BI)
 

@@ -1469,8 +1469,16 @@ mínimo escrito na própria página.
   `localizar`) e guarda o Tracking ID, por qual código o documento foi achado (`par`, `cmi`,
   `itaipu`), se o código tinha mais de um Tracking ID e se casou com um código antigo. A página
   mostra o Tracking ID nas listas e na história do documento, e a qualidade dos dados conta os
-  achados por um código só e os ambíguos. Base de 10/11/2026: 906 pelo par, 8 só pelo Itaipu (CMI
-  da planilha diferente do Aconex), nenhum ambíguo, nenhum por código antigo.
+  achados por um código só e os ambíguos. Base de 10/11/2026: 906 pelo par, 8 só pelo Itaipu,
+  nenhum ambíguo, nenhum por código antigo.
+- **Qualidade dos dados** (2026-11-13, perguntas do usuário): a atualização do Doc List grava o
+  N° ITAIPU, o Nº CMI e a descrição da linha Current do Aconex, mas só o que vem preenchido. Os 8
+  achados só pelo Itaipu da base de 10/11 são documentos **sem Nº CMI no Aconex** (Controle do
+  Emissor vazio em todo o histórico): a planilha fica com o dela e o caso não some sozinho. O
+  painel separa "o Aconex não tem Nº CMI" (`aconex_sem_cmi`) de "Nº CMI diferente do Aconex". E
+  aponta os **compartilhados com datas diferentes** (`datas_divergentes`: o mesmo código em linhas
+  com DATA PREVISTA ou REPROGRAMADA diferentes; o painel usa a 1ª linha): 8 dos 16 compartilhados
+  na base de 10/11, de 50 a 531 dias de distância. A coluna Linha da lista mostra todas as linhas.
 - **Antes e depois de uma data** (aba Esforço): duas janelas de mesma duração em volta de uma data
   de corte (padrão: 1º dia de três meses atrás). Contagens por mês; dias para reemitir = envio da
   revisão seguinte − retorno "Não Aprovado" (o `Dias CMI` das revisões cujo retorno anterior foi

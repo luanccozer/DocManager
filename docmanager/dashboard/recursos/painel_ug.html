@@ -258,9 +258,9 @@ const AJUDA = [
 "geral-qualidade",
 "Visão geral",
 "Qualidade dos dados",
-"Conferências da planilha e do rastreamento; nada é corrigido sozinho. 'Achado só pelo Nº ITAIPU' quer dizer que o Nº CMI da planilha não bate com o do Aconex, mas o documento foi achado mesmo assim; a próxima atualização do Doc List grava o código do Aconex. 'Código com mais de um Tracking ID' quer dizer que o código está em dois documentos do Aconex e valeu o de alteração mais recente: vale conferir.",
+"Conferências da planilha e do rastreamento; nada é corrigido sozinho. Cada quadro abre a lista, e a coluna Linha diz em que linhas da planilha o documento está. <b>Achado só pelo Nº ITAIPU</b> tem dois casos: o Aconex não tem Nº CMI para o documento (a atualização do Doc List mantém o da planilha, e o caso continua aqui até alguém preencher o Nº CMI no Aconex) ou o Nº CMI da planilha é outro (a próxima atualização grava o do Aconex). <b>Achado só pelo Nº CMI</b>: a próxima atualização grava o Nº ITAIPU do Aconex. <b>Código com mais de um Tracking ID</b>: o código está em dois documentos do Aconex e valeu o de alteração mais recente; vale conferir. <b>Documentos compartilhados</b>: o mesmo código em mais de uma linha, em geral em mais de um sistema; conta uma vez, com as datas da 1ª linha. <b>Compartilhados com datas diferentes</b>: essas linhas têm DATA PREVISTA ou REPROGRAMADA diferentes; o painel usa a da 1ª linha, e vale alinhar na planilha.",
 "Data quality",
-"Checks on the spreadsheet and on the tracking; nothing is fixed automatically. 'Found by Itaipu No. only' means the spreadsheet's CMI No. does not match Aconex, but the document was found anyway; the next Doc List update writes the Aconex code. 'Code with more than one Tracking ID' means the code is used by two Aconex documents and the most recently changed one was chosen: worth checking."
+"Checks on the spreadsheet and on the tracking; nothing is fixed automatically. Each box opens the list, and the Row column shows the spreadsheet rows where the document is. <b>Found by Itaipu No. only</b> has two cases: Aconex has no CMI No. for the document (the Doc List update keeps the spreadsheet's, and the case stays here until someone fills the CMI No. in Aconex) or the spreadsheet's CMI No. is a different one (the next update writes the Aconex one). <b>Found by CMI No. only</b>: the next update writes the Aconex Itaipu No. <b>Code with more than one Tracking ID</b>: the code is used by two Aconex documents and the most recently changed one was chosen; worth checking. <b>Shared documents</b>: the same code in more than one row, usually in more than one system; it counts once, with the dates of the first row. <b>Shared, with different dates</b>: those rows have a different DATA PREVISTA or REPROGRAMADA; the panel uses the first row's, and they are worth aligning in the spreadsheet."
 ],
 [
 "emi-status",
@@ -535,8 +535,10 @@ const EN = {
   "Quando a equipe reemite documentos parados há muito tempo, a mediana de dias para reemitir sobe: leia junto com os não aprovados aguardando.": "When the team reissues documents that were stuck for a long time, the median days to reissue goes up: read it together with the not approved waiting.",
   "Prazo de reemissão da CMI": "CMI reissue time", "% das reemissões depois de reprovação feitas em até 15 dias": "% of reissues after rejection made within 15 days",
   "aprovados ÷ (aprovados + não aprovados)": "approved ÷ (approved + not approved)",
-  "Achado só pelo Nº ITAIPU (o Nº CMI não confere com o Aconex)": "Found by Itaipu No. only (CMI No. does not match Aconex)",
-  "Achado só pelo Nº CMI (o Nº ITAIPU não confere com o Aconex)": "Found by CMI No. only (Itaipu No. does not match Aconex)",
+  "Achado só pelo Nº ITAIPU: o Aconex não tem Nº CMI": "Found by Itaipu No. only: Aconex has no CMI No.",
+  "Achado só pelo Nº ITAIPU: Nº CMI diferente do Aconex": "Found by Itaipu No. only: CMI No. differs from Aconex",
+  "Compartilhados com datas diferentes nas linhas": "Shared, with different dates across rows",
+  "Achado só pelo Nº CMI: Nº ITAIPU diferente do Aconex": "Found by CMI No. only: Itaipu No. differs from Aconex",
   "Código com mais de um Tracking ID (valeu o mais recente)": "Code with more than one Tracking ID (the most recent was used)",
 };
 const EN_ST = {
@@ -596,6 +598,7 @@ const DOCS = D.docs.map((a, i) => ({
   tl: a[20].map(([d, s]) => [dt(d), s]),
   revs: a[21].map(r => ({ rev: r[0], tipo: r[1], env: dt(r[2]), ret: dt(r[3]), stRet: r[4], dIt: r[5], aIt: r[6], dCmi: r[7], aCmi: r[8], sla: r[9] })),
   trk: a[22] || "", via: a[23] || "", ambiguo: !!a[24], vigente: a[25] == null ? true : !!a[25],
+  semCmi: !!a[26], datasDiv: !!a[27],   // Aconex sem Nº CMI; mesmo código com datas diferentes nas linhas
   assoc: [],
 }));
 const ASSOC = D.assoc.map(a => ({ doc: a[0], grupo: a[1] || "—", sistema: a[2] || "—", fase: a[3] || "—", resp: a[4] || "—", escopo: a[5], codGrupo: a[6], linha: a[7] }));
@@ -746,7 +749,7 @@ const COLS_DOC = () => [
   [T("Com quem está"), d => d.com], [T("Situação emissão"), d => d.sit, "sit"], [T("Situação OTD"), d => d.otd, "sit"],
   [T("Situação say-do"), d => d.sd, "sit"], [T("Data prevista"), d => d.prev, "data"], [T("Data reprogramada"), d => d.rep, "data"],
   [T("Data-alvo"), d => d.alvo, "data"], [T("1ª emissão (data)"), d => d.e1, "data"], [T("Última emissão"), d => d.ult, "data"],
-  [T("Rev."), d => d.rev], [T("Desvio (dias)"), d => d.dsv, "num"], [T("Linha"), d => d.linha, "num"],
+  [T("Rev."), d => d.rev], [T("Desvio (dias)"), d => d.dsv, "num"], [T("Linha"), d => d.assoc.length > 1 ? d.assoc.map(a => a.linha).join(", ") : d.linha, "num"],
 ];
 const COLS_REV = () => [
   [T("Nº ITAIPU"), r => r.doc.cod, "cod"], ["Tracking ID", r => r.doc.trk, "cod"], [T("Descrição"), r => r.doc.desc, "desc"], [T("Grupo"), r => r.doc.grupo], [T("Sistema"), r => r.doc.sistema],
@@ -1016,10 +1019,12 @@ function pintarQualidade(docs) {
     [T("Emitido sem DATA 1ª EMISSÃO"), docs.filter(d => d.st !== "NÃO EMITIDO" && !cancelado(d) && !d.e1)],
     [T("Sem data prevista nem reprogramada"), docs.filter(d => !d.alvo && !cancelado(d))],
     [T("Não achados no Aconex"), docs.filter(d => !d.acx)],
-    [T("Achado só pelo Nº ITAIPU (o Nº CMI não confere com o Aconex)"), docs.filter(d => d.via === "itaipu")],
-    [T("Achado só pelo Nº CMI (o Nº ITAIPU não confere com o Aconex)"), docs.filter(d => d.via === "cmi")],
+    [T("Achado só pelo Nº ITAIPU: o Aconex não tem Nº CMI"), docs.filter(d => d.via === "itaipu" && d.semCmi)],
+    [T("Achado só pelo Nº ITAIPU: Nº CMI diferente do Aconex"), docs.filter(d => d.via === "itaipu" && !d.semCmi)],
+    [T("Achado só pelo Nº CMI: Nº ITAIPU diferente do Aconex"), docs.filter(d => d.via === "cmi")],
     [T("Código com mais de um Tracking ID (valeu o mais recente)"), docs.filter(d => d.ambiguo)],
     [T("Documentos compartilhados (código repetido)"), rep],
+    [T("Compartilhados com datas diferentes nas linhas"), docs.filter(d => d.datasDiv)],
   ];
   const qb = (t, v) => `<div class="qb"><span>${t}</span><b>${v}</b></div>`;
   const box = document.getElementById("qualidade");

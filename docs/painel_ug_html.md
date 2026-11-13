@@ -48,10 +48,26 @@ O Tracking ID aparece na lista de documentos (e no Excel exportado) e na histór
 documento, para conferir no Aconex. A **Qualidade dos dados** mostra quantos foram achados só
 por um dos códigos e quantos códigos tinham mais de um Tracking ID.
 
+**E o outro código?** Achado o documento, a atualização do Doc List (Iniciar Atualização) grava na
+planilha o N° ITAIPU, o Nº CMI e a descrição da linha atual dele no Aconex. Um código antigo ou
+digitado errado é trocado, e na atualização seguinte o documento é achado pelo par. Se o Aconex não
+tem o Nº CMI (o campo "Controle do Emissor" vazio), fica o da planilha. Por isso a Qualidade dos
+dados separa o "achado só pelo Nº ITAIPU" em dois: **o Aconex não tem Nº CMI** (não some sozinho:
+alguém precisa preencher o Nº CMI no Aconex) e **Nº CMI diferente do Aconex** (a próxima
+atualização corrige).
+
 Na base de 10/11/2026: 914 dos 1.092 documentos foram achados (906 pelo par, 8 só pelo
-Nº ITAIPU porque o Nº CMI da planilha não confere com o Aconex). Nenhum código tinha mais de
-um Tracking ID, nenhum casou com um código antigo, e nenhum Tracking ID ficou com dois códigos
-da planilha. Os 178 não achados estão todos NÃO EMITIDO na planilha.
+Nº ITAIPU, todos porque o Aconex não tem Nº CMI para eles). Nenhum código tinha mais de um
+Tracking ID, nenhum casou com um código antigo, e nenhum Tracking ID ficou com dois códigos da
+planilha. Os 178 não achados estão todos NÃO EMITIDO na planilha.
+
+**Documentos compartilhados**: o mesmo código em mais de uma linha do Doc List, em geral porque
+está em mais de um sistema ou grupo (16 na base de 10/11/2026: 13 em duas linhas e 3 em três). O
+painel conta cada um uma vez, com os dados da 1ª linha; nos filtros e na tabela por sistema, ele
+aparece em cada sistema onde está. **Compartilhados com datas diferentes**: as linhas do mesmo
+código têm DATA PREVISTA ou REPROGRAMADA diferentes (8 na base de 10/11/2026, de 50 a 531 dias
+de distância); vale alinhar na planilha. A coluna **Linha** da lista diz em que linhas da planilha
+o documento está.
 
 ## Como cada número é calculado
 

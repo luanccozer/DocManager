@@ -206,6 +206,7 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
     por_chave: dict[str, int] = {}
     associacoes = []
     primeira_linha: list[LinhaDocList] = []
+    datas_das_linhas: dict[int, set] = {}   # (prevista, reprogramada) de cada linha do código
     for ln in linhas:
         if ln.e_grupo:
             continue
@@ -216,6 +217,8 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
             por_chave[chave] = len(primeira_linha)
             primeira_linha.append(ln)
         grupo_codigo = predecessores.get(ln.row, "")
+        datas_das_linhas.setdefault(por_chave[chave], set()).add(
+            (_iso(ln.data_prevista), _iso(ln.data_reprogramada)))
         associacoes.append({"doc": por_chave[chave], "grupo": ln.grupo, "sistema": ln.sistema,
                             "fase": ln.fase_projeto, "responsavel": ln.responsavel,
                             "escopo": escopo_da_linha(ln.sistema, grupo_codigo),
@@ -243,9 +246,13 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
         e1 = r.data_primeira_emissao
         tracking = str(df_t[COL_TRACKING].iloc[0]) if not df_t.empty else ""
         tempo = _alinhar_com_o_status_de_hoje(linha_do_tempo(df_t), df_t, r.status_real)
+        # Nº CMI da linha atual do documento no Aconex; vazio quando o Aconex não tem.
+        cmi_aconex = str(r.cod_cmi_atual or "").strip()
+        if cmi_aconex.lower() in ("nan", "none"):
+            cmi_aconex = ""
         docs.append({
             "codigo": ln.cod_itaipu or ln.cod_cmi,
-            "cmi": r.cod_cmi_atual or ln.cod_cmi,
+            "cmi": cmi_aconex or ln.cod_cmi,
             "codigo_atual": r.cod_itaipu_atual or "",
             "descricao": r.descricao_atual or ln.descricao,
             "prevista": _iso(ln.data_prevista),
@@ -276,6 +283,11 @@ def montar_dados_painel(linhas: list[LinhaDocList], base: pd.DataFrame, *, hoje:
             "achado_por": resolucoes[i].via,            # 'par', 'cmi', 'itaipu' ou '' (não achado)
             "ambiguo": bool(resolucoes[i].ambiguo),      # o código tinha mais de um Tracking ID
             "codigo_vigente": bool(resolucoes[i].vigente) if not df_t.empty else True,
+            # Achado, mas o Aconex não tem Nº CMI: a atualização da planilha mantém o dela, e
+            # um "achado só pelo Nº ITAIPU" assim não some sozinho.
+            "aconex_sem_cmi": bool(not df_t.empty and not cmi_aconex),
+            # O mesmo código em linhas com DATA PREVISTA ou REPROGRAMADA diferentes: vale a 1ª.
+            "datas_divergentes": len(datas_das_linhas.get(i, ())) > 1,
             "linha_do_tempo": [(d.isoformat(), s) for d, s in tempo],
             "revisoes": revisoes.get(tracking, []),
         })

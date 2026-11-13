@@ -13,6 +13,7 @@ dela aqui **antes** de criar a tag.
 - Esforço da engenharia: o quadro Antes e depois de uma data compara reemissões, aprovações, prazos da CMI e da Itaipu e os não aprovados aguardando em duas janelas de mesma duração, para ver se algo melhorou a partir de uma data. Também ganhou o prazo de reemissão da CMI e a taxa de aprovação dos retornos ao longo do tempo.
 - O botão Como ler o painel, e o i ao lado de cada gráfico, explicam o que ele mostra e como é calculado. A lista de documentos e a história de cada um mostram o Tracking ID do Aconex, e a qualidade dos dados diz quantos documentos foram achados só por um dos códigos.
 - Esforço da engenharia: os gráficos de prazo de reemissão da CMI, prazo de análise da Itaipu e taxa de aprovação só mostram os meses com 10 casos ou mais (5 por semana): com 3 ou 4 casos a linha pulava entre 0% e 100% sem dizer nada. Os três começam no mesmo mês, e o ponto diz quantos de quantos ao passar o mouse. O i de cada um diz como ler e o que costuma confundir.
+- Painel, Qualidade dos dados: o documento achado só pelo Nº ITAIPU agora diz se o Aconex não tem Nº CMI para ele (a atualização mantém o da planilha, e o caso só some quando alguém preenche o Nº CMI no Aconex) ou se o Nº CMI da planilha é diferente (a próxima atualização troca). Quadro novo: documentos que aparecem em mais de uma linha da planilha com datas diferentes, para alinhar. Nas listas, a coluna Linha mostra todas as linhas da planilha de cada documento.
 
 ## 3.6.6
 

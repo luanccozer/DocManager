@@ -192,8 +192,10 @@ def test_ordem_dos_campos_e_o_contrato_com_o_javascript():
     assert d1[14] == SIT_EMITIDO_NO_PRAZO and d1[19] == 1
     assert d1[20][0] == ["2026-03-05", "Em Processo"]
     assert d1[21][1][:5] == ["0B", TIPO_REEMISSAO, "2026-04-10", "2026-04-30", "Aprovado com Comentários"]
-    assert d1[22:] == ["T1", "par", 0, 1]                  # Tracking ID e como foi achado
-    assert c["docs"][1][22:] == ["", "", 0, 1]             # não achado no Aconex
+    # Tracking ID, como foi achado, ambíguo, código vigente, Aconex sem Nº CMI, datas
+    # diferentes nas linhas do mesmo código
+    assert d1[22:] == ["T1", "par", 0, 1, 0, 0]
+    assert c["docs"][1][22:] == ["", "", 0, 1, 0, 0]       # não achado no Aconex
     assert c["assoc"][2][:3] == [0, "SDSC", "SDSC - UG 18A"] and c["assoc"][2][5] == ESCOPO_18A
     assert c["meta"]["hoje"] == "2026-06-01" and c["meta"]["base"] == "b"
 
@@ -242,6 +244,41 @@ def test_rastreamento_diz_por_qual_codigo_o_documento_foi_achado():
     assert (docs[2]["tracking"], docs[2]["achado_por"]) == ("T3", "itaipu")
     assert (docs[1]["tracking"], docs[1]["achado_por"]) == ("", "")
     assert not any(d["ambiguo"] for d in docs) and all(d["codigo_vigente"] for d in docs)
+
+
+def test_achado_so_pelo_itaipu_separa_aconex_sem_n_cmi_de_n_cmi_diferente():
+    """Dois motivos para achar só pelo Nº ITAIPU: o Aconex não tem Nº CMI (a atualização
+    da planilha mantém o dela, e o caso não some sozinho) ou o Nº CMI da planilha é
+    outro (a próxima atualização grava o do Aconex)."""
+    linhas = _linhas()                                      # #IT-3 está na planilha com CMI-3
+    sem_cmi = base(_doc_reprovado_e_reemitido(),
+                   HistoricoBuilder("T3", "#IT-3", "", "DOC 3")
+                   .evento("0A", 1, "Em Processo", "20/02/2026", current=True))
+    d = montar_dados_painel(linhas, sem_cmi, hoje=HOJE)["documentos"][2]
+    assert d["achado_por"] == "itaipu" and d["aconex_sem_cmi"]
+    assert d["cmi"] == "CMI-3"                              # fica o Nº CMI da planilha
+
+    linhas[5].cod_cmi = "CMI-ERRADO"
+    docs = montar_dados_painel(linhas, _base(), hoje=HOJE)["documentos"]
+    assert docs[2]["achado_por"] == "itaipu" and not docs[2]["aconex_sem_cmi"]
+    assert not docs[0]["aconex_sem_cmi"] and not docs[1]["aconex_sem_cmi"]   # pelo par; não achado
+
+
+def test_documento_compartilhado_com_datas_diferentes_nas_linhas_fica_marcado():
+    """O mesmo código em duas linhas com datas diferentes: o painel usa as da 1ª linha e
+    marca o documento, para a qualidade dos dados apontar onde alinhar a planilha."""
+    linhas = _linhas()                                      # #IT-1 nas linhas 5 e 8, mesma data
+    docs = montar_dados_painel(linhas, _base(), hoje=HOJE)["documentos"]
+    assert not any(d["datas_divergentes"] for d in docs)
+
+    linhas[4].data_prevista = date(2026, 5, 20)
+    docs = montar_dados_painel(linhas, _base(), hoje=HOJE)["documentos"]
+    assert [d["datas_divergentes"] for d in docs] == [True, False, False]
+    assert docs[0]["prevista"] == "2026-03-10"              # vale a 1ª linha
+
+    linhas[4].data_prevista = date(2026, 3, 10)
+    linhas[4].data_reprogramada = date(2026, 8, 1)          # só a reprogramada difere
+    assert montar_dados_painel(linhas, _base(), hoje=HOJE)["documentos"][0]["datas_divergentes"]
 
 
 def test_codigo_com_dois_tracking_ids_fica_marcado_como_ambiguo():
