@@ -14,9 +14,13 @@ dela aqui **antes** de criar a tag.
 - O botão Como ler o painel, e o i ao lado de cada gráfico, explicam o que ele mostra e como é calculado. A lista de documentos e a história de cada um mostram o Tracking ID do Aconex, e a qualidade dos dados diz quantos documentos foram achados só por um dos códigos.
 - Esforço da engenharia: os gráficos de prazo de reemissão da CMI, prazo de análise da Itaipu e taxa de aprovação só mostram os meses com 10 casos ou mais (5 por semana): com 3 ou 4 casos a linha pulava entre 0% e 100% sem dizer nada. Os três começam no mesmo mês, e o ponto diz quantos de quantos ao passar o mouse. O i de cada um diz como ler e o que costuma confundir.
 
-## 3.6.5
+## 3.6.6
 
 - Doc List Mapping: a DATA 1ª EMISSÃO dos documentos emitidos antes de 19/08/2024, quando a submissão no Aconex ainda aparecia como "Para Análise", vinha errada: ficava com a data de uma reemissão posterior, ou vazia. Por isso um documento entregue no prazo podia aparecer como EMITIDO COM ATRASO, e um documento já aprovado como PENDENTE VENCIDO. Rode a atualização do Doc List de novo: a DATA 1ª EMISSÃO, a SITUAÇÃO EMISSÃO e a SITUAÇÃO OTD desses documentos são corrigidas.
+
+## 3.6.5 - 2026-11-10
+
+- Pendências: uma fórmula acima da tabela, como a contagem de Issue Number em A2, não impede mais a atualização, desde que conte pela Tabela (por exemplo =CONT.VALORES(tbRegistros[Issue Number]), que cresce sozinha). O Excel recalcula a fórmula ao abrir a planilha. Fórmula que aponta para células fixas das linhas que descem (como A5:A300), ou que está dentro da tabela ou abaixo dela, continua impedindo, e agora a mensagem diz em qual célula ela está e como trocar.
 
 ## 3.6.4 - 2026-11-09
 

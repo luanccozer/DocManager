@@ -4,7 +4,7 @@ Status: done
 
 Antes do corte a submissão era 'Para Análise'; `kpis.data_primeira_emissao` só
 reconhecia 'Em Processo'. Corrigido com teste (`tests/test_doclist.py`), KB §27.5,
-CHANGELOG 3.6.5. Na planilha real: 16 documentos com a data corrigida, 5 com a
+CHANGELOG 3.6.6 (a 3.6.5 ficou com a correção de Pendências de outra branch). Na planilha real: 16 documentos com a data corrigida, 5 com a
 SITUAÇÃO EMISSÃO trocada.
 
 ## Comments

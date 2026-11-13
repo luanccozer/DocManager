@@ -182,7 +182,7 @@ A 1ª emissão é o primeiro envio do documento à Itaipu (`data_primeira_emissa
 - dentro dela, vale o **envio mais recente** (o reenvio corrigiu o anterior);
 - revisões internas de 3 caracteres (0AA) e revisões terminadas não contam.
 
-**Correção feita junto com o painel (versão 3.6.5):** até a 3.6.4 o regime de antes de
+**Correção feita junto com o painel (versão 3.6.6):** até a 3.6.4 o regime de antes de
 19/08/2024 era ignorado, e o documento emitido antes do corte ficava com a data de uma reemissão
 posterior, ou sem data. Na planilha de 10/11/2026 eram 16 documentos: quatro apareciam como
 EMITIDO COM ATRASO sem estar, e um já aprovado aparecia como PENDENTE VENCIDO (na verdade saiu 5
@@ -510,10 +510,12 @@ foi feita à parte (seções 2 e 4) e nenhum código de documento entrou no repo
 4. Quem consulta abre o arquivo no navegador, sem o DocManager.
 
 **Lançar a versão:** o botão chega a todos com a versão 3.7.0. É preciso levar a branch do painel
-para a main, pôr a data nos blocos 3.6.5 e 3.7.0 do CHANGELOG e criar a tag; o GitHub Actions monta o
-instalador e o DocManager se atualiza sozinho (ver `BUILD.md`). A correção da 1ª emissão (3.6.5)
-está num commit separado e pode sair antes. Até lá, o botão só existe rodando o código da branch
-(`run.bat`).
+para a main, pôr a data nos blocos 3.6.6 e 3.7.0 do CHANGELOG e criar a tag; o GitHub Actions monta o
+instalador e o DocManager se atualiza sozinho (ver `BUILD.md`). A correção da 1ª emissão (3.6.6)
+está num commit separado. A 3.6.5 é a correção de Pendências (fórmula de contagem em A2), feita em
+outra branch e trazida para esta, para a 3.7.0 levar as duas. Para testar antes, a versão de teste
+(pré-lançamento, por exemplo 3.7.0-rc.1) sai pelo Release do GitHub disparado à mão na branch e fica
+na página de Releases; os DocManager instalados não a recebem sozinhos.
 
 ---
 

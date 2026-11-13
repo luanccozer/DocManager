@@ -258,9 +258,43 @@ def test_recusa_o_que_nao_da_para_deslocar(planilha, trecho, palavra):
     assert any(palavra in m for m in problemas), problemas
 
 
-def test_recusa_formula_na_aba(planilha):
-    problemas = _com(planilha, lambda x: x.replace('<c r="B2" ', '<c r="C2"><f>1+1</f><v>2</v></c><c r="B2" ', 1))
-    assert any("fórmula" in m for m in problemas)
+def _formula(planilha, ref, formula):
+    """A planilha com uma fórmula na célula `ref` (linha 2, acima da tabela, ou no corpo)."""
+    linha = re.match(r"[A-Z]+(\d+)", ref).group(1)
+    return _com(planilha, lambda x: re.sub(
+        rf'(<row r="{linha}"[^>]*>)', rf'\g<1><c r="{ref}"><f>{formula}</f><v>3</v></c>', x, count=1))
+
+
+@pytest.mark.parametrize("formula", [
+    "COUNTA(tbRegistros[Issue Number])",                     # referência da Tabela: cresce sozinha
+    "COUNTA(tbRegistros[[#Dados],[Issue Number]])+COUNTA(&apos;GRÁFICO SITUAÇÃO&apos;!A1:A900)",
+    '"A1:A900 "&amp;LOG10(100)&amp;COUNTA(A3)',              # texto, função com número, linha acima
+    "1+1",
+])
+def test_formula_acima_da_tabela_sem_endereco_das_linhas_que_descem_passa(planilha, formula):
+    assert _formula(planilha, "C2", formula) == []
+
+
+@pytest.mark.parametrize("formula", ["COUNTA(A5:A300)", "COUNTA($A$5:$A$300)", "SUM(5:300)",
+                                     "COUNTA(PENDÊNCIAS!A5:A9)", "A2+B7"])
+def test_formula_acima_da_tabela_que_cita_as_linhas_que_descem_recusa(planilha, formula):
+    problemas = _formula(planilha, "C2", formula)
+    assert len(problemas) == 1 and "A fórmula em C2" in problemas[0]
+    assert "=CONT.VALORES(tbRegistros[Issue Number])" in problemas[0]
+
+
+def test_formula_na_tabela_ou_abaixo_recusa_dizendo_a_celula(planilha):
+    problemas = _formula(planilha, "Z6", "1+1")
+    assert any("Há fórmula em Z6" in m for m in problemas), problemas
+    problemas = _com(planilha, lambda x: x.replace(
+        "</sheetData>", '<row r="20"><c r="A20"><f>A5</f><v>9</v></c></row></sheetData>'))
+    assert any("Há fórmula em A20" in m for m in problemas), problemas
+
+
+def test_formula_compartilhada_sem_texto_recusa(planilha):
+    problemas = _com(planilha, lambda x: re.sub(
+        r'(<row r="2"[^>]*>)', r'\g<1><c r="C2"><f t="shared" si="0"/><v>1</v></c>', x, count=1))
+    assert any("compartilhada" in m for m in problemas), problemas
 
 
 def test_dado_abaixo_da_tabela_so_passa_quando_o_chamador_aceita(planilha):

@@ -54,7 +54,7 @@ está, situação de emissão) são encadeados e valem para todas as abas.
 | Público e idioma | Gestão na reunião semanal; português com botão inglês; sem espanhol |
 | UG e 18A | Juntos, com filtro de escopo |
 | O que é aprovado | Manter o status real: as visões mostram aprovado, com comentários, para assinatura e informativo; "aprovação total" é a soma deles |
-| DATA 1ª EMISSÃO antes de 19/08/2024 | Corrigida no DocManager, versão própria (3.6.5) |
+| DATA 1ª EMISSÃO antes de 19/08/2024 | Corrigida no DocManager, versão própria (3.6.6; a 3.6.5 ficou com a correção de Pendências de outra branch) |
 | Passado | Só dos documentos do Doc List; histórico das revisões como no módulo Histórico (não o dashboard antigo) |
 | Onde fica o HTML | Gerado no módulo Doc List; salvo no Box para reabrir |
 | Sala Segura | KPIs clicáveis com lista e exportação, filtros encadeados, tabela por sistema e qualidade dos dados; aba Progresso como modelo da tendência |
